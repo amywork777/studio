@@ -83,8 +83,25 @@ jobs:
             exit $code
           }
 
+      # Its cache hashes every file its pattern matches, node_modules included, which took an hour
+      # on Windows.
       - name: Setup uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+
+      # text-to-cad's runtime build copies the CAD viewer with rsync, which Git Bash lacks. The
+      # runner's MSYS2 has one; a wrapper on PATH runs it.
+      - name: Add rsync
+        run: |
+          set -euo pipefail
+          /c/msys64/usr/bin/pacman.exe -Sy --noconfirm --needed rsync
+          bin="$(cygpath -u "$RUNNER_TEMP")/rsync-bin"
+          mkdir -p "$bin"
+          printf '#!/bin/sh\nexec /c/msys64/usr/bin/rsync.exe "$@"\n' >"$bin/rsync"
+          chmod +x "$bin/rsync"
+          "$bin/rsync" --version | head -1
+          cygpath -w "$bin" >>"$GITHUB_PATH"
 
       # As scripts/setup-studio.sh does on a Mac.
       - name: Set up the CAD tools
