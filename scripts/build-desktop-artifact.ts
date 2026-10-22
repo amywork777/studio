@@ -3205,10 +3205,7 @@ function collectUnpackedAsarFiles(
   return output;
 }
 
-const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (
-  root: string,
-  skipped: ReadonlySet<string> = new Set(),
-) {
+const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (root: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const pendingDirectories = [root];
@@ -3222,7 +3219,7 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
       const entryPath = path.join(directory, entry);
       const stat = yield* fs.stat(entryPath);
       if (stat.type === "Directory") {
-        if (!skipped.has(entryPath)) pendingDirectories.push(entryPath);
+        pendingDirectories.push(entryPath);
       } else if (stat.type === "File") {
         count += 1;
       }
@@ -3324,8 +3321,6 @@ export const validateWindowsPackagedPayload = Effect.fn(
   readonly appVersion: string;
   readonly expectWslRuntime?: boolean;
   readonly fileLimit?: number;
-  /** Folders of `resources` the file limit leaves out. */
-  readonly uncountedResources?: ReadonlyArray<string>;
   readonly verbose?: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
@@ -3525,10 +3520,7 @@ export const validateWindowsPackagedPayload = Effect.fn(
     }
   }
 
-  const fileCount = yield* countPayloadFiles(
-    packagedAppDir,
-    new Set((input.uncountedResources ?? []).map((folder) => path.join(resourcesDir, folder))),
-  );
+  const fileCount = yield* countPayloadFiles(packagedAppDir);
   if (fileCount > fileLimit) {
     return yield* new WindowsPackagedPayloadValidationError({
       reason: "file-limit-exceeded",
@@ -4112,8 +4104,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     yield* validateWindowsPackagedPayload({
       stageDistDir,
       appExecutableName: `${options.studioBundle === undefined ? resolveDesktopProductName(appVersion) : STUDIO_PRODUCT_NAME}.exe`,
-      // Studio's CAD tools and their Python are tens of thousands of files of its own.
-      uncountedResources: options.studioBundle === undefined ? [] : [STUDIO_RESOURCES_DIR],
+      // Studio carries its CAD tools' Python, tens of thousands of files, so T3 Code's budget for
+      // its own payload's install time doesn't hold for it.
+      ...(options.studioBundle === undefined ? {} : { fileLimit: Number.POSITIVE_INFINITY }),
       targetArch: options.arch,
       appVersion,
       expectWslRuntime: bundlesWslRuntime({

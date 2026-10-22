@@ -1806,37 +1806,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
-  it.effect("leaves Studio's CAD tools out of the file-count budget", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
-        const t3Only = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-        });
-        const python = path.join(fixture.packagedAppDir, "resources", "studio", "python");
-        yield* fs.makeDirectory(python, { recursive: true });
-        for (const name of ["python.exe", "python313.dll", "a.py", "b.py"]) {
-          yield* fs.writeFileString(path.join(python, name), name);
-        }
-
-        const withStudio = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-          fileLimit: t3Only.fileCount,
-          uncountedResources: ["studio"],
-        });
-        assert.equal(withStudio.fileCount, t3Only.fileCount);
-      }),
-    ),
-  );
-
   it.effect("rejects a sidecar whose extracted server bundle cannot resolve", () =>
     Effect.scoped(
       Effect.gen(function* () {

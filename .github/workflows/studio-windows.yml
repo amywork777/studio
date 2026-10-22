@@ -133,6 +133,11 @@ jobs:
           $files = Get-ChildItem -Recurse -File $app
           $longest = $files | Sort-Object { $_.FullName.Length } | Select-Object -Last 1
           Write-Host "$($files.Count) files; the longest path is $($longest.FullName.Length) characters: $($longest.FullName)"
+          $cad = Join-Path $app "resources\studio"
+          $rest = $files | Where-Object { -not $_.FullName.StartsWith($cad) }
+          Write-Host "$($rest.Count) of them outside the CAD tools, by folder:"
+          $rest | Group-Object { $_.DirectoryName.Substring($app.Length) } | Sort-Object Count -Descending |
+            Select-Object -First 15 | ForEach-Object { Write-Host "  $($_.Count) in .$($_.Name)" }
           & (Join-Path $app "resources\studio\python\python.exe") -c "import cadgen.mcp.server, OCP, netgen; print('The CAD tools import in the installed app.')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
