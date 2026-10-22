@@ -27,9 +27,28 @@ const t3Config = {
   dmg: { title: "T3 Code 0.0.45 Installer", background: "dmg/dmg-background-latest.png" },
 };
 
+/** T3 Code's config for a Windows build: no Mac settings, its installer and Windows's own. */
+const t3WinConfig = {
+  appId: "com.t3tools.t3code",
+  productName: "T3 Code (Alpha)",
+  artifactName: "T3-Code-${version}-${arch}.${ext}",
+  extraResources: [
+    { from: "apps/desktop/prod-resources/resource-monitor", to: "resource-monitor" },
+  ],
+  publish: [{ provider: "github" }],
+  npmRebuild: false,
+  nsis: { differentialPackage: true },
+  win: {
+    target: ["nsis"],
+    icon: "icon.ico",
+    signExts: [".node", ".dll"],
+    signAndEditExecutable: true,
+  },
+};
+
 const entitlementsPath = "/repo/scripts/studio-app.entitlements.plist";
-const unsigned = { version: "0.1.0", signed: false, entitlementsPath };
-const signed = { version: "0.1.2", signed: true, entitlementsPath };
+const unsigned = { platform: "mac", version: "0.1.0", signed: false, entitlementsPath } as const;
+const signed = { platform: "mac", version: "0.1.2", signed: true, entitlementsPath } as const;
 
 describe("studioBuildConfig", () => {
   it("names and identifies the app as Studio, apart from T3 Code", () => {
@@ -82,6 +101,21 @@ describe("studioBuildConfig", () => {
       entitlementsInherit: entitlementsPath,
     });
     expect(built.dmg).toEqual({ title: "Studio 0.1.2" });
+  });
+
+  it("updates itself on Windows unsigned, with T3 Code's installer under Studio's name", () => {
+    const built = studioBuildConfig(t3WinConfig, { ...unsigned, platform: "win" });
+    expect(built.publish).toEqual([STUDIO_UPDATE_FEED]);
+    expect(built.productName).toBe("Studio");
+    expect(built.artifactName).toBe("Studio-${version}-${arch}.${ext}");
+    expect(built.win).toEqual(t3WinConfig.win);
+    expect(built.nsis).toEqual({ differentialPackage: true });
+    expect(built).not.toHaveProperty("mac");
+    expect(built.extraResources).toContainEqual({
+      from: "apps/desktop/prod-resources/studio",
+      to: "studio",
+    });
+    expect(JSON.stringify(built)).not.toContain("T3 Code");
   });
 
   it("leaves T3 Code's config as it was", () => {

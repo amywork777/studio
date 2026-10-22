@@ -8,8 +8,8 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { applyStudioAppBundle, writeFilledCopy } from "./studioAppBundle.ts";
 
 const made: string[] = [];
-const tempDir = () => {
-  const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "studio-app-bundle-"));
+const tempDir = (prefix = "studio-app-bundle-") => {
+  const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), prefix));
   made.push(dir);
   return dir;
 };
@@ -23,8 +23,8 @@ const write = (file: string, content: string) => {
 };
 
 /** A Resources folder with the bundle `scripts/build-studio-app.sh` stages. */
-function resources(): string {
-  const dir = tempDir();
+function resources(prefix?: string): string {
+  const dir = tempDir(prefix);
   const bundle = NodePath.join(dir, "studio");
   write(
     NodePath.join(bundle, "studio.json"),
@@ -85,6 +85,26 @@ describe("applyStudioAppBundle", () => {
     );
     expect(config.mcpServers.cad.command).toBe(python);
     expect(config.mcpServers.cad.env.CADGEN_MCP_APP_DIR).toBe(NodePath.join(res, "studio", "page"));
+  });
+
+  it("runs Windows's Python, quoted in the skills where its folder has a space", () => {
+    // As under a Windows user folder like C:\Users\Amy Zhou.
+    const res = resources("Studio Test ");
+    const home = tempDir();
+    applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env: {}, platform: "win32" });
+    const plugin = NodePath.join(
+      home,
+      ".studio-test",
+      "studio-app-plugins",
+      "plugins",
+      "text-to-cad",
+    );
+    const python = NodePath.join(res, "studio", "python", "python.exe");
+    expect(NodeFS.readFileSync(NodePath.join(plugin, "skills", "cad", "SKILL.md"), "utf8")).toBe(
+      `Run \`"${python}" -m cadgen.cli step snapshot part.step\`.\n`,
+    );
+    const config = JSON.parse(NodeFS.readFileSync(NodePath.join(plugin, "codex.mcp.json"), "utf8"));
+    expect(config.mcpServers.cad.command).toBe(python);
   });
 
   it("leaves what the environment already says", () => {

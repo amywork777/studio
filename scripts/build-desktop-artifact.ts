@@ -28,7 +28,9 @@ import { applyWebBrandAssets } from "./apply-web-brand-assets.ts";
 import {
   STUDIO_ENTITLEMENTS,
   STUDIO_MAC_ICON_PNG,
+  STUDIO_PRODUCT_NAME,
   STUDIO_RESOURCES_DIR,
+  STUDIO_WIN_ICON_ICO,
   studioBuildConfig,
   studioPackageJson,
 } from "./lib/studio-app.ts";
@@ -3203,7 +3205,10 @@ function collectUnpackedAsarFiles(
   return output;
 }
 
-const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (root: string) {
+const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (
+  root: string,
+  skipped: ReadonlySet<string> = new Set(),
+) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const pendingDirectories = [root];
@@ -3217,7 +3222,7 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
       const entryPath = path.join(directory, entry);
       const stat = yield* fs.stat(entryPath);
       if (stat.type === "Directory") {
-        pendingDirectories.push(entryPath);
+        if (!skipped.has(entryPath)) pendingDirectories.push(entryPath);
       } else if (stat.type === "File") {
         count += 1;
       }
@@ -3319,6 +3324,8 @@ export const validateWindowsPackagedPayload = Effect.fn(
   readonly appVersion: string;
   readonly expectWslRuntime?: boolean;
   readonly fileLimit?: number;
+  /** Folders of `resources` the file limit leaves out. */
+  readonly uncountedResources?: ReadonlyArray<string>;
   readonly verbose?: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
@@ -3518,7 +3525,10 @@ export const validateWindowsPackagedPayload = Effect.fn(
     }
   }
 
-  const fileCount = yield* countPayloadFiles(packagedAppDir);
+  const fileCount = yield* countPayloadFiles(
+    packagedAppDir,
+    new Set((input.uncountedResources ?? []).map((folder) => path.join(resourcesDir, folder))),
+  );
   if (fileCount > fileLimit) {
     return yield* new WindowsPackagedPayloadValidationError({
       reason: "file-limit-exceeded",
@@ -3627,7 +3637,11 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const iconAssets =
     options.studioBundle === undefined
       ? resolveDesktopBuildIconAssets(appVersion)
-      : { ...resolveDesktopBuildIconAssets(appVersion), macIconPng: STUDIO_MAC_ICON_PNG };
+      : {
+          ...resolveDesktopBuildIconAssets(appVersion),
+          macIconPng: STUDIO_MAC_ICON_PNG,
+          windowsIconIco: STUDIO_WIN_ICON_ICO,
+        };
   const commitHash = yield* resolveGitCommitHash(repoRoot);
   const mkdir = options.keepStage ? fs.makeTempDirectory : fs.makeTempDirectoryScoped;
   const stageRoot = yield* mkdir({
@@ -3920,6 +3934,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       options.studioBundle === undefined
         ? t3BuildConfig
         : studioBuildConfig(t3BuildConfig, {
+            platform: options.platform,
             version: appVersion,
             signed: options.signed,
             entitlementsPath: path.join(repoRoot, STUDIO_ENTITLEMENTS),
@@ -4096,7 +4111,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   if (options.platform === "win") {
     yield* validateWindowsPackagedPayload({
       stageDistDir,
-      appExecutableName: `${resolveDesktopProductName(appVersion)}.exe`,
+      appExecutableName: `${options.studioBundle === undefined ? resolveDesktopProductName(appVersion) : STUDIO_PRODUCT_NAME}.exe`,
+      // Studio's CAD tools and their Python are tens of thousands of files of its own.
+      uncountedResources: options.studioBundle === undefined ? [] : [STUDIO_RESOURCES_DIR],
       targetArch: options.arch,
       appVersion,
       expectWslRuntime: bundlesWslRuntime({

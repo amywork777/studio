@@ -5,7 +5,8 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 /**
- * The Studio app (`scripts/build-studio-app.sh`) carries a bundle in `Contents/Resources/studio`:
+ * The Studio app (`scripts/build-studio-app.sh`) carries a bundle in its resources
+ * (`Contents/Resources/studio` on a Mac, `resources\studio` on Windows):
  * the CAD tools with a Python of their own, their plugin laid out as a marketplace, the plugin's
  * page, and the settings the app starts with (`studio.json`). On each start, before anything reads
  * the environment, this points the app at that bundle, as `scripts/studio.ts` does for a checkout:
@@ -17,8 +18,8 @@ import * as NodePath from "node:path";
  *   live anywhere), then offered and turned on (`T3CODE_PLUGIN_MARKETPLACE`,
  *   `T3CODE_DEFAULT_PLUGINS`).
  *
- * The Mac needs no Node of its own: with none on PATH, cadgen runs its mesh and DXF builders on the
- * Node Playwright ships inside the bundled Python, finding it itself.
+ * The computer needs no Node of its own: with none on PATH, cadgen runs its mesh and DXF builders on
+ * the Node Playwright ships inside the bundled Python, finding it itself, on a Mac or on Windows.
  *
  * Anything already set in the environment wins, so a test can point the app elsewhere. Without a
  * bundle (T3 Code, or Studio run from a checkout) it does nothing.
@@ -27,14 +28,24 @@ export function applyStudioAppBundle(input: {
   readonly resourcesPath: string | undefined;
   readonly homeDirectory: string;
   readonly env: Record<string, string | undefined>;
+  /** The system the app runs on: the running one, unless a test names another. */
+  readonly platform?: NodeJS.Platform;
 }): void {
   if (input.resourcesPath === undefined || input.resourcesPath === "") return;
   const bundle = NodePath.join(input.resourcesPath, "studio");
   const settings = readSettings(NodePath.join(bundle, "studio.json"));
   if (settings === null) return;
   const { env } = input;
+  // oxlint-disable-next-line t3code/no-global-process-runtime -- Runs before any Effect runtime.
+  const platform = input.platform ?? process.platform;
   const home = env.T3CODE_HOME?.trim() || NodePath.join(input.homeDirectory, settings.home);
-  const python = NodePath.join(bundle, "python", "bin", "python3");
+  // uv's CPython keeps its program in `bin` on a Mac and at its top on Windows.
+  const python =
+    platform === "win32"
+      ? NodePath.join(bundle, "python", "python.exe")
+      : NodePath.join(bundle, "python", "bin", "python3");
+  // Windows paths go in with forward slashes, which Windows takes and JSON needs no escapes for.
+  const forPlugin = (path: string) => (platform === "win32" ? path.replaceAll("\\", "/") : path);
   setDefault(env, "T3CODE_HOME", home);
   setDefault(env, "VITE_APP_BASE_NAME", settings.name);
   setDefault(env, "T3CODE_DESKTOP_PROFILE", settings.profile);
@@ -44,8 +55,8 @@ export function applyStudioAppBundle(input: {
     // A folder of Studio's own name: T3 Code's plugin store keys a marketplace by its folder name.
     const marketplace = NodePath.join(home, "studio-app-plugins");
     writeFilledCopy(NodePath.join(bundle, "marketplace"), marketplace, {
-      "@@STUDIO_PYTHON@@": python,
-      "@@STUDIO_PAGE@@": NodePath.join(bundle, "page"),
+      "@@STUDIO_PYTHON@@": forPlugin(python),
+      "@@STUDIO_PAGE@@": forPlugin(NodePath.join(bundle, "page")),
     });
     setDefault(env, "T3CODE_PLUGIN_MARKETPLACE", marketplace);
   } catch (error) {
@@ -94,10 +105,23 @@ function filesIn(root: string, folder = ""): string[] {
   );
 }
 
-function filled(content: Buffer, values: Readonly<Record<string, string>>): Buffer {
+/**
+ * `content` with the app's paths in it: as a JSON string's text in a `.json` file, and elsewhere
+ * (the skills' commands) in quotes when the path has a space, as under a Windows user folder named
+ * like "Amy Zhou".
+ */
+function filled(content: Buffer, values: Readonly<Record<string, string>>, file: string): Buffer {
   if (!content.includes("@@STUDIO_")) return content;
+  const json = file.endsWith(".json");
   let text = content.toString("utf8");
-  for (const [token, value] of Object.entries(values)) text = text.replaceAll(token, value);
+  for (const [token, value] of Object.entries(values)) {
+    const written = json
+      ? JSON.stringify(value).slice(1, -1)
+      : /\s/.test(value)
+        ? `"${value}"`
+        : value;
+    text = text.replaceAll(token, written);
+  }
   return Buffer.from(text, "utf8");
 }
 
@@ -115,7 +139,7 @@ export function writeFilledCopy(
   for (const file of wanted) {
     const from = NodePath.join(source, file);
     const to = NodePath.join(target, file);
-    const content = filled(NodeFS.readFileSync(from), values);
+    const content = filled(NodeFS.readFileSync(from), values, file);
     let current: Buffer | null = null;
     try {
       current = NodeFS.readFileSync(to);
