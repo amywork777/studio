@@ -21,7 +21,7 @@ PART = """
 
     WIDTH = 40
 
-    @step
+    @step(out="plate.step")
     def plate():
         part = Pos(0, 0, -5) * Box(WIDTH, 20, 5)
         return part
@@ -800,7 +800,7 @@ class SketchMode(unittest.TestCase):
             INCH = 25.4
             SIDE = 1.00
 
-            @step
+            @step(out="plate.step")
             def plate():
                 part = Box(SIDE*INCH, SIDE*INCH, .25*INCH)
                 return part

@@ -27,7 +27,7 @@ BRACKET = textwrap.dedent(
     label = 3
 
 
-    @step
+    @step(out="bracket.step")
     def bracket():
         return WIDTH
     """
@@ -39,7 +39,7 @@ HUB = textwrap.dedent(
     BORE = -2.5
 
 
-    @step
+    @step(out="hub.step")
     def hub():
         return BORE
     """

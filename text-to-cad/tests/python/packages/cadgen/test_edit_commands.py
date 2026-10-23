@@ -34,7 +34,7 @@ BLOCK = {
         from cadgen import step
         from sizes import WIDTH, DEPTH, HEIGHT
 
-        @step
+        @step(out="block.step")
         def block():
             return Box(WIDTH, DEPTH, HEIGHT)
     """,
@@ -51,7 +51,7 @@ PLATE = {
         THICKNESS = .25
 
 
-        @step
+        @step(out="plate.step")
         def plate():
             plate = bd.Box(LENGTH*INCH, WIDTH*INCH, THICKNESS*INCH)
             plate -= bd.Pos(.5*INCH, 0, 0) * bd.Cylinder(.1*INCH, THICKNESS*INCH)
@@ -69,7 +69,7 @@ TRAY = {
         from cadgen import step
 
 
-        @step
+        @step(out="tray.step")
         def tray():
             outer = Box(40, 20, 10)
             outer = fillet(outer.edges().filter_by(Axis.Z), radius=2)
@@ -91,7 +91,7 @@ ASSEMBLY = {
         from cadgen import step
 
 
-        @step
+        @step(out="base.step")
         def base():
             return Box(20, 10, 4)
     """,
@@ -100,7 +100,7 @@ ASSEMBLY = {
         from cadgen import step
 
 
-        @step
+        @step(out="pin.step")
         def pin():
             return Pos(0, 0, 5) * Cylinder(2, 6)
     """,
@@ -115,7 +115,7 @@ ASSEMBLY = {
         from pin import pin
 
 
-        @step
+        @step(out="stack.step")
         def stack():
             return Compound(children=[base(), pin()], label="stack")
     """,
@@ -328,7 +328,7 @@ WEDGE = {
         from cadgen import step
 
 
-        @step
+        @step(out="wedge.step")
         def wedge():
             part = Box(20, 20, 10)
             part = chamfer(part.edges().group_by(Axis.Z)[-1].sort_by(Axis.Y)[-1], length=6)
@@ -569,7 +569,7 @@ class EditingFeatures(Commands):
             from cadgen import step
 
 
-            @step
+            @step(out="hub.step")
             def hub():
                 hub = Box(40, 40, 4) + Pos(5, 5, 4) * Cylinder(4, 4)
                 hub -= Pos(15, 5, 0) * Cylinder(1, 10)
@@ -754,10 +754,14 @@ class RollingBack(Commands):
         self.assertTrue(rolled["ok"], rolled.get("error"))
         self.assertEqual((rolled["bar"]["before"], rolled["bar"]["item"], rolled["bar"]["name"], rolled["bar"]["kind"]),
                          (bar["before"], hole["key"], "part", "part"))
-        # The body there, as the store's tree the viewer draws: the block before its hole.
-        from cadgen.store.lazy import materialize_model
+        # The body there, as the engine's document the viewer draws: the block before its hole.
+        from cadgen.engine import api
+        from cadgen.engine.build import code_script
 
-        self.assertAlmostEqual(materialize_model(rolled["bar"]["tree"], label="block").volume, 20 * 10 * 4, places=3)
+        document = rolled["bar"]["document"]
+        cwd = Path(document["cwd"])
+        body = api.Built(document["model"], code_script(document["model"], cwd), {}, cwd).shape
+        self.assertAlmostEqual(body.volume, 20 * 10 * 4, places=3)
         filleted = self.service.change({"file": file, "files": rolled["files"], "bar": rolled["bar"], "command": {
             "command": "fillet", "selection": BLOCK_TOP_EDGES, "inputs": {"radius": "1"}}})
         self.assertTrue(filleted["ok"], filleted.get("error"))
@@ -897,7 +901,7 @@ SKETCHED = {
         from cadgen.sketch import Sketch
 
 
-        @step
+        @step(out="bracket.step")
         def bracket():
             part = Pos(0, 0, -5) * Box(40, 20, 10)
             sketch1 = Sketch("Sketch1", plane="Top")
@@ -920,7 +924,7 @@ CHANNEL = {
         from cadgen.sketch import Sketch
 
 
-        @step
+        @step(out="channel.step")
         def channel():
             part = Box(40, 20, 20) - Pos(0, 0, 5) * Box(30, 30, 20)
             sketch1 = Sketch("Sketch1", plane="Front")
@@ -937,7 +941,7 @@ WALLED = {
         from cadgen.sketch import Sketch
 
 
-        @step
+        @step(out="box.step")
         def box():
             part = Pos(0, 0, -5) * Box(40, 20, 10)
             sketch1 = Sketch("Sketch1", plane="Top")
@@ -1031,7 +1035,7 @@ TWO_WAY = {
         from cadgen.sketch import Sketch
 
 
-        @step
+        @step(out="plate.step")
         def plate():
             part = Pos(0, 0, -15) * Box(40, 20, 2)
             sketch1 = Sketch("Sketch1", plane="Top")
@@ -1453,7 +1457,7 @@ MATING = {
         from cadgen import step
 
 
-        @step
+        @step(out="base.step")
         def base():
             return Box(20, 10, 4) - Pos(5, 0, 0) * Cylinder(1.5, 4)
     """,
@@ -1462,7 +1466,7 @@ MATING = {
         from cadgen import step
 
 
-        @step
+        @step(out="pin.step")
         def pin():
             return Pos(-3, 2, 10) * Cylinder(1.5, 6)
     """,

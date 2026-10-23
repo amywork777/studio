@@ -17,7 +17,7 @@ WIDTH = 25
 HOLE = 8
 THICKNESS = 5
 
-@step
+@step(out="plate.step")
 def plate():
     s = Sketch("Sketch1", plane="Top")
     bottom, right, top, left = s.rectangle((0, 0), (70, 25))

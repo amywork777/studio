@@ -647,10 +647,12 @@ def _tag_children(method):
 B.Shape.edges = _tag_children(_shape_edges)
 B.Shape.faces = _tag_children(_shape_faces)
 
-# A model inside the tracer is its plain function: no build pipeline, no STEP written.
-import cadgen.authoring as _authoring  # noqa: E402
+# A model inside the tracer is its plain function: calling one (the script's own call, a child model
+# in a body) runs its body here, with no engine daemon, no build and nothing written. A @memo
+# function already runs plainly outside a build.
+from cadgen.engine import model as _engine_model  # noqa: E402
 
-_authoring._model_wrapper = lambda func, defn: func
+_engine_model.Model.__call__ = lambda self: self.function()
 
 # Constrained sketches (`cadgen.sketch`), each kept with the place the script made it in (the
 # frame's globals and its locals then), so sketch mode runs its block again on its own.
@@ -1548,9 +1550,11 @@ def _features(summaries, timeline):
 
 
 def _is_model(file, function):
-    """Whether a project function is a part's model (`@step`), so an assembly's call to it is a component."""
+    """Whether a project function is a part's model (`@step`, or any of the engine's decorators), so an
+    assembly's call to it is a component."""
     try:
-        return re.search(rf"^\s*@step\b[^\n]*\n(?:\s*@[^\n]*\n)*\s*def\s+{re.escape(function)}\s*\(", _read(ROOT / file), re.M) is not None
+        return re.search(rf"^\s*@(?:step|xbf|model|stl|glb|threemf|dxf)\b[^\n]*\n(?:\s*@[^\n]*\n)*\s*def\s+{re.escape(function)}\s*\(",
+                         _read(ROOT / file), re.M) is not None
     except (OSError, UnicodeDecodeError):
         return False
 
@@ -1578,15 +1582,14 @@ def _components(steps):
 def _component_step(component):
     """The STEP file a component's own part model writes, which Open Part opens: None for one that
     writes none."""
-    from cadgen.authoring import registered_model
+    # The engine's registry of the models scripts have defined, keyed as a model's address is.
+    from cadgen.engine.model import _MODELS
 
-    try:
-        model = registered_model((ROOT / component["file"]).resolve(), component["function"])
-    except Exception:  # noqa: BLE001 - a part the registry cannot name opens nothing
+    model = _MODELS.get(f"{(ROOT / component['file']).resolve()}::{component['function']}")
+    if model is None:
         return None
-    if model is None or model.fmt != "step" or not getattr(model, "step_output", True):
-        return None
-    return str(model.output_path)
+    steps = [path for kind, path in model.targets() if kind == "step"]
+    return str(steps[0]) if steps else None
 
 
 def _bounds(shape):
@@ -1655,17 +1658,18 @@ def trace(request):
         printed = io.StringIO()
         with redirect_stdout(printed):
             spec.loader.exec_module(module)
+            # The engine's models this script defines (`cadgen.engine.model.Model`), not those it imports.
             models = [
-                value.__cadgen_model__
+                value
                 for value in vars(module).values()
-                if hasattr(value, "__cadgen_model__") and Path(str(value.__cadgen_model__.script_path)).resolve() == script
+                if getattr(value, "__xbf_model__", False) and Path(str(value.script)).resolve() == script
             ]
             if not models:
                 return {"ok": False, "error": f"{script.name} declares no model (@step)."}
             model = models[0]
             RECORDING = True
             try:
-                shape = model.func()
+                shape = model.function()
             finally:
                 RECORDING = False
     except Exception:
@@ -3626,8 +3630,8 @@ def _first_line(feature, rel):
 
 def _bar(script, rel, line, reply):
     """The rollback bar at ``line`` of ``rel``: the tree item it sits above, the body there as a
-    tree of cadgen's store the viewer draws in place of the part's (`_bar_tree`), and the name that
-    holds it. None when that line no longer starts a tree item (the agent changed the file)."""
+    document of the engine's the viewer draws in place of the part's (`_bar_document`), and the name
+    that holds it. None when that line no longer starts a tree item (the agent changed the file)."""
     from cadgen.edit import commands
 
     state = STATE.get(str(script))
@@ -3646,17 +3650,32 @@ def _bar(script, rel, line, reply):
         shape, body = commands.body_at(state["steps"], state["shape"], state["level"], ROOT, rel, line)
     except commands.CommandError as error:
         return {**where, "step": None, "error": str(error)}
-    return {**where, **_bar_tree(script, shape), "name": body.name}
+    return {**where, **_bar_document(script, shape), "name": body.name}
 
 
-def _bar_tree(script, shape):
-    """The body at a bar published to cadgen's store as the tree of a part, as a built model's is,
-    so the viewer draws it, and picks its faces and edges, as it does the part's own. The store is
-    addressed by content: a bar that did not move answers with the same tree."""
-    from cadgen.store.build import build_tree_from_compound
+def _bar_model(script):
+    """The engine's name for a part's body at its bar: the script's stem and a digest of its path, so
+    two projects' parts of one name never share one, and one part's bar always has the same."""
+    stem = re.sub(r"\W", "_", Path(script).stem) or "part"
+    digest = hashlib.sha1(str(Path(script).resolve()).encode("utf-8")).hexdigest()[:8]
+    return f"{stem if stem[0].isalpha() else 'part_' + stem}_bar_{digest}"
 
-    tree, built, _ = build_tree_from_compound(shape, root_name=Path(script).stem)
-    return {"tree": tree, "kind": "assembly" if built.get("entryKind") == "assembly" else "part"}
+
+def _bar_document(script, shape):
+    """The body at a bar built as a document of the engine's, from the shape this process made
+    (`cadgen.build` of a shape: the worker writes its document and nothing to disk), so the viewer
+    draws it, and picks its faces and edges, as it does the part's own. One model per part: moving
+    the bar again is a new version of the same document, at the same address."""
+    from cadgen.engine import api
+
+    model = _bar_model(script)
+    built = api.build(shape, model=model)
+    if not built.ok:
+        raise RuntimeError(built.report.get("error") or "the body at the bar did not build")
+    assembly = isinstance(shape, B.Compound) and bool(getattr(shape, "children", ()))
+    return {"document": {"model": model, "cwd": str(Path.cwd()), "address": built.report.get("address"),
+                         "url": built.report.get("url")},
+            "kind": "assembly" if assembly else "part"}
 
 
 def _with_bar(request, reply):

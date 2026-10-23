@@ -28,7 +28,7 @@ PLATE = {
         from cadgen import step
         from sizes import WIDTH, THICKNESS
 
-        @step
+        @step(out="plate.step")
         def plate():
             return Box(WIDTH, 10, THICKNESS)
     """,
@@ -36,7 +36,7 @@ PLATE = {
         from build123d import Box
         from cadgen import step
 
-        @step
+        @step(out="bracket.step")
         def bracket():
             return Box(5, 5, 5)
     """,
@@ -54,7 +54,7 @@ STACK = {
         from cadgen import step
         from sizes import WIDTH
 
-        @step
+        @step(out="plate.step")
         def plate():
             return Box(WIDTH, 10, 2)
     """,
@@ -62,7 +62,7 @@ STACK = {
         from build123d import Cylinder, Pos
         from cadgen import step
 
-        @step
+        @step(out="pin.step")
         def pin():
             return Pos(0, 0, 4) * Cylinder(2, 6)
     """,
@@ -76,7 +76,7 @@ STACK = {
         from pin import pin
         from plate import plate
 
-        @step
+        @step(out="stack.step")
         def stack():
             return Compound(children=[plate(), pin()], label="stack")
     """,
@@ -222,7 +222,7 @@ TRAY = {
         FLOOR = 1.5
         HEIGHT = 12
 
-        @step
+        @step(out="tray.step")
         def tray():
             outer = extrude(RectangleRounded(LENGTH, WIDTH, 6), amount=HEIGHT)
             outer = fillet(outer.edges().group_by(Axis.Z)[0], radius=0.6)
@@ -264,7 +264,7 @@ SKETCHED = {
         HOLE = 6
         THICKNESS = 4
 
-        @step
+        @step(out="bracket.step")
         def bracket():
             s = Sketch("Sketch1", plane="Top")
             bottom, right, top, left = s.rectangle((0, 0), (40, 20))

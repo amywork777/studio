@@ -4,11 +4,12 @@ The part script stays the source. Edit mode reads it as a design: a warm tracer 
 (``tracer.py``, in this Python) runs the script with every number in the project's files
 remembering where it is written and each build123d operation recorded, and answers with the part's
 history, its named sizes and its dimensions. A change rewrites one number in the source; then every
-part script that uses the changed file is built again, as the agent builds it, so its STEP, and the
-viewer reading it, follow.
+part script that uses the changed file is built again in the engine's warm worker, as the agent's
+call builds it, so its document, and the viewer showing it, take the new version at once, and its
+STEP is written as its decorators declare.
 
-The CAD kernel never loads into the server: the tracer and the builds are processes of their own
-(``test_module_boundaries``). This module only starts them and passes JSON.
+The CAD kernel never loads into the server: the tracer is a process of its own and the builds are
+the engine's workers (``test_module_boundaries``). This module only starts them and passes JSON.
 """
 
 from __future__ import annotations
@@ -33,7 +34,8 @@ BUILD_TIMEOUT = 900
 # Folders a project's own scripts never live in.
 _SKIP = re.compile(r"^(\.|node_modules$|__pycache__$|tmp$|dist$|build$|vendor$|site-packages$)")
 _SCAN_LIMIT = 4000
-_PART = re.compile(r"^\s*@step\b", re.M)
+# A part script declares a model with any of the engine's decorators (`cadgen.engine.model`).
+_PART = re.compile(r"^\s*@(?:step|xbf|model|stl|glb|threemf|dxf)\b", re.M)
 _IMPORT = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.M)
 # What a change may name: a number (`literal`), a dimension on the model, or a feature's input, and
 # the value typed; `leaf` answers which size to change when several make the value. A `command`
@@ -271,7 +273,10 @@ class _Tracer:
 
 
 class _Builds:
-    """The STEP files built again after a change: one batch at a time, in order."""
+    """The parts built again after a change: one batch at a time, in order. A part script's models
+    build in the engine's warm worker, whose memo replays what the change left alone, and the open
+    document takes the new version in place; a script with no model of the engine's (a drawing's)
+    runs as it is."""
 
     def __init__(self, python: str) -> None:
         self.python = python
@@ -291,24 +296,39 @@ class _Builds:
         with self._lock:
             return dict(self.status)
 
+    def _build(self, script: Path) -> str | None:
+        """Build one script again; None, or why it failed."""
+        try:
+            from cadgen.engine import api
+
+            report = api.build_script(script)
+            if report.models:
+                if report.ok:
+                    return None
+                return next((str(row.get("error") or "") for row in report.models if not row.get("ok")), "") or "the build failed"
+        except Exception as failure:  # noqa: BLE001 - a build that cannot run says why, as a failed one does
+            return str(failure) or type(failure).__name__
+        # No model of the engine's: the script runs as it is, as `python <script>` runs it.
+        try:
+            run = subprocess.run(
+                [self.python, str(script)],
+                cwd=script.parent,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=BUILD_TIMEOUT,
+                **_no_window(),
+            )
+        except (OSError, subprocess.TimeoutExpired) as failure:
+            return str(failure)
+        return None if run.returncode == 0 else " ".join(run.stderr.strip().splitlines()[-2:])
+
     def _work(self) -> None:
         while True:
             batch, scripts = self._batches.get()
             for script in scripts:
-                try:
-                    run = subprocess.run(
-                        [self.python, str(script)],
-                        cwd=script.parent,
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        timeout=BUILD_TIMEOUT,
-                        **_no_window(),
-                    )
-                    error = None if run.returncode == 0 else " ".join(run.stderr.strip().splitlines()[-2:])
-                except (OSError, subprocess.TimeoutExpired) as failure:
-                    error = str(failure)
+                error = self._build(script)
                 with self._lock:
                     if batch != self._batch:
                         continue  # a newer change's batch is the one shown; this one still finishes
