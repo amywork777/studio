@@ -131,7 +131,7 @@ class BoardBuild:
     seconds: float
 
     def report(self) -> str:
-        from cadgen._internal.doors import display_path
+        from cadgen.xml_common import display_path
 
         checked = f"DRC {_count(self.drc.errors, 'error')} {_count(self.drc.warnings, 'warning')}, " if self.drc else ""
         return (
@@ -244,7 +244,7 @@ def signature(board: Path) -> tuple[str | None, str]:
 
 
 def _build(function: Callable[[Any], Any], target: Path) -> BoardBuild:
-    from cadgen._internal.doors import display_path
+    from cadgen.xml_common import display_path
     from cadgen.kicad.cli import run_drc
     from cadgen.kicad.install import find_kicad_cli
     from cadgen.kipy.board import Board

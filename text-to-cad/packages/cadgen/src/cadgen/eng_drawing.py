@@ -1591,7 +1591,7 @@ def sheet_payload(script, index: int = 1, *, pdf: bool = False) -> dict:
     import inspect
     import sys
 
-    from cadgen.drawing_checks import raise_on_error_findings, validate_drawing_document
+    from cadgen.engine.export.dxf import raise_on_error_findings, validate_drawing_document
     from cadgen.drawing_payload import build_document_payload
 
     script = Path(script).resolve()

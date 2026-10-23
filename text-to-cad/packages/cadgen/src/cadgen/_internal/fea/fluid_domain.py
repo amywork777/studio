@@ -427,7 +427,7 @@ def netgen_mesh(shape, prints: list, diagonal: float, size: float, order: int, s
     import numpy as np
 
     from cadgen._internal.fea import mesh as part_mesh
-    from cadgen._internal.step_scene_loader import kernel_messages_on_stderr
+    from cadgen._internal.kernel_messages import kernel_messages_on_stderr
 
     import netgen.meshing as ngmesh
     import netgen.occ as ngocc

@@ -538,7 +538,7 @@ def mesh_mid_surface(plate: Plate, h: float) -> ShellModel:
     from OCP.BRepTools import BRepTools
     from OCP.TopoDS import TopoDS_Compound
 
-    from cadgen._internal.step_scene_loader import kernel_messages_on_stderr
+    from cadgen._internal.kernel_messages import kernel_messages_on_stderr
 
     builder = BRep_Builder()
     compound = TopoDS_Compound()

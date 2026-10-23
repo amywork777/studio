@@ -277,7 +277,7 @@ def _netgen(shape, name: str, prints: list[FaceFingerprint], diagonal: float, h:
     import netgen.meshing as ngmesh
     import netgen.occ as ngocc
 
-    from cadgen._internal.step_scene_loader import kernel_messages_on_stderr
+    from cadgen._internal.kernel_messages import kernel_messages_on_stderr
 
     with tempfile.TemporaryDirectory(prefix="cadgen-fea-") as tmp:
         brep = Path(tmp) / name

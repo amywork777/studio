@@ -70,10 +70,10 @@ def _type_name(shape) -> str:
     try:
         from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
 
-        from cadgen._internal.step_scene_types import _enum_name
-
         adaptor = BRepAdaptor_Surface(shape.wrapped) if isinstance(shape, B.Face) else BRepAdaptor_Curve(shape.wrapped)
-        return _enum_name(adaptor.GetType(), "GeomAbs_")
+        # The kind's enum name without its family, as cadgen 0.7's selectors spelled it: GeomAbs_Plane is plane.
+        name = str(adaptor.GetType()).split(".")[-1]
+        return (name[len("GeomAbs_") :] if name.startswith("GeomAbs_") else name).lower()
     except Exception:  # noqa: BLE001 - an unnamed kind only loosens the match
         return ""
 
