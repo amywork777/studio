@@ -36,7 +36,7 @@ import { DXF_DECLINED_LIVE_COMMANDS, DXF_NO_CAMERA, DXF_NO_DISPLAY, DXF_TOOL, DX
  * pinch zooms, a double-click fits; Annotate, which draws on the sheet; and Measure, between points
  * snapped to its ends, centres and lines, in the unit the drawing declares (bare drawing units when
  * it declares none). What is picked and drawn is Quick Edit's (what is measured, Measure's row's), whose views are the window
- * on screen as a plan-view camera, which `cadgen dxf snapshot --job` draws again. A drawing with
+ * on screen as a plan-view camera, which `cadgen snapshot --annotation PACKET --camera authored` draws again. A drawing with
  * layers and blocks to read has a Layers section in the file sidebar (`layersSectionShown`). The
  * chrome is every flat view's (`kit/shell/FlatViewFrame.jsx`, `useFlatView.js`) — the strip at the
  * top centre, the tool's row under it, the sidebar at the top-left, Quick Edit at the top-right —

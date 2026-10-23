@@ -5,14 +5,15 @@ for judging the finishing vocabulary (anglage, stripes, perlage, snailing,
 screws, jewels, wheels, heart cam) before it is spent on real parts.
 """
 
-from cadgen import build123d as bd
-from cadgen import step
+import build123d as bd
+from cadgen.engine import xbf
 
 from lib import finishing as F
+from lib import materials as M
 from lib import spec as S
 
 
-@step(out="../STEP/finishing_sampler.step")
+@xbf(out="../XBF/finishing_sampler.xbf")
 def finishing_sampler():
     parts = []
 
@@ -67,7 +68,7 @@ def finishing_sampler():
     cam.label = "heart_cam"
     parts.append(cam)
 
-    return bd.Compound(children=parts, label="finishing_sampler")
+    return bd.Compound(children=M.apply_materials(parts, "finishing_sampler"), label="finishing_sampler")
 
 
 if __name__ == "__main__":

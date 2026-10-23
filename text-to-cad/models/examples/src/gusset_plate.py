@@ -1,13 +1,15 @@
 from __future__ import annotations
-from cadgen import step
+from cadgen.engine import materials, xbf
 # Prompt: Gusset plate with a triangular web, base holes, and softened perimeter edges.
 
 from lib.simple_model_library import make_gusset_plate
 
 
-@step(out="../STEP/gusset_plate.step")
+@xbf(out="../XBF/gusset_plate.xbf")
 def gusset_plate():
-    return make_gusset_plate()
+    part = make_gusset_plate()
+    part.material = materials.steel_a36.but(color=None)
+    return part
 
 
 if __name__ == "__main__":

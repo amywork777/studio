@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from math import cos, sin, tau
 
-from cadgen import build123d as bd
+import build123d as bd
 
 
 def _polar_point(radius: float, angle: float) -> tuple[float, float]:

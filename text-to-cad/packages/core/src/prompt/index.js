@@ -1,4 +1,4 @@
-import { buildCadRefToken, parseCadRefSelector, parseCadRefToken } from '../lib/cadRefs.js';
+import { buildCadRefToken, isEngineRefFile, isEngineSelector, parseCadRefSelector, parseCadRefToken } from '../lib/cadRefs.js';
 import { buildBoardRefToken, isBoardRefPath, parseBoardRefSelector, parseBoardRefToken } from '../lib/boardRefs.js';
 
 let operationSequence = 0;
@@ -27,9 +27,12 @@ export function validatePromptReference(reference) {
     requireValue(target.end.line > target.start.line || (target.end.line === target.start.line && target.end.character >= target.start.character), 'range end precedes its start');
   } else if (target.kind === 'cad-selector') {
     requireValue(resource.kind === 'workspace-file', 'CAD selectors require a workspace file');
-    // A KiCad board's selectors are board references (#U3, #U3.9, #net:VIN, #@x1y2); a model's, STEP's.
+    // A KiCad board's selectors are board references (#U3, #U3.9, #net:VIN, #@x1y2); an .xbf's are
+    // the engine's grammar; any other file's are a STEP's (cadRefs.js).
     const board = isBoardRefPath(resource.path);
+    const engine = isEngineRefFile(resource.path);
     requireValue(Array.isArray(target.selectors) && target.selectors.length > 0 && target.selectors.every(selector => {
+      if (engine) return isEngineSelector(selector);
       if (typeof selector !== 'string' || selector !== selector.trim()) return false;
       if (board) return Boolean(parseBoardRefSelector(selector));
       const parsed = parseCadRefSelector(selector);

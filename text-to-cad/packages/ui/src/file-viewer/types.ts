@@ -7,6 +7,7 @@ export type { LanguageSetting };
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export interface FileEntry { path: string; name: string; kind: "file" | "directory" }
+export interface FileCollection { id: string; label: string; entries: readonly (FileEntry & { detail?: string })[] }
 export interface FileMetadata extends FileEntry {
   size: number;
   extension: string;
@@ -26,6 +27,7 @@ export interface FileActions {
 export interface FileSource {
   /** Stable identity: what a document's key is named by. */
   id: string;
+  collections?: (options: { signal: AbortSignal }) => Promise<readonly FileCollection[]>;
   stat: (path: string, options: { signal: AbortSignal }) => Promise<FileMetadata>;
   list?: (directory: string, options: { signal: AbortSignal }) => Promise<readonly FileEntry[]>;
   search?: (directory: string, query: string, options: { signal: AbortSignal }) => Promise<{ paths: readonly string[]; truncated: boolean }>;
@@ -141,6 +143,9 @@ export interface RendererRegistration {
   prepare: (context: PrepareContext) => Promise<PreparedRenderer>;
 }
 export interface FileViewerProps {
+  /** Additive host actions at the navbar right, and persistent feedback below it. */
+  navbarActions?: ReactNode;
+  overlay?: ReactNode;
   /** The file on screen, by its absolute path; null shows the host's home. */
   file: string | null;
   host: ViewerHost;
@@ -175,7 +180,7 @@ export interface FileViewerProps {
     /** The host's home, shown with no file: a page of its own under the navbar, which has only its logo's menu, Back and Forward, update and Full size there. */
     home?: ReactNode;
     loading?: ReactNode;
-    /** A file that will not open: `missing` when it does not exist. */
-    error?: (failure: { message: string; missing: boolean }) => ReactNode;
+    /** A file that will not open: `missing` when it does not exist; `reload` rereads only this file. */
+    error?: (failure: { message: string; missing: boolean; reload?: () => void }) => ReactNode;
   };
 }

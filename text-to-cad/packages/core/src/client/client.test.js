@@ -173,18 +173,6 @@ test('polling reads the files on screen again, and only those', async (t) => {
   release();
 });
 
-test('artifact compile sends the guard header and answers with the server\'s start of the build', async () => {
-  const calls = [];
-  const client = createCadClient({ origin: 'http://one.test', pollIntervalMs: 0, fetch: async (url, options) => {
-    calls.push({ url, options }); return json({ ok: true, state: 'compiling' });
-  } });
-  assert.deepEqual(await client.requestArtifact('part.step', { force: true }), { ok: true, state: 'compiling' });
-  assert.equal(calls[0].options.method, 'POST');
-  assert.equal(calls[0].options.headers['x-cadgen-viewer'], '1');
-  assert.equal(new URL(calls[0].url).searchParams.get('force'), '1');
-  client.dispose();
-});
-
 test('catalog timeout retains the existing error and external cancellation stays separate', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const client = createCadClient({ pollIntervalMs: 0, fetch: (_url, { signal }) => new Promise((_resolve, reject) => {
@@ -224,27 +212,6 @@ test('polling keeps its two-second cadence, obeys host visibility and stops with
   await settle();
   assert.equal(count, 2);
   client.dispose();
-});
-
-test('surface and preview requests are origin-bound, guarded and cancelled with their owner', async () => {
-  const calls = [];
-  const client = createCadClient({ origin: 'http://workspace.test', fetch: async (url, options) => {
-    calls.push({ url, options });
-    return json({ job: 'subscriber', feedCursor: 'next' });
-  } });
-  const body = { tree: 'tree', components: [{ cid: 'one', surfaceInput: 'input' }] };
-  assert.equal((await client.requestSurfaces(body)).job, 'subscriber');
-  await client.cancelSurfaceRequest({ job: 'subscriber' });
-  await client.editingPreview('part.step', { after: 'cursor' });
-  assert.equal(new URL(calls[0].url).origin, 'http://workspace.test');
-  assert.deepEqual(JSON.parse(calls[0].options.body), body);
-  assert.equal(calls[0].options.headers['x-cadgen-viewer'], '1');
-  assert.equal(new URL(calls[1].url).pathname, '/__cad/surfaces/cancel');
-  assert.equal(new URL(calls[2].url).pathname, '/__cad/preview');
-  assert.equal(new URL(calls[2].url).searchParams.get('file'), 'part.step');
-  assert.equal(new URL(calls[2].url).searchParams.get('after'), 'cursor');
-  client.dispose();
-  await assert.rejects(client.editingPreview('part.step'), { name: 'AbortError' });
 });
 
 test('a drawing is one plain GET, and a refusal arrives with the server’s own sentence', async () => {
@@ -310,6 +277,26 @@ test('a drawing still rendering is asked for again after the server\'s retryMs, 
   waiting.dispose();
 });
 
+test('an engine document is read through this server, with the client\'s fetch, once the engine holds it', async () => {
+  const replies = [{ state: 'reading', retryMs: 0 }, { doc: 'abc123', url: '/__cad/xbf/api/doc/abc123' }];
+  const asked = [];
+  const fetch = async (url) => {
+    asked.push(url);
+    const held = new URL(url).searchParams.get('held') === '1';
+    return held ? Response.json({ held: url.includes('a.step') }) : Response.json(replies.shift(), { status: replies.length ? 202 : 200 });
+  };
+  const client = createCadClient({ origin: 'http://cad.invalid', pollIntervalMs: 0, fetch });
+  const served = await client.engineDocument('/m/a.step');
+  // Read under the client's origin and with its fetch: the CAD app's travels over its tunnel.
+  assert.deepEqual(served, { doc: 'abc123', url: 'http://cad.invalid/__cad/xbf/api/doc/abc123', fetch });
+  assert.deepEqual(asked.map(url => [new URL(url).pathname, new URL(url).searchParams.get('file')]),
+    [['/__cad/xbf', '/m/a.step'], ['/__cad/xbf', '/m/a.step']], 'asked again while the engine reads it');
+  assert.equal(await client.engineHolds('/m/a.step'), true);
+  assert.equal(await client.engineHolds('/m/b.step'), false);
+  await assert.rejects(client.engineDocument(''), /Missing file/);
+  client.dispose();
+});
+
 test('a drawing refused by the server raises the classified failure an alert is built from', async () => {
   const client = createCadClient({ origin: 'http://one.test', pollIntervalMs: 0, fetch: async () => ({
     ok: false, status: 400, statusText: 'Bad Request',
@@ -350,7 +337,7 @@ test('the library, Open, Reveal and the person\'s settings are guarded requests 
   await client.consent();
   await client.consent(true);
   await client.consent(false);
-  await client.features({ quickEdit: false });
+  assert.equal(client.features, undefined);
   await client.language();
   await client.language('zh-CN');
   await client.language(null);
@@ -367,7 +354,6 @@ test('the library, Open, Reveal and the person\'s settings are guarded requests 
     ['/__cad/reveal', 'POST', '1', { path: '/models/a.step' }], ['/__cad/reveal', 'POST', '1', { path: '/models/gone.step' }],
     ['/__cad/analytics', 'GET', null, null],
     ['/__cad/analytics', 'POST', '1', { share: true }], ['/__cad/analytics', 'POST', '1', { share: false }],
-    ['/__cad/features', 'POST', '1', { quickEdit: false }],
     ['/__cad/language', 'GET', null, null],
     ['/__cad/language', 'POST', '1', { locale: 'zh-CN' }], ['/__cad/language', 'POST', '1', { locale: null }],
     ['/__cad/version', 'GET', null, null],

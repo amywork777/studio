@@ -1,0 +1,353 @@
+"""The radial's mechanism: build123d joints on the built systems' parts, chosen by label.
+
+The original posed parts by LABEL in its animation clips (`BUILDING.md`, "Moving parts:
+labels are the contract"): every part labelled `<group>:<part>` whose group is a motion
+group moved with that group, as `lib/kin.py` says. Here the same contract picks the
+parts, and each motion group is one link:
+
+- its first part carries the joint that moves it, paired by label with a joint on the
+  link it turns or slides on, and every other part of the group that leaves with it in
+  the teardown is fastened to that first part (two rigid joints of one label);
+- every joint stands at 0 as built: the authored rest, crank angle theta = 0, where the
+  valvetrain stands at its theta = 0 lift. A joint's value is its part's motion from
+  there, so `kin.py`'s rest-relative poses are its values.
+
+Where a group's joint stands is the exploded clips' business (`lib/explode.py`, which
+`author` follows): on the root (a world-fixed reference), on the group it rides, on its
+system's compound where the compound slides, or on a carrier part (a tappet on its
+guide, a valve on its head's guide, a rocker on its needle bearing, a planet on its
+bearing, a blower gear on its bushing, a pushrod on its tappet's axle).
+
+The gear train is linear in theta -- the crank, cam ring and idler, the tappet rollers,
+the propeller shaft (the carrier, the propeller riding it) and its planets, the
+impeller and the blower gears -- so it is one coupling, `drive`, in degrees of crank: a
+constraint, its joints moving through it alone. The crank train and valvetrain are not
+linear in theta: the master and articulating rods, the pistons, tappets, pushrods,
+rockers and valves are joints of their own, and `running` (`assemble`) poses all of it
+from `kin.py`.
+
+Two approximations, both under a tenth of a degree or millimetre where they show: a
+pushrod turns about one fixed axis through its tappet socket (the plane of its swing at
+full lift), where `kin.py` turns it about the axis between its rest and current
+directions; and a valve spring, which `kin.py` compresses as a tube, rides nothing.
+"""
+
+from __future__ import annotations
+
+import math
+import re
+
+import build123d as bd
+from cadgen.engine import configuration, couple, motion
+
+from lib import kin
+from lib import spec as S
+
+# prefix regex -> motion kind (the original's `lib/clips.py` contract)
+CONTRACT = [
+    ("crank", re.compile(r"crank")),
+    ("master", re.compile(r"master")),
+    ("artrod", re.compile(r"artrod([2-9])")),
+    ("piston", re.compile(r"piston([1-9])")),
+    ("camring", re.compile(r"camring")),
+    ("camidler", re.compile(r"camidler")),
+    ("tappet", re.compile(r"tappet([1-9])([IE])")),
+    ("pushrod", re.compile(r"pushrod([1-9])([IE])")),
+    ("rocker", re.compile(r"rocker([1-9])([IE])")),
+    ("valve", re.compile(r"valve([1-9])([IE])")),
+    ("spring", re.compile(r"spring([1-9])([IE])")),
+    ("planet", re.compile(r"planet([1-6])")),
+    ("propshaft", re.compile(r"propshaft")),
+    ("prop", re.compile(r"prop")),
+    ("impeller", re.compile(r"impeller")),
+    ("blowergear", re.compile(r"blowergear([1-3])")),
+]
+
+CYCLE_S = 8.0                  # one 720 deg four-stroke cycle
+DEG_PER_S = 720.0 / CYCLE_S    # theta = 90 t
+AXIS = S.ROT_AXIS              # every crank-train and gear axis
+
+
+def classify(label: str):
+    """(kind, args) of a moving part's label, or None for a static one."""
+    if ":" not in label:
+        return None
+    prefix, part = label.split(":", 1)
+    for kind, rx in CONTRACT:
+        found = rx.fullmatch(prefix)
+        if not found:
+            continue
+        args = found.groups()
+        if kind in ("artrod", "piston", "planet", "blowergear"):
+            return kind, (int(args[0]),)
+        if kind in ("tappet", "pushrod", "rocker", "valve", "spring"):
+            k, v = int(args[0]), args[1]
+            if kind == "tappet" and part == "roller":
+                return "roller", (k, v)
+            return kind, (k, v)
+        if kind == "prop":
+            return "propshaft", ()          # the propeller turns with its shaft
+        return kind, ()
+    return None
+
+
+def joint_name(kind: str, args: tuple) -> str:
+    return kind + "".join(str(a) for a in args)
+
+
+# ---------------------------------------------------------------------------
+# Each joint's value at crank angle theta, from the authored rest (theta = 0)
+# ---------------------------------------------------------------------------
+def _master(theta):
+    return kin.master_angle(theta) - kin.master_angle(0.0)
+
+
+def _rod(theta, k):
+    return kin.rod_angle(theta, k) - kin.rod_angle(0.0, k)
+
+
+def _pushrod_ends(lift_t, k, v, rocker):
+    """The pushrod's socket and cup with its tappet lifted by lift_t and its rocker at
+    `rocker` degrees."""
+    b = kin._addv(kin.pushrod_bottom0(k, v), kin.tappet_dir(k, v), lift_t)
+    t = kin._rot_about(kin.pushrod_top0(k, v), kin.ROCKER_AXIS, rocker, kin.rocker_pivot(k, v))
+    return b, t
+
+
+def _direction(k, v, lift_t, rocker):
+    b, t = _pushrod_ends(lift_t, k, v, rocker)
+    return kin._unit(kin._sub(t, b))
+
+
+def _swing_axis(k, v):
+    """The fixed axis a pushrod swings about: normal to its rest and full-lift directions."""
+    lift = S.TAPPET_LIFT[v]
+    d0 = _direction(k, v, 0.0, 0.0)
+    d1 = _direction(k, v, lift, kin._rocker_angle_for(k, v, lift))
+    return kin._unit(kin._cross(d0, d1))
+
+
+def _turn(k, v, lift_t, rocker):
+    """The pushrod's turn about its swing axis (degrees) from its zero-lift direction."""
+    n = PUSHROD_AXES[k, v]
+    d0, d1 = _direction(k, v, 0.0, 0.0), _direction(k, v, lift_t, rocker)
+    return math.degrees(math.atan2(kin._dot(kin._cross(d0, d1), n), kin._dot(d0, d1)))
+
+
+PUSHROD_AXES = {(k, v): _swing_axis(k, v) for k in range(1, S.N_CYL + 1) for v in kin.VALVES}
+
+
+def _valvetrain(theta, k, v):
+    """(tappet lift, pushrod turn, rocker angle, valve lift) at crank angle theta: one
+    rocker solve, which kin.py's rocker_angle, pose_pushrod and valve_lift each repeat."""
+    lift = kin.tappet_lift(theta, k, v)
+    rocker = kin._rocker_angle_for(k, v, lift)
+    return lift, _turn(k, v, lift, rocker), rocker, kin.valve_lift_for_rocker(k, v, rocker)
+
+
+REST = {(k, v): _valvetrain(0.0, k, v) for k in range(1, S.N_CYL + 1) for v in kin.VALVES}
+
+
+def running_values(theta: float) -> dict:
+    """Every free joint's value, and the drive's, at crank angle theta."""
+    master = _master(theta)
+    values = {"drive": theta, "master": master - theta}
+    for k in range(2, S.N_CYL + 1):
+        values[f"artrod{k}"] = _rod(theta, k) - master
+    for k in range(1, S.N_CYL + 1):
+        values[f"piston{k}"] = kin.piston_h(theta, k) - kin.piston_h(0.0, k)
+        for v in kin.VALVES:
+            now, rest = _valvetrain(theta, k, v), REST[k, v]
+            values[f"tappet{k}{v}"] = now[0] - rest[0]
+            values[f"pushrod{k}{v}"] = now[1] - rest[1]
+            values[f"rocker{k}{v}"] = now[2] - rest[2]
+            values[f"valve{k}{v}"] = -(now[3] - rest[3])
+    return values
+
+
+# The drive's ratio for each gear-train joint (degrees per crank degree).
+def _ratios() -> dict:
+    ratios = {"crank": 1.0, "camring": S.CAM_RATIO, "camidler": kin.cam_idler_ratio(),
+              "propshaft": S.RED_RATIO, "impeller": S.BLOWER_RATIO}
+    for j in range(1, 7):
+        ratios[f"planet{j}"] = S.RED_RATIO * (S.RED_SUN_T / S.RED_PLANET_T)
+    for j in range(1, 4):
+        ratios[f"blowergear{j}"] = -S.BLOWER_CRANK_GEAR[0] / S.BLOWER_INTERMEDIATE[0][0]
+    for k in range(1, S.N_CYL + 1):
+        for v in kin.VALVES:
+            ratios[f"roller{k}{v}"] = -S.CAM_RATIO * S.CAM_BASE_R / S.TAPPET_ROLLER_R
+    return ratios
+
+
+DRIVE = _ratios()
+DRIVE_RANGE = (0.0, 720.0)
+
+# Named poses: the crank angle each stands at, every joint where kin.py puts it.
+CONFIGURATIONS = {
+    "cylinder1_bdc": 180.0,       # cylinder 1 at the bottom of its power stroke
+    "cylinder1_overlap": 360.0,   # cylinder 1 at TDC between exhaust and intake, both valves open
+}
+
+
+def _range(values, margin):
+    return (min(values) - margin, max(values) + margin)
+
+
+def _travel(table, name: str, margin: float):
+    """A free joint's range: what one cycle takes it through, with a margin."""
+    return _range([row[name] for row in table], margin)
+
+
+# ---------------------------------------------------------------------------
+# Authoring the joints on the built systems
+# ---------------------------------------------------------------------------
+def _xyz(p2d, y=0.0):
+    return kin.xz_to_3d(p2d, y)
+
+
+def _axis_of(kind: str, args: tuple):
+    """(joint kind, point, direction) of each motion group's joint at the rest pose."""
+    if kind == "crank":
+        return "revolute", (0.0, 0.0, 0.0), AXIS
+    if kind == "master":
+        return "revolute", _xyz(kin.crankpin(0.0)), AXIS
+    if kind == "artrod":
+        return "revolute", _xyz(kin.knuckle(0.0, args[0])), AXIS
+    if kind == "piston":
+        return "linear", (0.0, 0.0, 0.0), S.cyl_u(args[0])
+    if kind == "camring":
+        return "revolute", (0.0, 0.0, 0.0), AXIS
+    if kind == "camidler":
+        return "revolute", kin.cam_idler_axis_point(), AXIS
+    if kind == "tappet":
+        return "linear", kin.pushrod_bottom0(*args), kin.tappet_dir(*args)
+    if kind == "roller":
+        k, v = args
+        centre = kin._addv(kin.tappet_roller_centre0(k, v), kin.tappet_dir(k, v), kin.tappet_lift(0.0, k, v))
+        return "revolute", centre, AXIS
+    if kind == "pushrod":
+        k, v = args
+        socket = kin._addv(kin.pushrod_bottom0(k, v), kin.tappet_dir(k, v), kin.tappet_lift(0.0, k, v))
+        return "revolute", socket, PUSHROD_AXES[k, v]
+    if kind == "rocker":
+        return "revolute", kin.rocker_pivot(*args), kin.ROCKER_AXIS
+    if kind == "valve":
+        return "linear", kin.valve_seat(*args), kin.valve_axis(*args)
+    if kind == "planet":
+        return "revolute", kin.planet_centre0(args[0]), AXIS
+    if kind == "propshaft":
+        return "revolute", (0.0, 0.0, 0.0), AXIS
+    if kind == "impeller":
+        return "revolute", (0.0, 0.0, 0.0), AXIS
+    if kind == "blowergear":
+        return "revolute", kin.blower_gear_centre(args[0]), AXIS
+    raise ValueError(kind)
+
+
+def _parent_of(kind: str, args: tuple):
+    """The motion group a group's joint stands on; None is the ground."""
+    if kind == "master":
+        return ("crank", ())
+    if kind == "artrod":
+        return ("master", ())
+    if kind in ("roller", "pushrod"):
+        return ("tappet", args)
+    if kind == "planet":
+        return ("propshaft", ())
+    return None
+
+
+def _joint_range(table, name: str, joint: str):
+    if name in DRIVE:
+        lo, hi = sorted((DRIVE[name] * DRIVE_RANGE[0], DRIVE[name] * DRIVE_RANGE[1]))
+        return lo - 1.0, hi + 1.0
+    return _travel(table, name, 1.0 if joint == "linear" else 2.0)
+
+
+def _identity(location) -> bool:
+    found = location.to_tuple()
+    return all(abs(v) < 1e-9 for v in (*found[0], *found[1]))
+
+
+def _held(holder, joint) -> bd.Location:
+    """Where a linear joint's rigid half stands at 0: build123d slides it without turning
+    it, so its frame keeps the holder's orientation, at the axis point."""
+    return holder.location * bd.Location(joint.relative_axis.position)
+
+
+def author(root):
+    """Every joint on the engine `root` (a compound of the systems, each a compound of
+    labelled parts): the running groups' and the two exploded clips' (`lib/explode.py`),
+    each where its link rides. Returns the explode plan, which gives every motion's values."""
+    from lib import explode
+
+    if not _identity(root.location) or any(not _identity(system.location) for system in root.children):
+        raise ValueError("the joints are authored in the world frame: the engine and its systems stand at the origin")
+    shapes = {system.label: system for system in root.children}
+    system_of = {}
+    for system in root.children:
+        for part in system.children:
+            shapes[part.label] = part
+            system_of[part.label] = system.label
+    order = list(system_of)
+    plan = explode.Plan(order, system_of)
+    table = [running_values(i * 2.0) for i in range(361)]   # one cycle, every 2 degrees
+
+    def holder_shape(node):
+        return root if node.holder is plan.root else shapes[node.holder.lead]
+
+    for node in plan.nodes:
+        holder, lead = holder_shape(node), shapes[node.lead]
+        if node.kind == "prismatic":
+            axis = bd.Axis((0.0, 0.0, 0.0), tuple(float(c) for c in node.direction))
+            joint = bd.LinearJoint(node.name, holder, axis=axis, linear_range=plan.slide_range(node))
+            seat = _held(holder, joint)
+        elif node.kind == "linear":
+            axis = bd.Axis(node.point, tuple(float(c) for c in node.axis))
+            lo, hi = _joint_range(table, node.name, "linear")
+            if node.amounts or node.x:
+                # the stroke and the teardown's slide, which never add (the teardown stands at 0)
+                slo, shi = plan.slide_range(node)
+                lo, hi = min(lo, slo), max(hi, shi)
+            joint = bd.LinearJoint(node.name, holder, axis=axis, linear_range=(lo, hi))
+            seat = _held(holder, joint)
+        else:
+            axis = bd.Axis(node.point, tuple(float(c) for c in node.axis))
+            turn = _joint_range(table, node.name, "revolute")
+            if node.kind == "cylindrical":
+                joint = bd.CylindricalJoint(node.name, holder, axis=axis, angular_range=turn,
+                                            linear_range=plan.slide_range(node))
+            else:
+                joint = bd.RevoluteJoint(node.name, holder, axis=axis, angular_range=turn)
+            seat = joint.location
+        bd.RigidJoint(node.name, lead, seat)
+        for label in node.members:
+            part = shapes[label]
+            bd.RigidJoint(label, lead, part.location)
+            bd.RigidJoint(label, part, part.location)
+    made = {node.name for node in plan.nodes}
+    expected = set(DRIVE) | set(table[0]) - {"drive"}
+    if expected - made:
+        raise ValueError(f"no parts carry the motion groups {sorted(expected - made)}: the label contract changed")
+    return plan
+
+
+def assemble(systems):
+    """The engine: the systems under one compound, its joints, the gear train's coupling
+    `drive`, the configurations and the three motions -- `running`, the 720-degree cycle;
+    `explode`, the teardown from the rest pose; `exploded-running`, the cycle with the
+    groups held apart (`lib/explode.py`)."""
+    engine = bd.Compound(label="radial", children=systems)
+    plan = author(engine)
+    couple(engine, "drive", **DRIVE)
+
+    def turns(t: float) -> dict:
+        return running_values(DEG_PER_S * t)
+
+    for name, theta in CONFIGURATIONS.items():
+        configuration(engine, name, **plan.values(running_values(theta), {}))
+    motion(engine, "running", lambda t: plan.values(turns(t), {}), duration=CYCLE_S)
+    motion(engine, "explode", lambda t: plan.values({}, plan.explode_slides(t)), duration=plan.duration)
+    held = plan.running_slides()
+    motion(engine, "exploded-running", lambda t: plan.values(turns(t), held), duration=CYCLE_S)
+    return engine

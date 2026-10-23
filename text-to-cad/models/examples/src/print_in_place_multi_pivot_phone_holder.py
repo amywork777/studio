@@ -30,11 +30,11 @@ Print footprint: 94 x 248 mm, 18 mm tall — fits a 250 mm bed; scale or shorten
 the arm links for a 220 mm bed.
 """
 from __future__ import annotations
-from cadgen import step
+from cadgen.engine import materials, xbf
 
-from cadgen import build123d as bd
-from cadgen import srgb
-from cadgen.assembly import AssemblyHelper
+import build123d as bd
+
+from lib.color import srgb
 
 
 # ---- shared joint geometry ----
@@ -239,40 +239,22 @@ def _make_cradle():
     return cradle
 
 
-def _pin_frame_loc(y_fold):
-    """Frame oriented like the revolute frame (local Z along the pin axis +X).
-
-    Modeled parts already sit in the print pose, so an angle=0 connect holds
-    that pose instead of re-rotating the pinned link.
-    """
-    return bd.Location(
-        bd.Plane(origin=(0.0, y_fold, AXIS_Z), x_dir=(0.0, 0.0, 1.0), z_dir=(1.0, 0.0, 0.0))
-    )
+PIVOTS = (("base_pivot", Y_J1), ("elbow_pivot", Y_J2), ("wrist_pivot", Y_J3))
 
 
-@step(out="../STEP/print_in_place_multi_pivot_phone_holder.step")
+@xbf(out="../XBF/print_in_place_multi_pivot_phone_holder.xbf")
 def print_in_place_multi_pivot_phone_holder():
     """Return the print-in-place holder as a labeled four-link assembly compound."""
-    asm = AssemblyHelper("print_in_place_multi_pivot_phone_holder")
-
-    base = asm.add(_make_base(), "base_mount_plate")
-    lower = asm.add(_make_lower_arm(), "lower_arm_link")
-    upper = asm.add(_make_upper_arm(), "upper_arm_link")
-    cradle = asm.add(_make_cradle(), "cradle_phone_holder")
-
-    j1_bore = asm.revolute_frame(base, "pivot1_bore_axis", bd.Axis((0.0, Y_J1, AXIS_Z), (1.0, 0.0, 0.0)))
-    j1_pin = asm.rigid_frame(lower, "pivot1_pin_frame", _pin_frame_loc(Y_J1))
-    asm.revolute(j1_bore, j1_pin, angle=0.0, label="base_pivot")
-
-    j2_bore = asm.revolute_frame(lower, "pivot2_bore_axis", bd.Axis((0.0, Y_J2, AXIS_Z), (1.0, 0.0, 0.0)))
-    j2_pin = asm.rigid_frame(upper, "pivot2_pin_frame", _pin_frame_loc(Y_J2))
-    asm.revolute(j2_bore, j2_pin, angle=0.0, label="elbow_pivot")
-
-    j3_bore = asm.revolute_frame(upper, "pivot3_bore_axis", bd.Axis((0.0, Y_J3, AXIS_Z), (1.0, 0.0, 0.0)))
-    j3_pin = asm.rigid_frame(cradle, "pivot3_pin_frame", _pin_frame_loc(Y_J3))
-    asm.revolute(j3_bore, j3_pin, angle=0.0, label="wrist_pivot")
-
-    return asm.build()
+    links = [_make_base(), _make_lower_arm(), _make_upper_arm(), _make_cradle()]
+    # Each pivot at the as-printed pose: a revolute on the -Y link's bores and the +Y link's
+    # rigid frame on the same pin axis, paired by their label (the links stand where they print).
+    for (label, y_fold), bored, pinned in zip(PIVOTS, links, links[1:]):
+        axis = bd.Axis((0.0, y_fold, AXIS_Z), (1.0, 0.0, 0.0))
+        bd.RevoluteJoint(label, bored, axis=axis)
+        bd.RigidJoint(label, pinned, axis.location)
+    holder = bd.Compound(children=links, label="print_in_place_multi_pivot_phone_holder")
+    holder.material = materials.pla.but(color=None)  # every link PLA, in its own colour
+    return holder
 
 
 if __name__ == "__main__":

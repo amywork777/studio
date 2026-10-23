@@ -1,13 +1,9 @@
+import { createExportService } from './exports.js';
 import { encodeBase64 } from './base64.js';
 import { requestViewerJson, ViewerRequestError } from "./request.js";
-import { retainSurfWorkerPool } from '../lib/surf/surfWorkerClient.js';
 import { retainGlbMeshWorker } from '../lib/render/glbMeshWorkerClient.js';
 import { retainStlMeshWorker } from '../lib/render/stlMeshWorkerClient.js';
 import { applyViewerOriginToEntries, normalizeViewerOrigin, viewerOriginUrl } from './origin.js';
-import { createHttpTessellationCacheProvider, createTessellationCache } from '../lib/surf/tessellationCache.js';
-
-import { resolveSurfaceComponents } from './surfaceResolution.js';
-import { observeEditingPreview } from './editingPreviewFeed.js';
 import { createHttpCadResourceProvider, scopeCadResources } from './resources.js';
 export * from './origin.js';
 
@@ -31,6 +27,8 @@ function abortError() {
 
 // The longest a drawing's 202 may ask the client to wait before it asks again.
 const DRAWING_RETRY_MAX_MS = 5000;
+// The longest an engine document's 202 (the engine still reading it) may have the client wait.
+const ENGINE_RETRY_MAX_MS = 5000;
 
 /** `ms` of waiting that `signal` ends early, as an AbortError. */
 function pause(ms, signal) {
@@ -61,7 +59,7 @@ const JSON_POST = Object.freeze({ 'content-type': 'application/json', 'x-cadgen-
  * @param {import("./types.js").CadClientOptions} options
  * @returns {import("./types.js").CadClient}
  */
-export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fetch, pollIntervalMs = 2000, shouldPoll = () => true, resources: resourceProvider, editingPreviewFeed = null, maxBatchBytes } = {}) {
+export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fetch, pollIntervalMs = 2000, shouldPoll = () => true, resources: resourceProvider } = {}) {
   origin = normalizeViewerOrigin(origin);
   let disposed = false;
   const resourceLifetime = new AbortController();
@@ -77,7 +75,6 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
   const activeFiles = new Map();
   let preferredFile = '';
   const pendingRefreshes = new Map();
-  let tessellationCache = null;
   let server = null;
 
   function publish(patch) {
@@ -179,6 +176,7 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
   }
 
   const client = {
+    exports: createExportService({ origin, fetch: fetchImpl }),
     origin,
     resources,
     getSnapshot: () => snapshot,
@@ -217,6 +215,10 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
     },
     // One folder's subfolders and CAD files, and the CAD files nested under a folder whose path
     // below it holds `query` (bounded by the server, which says when it stopped early).
+    async models({ signal } = {}) {
+      const answer = await request('/__cad/models', { signal, timeoutMs: 10_000, operation: 'models' });
+      return answer.models;
+    },
     folder(path, { signal } = {}) {
       return request('/__cad/folder', { params: { path }, signal, timeoutMs: 10_000, operation: 'folder' });
     },
@@ -226,7 +228,7 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
     // What every CAD view on this machine shares, and the host's own effects, through this client's
     // fetch: the web page's own server, or the CAD app's through its tunnel. The home's library of
     // models and their pictures, Open with the desktop's chooser, Reveal, the person's analytics
-    // answer and features, and whether a newer text-to-cad is out.
+    // answer and language, and whether a newer text-to-cad is out.
     recents({ signal } = {}) {
       return request('/__cad/recents', { signal, operation: 'recents' }).then((reply) => reply.recents);
     },
@@ -255,10 +257,6 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
       return share === undefined ? request('/__cad/analytics', { operation: 'consent' })
         : request('/__cad/analytics', { method: 'POST', headers: JSON_POST, body: { share }, operation: 'consent' });
     },
-    features(change) {
-      return change === undefined ? request('/__cad/features', { operation: 'features' })
-        : request('/__cad/features', { method: 'POST', headers: JSON_POST, body: change, operation: 'features' });
-    },
     language(locale) {
       return locale === undefined ? request('/__cad/language', { operation: 'language' })
         : request('/__cad/language', { method: 'POST', headers: JSON_POST, body: { locale }, operation: 'language' });
@@ -268,18 +266,6 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
     },
     reportActivity(activity) {
       void Promise.resolve(fetchImpl(cadApiUrl('/__cad/analytics/activity', { origin }), { method: 'POST', headers: JSON_POST, body: JSON.stringify(activity) })).catch(() => {});
-    },
-    requestArtifactStatus(file, { signal } = {}) {
-      if (!file) return Promise.reject(new Error('Missing file'));
-      return request('/__cad/artifact', { file, signal, timeoutMs: 10_000, operation: 'status' });
-    },
-    // Starts the file's compile and answers at once (`compiling`, or `compiled` when there is
-    // nothing to build); the build is followed through `requestArtifactStatus`.
-    requestArtifact(file, { force = false, signal } = {}) {
-      if (!file) return Promise.reject(new Error('Missing file'));
-      return request('/__cad/artifact', {
-        file, signal, method: 'POST', operation: 'compile', params: force ? { force: '1' } : {}, headers: { 'x-cadgen-viewer': '1' }
-      });
     },
     async drawing(file, { signal } = {}) {
       // A `.dxf` flattened to 2D render primitives on the SERVER: ezdxf does the
@@ -305,18 +291,6 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
       if (!file) return Promise.reject(new Error('Missing file'));
       return request('/__cad/plot', { file, signal, timeoutMs: 180_000, operation: 'plotting' });
     },
-    requestSurfaces(body, { signal } = {}) {
-      return request('/__cad/surfaces', {
-        body, signal, method: 'POST', operation: 'surfaces',
-        headers: { 'content-type': 'application/json', 'x-cadgen-viewer': '1' },
-      });
-    },
-    cancelSurfaceRequest(body, { signal } = {}) {
-      return request('/__cad/surfaces/cancel', {
-        body, signal, method: 'POST', operation: 'cancel-surfaces',
-        headers: { 'content-type': 'application/json', 'x-cadgen-viewer': '1' },
-      });
-    },
     // Edit mode (`cadgen/edit`): the part script behind `file` read as a design, and one number
     // of it changed. A cold read runs the part once, so its bound is far past the house 10 s.
     editState(file, files = null, { signal, probe = false, bar = null } = {}) {
@@ -329,37 +303,50 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
     editChange(change, { signal } = {}) {
       return request('/__cad/edit/change', { body: change, signal, method: 'POST', timeoutMs: 200_000, operation: 'edit', headers: JSON_POST });
     },
-    editingPreview(file, { after = '', signal } = {}) {
-      return request('/__cad/preview', { file, signal, params: { after }, operation: 'preview' });
+    robot(file, { signal } = {}) {
+      // A robot description resolved on the SERVER (cadgen.robot_payload): the articulation
+      // the page plays and the visuals it draws, each mesh by a URL this server answers.
+      // Derived data cached by the description's bytes, so a second request is one object
+      // read; a cold read validates, resolves frames and meshes primitives within the 10 s.
+      if (!file) return Promise.reject(new Error('Missing file'));
+      return request('/__cad/robot', { file, signal, timeoutMs: 10_000, operation: 'robot' });
     },
-    resolveSurfaceComponents(descriptor, requested, options) {
-      return resolveSurfaceComponents(descriptor, requested, { ...options, client });
+    async engineDocument(file, { signal } = {}) {
+      // A document the cadgen ENGINE reads -- an `.xbf`, or a STEP -- is served by the engine: the
+      // viewer asks it to serve the file (`cadgen.viewer.xbf`) and answers where the page reads it,
+      // through this server (`/__cad/xbf/api/doc/<id>`), so the reads travel as every request does
+      // (over the CAD app's tunnel too). Answered with the fetch they are made with. The engine's
+      // first read of a large STEP takes a while: the server answers 202 { state: 'reading',
+      // retryMs } until the engine holds it, and the client asks again after `retryMs`; each
+      // request's 10 s is the time the server may stay silent.
+      if (!file) throw new Error('Missing file');
+      for (;;) {
+        const reply = await request('/__cad/xbf', { file, signal, timeoutMs: 10_000, operation: 'engine-document' });
+        if (reply?.state !== 'reading') return { ...reply, url: viewerOriginUrl(origin, reply.url), fetch: fetchImpl };
+        await pause(Math.min(Math.max(Number(reply.retryMs) || 0, 0), ENGINE_RETRY_MAX_MS), signal);
+        if (disposed) throw abortError();
+      }
     },
-    // A host that already hears a file's build feed (on a call it makes anyway) hands it in as
-    // `editingPreviewFeed`, and nothing here asks the route.
-    observeEditingPreview(file, onUpdate, onError, options) {
-      if (editingPreviewFeed) return editingPreviewFeed(file, onUpdate, onError);
-      return observeEditingPreview(file, onUpdate, onError, { ...options, client });
+    async engineHolds(file, { signal } = {}) {
+      // Whether the engine holds a read of the document now, asked without starting one.
+      if (!file) throw new Error('Missing file');
+      const reply = await request('/__cad/xbf', { file, signal, params: { held: '1' }, timeoutMs: 10_000, operation: 'engine-document' });
+      return reply?.held === true;
     },
     createRenderSession({ file = '' } = {}) {
       if (disposed) throw new Error('This CAD client has been disposed.');
       if (file) activeFiles.set(file, (activeFiles.get(file) || 0) + 1);
       const controller = new AbortController();
-      const releases = [retainSurfWorkerPool(), retainGlbMeshWorker(), retainStlMeshWorker()];
-      tessellationCache ??= createTessellationCache({
-        provider: createHttpTessellationCacheProvider({ origin, headers: { 'x-cadgen-viewer': '1' }, fetch: fetchImpl, maxBatchBytes }),
-        writeBack: { deferMs: 1500, concurrency: 2 }
-      });
-      const cache = tessellationCache.createSession({ signal: controller.signal });
+      const releases = [retainGlbMeshWorker(), retainStlMeshWorker()];
       let sessionDisposed = false;
-      const session = { resources, tessellationCache: cache, signal: controller.signal, dispose() {
+      const session = { resources, signal: controller.signal, dispose() {
         if (sessionDisposed) return;
         sessionDisposed = true;
         if (file) {
           const remaining = (activeFiles.get(file) || 0) - 1;
           if (remaining > 0) activeFiles.set(file, remaining); else activeFiles.delete(file);
         }
-        controller.abort(); cache.dispose();
+        controller.abort();
         for (const release of releases) release();
         sessions.delete(session);
       } };
@@ -375,7 +362,6 @@ export function createCadClient({ origin = '', fetch: fetchImpl = globalThis.fet
       for (const request of requests) request.abort();
       requests.clear();
       for (const session of [...sessions]) session.dispose();
-      tessellationCache?.dispose();
       pendingRefreshes.clear();
       listeners.clear();
     }

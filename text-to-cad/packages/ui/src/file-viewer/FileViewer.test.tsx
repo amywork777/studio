@@ -19,7 +19,7 @@ const renderer = defineFileRenderer({
 // A host that shows one file and browses nothing, has no home and can do nothing with the file.
 const host = {
   files: { id: 'one', stat: async (path: string) => ({ path, name: path.split('/').pop()!, kind: 'file' as const, extension: 'step', size: 1 }) },
-  clipboard: { writeText: async () => {}, readText: async () => '', writeImage: async () => {} },
+  clipboard: { writeText: async () => {}, writeImage: async () => {} },
   promptContext: unavailablePromptContext, environment: { colorScheme: 'light' as const }, navigation: { openFile(_path: string) {} },
 };
 const open = (props: { host?: object; file?: string | null; presentation?: object }) =>
@@ -231,10 +231,22 @@ it('says why a file will not open, and that it does not exist when it is missing
   cleanup();
   open({ host: failing(new Error('The disk is gone')), presentation });
   await screen.findByText('failed');
-  expect(failures.at(0)).toEqual({ message: 'File does not exist: /models/gone.step', missing: true });
-  expect(failures.at(-1)).toEqual({ message: 'The disk is gone', missing: false });
+  expect(failures.at(0)).toEqual({ message: 'File does not exist: /models/gone.step', missing: true, reload: expect.any(Function) });
+  expect(failures.at(-1)).toEqual({ message: 'The disk is gone', missing: false, reload: expect.any(Function) });
   cleanup();
   // A host with no page of its own for it gets the viewer's.
   open({ host: failing(new Error('The disk is gone')) });
   expect(await screen.findByText('Could not open that file')).toBeTruthy();
+});
+
+it('a missing-file presentation can reread the requested file through its injected reload', async () => {
+  const missing = Object.assign(new Error('File does not exist'), { code: 'cad-file-missing' });
+  const stat = vi.fn().mockRejectedValueOnce(missing).mockImplementation(host.files.stat);
+  let retry = () => {};
+  open({ host: { ...host, files: { ...host.files, stat } },
+    presentation: { error: ({ reload }: { reload: () => void }) => { retry = reload; return <button onClick={reload}>Retry missing file</button>; } } });
+  await userEvent.click(await screen.findByRole('button', { name: 'Retry missing file' }));
+  expect(await screen.findByText('shown')).toBeTruthy();
+  act(() => retry());
+  expect(stat.mock.calls.map(([path]) => path)).toEqual([FILE, FILE]);
 });

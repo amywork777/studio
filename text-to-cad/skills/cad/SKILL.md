@@ -1,6 +1,6 @@
 ---
 name: cad
-description: Create/edit parametric CAD models, organize CAD projects, export STEP/STL/3MF/GLB files, resolve prompt references, and measure geometry with cadgen. Open and visually review existing STEP/STP, STL, 3MF and GLB files in CAD Viewer.
+description: Create/edit parametric CAD models as Python scripts built into .xbf documents, export STEP/STL/3MF/GLB files, organize CAD projects, resolve prompt references, and measure geometry with cadgen. Open and visually review existing XBF, STEP/STP, STL, 3MF and GLB files in CAD Viewer.
 license: MIT
 ---
 
@@ -11,22 +11,19 @@ Use the installed local skill files for the current interface.
 
 ## Start with the task
 
-Read only the references needed for the request.
-
-| Task | First action | Reference |
+| Task | Start with | Reference |
 | --- | --- | --- |
-| **Create or edit a part or assembly** | Find the existing Python model, or create a decorated model below; edit source and run `python <model>.py`. | [Model contract](references/step-generation.md), [shape construction](references/build123d-modeling.md); [positioning](references/positioning.md) for assemblies |
-| **Sketch a profile** | Draw it with `cadgen.sketch`: lines, arcs and circles on a plane, held by relations and dimensions that take the part's named sizes, then extrude `s.face()`. | [Sketching](references/sketching.md) |
-| **A part the engineer edits by hand** | Write it so the viewer's edit mode reads it: named sizes at the top (shared ones in `sizes.py` beside the parts), one feature per line, the body in one name. A hand change or a command's line (Fillet, Hole) arrives as a note: read the script again and keep what they wrote. | [Edit mode](references/edit-mode.md) |
-| **Organize a CAD project** | Follow its existing layout; for a new multi-model project use `src/`, format output folders, and a model catalog. | [Project layout](references/project-layout.md), [minimal starters](references/project-template.md) |
-| **Export STL, 3MF or GLB** | Add a mesh decorator for a maintained output, or run the format's `build INPUT.step OUT` command for a one-off export. | [Mesh exports](references/supported-exports.md) |
-| **Resolve a reference from a prompt** | Identify its saved STEP/STP document, open it with `read_scene`, and call `scene.resolve(ref)` as shown below. | [Reference syntax and inspection](references/inspection-and-validation.md#reference-syntax) |
-| **Measure or check geometry** | Write a Python check using native build123d geometry and, where useful, `cadgen.geometry`. | [Inspection and validation](references/inspection-and-validation.md) |
-| **Model from an image or drawing** | Extract the specified dimensions and record meaningful assumptions. | [Interpreting the request](references/cad-brief.md) |
-| **Open an existing STEP/STP, STL, 3MF or GLB** | Show it to the user. | [Show the model](#show-the-model) |
-| **Review appearance or motion** | Snapshot the saved document; use declared kinematics or animation for poses and clips. | [Snapshots](references/snapshot-review.md), [kinematics](references/kinematics.md) |
-| **Diagnose a failure** | Read the error and check the relevant model, geometry or command contract. | [Repair loop](references/repair-loop.md), [version migration](references/migrations.md) |
-| **A message says to migrate** | Do the migration now; an unmigrated model silently loses kinematics, materials and animation. | [Version migration](references/migrations.md) |
+| **Create or edit a part or assembly** | The project's model script, or a new one (below). | [Model contract](references/model-contract.md), [build123d](references/build123d-modeling.md), [positioning](references/positioning.md) |
+| **Organize a CAD project** | The project's existing layout. | [Project layout](references/project-layout.md), [starters](references/project-template.md) |
+| **Export STEP, STL, 3MF or GLB** | A decorator on the model, or `cadgen export` on its `.xbf`. | [Exports](references/supported-exports.md) |
+| **Use a vendor STEP in a model** | `cadgen export vendor.step vendor.xbf` once, then `read_xbf` in the model. | [Inputs](references/model-contract.md#inputs) |
+| **Resolve a reference from a prompt** | `select(document, ref)` in a Python check (below). | [References](references/inspection-and-validation.md#references) |
+| **Find the code that made a face or an edge** | `cadgen inspect <document> <ref>`. | [Which code made it](references/inspection-and-validation.md#which-code-made-it) |
+| **Measure or check geometry** | A Python check: `read_xbf`, `select` and `cadgen.geometry`. | [Inspection](references/inspection-and-validation.md) |
+| **See a model or a pose** | `cadgen snapshot`. | [Snapshots](references/snapshot-review.md) |
+| **Articulate a model** | build123d joints in the body, then `configuration`, `couple` and `motion`. | [Kinematics](references/kinematics.md) |
+| **Open an existing XBF, STEP/STP, STL, 3MF or GLB** | Show it to the user. | [Show the model](#show-the-model) |
+| **Source or commands written for an older cadgen fail** | Their migration. | [Migrations](references/migrations.md) |
 
 For 2D DXF drawings use `$dxf`; this skill owns any 3D part the drawing projects.
 Use the corresponding robot-description skill for URDF, SRDF or SDF.
@@ -34,40 +31,47 @@ Use the corresponding robot-description skill for URDF, SRDF or SDF.
 ## Setup and paths
 
 Run cadgen through [uv](https://docs.astral.sh/uv/), so this skill's commands share
-one installation, and its warm build daemon, with the CAD app's server:
+one installation, and its engine daemon, with the CAD app's server:
 
-- `cadgen` below means `uvx --no-config --managed-python --python 3.13 --from cadgen==0.7.26 cadgen`
-- `python` below means `uvx --no-config --managed-python --python 3.13 --from cadgen==0.7.26 python`
+- `cadgen` below means `uvx --no-config --managed-python --python 3.13 --from cadgen==0.8.0 cadgen`
+- `python` below means `uvx --no-config --managed-python --python 3.13 --from cadgen==0.8.0 python`
 
-The first run downloads that installation and the first snapshot its headless
-browser; later runs reuse both.
+`cadgen doctor <skill-dir>` reports the installation in use, whether it is the one
+this skill pins, whether the CAD kernel loads, and whether the engine daemon is
+running. Each command's `--help` lists its flags.
 
-`cadgen doctor <skill-dir>` reports the installation in use and checks that it is
-the one this skill pins, and that the CAD kernel loads; use it for installation or
-kernel load errors. Use the relevant
-subcommand's `--help` for additional flags.
+Every build runs in the engine's daemon, which the first build starts: one warm
+worker per model script, kept between runs. `cadgen status` shows the workers and
+what each is building; `cadgen stop` stops the daemon. Where no daemon can run (a
+sandbox without local sockets), `cadgen export`, `cadgen snapshot` and `cadgen
+build` take `--no-daemon`, and a model builds in your own process from Python,
+in its script's folder: `python -c "import bracket; bracket.bracket.build(daemon=False)"`.
+Such a build is cold every time.
 
-Run project commands from the CAD project root. CLI input/output paths and
-`read_scene`/`read_step` paths are working-directory-relative; decorator `out=`
-paths are **relative to the model script**. Anchor file inputs on `__file__`
-when the model must run from any directory.
+Command-line paths, and the paths `read_xbf`, `read_step` and `select` take, are
+relative to the working directory, as are a model's own file reads unless anchored
+on `__file__`. Decorator `out=` paths are **relative to the model script**.
 
 ## Create or edit a model
 
-A model is a plain Python script with a parameterless decorated function
-returning a build123d shape. Use one model per entrypoint, with the script and
-its declared outputs sharing a filename stem. For example, `src/bracket.py`:
+A model is a parameterless function that returns a build123d shape, decorated with
+`@xbf`: running its script builds it into an `.xbf`, cadgen's own document of the
+model (its parts and placements, names, colours, materials and mechanism). For
+example, `src/bracket.py`:
 
 ```python
-from cadgen import build123d as bd
-from cadgen import step
+from cadgen.engine import step, xbf
+import build123d as bd
 
 WIDTH = 40.0
 
 
+@xbf(out="../XBF/bracket.xbf")
 @step(out="../STEP/bracket.step")
 def bracket():
     body = bd.Box(WIDTH, 20, 6)
+    bore = bd.Cylinder(4, 6)
+    body = body - bore
     body.label = "bracket"
     return body
 
@@ -80,81 +84,112 @@ if __name__ == "__main__":
 python src/bracket.py
 ```
 
-- Edit the model source when it exists, then run it to regenerate its outputs.
-  Document export and snapshot commands take saved files and never run source.
-- Keep meaningful dimensions explicit. Use millimeters and XY/+Z unless the
-  task or project specifies another convention; choose a useful functional datum.
-  Prefer closed, positive-volume solids for physical parts, while honoring
-  requests for surfaces or construction geometry.
-- Put parameterized geometry in ordinary factory functions; a decorated model
-  selects a configuration. Keep module bodies cheap: create geometry and read
-  CAD inputs inside the model or its helpers. Use the lazy `bd` import above;
-  use postponed annotations when annotations mention `bd` types.
-- Call child models inside the assembly model. Place their results with
-  `.moved()` or `Location * shape` to preserve shared geometry. Use meaningful
-  occurrence labels and source-defined placements. Rerun the parent assembly
-  to incorporate a changed child.
-- Read vendor STEP inputs with `cadgen.read_step`. Every file a build opens is
-  an input on its own, whatever reads it (`json.load`, `np.load`,
-  `bd.import_step`, a project font): nothing is declared. Never read a model's own
-  output as its input. Geometry must not depend on untracked
-  time, random values, environment variables or the working directory.
-- When named purchasable parts are needed, search `$step-parts` before making
-  placeholders. Record an unsuccessful search and any placeholder assumptions.
-
-For unfamiliar dimensions or interfaces, record the assumptions needed to model
-and verify them. Ask for missing information when it materially affects the
-requested result. Inspection and export requests do not need a modeling brief.
-
-## Mesh exports
-
-Stack `@stl`, `@threemf` or `@glb` on the model for outputs that should be
-maintained on every run. A model may declare only meshes; STEP is optional.
-For a one-off export from an existing generated or imported STEP:
-
-```bash
-cadgen stl build STEP/bracket.step STL/bracket.stl
-cadgen 3mf build STEP/bracket.step 3MF/bracket.3mf
-cadgen glb build STEP/bracket.step GLB/bracket.glb
+```text
+built src/bracket.py::bracket cold in 2.33s: bodies 1 run; 6 misses, 0 hits; body 0.01s, ...
+  XBF/bracket.xbf (written, 0.0 MB)
+  STEP/bracket.step (written, 0.0 MB)
 ```
 
-Omitting OUT writes one sibling file with the requested extension. It does
-not discover declared model variants. See [mesh exports](references/supported-exports.md)
-for decorator examples, mesh tolerances and animated GLB.
+- **Decoration only declares.** Imports and definitions build nothing. The script's
+  explicit model calls build their models and write their declared outputs; Python
+  controls which calls run. Keep calls under `if __name__ == "__main__":`.
+  cadgen consumes no script arguments, and never exits the caller at import time.
+- `@model` declares a document without a file. Every file decorator implies a model.
+- `@step`, `@glb`, `@stl`, `@threemf` and `@dxf` declare translations of the
+  document; `@xbf` explicitly saves that document. Every file decorator requires `out=` (or a positional output path) and takes nothing else:
+  materials, colours, joints, configurations and motions are written in the body. A
+  model without `@xbf` writes its other declared files and keeps its document in memory.
+- The script's worker keeps every kernel operation it ran, keyed by its inputs, so an
+  edit runs what it reaches and replays the rest, and an unchanged model rewrites
+  nothing (`kept`). After the daemon restarts, a model whose `.xbf` was built from
+  the code and inputs it has now is taken from that file and nothing runs.
+- An element is named by the function and the variable that made it, never by a
+  line: `f:bracket.bore.1;M:bracket.body_dnjoch` is face 1 of `bore`, modified by
+  the cut whose result `body` took. Moving code renames nothing, and a dimension
+  edit keeps every name.
+- An assembly calls its child models in its body and places their results. Each
+  child builds in the same run and writes its own declared files. Running a child's
+  script alone leaves the assemblies that use it as they were: run the assembly.
+- A variant is a second model function: a model takes no parameters.
+- `@memo` marks a function a later build may replay instead of running. The memo
+  already keeps every kernel call, so mark only a stage holding seconds of kernel
+  work that an edit elsewhere leaves alone, such as a sub-assembly; never a small
+  part or a helper called many times
+  ([memo functions](references/model-contract.md#memo-functions)).
+- The files a body reads are inputs, by their bytes: `read_xbf`, `read_step`,
+  `read_mesh`, and every file its Python opens (`open`, `json.load`, `np.load`). A
+  file read past them (build123d's `import_step` or `import_stl`, an OCCT reader)
+  makes the body run on every build. The clock, environment variables and
+  randomness are not seen. A model never reads a file its own build writes.
+- A vendor STEP is converted once and read as an xbf, which is many times faster than
+  parsing the STEP: `cadgen export vendor.step vendor.xbf`, then `read_xbf` in the
+  model. `$step-parts` finds real vendor models of purchasable parts such as
+  fasteners, bearings and servos.
+- Model units are millimetres, +Z up.
+- An image without a scale sets no fit dimension, and a drawing's units, projection
+  and revision decide how its numbers read. A missing or conflicting dimension that
+  changes the result is the person's to settle; a value chosen in its place is an
+  assumption.
+
+## Exports
+
+STEP, GLB, STL and 3MF files are translations of the `.xbf`, written by one writer:
+a decorator for a file every build keeps current, `cadgen export` for one written
+once from a document (an `.xbf` or a `.step`).
+
+```bash
+cadgen export XBF/bracket.xbf STL/bracket.stl GLB/bracket.glb 3MF/bracket.3mf
+cadgen export XBF/arm.xbf STEP/arm_folded.step --pose folded
+cadgen export XBF/assembly.xbf STL/standoff_left.stl --part standoff_left
+```
+
+A GLB carries each of the model's motions as an animation clip: animation exists
+only there. Meshes are made at one tolerance everywhere, FreeCAD's default. See
+[exports](references/supported-exports.md).
 
 ## Prompt references and inspection
 
-A reference such as `/work/robot/STEP/assembly.step#o1.2.f7` identifies geometry
-in a particular saved document. Its file part is the document's absolute path as
-the CAD viewer copied it, with the file's real name and extension (in quotes when it
-holds a space or `#`). A selection of several entities is copied as one line, its
-refs comma-separated (`/work/robot/STEP/assembly.step#o1.2.f7,o1.2.f8`). Open that
-path with `read_scene`, and pass the whole line to `resolve()`, which returns a tuple
-of one selection per ref, in order:
+A reference such as `/work/robot/XBF/arm.xbf#arm/fore/f:arm.fore.6` names geometry
+in a document by the engine's own names: the file, `#`, a part or an assembly by
+the labels on its way from the root (`hand/finger.2` is the second component
+labelled `finger` in `hand`; a path may start at any level where it names one
+occurrence), then, after a slash, one element by its name (`f:`, `e:` or `v:`) or
+its number (`face 7`). The CAD viewer copies them for an `.xbf` or a STEP. Resolve
+one in a Python check:
 
 ```python
-from cadgen import read_scene
+from cadgen.engine import read_xbf, select
 
-scene = read_scene("/work/robot/STEP/assembly.step")
-for selection in scene.resolve("/work/robot/STEP/assembly.step#o1.2.f7,o1.2.f8"):
-    face = selection.shape()  # owned native geometry, in document world coordinates
-    print(selection.ref, face.area)
-
-(selection,) = scene.resolve("/work/robot/STEP/assembly.step#o1.2.f7")  # one ref
+arm = read_xbf("/work/robot/XBF/arm.xbf")                            # the latest build
+face = select(arm, "/work/robot/XBF/arm.xbf#arm/fore/f:arm.fore.6")[0]
+print(face.label, face.area)                                          # a Face, world coordinates
 ```
 
+`select` returns build123d shapes, one per selector, and `kind="face"` every face
+under what a selector names. `cadgen inspect XBF/arm.xbf "fore/f:arm.fore.6"` answers
+the same ref from the command line: an element's measured facts and what made it,
+or a part's or an assembly's volume and mass. A ref is resolved in the document as
+the latest build left it; one that names nothing, or several things where it names
+one, is refused with what it could mean. The
+[inspection reference](references/inspection-and-validation.md) has the grammar.
+
 A Quick Edit prompt names its document under `File:`, selected entities under
-`References:`, and snapshot context as inline JSON or a `.snapshot.json` path.
-To render, save inline JSON to a temporary `.snapshot.json` and run
-`cadgen snapshot --job <snapshot file>` (`--job` takes a file path).
+`References:`, and a snapshot packet as inline JSON or a `.snapshot.json` path.
+Save inline JSON to a temporary `.snapshot.json`, and draw the view the person
+drew their ink in, ink included:
+
+```bash
+cadgen snapshot XBF/arm.xbf tmp/quick_edit.png --annotation tmp/arm.snapshot.json --camera authored
+```
+
 Inspect supplied annotations before editing. Without annotations, the captured
 view is optional context; render it when useful to the request. After editing,
-replay relevant views to check the change. See
+draw it again to check the change. See
 [annotations and Quick Edit views](references/snapshot-review.md#annotations-and-quick-edit-views)
-for the packet schema and capture behavior.
+for the packet.
 
-A reference into a file that is not a STEP names what the viewer picked in it, in that
-file's own terms (none is a STEP selector `read_scene` resolves):
+A reference into a file that is not a document names what the viewer picked in it,
+in that file's own terms (none is a ref `select` resolves):
 
 | File | Reference | Means |
 | --- | --- | --- |
@@ -163,45 +198,47 @@ file's own terms (none is a STEP selector `read_scene` resolves):
 | 3MF | `/work/out/plate.3mf#o2.1` | the 2nd `<build><item>`'s 1st `<component>` (1-based); `#o3` is the 3rd build item |
 | STL | the file alone, on `File:` | one mesh: nothing in it is picked |
 
+## Checks and diagnostics
 
-For a bare `#o1.2.f7`, use the identified target file. Do not guess between
-ambiguous files or labels. Numeric refs belong to that saved revision;
-reopen and reselect after rebuilding. The [inspection reference](references/inspection-and-validation.md)
-covers label aliases, enumeration, measurements and small reusable operations.
+A check is a Python script that reads the document the latest build wrote, so it
+tests what was written:
 
-There is no inspect CLI. Put exploratory checks in the project's ignored
-`tmp/` (or system `/tmp/`); retain reusable checks in `checks/` or its existing
-test directory. Keep them outside model-source and raw-output folders.
+```python
+from cadgen.engine import read_xbf, select
+from cadgen.geometry import closest_points
 
-## Verify and hand off
-
-Choose checks from the requested dimensions, clearances and topology. For STEP
-outputs, check the saved artifact with `read_scene` or `read_step`. For mesh-only
-models, check the model's returned native geometry and review the mesh output;
-do not add a STEP solely to satisfy the workflow. Report units, thresholds,
-selected geometry and untested requirements. A failed computation is not a pass.
-
-After creating or visibly changing geometry, generate and review at least one
-snapshot of the resulting STEP or mesh. Snapshots are your own review: always
-render and read them yourself, never rely on the viewer for it. Choose additional
-views to expose the features under review; see
-[snapshot policy and options](references/snapshot-review.md).
-
-```bash
-cadgen step snapshot STEP/bracket.step tmp/review.png
-cadgen stl snapshot STL/bracket.stl tmp/mesh.png
+kit = read_xbf("XBF/assembly.xbf")
+plate = select(kit, "plate")[0]
+post = select(kit, "standoff_left")[0]
+print(plate.bounding_box().size)              # the envelope: not a hole's diameter or a wall's thickness
+print(closest_points(plate, post).distance)   # 0: the standoff sits on the plate
 ```
 
-Repair failures in the source and rerun the affected checks. Use geometry and
-images for CAD comparisons; path-targeted git status is bookkeeping, not
-geometric evidence. `cadgen store why <model>.py` explains unexpected rebuilds;
-`python <model>.py --force` forces one model, and `cadgen daemon status` shows
-build progress. More diagnostics are in the [model contract](references/step-generation.md).
-
-Include output files, checks actually run, and material assumptions or
-limitations in the final response. The user sees the model in the viewer (Show
-the model), so don't attach snapshots unless they ask for an image. Explain any
-snapshot skip or failure using the cases in the snapshot reference.
+- A snapshot draws a document as the viewer does
+  (`cadgen snapshot XBF/bracket.xbf tmp/review.png`). It shows arrangement and
+  appearance, not dimensions.
+- Measuring the document is what shows a request's dimensions and clearances. In an
+  assembly, nothing interferes when `overlap_volume` is 0 for every pair of solids
+  apart from fits named on purpose, and a part meant to rest on another touches it
+  when their `closest_points` distance is 0. Both describe the parts as built, not a
+  pose ([interference and contact](references/inspection-and-validation.md#measurements)).
+- `cadgen inspect XBF/assembly.xbf assembly` weighs an assembly: each part's volume
+  times its material's density, and the parts that have no material.
+- A check that fails or cannot decide has shown nothing about the design.
+- A retry that leaves out or shrinks a specified feature (a fillet skipped, a
+  radius reduced) builds a different design from the one asked for.
+- The reply is the person's record of the work: the files written, the checks run
+  and what they showed, the requirements no check covered, and every assumption or
+  departure from the request.
+- Every build prints where its time went (`body`, element names, the document, each
+  file) and why it built: `rebuilt: ../src/lib/arm_parts.py changed`. A body that
+  runs on every build is named in `retention.fallbacks`, with why, in the report
+  `bracket.build().models` returns from Python
+  ([progress and the report](references/model-contract.md#progress-and-the-report)).
+- `cadgen inspect XBF/bracket.xbf "bracket/f:bracket.bore.1;M:bracket.body_dnjoch"`
+  names the function, file and line whose operation made the face a ref names
+  ([which code made it](references/inspection-and-validation.md#which-code-made-it)):
+  where to edit when a face is wrong.
 
 ### Show the model
 
@@ -210,20 +247,19 @@ validation don't replace this.
 
 - If your tools include `cad_show` (your host may prefix it), use it with the file's
   absolute path, and follow its description for when to call it again. `cad_view` reads
-  what the user selected; `cad_screenshot` shows you what they see. Neither is a review
-  of your own work.
+  what the user selected; `cad_screenshot` shows you what they see.
 - Otherwise run the CAD Viewer, from any folder:
 
   ```bash
-  cadgen viewer --host 127.0.0.1 --json --detach
+  cadgen viewer --host 127.0.0.1 --json
   ```
 
-  `--detach` returns once the viewer answers requests and leaves it running in the
-  background: always pass it, since a foreground viewer never exits (and piping its
-  output through `tail` can hide the URL for good). It starts this machine's one viewer,
-  or reuses it. Read `url` from its one JSON line (never guess the port), and for each
-  file return `url?file=<its URL-encoded absolute path>`. If it fails to launch, say so.
+  The command ensures this installation's engine, prints a page-session URL and
+  exits. Read `url` from its one JSON line (never guess the port). Add each file's
+  URL-encoded absolute path with `&file=`, preserving the URL's token query.
+  Return that link to the user. If it fails to launch, say so.
 
-Generate changed artifacts first: the viewer never runs model scripts. Existing
-STEP files compile on open when needed. Exact topology selection and measurement
-require STEP; supported mesh viewers also offer approximate measurements on triangles.
+Build changed models first: the viewer never runs model scripts. Show the model's
+`.xbf`; an open `.xbf` follows every later build of it. The viewer opens a STEP as
+a document too, read by the engine. Exact selection and measurement need an `.xbf`
+or a STEP; mesh viewers measure approximately, on triangles.

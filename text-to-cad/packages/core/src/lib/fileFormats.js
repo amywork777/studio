@@ -7,7 +7,9 @@ export const RENDER_FORMAT = Object.freeze({
   KICAD_PCB: "kicad_pcb",
   URDF: "urdf",
   SRDF: "srdf",
-  SDF: "sdf"
+  SDF: "sdf",
+  // A cadgen engine document (`cadgen.engine`): served by the engine, drawn by its own renderer.
+  XBF: "xbf"
 });
 
 export const MESH_RENDER_FORMATS = Object.freeze([

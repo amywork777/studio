@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { FileWarning, FileX } from 'lucide-react';
+import { ExportControls } from '../export/ExportControls.js';
+import { FileWarning } from 'lucide-react';
 import type { CadWorkspaceService } from '@text-to-cad/core/client';
 import { FileViewer } from '../file-viewer/FileViewer.js';
 import { ViewerLoadingOverlay } from '../file-viewer/presentation.js';
@@ -16,6 +17,11 @@ import type { LibraryLayout } from '../tab-store/tabRecord.js';
 import type { TabStore } from '../tab-store/tabStore.js';
 import { useTabViewerState } from '../tab-store/useTabViewerState.js';
 import { normalizePath } from './catalog.js';
+import { MemoryModels } from './MemoryModels.js';
+import { MissingCadFile } from './MissingCadFile.js';
+
+// A STEP: read by the cadgen engine, at a length its size decides (the home's pictures ask first).
+const STEP_FILE = /\.(?:step|stp)$/i;
 
 export interface CadViewerProps<Model extends LibraryModel = LibraryModel> {
   /** The CAD client: the catalog of the files on screen, and every document's resources. */
@@ -86,7 +92,7 @@ const reportError = (error: Error) => console.error(error);
 
 /**
  * The CAD viewer every app shows: the shared FileViewer over one file at a time, by absolute path,
- * with its six renderers (STEP, DXF, KiCad boards, GLB, STL/3MF, URDF/SRDF/SDF), the host's home (the model
+ * with its seven renderers (STEP, DXF, KiCad boards, GLB, STL/3MF, URDF/SRDF/SDF, a cadgen engine document), the host's home (the model
  * library) wherever no file is open, and the standard loading and "File does not exist" pages. It
  * follows the catalog of the file on screen and refreshes it when the page is focused or shown
  * again. It keeps a picture of each model it shows for the library (`onThumbnail`), and on the home
@@ -138,7 +144,7 @@ export function CadViewer<Model extends LibraryModel = LibraryModel>({ client, h
   }, [client]);
 
   // What is on screen joins the library with a picture, once it has settled.
-  useModelThumbnail(live, shown, String(entry?.documentHash || entry?.hash || ''),
+  useModelThumbnail(live, shown?.includes("::") || shown?.endsWith(".py") ? null : shown, String(entry?.documentHash || entry?.hash || ''),
     (png, pictured) => latest.current.onThumbnail?.(png, pictured) ?? Promise.resolve());
 
   // A file the viewer asks for — a pick in the explorer, a renderer's link — is shown by the host.
@@ -155,15 +161,15 @@ export function CadViewer<Model extends LibraryModel = LibraryModel>({ client, h
   }), [host, openFile, home, homed, openElsewhere]);
 
   // The home's pictures for cards without a current one, drawn out of sight one at a time and kept as
-  // the file on screen's are. A model whose display is not built yet is left to its placeholder: the
-  // status is read, never built.
+  // the file on screen's are. A STEP the cadgen engine does not hold is left to its placeholder: the
+  // home never starts the engine's read of one (a large STEP's is long), it only asks.
   const [drawing, setDrawing] = useState<{ source: ModelPictureSource; done(kept: boolean): void } | null>(null);
   const drawable = Boolean(library && onThumbnail);
   const picture = useMemo(() => (drawable ? async (model: Model) => {
     const file = normalizePath(model.path);
+    if (latest.current.path || file.includes("::") || file.endsWith(".py")) return false;
+    if (STEP_FILE.test(file) && !(await client.engineHolds?.(file).catch(() => false))) return false;
     if (latest.current.path) return false;
-    const status = await client.requestArtifactStatus(file).catch(() => null);
-    if (status?.state !== 'compiled' || latest.current.path) return false;
     const keep = (png: Blob) => latest.current.onThumbnail?.(png, model.path) ?? Promise.resolve();
     return new Promise<boolean>(done => setDrawing({ source: { client, file, keep }, done }));
   } : undefined), [drawable, client]);
@@ -185,15 +191,15 @@ export function CadViewer<Model extends LibraryModel = LibraryModel>({ client, h
   const goHome = useMemo(() => homed ? <Button size="sm" variant="outline" onClick={home}>{t("file.goHome")}</Button> : null, [homed, home, t]);
   const presentation = useMemo(() => ({
     home: library ? <ModelLibrary library={library} layout={layout} onLayoutChange={changeLayout} picture={picture}
-      links={host.links} onError={onError} /> : undefined,
+      links={host.links} onError={onError} sections={<MemoryModels source={host.files} onOpen={openFile} />} /> : undefined,
     loading: <div className="relative h-full"><ViewerLoadingOverlay viewerLoading /></div>,
-    error: ({ message, missing }: { message: string; missing: boolean }) => missing
-      ? <EmptyState icon={FileX} title={t("file.missing")} description={path} tone="warn" action={goHome} />
+    error: ({ message, missing, reload }: { message: string; missing: boolean; reload?: () => void }) => missing
+      ? <MissingCadFile file={path} entry={entry} reload={reload} action={goHome} title={t("file.missing")} />
       : <EmptyState icon={FileWarning} title={t("file.openFailed")} description={message} tone="warn" action={goHome} />,
-  }), [library, layout, changeLayout, path, picture, host.links, onError, goHome, t]);
+  }), [library, layout, changeLayout, path, picture, host.links, host.files, openFile, entry, onError, goHome, t]);
   return <I18nProvider locale={locale}>
-    <FileViewer file={path || null} host={viewerHost} renderers={renderers} state={state} onStateChange={onStateChange}
-      colorScheme={colorScheme} language={language} appSettings={appSettings} update={update} fullSize={fullSize} history={history} notice={notice} onError={onError} presentation={presentation} />
+    <ExportControls service={client.exports} downloads={host.downloads} file={path}>{({ navbar, overlay }) => <FileViewer navbarActions={navbar} overlay={overlay} file={path || null} host={viewerHost} renderers={renderers} state={state} onStateChange={onStateChange}
+      colorScheme={colorScheme} language={language} appSettings={appSettings} update={update} fullSize={fullSize} history={history} notice={notice} onError={onError} presentation={presentation} />}</ExportControls>
     {drawing && !path ? <OffscreenPicture key={drawing.source.file} source={drawing.source} host={host} preferences={preferences} onDone={drawn} /> : null}
   </I18nProvider>;
 }
