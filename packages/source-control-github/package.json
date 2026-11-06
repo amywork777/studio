@@ -31,6 +31,10 @@
       "types": "./src/server/GitHubCredentials.ts",
       "import": "./src/server/GitHubCredentials.ts"
     },
+    "./server/githubGitAuth": {
+      "types": "./src/server/githubGitAuth.ts",
+      "import": "./src/server/githubGitAuth.ts"
+    },
     "./server/githubGraphQl": {
       "types": "./src/server/githubGraphQl.ts",
       "import": "./src/server/githubGraphQl.ts"

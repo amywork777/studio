@@ -124,6 +124,7 @@ import * as ThreadManagementService from "./orchestration-v2/ThreadManagementSer
 import * as McpAppRequests from "./mcpApps/McpAppRequests.ts";
 import * as PluginService from "./plugins/PluginService.ts";
 import * as StudioProjects from "./studio/StudioProjects.ts";
+import * as StudioSync from "./studio/StudioSync.ts";
 import * as ProviderSessionManager from "./orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadLaunchService from "./orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadMessageIntake from "./orchestration-v2/ThreadMessageIntake.ts";
@@ -1237,6 +1238,7 @@ const layerWsRpc = (
       const mcpAppRequests = yield* McpAppRequests.McpAppRequests;
       const plugins = yield* PluginService.PluginService;
       const studioProjects = yield* StudioProjects.StudioProjects;
+      const studioSync = yield* StudioSync.StudioSync;
       const analytics = yield* AnalyticsService.AnalyticsService;
       // Client-origin attribution (#7774): every thread/turn the connecting
       // client starts is credited to its surface + app version. Best-effort:
@@ -2094,6 +2096,16 @@ const layerWsRpc = (
             }),
           ),
         [WS_METHODS.studioProjectsTrash]: (input) => studioProjects[input.action](input.id),
+        [WS_METHODS.studioSyncSend]: (input) =>
+          studioSync.send(input).pipe(
+            // A failed first send can still have linked the online copy, so both ways refresh.
+            Effect.ensuring(
+              repositoryIdentityResolver
+                .resolve(input.cwd, { refresh: true })
+                .pipe(Effect.andThen(refreshGitStatus(input.cwd)), Effect.ignore({ log: true })),
+            ),
+          ),
+        [WS_METHODS.studioSyncStatus]: (input) => studioSync.status(input),
         [WS_METHODS.serverUpdateProvider]: (input) =>
           providerMaintenanceRunner.updateProvider(input),
         [WS_METHODS.providerConsumeResetCredit]: (input) =>

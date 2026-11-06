@@ -1,10 +1,9 @@
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
-import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
-import * as Base64 from "effect/encoding/Base64";
 
 import * as GitHubApi from "./GitHubApi.ts";
+import { githubGitEnv } from "./githubGitAuth.ts";
 import * as SourceControlHost from "@t3tools/source-control-core/server/SourceControlHost";
 
 /** One open layer of a stack, bottom to top, with the head the reader reviewed. */
@@ -74,19 +73,11 @@ export const cascadeRebaseStack = Effect.fn("cascadeRebaseStack")(function* (inp
         }),
     ),
   );
-  // The token rides in a header for this process only: never in the URL, argv, or git config.
   const remote = input.remote ?? remoteUrl(input.host, input.repository);
-  const authorization = `AUTHORIZATION: basic ${Base64.encode(`x-access-token:${Redacted.value(token)}`)}`;
-  const env = {
-    GIT_TERMINAL_PROMPT: "0",
-    GIT_CONFIG_COUNT: "3",
-    GIT_CONFIG_KEY_0: `http.${remote}.extraheader`,
-    GIT_CONFIG_VALUE_0: authorization,
-    GIT_CONFIG_KEY_1: "user.name",
-    GIT_CONFIG_VALUE_1: "T3 Code",
-    GIT_CONFIG_KEY_2: "user.email",
-    GIT_CONFIG_VALUE_2: "noreply@t3.codes",
-  };
+  const env = githubGitEnv(remote, token, {
+    "user.name": "T3 Code",
+    "user.email": "noreply@t3.codes",
+  });
   const git = (args: ReadonlyArray<string>, allowNonZeroExit = false) =>
     process.run({
       operation: "cascadeRebaseStack",

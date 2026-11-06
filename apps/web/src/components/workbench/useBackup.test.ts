@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { backupFolder, backupPlaceLabel, githubChoice, githubRepository } from "./useBackup";
+import {
+  backupFolder,
+  backupPlaceLabel,
+  githubChoice,
+  githubDescription,
+  githubRepository,
+} from "./useBackup";
 
 const ready = {
   signedIn: true,
@@ -36,6 +42,17 @@ describe("backup", () => {
   it("names a project's repository after the project, under the person's account", () => {
     expect(githubRepository("amywork777", "Roomba with arms")).toBe("amywork777/roomba-with-arms");
     expect(githubRepository("amywork777", "  ")).toBe("amywork777/project");
+  });
+
+  it("says Synced or Not synced only once it knows", () => {
+    const backedUp = { repository: "amywork777/roomba", account: "amywork777" };
+    expect(githubDescription({ ...backedUp, synced: true })).toContain("private. Synced.");
+    expect(githubDescription({ ...backedUp, synced: false })).toContain("private. Not synced.");
+    // Still being read says neither, and a project never sent has nothing to compare.
+    expect(githubDescription({ ...backedUp, synced: null })).not.toMatch(/synced/i);
+    expect(
+      githubDescription({ repository: null, account: "amywork777", synced: false }),
+    ).not.toMatch(/synced/i);
   });
 
   it("backs up to GitHub only into a repository of Studio's own", () => {

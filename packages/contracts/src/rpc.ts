@@ -391,6 +391,11 @@ import {
   StudioProjectsSaveInput,
   StudioProjectsSaveResult,
   StudioProjectsTrashInput,
+  StudioSyncError,
+  StudioSyncSendInput,
+  StudioSyncSendResult,
+  StudioSyncStatusInput,
+  StudioSyncStatusResult,
 } from "./studioProjects.ts";
 
 export const WS_METHODS = {
@@ -522,6 +527,8 @@ export const WS_METHODS = {
   studioProjectsList: "studioProjects.list",
   studioProjectsSave: "studioProjects.save",
   studioProjectsTrash: "studioProjects.trash",
+  studioSyncSend: "studioSync.send",
+  studioSyncStatus: "studioSync.status",
   serverSearchAcpRegistry: "server.searchAcpRegistry",
   serverPrepareAcpRegistryAgent: "server.prepareAcpRegistryAgent",
   serverUninstallAcpRegistryManagedBinary: "server.uninstallAcpRegistryManagedBinary",
@@ -890,6 +897,17 @@ const WsStudioProjectsTrashRpc = Rpc.make(WS_METHODS.studioProjectsTrash, {
   payload: StudioProjectsTrashInput,
   success: StudioProjectsSaveResult,
   error: StudioProjectsError,
+});
+
+const WsStudioSyncSendRpc = Rpc.make(WS_METHODS.studioSyncSend, {
+  payload: StudioSyncSendInput,
+  success: StudioSyncSendResult,
+  error: StudioSyncError,
+});
+
+const WsStudioSyncStatusRpc = Rpc.make(WS_METHODS.studioSyncStatus, {
+  payload: StudioSyncStatusInput,
+  success: StudioSyncStatusResult,
 });
 
 const WsServerSearchAcpRegistryRpc = Rpc.make(WS_METHODS.serverSearchAcpRegistry, {
@@ -2030,6 +2048,8 @@ export const WsHostRpcGroup = RpcGroup.make(
   WsStudioProjectsListRpc,
   WsStudioProjectsSaveRpc,
   WsStudioProjectsTrashRpc,
+  WsStudioSyncSendRpc,
+  WsStudioSyncStatusRpc,
   WsServerSearchAcpRegistryRpc,
   WsServerPrepareAcpRegistryAgentRpc,
   WsServerUninstallAcpRegistryManagedBinaryRpc,

@@ -112,6 +112,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.studioProjectsList]: AuthFilesystemReadScope,
   [WS_METHODS.studioProjectsSave]: AuthOrchestrationOperateScope,
   [WS_METHODS.studioProjectsTrash]: AuthOrchestrationOperateScope,
+  [WS_METHODS.studioSyncStatus]: AuthOrchestrationReadScope,
   [WS_METHODS.serverGetTraceDiagnostics]: AuthDiagnosticsReadScope,
   [WS_METHODS.serverGetProcessDiagnostics]: AuthDiagnosticsReadScope,
   // Load-balancing new threads reads host load; that is part of operating

@@ -1,19 +1,17 @@
 import { useAtomValue } from "@effect/atom-react";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import * as Option from "effect/Option";
 import { GithubIcon, HardDriveUploadIcon } from "lucide-react";
 import { useState } from "react";
 
-import { cn, randomUUID } from "~/lib/utils";
-import {
-  useGitStackedAction,
-  useSourceControlPublishRepositoryAction,
-} from "~/state/sourceControlActions";
+import { cn } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
 import { serverEnvironment } from "~/state/server";
 import { shellEnvironment } from "~/state/shell";
 import { sourceControlEnvironment } from "~/state/sourceControl";
+import { studioProjectsEnvironment } from "~/state/studioProjects";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useEnvironmentQuery } from "~/state/query";
 import { vcsEnvironment } from "~/state/vcs";
@@ -34,6 +32,7 @@ import {
   type BackupPlace,
   backupPlaceLabel,
   githubChoice,
+  githubDescription,
   githubRepository,
   type LastBackup,
 } from "./useBackup";
@@ -81,10 +80,10 @@ function Choice(props: {
 
 /**
  * Back up, from the project's menu (`ProjectSwitcher`). A project is already a folder on this Mac
- * with its versions in it; a backup puts a copy somewhere else: GitHub (a private repository
- * Studio makes for it with T3 Code's own publish, then each backup committed and pushed, over the
- * account the source control settings are signed in as), or a folder that syncs (a Google Drive,
- * Dropbox or iCloud folder, or a drive; the desktop app copies only what changed, `backUp`).
+ * with its versions in it; a backup puts a copy somewhere else: GitHub (a private repository the
+ * server's `StudioSync` makes for it, then each backup sent with every version, as the account the
+ * source control settings are signed in as), or a folder that syncs (a Google Drive, Dropbox or
+ * iCloud folder, or a drive; the desktop app copies only what changed, `backUp`).
  */
 export function BackupDialog(props: {
   readonly open: boolean;
@@ -99,7 +98,6 @@ export function BackupDialog(props: {
 }) {
   const { environmentId, project, last } = props;
   const folder = project.folders.length === 1 ? project.folders[0]! : null;
-  const scope = { environmentId, cwd: folder };
   const discovery = useEnvironmentQuery(
     sourceControlEnvironment.discovery({ environmentId, input: {} }),
   ).data;
@@ -107,15 +105,24 @@ export function BackupDialog(props: {
     useEnvironmentQuery(
       folder === null ? null : vcsEnvironment.status({ environmentId, input: { cwd: folder } }),
     ).data ?? null;
-  const publish = useSourceControlPublishRepositoryAction(scope);
-  const push = useGitStackedAction(scope);
+  const syncState =
+    useEnvironmentQuery(
+      folder === null
+        ? null
+        : studioProjectsEnvironment.syncStatus({ environmentId, input: { cwd: folder } }),
+    ).data ?? null;
+  const send = useAtomCommand(studioProjectsEnvironment.syncSend, { reportFailure: false });
+  const canSend = useAtomValue(studioProjectsEnvironment.syncSend.permissionAtom(environmentId));
   const bridge = readStudioImport();
   const pickFolder = bridge?.pickFolder;
   const backUpInto = bridge?.backUp;
 
   const github = discovery?.sourceControlProviders.find((provider) => provider.kind === "github");
   const account = github === undefined ? null : Option.getOrNull(github.auth.account);
-  const backedUpTo = last?.place.kind === "github" ? last.place.repository : null;
+  // The folder's own record outlives this computer's memory of the last backup, and covers a
+  // first send that stopped partway.
+  const backedUpTo =
+    last?.place.kind === "github" ? last.place.repository : (syncState?.repository ?? null);
   const toGitHub = githubChoice({
     signedIn: github?.status === "available" && github.auth.status !== "unauthenticated",
     account,
@@ -174,25 +181,16 @@ export function BackupDialog(props: {
   };
 
   const backUpToGitHub = async () => {
-    if (github === undefined || account === null || status === null) return;
+    if (account === null || folder === null) return;
     const repository = backedUpTo ?? githubRepository(account, project.name);
-    if (!status.hasPrimaryRemote) {
-      const made = await publish.run({
-        provider: github.kind,
-        repository,
-        visibility: "private",
-        remoteName: "origin",
-        protocol: "https",
-      });
-      if (made._tag === "Failure") throw new Error("GitHub would not make the private copy.");
-    }
-    const sent = await push.run({
-      actionId: randomUUID(),
-      action: status.hasWorkingTreeChanges ? "commit_push" : "push",
-      commitMessage: `Back up from Studio, ${new Date().toLocaleString()}`,
-    });
-    if (sent._tag === "Failure") throw new Error("GitHub did not take the backup.");
-    finish({ kind: "github", repository }, `Saved as a version in ${repository}, private.`);
+    const result = await send({ environmentId, input: { cwd: folder, repository } });
+    if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+    finish(
+      { kind: "github", repository },
+      result.value.sent
+        ? `Saved as a version in ${repository}, private.`
+        : "Nothing changed since the last backup.",
+    );
   };
 
   const backUpToFolder = async (another: boolean) => {
@@ -236,15 +234,15 @@ export function BackupDialog(props: {
           <div role="radiogroup" aria-label="Where to back up" className="flex flex-col gap-2">
             <Choice
               selected={choice === "github"}
-              disabled={!toGitHub.available}
+              disabled={!toGitHub.available || !canSend}
               onSelect={() => setChosen("github")}
               icon={GithubIcon}
               title="GitHub"
-              description={
-                backedUpTo !== null
-                  ? `Into ${backedUpTo}, private. Each backup is a version you can go back to.`
-                  : `A private copy on your GitHub account${account === null ? "" : `, ${account}`}. Each backup is a version you can go back to.`
-              }
+              description={githubDescription({
+                repository: backedUpTo,
+                account,
+                synced: syncState?.synced ?? null,
+              })}
               note={toGitHub.note}
             />
             <Choice
@@ -275,7 +273,7 @@ export function BackupDialog(props: {
             </Button>
           ) : null}
           <Button
-            disabled={busy || (choice === "github" ? !toGitHub.available : !toFolder)}
+            disabled={busy || (choice === "github" ? !toGitHub.available || !canSend : !toFolder)}
             onClick={() => run()}
           >
             {busy ? "Backing up" : "Back up"}

@@ -106,6 +106,30 @@ describe("command permissions", () => {
     ),
   );
 
+  it.effect("requires the destination source control grant to send a project", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const send = createCommandPermissions(runtime, WS_METHODS.studioSyncSend);
+        registry.set(sessions(env), AsyncResult.success(grant(true)));
+        expect(registry.get(send.permissionAtom(env))).toBe(false);
+        expect((yield* send.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(
+          sessions(env),
+          AsyncResult.success({
+            ...grant(false),
+            scopes: [AuthSourceControlWriteScope],
+            permissions: [AuthSourceControlWriteScope],
+          }),
+        );
+        expect(registry.get(send.permissionAtom(env))).toBe(true);
+        yield* send.authorize(registry, env);
+      }),
+    ),
+  );
+
   it.effect("uses the target grant for both availability and execution", () =>
     Effect.scoped(
       Effect.gen(function* () {

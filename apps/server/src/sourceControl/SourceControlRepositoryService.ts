@@ -59,6 +59,18 @@ export class SourceControlRepositoryService extends Context.Service<
     readonly publishRepository: (
       input: SourceControlPublishRepositoryInput,
     ) => Effect.Effect<SourceControlPublishRepositoryResult, SourceControlRepositoryError>;
+    /**
+     * Publish's first half: makes the repository on its host and links it as a remote, sending
+     * nothing, for a caller that sends with credentials of its own.
+     */
+    readonly createRepository: (input: SourceControlPublishRepositoryInput) => Effect.Effect<
+      {
+        readonly repository: SourceControlRepositoryInfo;
+        readonly remoteName: string;
+        readonly remoteUrl: string;
+      },
+      SourceControlRepositoryError
+    >;
   }
 >()("t3/sourceControl/SourceControlRepositoryService") {}
 
@@ -402,24 +414,31 @@ export const make = Effect.gen(function* () {
     );
   });
 
+  const createRepository = Effect.fn("SourceControlRepositoryService.createRepository")(function* (
+    input: SourceControlPublishRepositoryInput,
+  ) {
+    const providerKind = yield* ensureConcreteProvider({
+      operation: "publishRepository",
+      provider: input.provider,
+    });
+    const provider = yield* providers.get(providerKind);
+    const urls = yield* provider.createRepository({
+      cwd: input.cwd,
+      repository: input.repository.trim(),
+      visibility: input.visibility,
+    });
+    const remoteUrl = selectRemoteUrl(urls, input.protocol);
+    const remoteName = yield* git.ensureRemote({
+      cwd: input.cwd,
+      preferredName: input.remoteName?.trim() || "origin",
+      url: remoteUrl,
+    });
+    return { repository: toRepositoryInfo(providerKind, urls), remoteName, remoteUrl };
+  });
+
   const publishRepository = Effect.fn("SourceControlRepositoryService.publishRepository")(
     function* (input: SourceControlPublishRepositoryInput) {
-      const providerKind = yield* ensureConcreteProvider({
-        operation: "publishRepository",
-        provider: input.provider,
-      });
-      const provider = yield* providers.get(providerKind);
-      const urls = yield* provider.createRepository({
-        cwd: input.cwd,
-        repository: input.repository.trim(),
-        visibility: input.visibility,
-      });
-      const remoteUrl = selectRemoteUrl(urls, input.protocol);
-      const remoteName = yield* git.ensureRemote({
-        cwd: input.cwd,
-        preferredName: input.remoteName?.trim() || "origin",
-        url: remoteUrl,
-      });
+      const { repository, remoteName, remoteUrl } = yield* createRepository(input);
 
       // An empty local repo (no commits) would make `git push HEAD:...` fail
       // with an opaque "src refspec HEAD does not match any". Treat this as a
@@ -438,7 +457,7 @@ export const make = Effect.gen(function* () {
       if (!hasCommits) {
         const details = yield* git.statusDetails(input.cwd).pipe(Effect.orElseSucceed(() => null));
         return {
-          repository: toRepositoryInfo(providerKind, urls),
+          repository,
           remoteName,
           remoteUrl,
           branch: details?.branch ?? "main",
@@ -449,7 +468,7 @@ export const make = Effect.gen(function* () {
       const pushResult = yield* git.pushCurrentBranch(input.cwd, null, { remoteName });
 
       return {
-        repository: toRepositoryInfo(providerKind, urls),
+        repository,
         remoteName,
         remoteUrl,
         branch: pushResult.branch,
@@ -482,6 +501,8 @@ export const make = Effect.gen(function* () {
       ),
     publishRepository: (input) =>
       publishRepository(input).pipe(mapRepositoryError("publishRepository", input.provider)),
+    createRepository: (input) =>
+      createRepository(input).pipe(mapRepositoryError("publishRepository", input.provider)),
   });
 });
 

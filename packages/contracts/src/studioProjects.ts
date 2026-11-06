@@ -124,3 +124,89 @@ export class StudioProjectsError extends Schema.TaggedError<StudioProjectsError>
     }
   }
 }
+
+/**
+ * Sends one work folder to its private online copy, every Version with it. `repository` is the
+ * `owner/name` of that copy: made when the folder has none, and refused when the folder already
+ * goes somewhere else.
+ */
+export const StudioSyncSendInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  repository: TrimmedNonEmptyString,
+});
+export type StudioSyncSendInput = typeof StudioSyncSendInput.Type;
+
+export const StudioSyncSendResult = Schema.Struct({
+  repository: TrimmedNonEmptyString,
+  /** False when the online copy already had everything, so nothing went. */
+  sent: Schema.Boolean,
+});
+export type StudioSyncSendResult = typeof StudioSyncSendResult.Type;
+
+export const StudioSyncStatusInput = Schema.Struct({ cwd: TrimmedNonEmptyString });
+export type StudioSyncStatusInput = typeof StudioSyncStatusInput.Type;
+
+export const StudioSyncStatusResult = Schema.Struct({
+  /** The online copy Studio made for this folder, if it made one. */
+  repository: Schema.NullOr(TrimmedNonEmptyString),
+  /** Whether the online copy holds everything here. Out of reach counts as not. */
+  synced: Schema.Boolean,
+});
+export type StudioSyncStatusResult = typeof StudioSyncStatusResult.Type;
+
+/** A send or a receive stopped. The message is shown to the person as it is. */
+export class StudioSyncError extends Schema.TaggedError<StudioSyncError>()("StudioSyncError", {
+  /**
+   * `no-history`: the folder has no Versions. `other-copy`: it already goes somewhere else.
+   * `too-large`: a file in the project is over the limit; `too-large-version`: one in a Version
+   * is. `make-copy`: the online copy could not be made. `sign-in`: no credential, or it was
+   * refused. `changed-elsewhere`: the online copy moved, and nothing forces it back. `prepare`:
+   * git failed on this computer. `send` and `receive`: the transfer failed.
+   */
+  failure: Schema.Literals([
+    "no-history",
+    "other-copy",
+    "too-large",
+    "too-large-version",
+    "make-copy",
+    "sign-in",
+    "changed-elsewhere",
+    "prepare",
+    "send",
+    "receive",
+  ]),
+  /** The work folder. */
+  cwd: Schema.String,
+  /** The file over the limit, as a path in the project. */
+  file: Schema.optional(Schema.String),
+  bytes: Schema.optional(Schema.Number),
+  limitBytes: Schema.optional(Schema.Number),
+  exitCode: Schema.optional(Schema.Number),
+  cause: Schema.optional(Schema.Defect()),
+}) {
+  override get message(): string {
+    const size = (bytes: number | undefined) => `${((bytes ?? 0) / (1024 * 1024)).toFixed(1)} MB`;
+    switch (this.failure) {
+      case "no-history":
+        return "This folder has no Versions to send yet.";
+      case "other-copy":
+        return "This folder already syncs somewhere else, so Studio leaves it alone.";
+      case "too-large":
+        return `${this.file ?? "A file"} is ${size(this.bytes)}. One file can be at most ${size(this.limitBytes)}, so nothing was sent.`;
+      case "too-large-version":
+        return `An earlier Version holds ${this.file ?? "a file"} at ${size(this.bytes)}. One file can be at most ${size(this.limitBytes)}, so nothing was sent.`;
+      case "make-copy":
+        return "The private copy could not be made.";
+      case "sign-in":
+        return "Sign in with GitHub to send this project.";
+      case "changed-elsewhere":
+        return "The online copy has changes from somewhere else, so this project is Not synced. Nothing here was lost.";
+      case "prepare":
+        return "Studio could not get this project ready to send.";
+      case "send":
+        return "The project could not be sent, so it is Not synced. Nothing here was lost.";
+      case "receive":
+        return "Studio could not bring this project back.";
+    }
+  }
+}

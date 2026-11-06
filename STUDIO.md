@@ -487,9 +487,15 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   folder and history in the projects folder, so its id is never reused.
 - **Back up.** A project is already a folder on the Mac with its versions in it; the project's
   menu backs it up somewhere else (`components/workbench/BackupDialog.tsx`). GitHub: a private
-  repository Studio makes for it with T3 Code's own publish, then each backup committed and
-  pushed over https, as the account the source control settings are signed in as; Studio pushes
-  only to a repository it made, so a folder with a repository of its own is left to it. Or a
+  repository the server makes for it, then each backup committed and sent whole by
+  `apps/server/src/studio/StudioSync.ts`: `main`, every checkpoint and every kept version, so a
+  plain push's nearly empty `main` is not all that survives. The token goes in a header for that
+  one process (`githubGitAuth.ts`), never in argv or `.git/config`. Before anything leaves it adds
+  the missing ignores (`tmp/`, `.studio/compare/`, `__pycache__/`, `.env*`) and stops, naming the
+  file, on one over GitHub's 100 MiB in the project or in any version; versions go unchanged, so
+  what an old checkpoint already holds under `tmp/` goes with it. Checkpoint refs are forced,
+  `main` and kept refs never. Studio sends only to a repository it made, recorded in the folder's
+  git config, so a folder with a repository of its own is left to it. Or a
   folder that syncs (a Google Drive, Dropbox or iCloud folder, or a drive): the desktop app copies
   each of the project's folders there, version history (`.git`) included, then only what changed,
   and never deletes from it (`backUp` in `apps/desktop/src/studio/studioImportFiles.ts`). Import

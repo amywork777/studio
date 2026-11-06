@@ -63,6 +63,7 @@ import * as TerminalManager from "./terminal/Manager.ts";
 import * as McpHttpServer from "./mcp/McpHttpServer.ts";
 import * as PluginService from "./plugins/PluginService.ts";
 import * as StudioProjects from "./studio/StudioProjects.ts";
+import * as StudioSync from "./studio/StudioSync.ts";
 import * as BundledPlugins from "./plugins/BundledPlugins.ts";
 import * as PluginToolSessions from "./plugins/PluginToolSessions.ts";
 import * as McpSessionRegistry from "./mcp/McpSessionRegistry.ts";
@@ -380,6 +381,11 @@ const layerProjectCloneTracker = ProjectCloneTracker.layer.pipe(
   Layer.provide(layerSourceControlRepositoryService),
 );
 
+const layerStudioSync = StudioSync.layer.pipe(
+  Layer.provide(ProcessRunner.layer),
+  Layer.provide(layerSourceControlRepositoryService),
+);
+
 const layerReview = ReviewService.layer.pipe(
   Layer.provide(ProjectStore.layer),
   Layer.provideMerge(GitVcsDriver.layer),
@@ -600,6 +606,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   // Below the orchestration runtime so a turn reads its thread's Studio project;
   // the WebSocket lists and saves them.
   Layer.provideMerge(layerStudioProjects),
+  Layer.provideMerge(layerStudioSync),
   // The asset route uses the registry's GitHub credential for private PR media, which the
   // built-in drivers' layer provides alongside the registry.
   Layer.provideMerge(layerSourceControlProviderRegistry),

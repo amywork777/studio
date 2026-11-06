@@ -78,6 +78,22 @@ export function githubRepository(account: string, projectName: string): string {
   return `${account}/${name}`;
 }
 
+/** What the GitHub choice says: where the copy is and, once read, whether it is up to date. */
+export function githubDescription(input: {
+  readonly repository: string | null;
+  readonly account: string | null;
+  /** Whether the online copy holds everything here; null until that is read. */
+  readonly synced: boolean | null;
+}): string {
+  const versions = "Each backup is a version you can go back to.";
+  if (input.repository === null) {
+    const owner = input.account === null ? "" : `, ${input.account}`;
+    return `A private copy on your GitHub account${owner}. ${versions}`;
+  }
+  const state = input.synced === null ? "" : input.synced ? "Synced. " : "Not synced. ";
+  return `Into ${input.repository}, private. ${state}${versions}`;
+}
+
 /**
  * Whether the project can be backed up to GitHub, and if not why, in words. Studio pushes only to
  * a repository it made for the backup: a folder that already has a repository of its own (a code
