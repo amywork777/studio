@@ -1,6 +1,8 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import {
   ArrowUpIcon,
+  BoxesIcon,
+  BoxIcon,
   ClipboardCheckIcon,
   MaximizeIcon,
   MinusIcon,
@@ -45,6 +47,16 @@ import { useProjectSizes } from "../useSizes";
 import { useCadService } from "../useVersions";
 import { isReviewPath, parseReview, reviewOwner, reviewPathFor } from "./dfmReview";
 import { studyFigures, type Figure } from "./studyFigures";
+import {
+  DRAFT_TITLES,
+  draftMade,
+  draftPart,
+  draftPrompt,
+  draftSource,
+  slugOf,
+  type Draft,
+  type DraftKind,
+} from "./drafts";
 import {
   addChecks,
   buildNodeGraph,
@@ -120,6 +132,9 @@ const checkName = (action: HardwareAction) => {
   const name = action.process ?? action.label.replace(/^Check (?:for|as) /, "");
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
+
+/** The Toolbox's job that finds an off-the-shelf part, which an off-the-shelf draft runs. */
+const STOCK_ACTION = HARDWARE_ACTIONS.find((action) => action.id === "standard-parts");
 
 /** A check node: the result it shows (null before it has run), the part it is of, how it runs. */
 interface CheckNode {
@@ -256,10 +271,32 @@ export function ProjectNodes(props: {
     return list;
   }, [files, parts, checked, reviews, planned]);
   const checkById = useMemo(() => new Map(checks.map((check) => [check.id, check])), [checks]);
-  const graph = useMemo(
-    () => addChecks(buildNodeGraph(parts, sources), checks),
-    [parts, sources, checks],
+  // Parts added on the canvas before they exist, until the agent's script or STEP takes each's place.
+  const [drafts, setDrafts] = useState<ReadonlyArray<Draft>>([]);
+  const draftCount = useRef(0);
+  const shownDrafts = useMemo(
+    () => drafts.filter((draft) => !draftMade(draft, parts)),
+    [drafts, parts],
   );
+  const draftById = useMemo(
+    () => new Map(shownDrafts.map((draft) => [draft.id, draft])),
+    [shownDrafts],
+  );
+  const graph = useMemo(() => {
+    const base = buildNodeGraph(parts, sources);
+    if (shownDrafts.length === 0) return addChecks(base, checks);
+    const nodes = new Map(base.nodes.map((node) => [node.id, node]));
+    const drafted = buildNodeGraph(
+      [...parts, ...shownDrafts.map(draftPart)],
+      new Map([
+        ...sources,
+        ...shownDrafts.map(
+          (draft) => [draftPart(draft).script, draftSource(draft, nodes)] as const,
+        ),
+      ]),
+    );
+    return addChecks(drafted, checks);
+  }, [parts, sources, checks, shownDrafts]);
   // A study's numbers, read from its result, and its picture (the stress map beside it).
   const studies = checks.flatMap((check) =>
     check.review || check.result === null ? [] : [check.result],
@@ -443,15 +480,40 @@ export function ProjectNodes(props: {
     const part = byId.get(check.of);
     const composerRef = props.composerRef;
     if (part === undefined || check.action === null || composerRef === null) return;
-    const save = check.review
-      ? `\n\nSave the review as ${check.id}, its findings table giving each finding's result as pass, fail, review or unverified, so the check's node in Nodes reads it.`
-      : "";
-    handToChat(
-      composerRef,
-      withToolLine(check.action.label, check.action.prompt(linkOf(part)) + save),
-    );
+    // A manufacturing check's job already says where its review is saved (`reviewSuffix`).
+    handToChat(composerRef, withToolLine(check.action.label, check.action.prompt(linkOf(part))));
     setRan((before) => ({ ...before, [check.id]: Date.now() / 1000 }));
   };
+  const addDraft = (kind: DraftKind) => {
+    draftCount.current += 1;
+    const id = `draft-${draftCount.current}`;
+    setDrafts((before) => [...before, { id, kind, name: "", inputs: [], sent: null }]);
+    setSelected(id);
+  };
+  const updateDraft = (id: string, change: (draft: Draft) => Draft) =>
+    setDrafts((before) => before.map((draft) => (draft.id === id ? change(draft) : draft)));
+  const sendDraft = (draft: Draft, ask: string) => {
+    const composerRef = props.composerRef;
+    if (composerRef === null) return;
+    const uses = draft.inputs.flatMap(({ from, socket }) => {
+      const node = byId.get(from);
+      if (node === undefined) return [];
+      return [socket === SHAPE ? linkOf(node) : `${socket} from ${linkOf(node)}`];
+    });
+    const prompt = draftPrompt(draft, uses, ask);
+    handToChat(
+      composerRef,
+      draft.kind === "Stock" && STOCK_ACTION !== undefined
+        ? withToolLine(STOCK_ACTION.label, prompt)
+        : prompt,
+    );
+    const at = Date.now() / 1000;
+    updateDraft(draft.id, (held) => ({
+      ...held,
+      sent: { at, before: parts.map((part) => part.id) },
+    }));
+  };
+
   const proposeFix = (check: CheckNode, issue: CheckIssue) => {
     const part = byId.get(check.of);
     if (check.result === null || props.composerRef === null) return;
@@ -566,6 +628,8 @@ export function ProjectNodes(props: {
   };
   const startWire = (from: string, socket: OutputSocket, event: PointerEvent<HTMLElement>) => {
     event.stopPropagation();
+    // Drawing a wire holds the canvas still: a fit while it lands would move cards under the pointer.
+    touched.current = true;
     press.current = { kind: "wire", from, socket };
     setDrawing({ from, socket, to: toCanvas(event.clientX, event.clientY) });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -608,6 +672,23 @@ export function ProjectNodes(props: {
       const from = byId.get(held.from);
       const to = target === undefined ? undefined : byId.get(target);
       if (from === undefined || to === undefined || to.id === from.id) return;
+      // Into a part not made yet, a wire is something it will use, said when it is asked for.
+      const draft = draftById.get(to.id);
+      if (draft !== undefined) {
+        if (draft.kind === "Stock" || draft.sent !== null || draftById.has(from.id)) return;
+        const socket = held.socket.id;
+        // It stays where it was dropped on, not moved to the column its new input puts it in.
+        const spot = spotOf(draft.id);
+        setMoved((before) =>
+          before[draft.id] === undefined ? { ...before, [draft.id]: spot } : before,
+        );
+        updateDraft(draft.id, (made) =>
+          made.inputs.some((input) => input.from === from.id && input.socket === socket)
+            ? made
+            : { ...made, inputs: [...made.inputs, { from: from.id, socket }] },
+        );
+        return;
+      }
       if (props.composerRef === null) return;
       handToChat(
         props.composerRef,
@@ -626,9 +707,12 @@ export function ProjectNodes(props: {
   }
   if (graph.nodes.length === 0) {
     return (
-      <p className="px-6 py-8 text-sm text-muted-foreground">
-        No parts yet. Once the agent builds one, it shows here as a node.
-      </p>
+      <div className="flex flex-col items-start gap-3 px-6 py-8">
+        <p className="text-sm text-muted-foreground">
+          No parts yet. Add one here, or once the agent builds one, it shows here as a node.
+        </p>
+        <AddMenu onAdd={addDraft} />
+      </div>
     );
   }
 
@@ -723,6 +807,40 @@ export function ProjectNodes(props: {
                 sameDots(before[node.id], found) ? before : { ...before, [node.id]: found },
               ),
           };
+          const draft = draftById.get(node.id);
+          if (draft !== undefined) {
+            return (
+              <DraftCard
+                key={node.id}
+                node={node}
+                draft={draft}
+                spot={spotOf(node.id)}
+                inputs={sockets.get(node.id)?.inputs ?? []}
+                role={roleOf(node.id)}
+                litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
+                  tracing(input, node.id) ? [input.id] : [],
+                )}
+                dropTarget={drawing !== null && draft.kind !== "Stock" && draft.sent === null}
+                canSend={props.composerRef !== null}
+                {...measure}
+                onTrace={(next) => setHovered(next)}
+                onNodePress={(event) => startNode(node.id, event)}
+                onName={(name) => updateDraft(draft.id, (held) => ({ ...held, name }))}
+                onUnwire={(input) =>
+                  updateDraft(draft.id, (held) => ({
+                    ...held,
+                    inputs: held.inputs.filter(
+                      (wired) => wired.from !== input.from || wired.socket !== input.fromSocket,
+                    ),
+                  }))
+                }
+                onSend={(ask) => sendDraft(draft, ask)}
+                onRemove={() =>
+                  setDrafts((before) => before.filter((held) => held.id !== draft.id))
+                }
+              />
+            );
+          }
           if (check !== undefined) {
             const part = byId.get(check.of);
             const result = check.result;
@@ -828,6 +946,9 @@ export function ProjectNodes(props: {
             />
           );
         })}
+      </div>
+      <div className="absolute top-3 left-3">
+        <AddMenu onAdd={addDraft} />
       </div>
       <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg border border-border bg-popover p-1 shadow-xs">
         <Button
@@ -1306,6 +1427,216 @@ function NodeCard(props: {
           {state}
         </p>
       )}
+    </section>
+  );
+}
+
+/** What a draft of each kind is drawn with, as the Toolbox draws the same jobs. */
+const DRAFT_ICONS = {
+  Part: BoxIcon,
+  Assembly: BoxesIcon,
+  Stock: STOCK_ACTION === undefined ? BoxIcon : toolIcon(STOCK_ACTION),
+} as const;
+
+/** Adds a part, an assembly or an off-the-shelf part to the canvas, to wire up and ask for. */
+function AddMenu(props: { readonly onAdd: (kind: DraftKind) => void }) {
+  return (
+    <Menu>
+      <MenuTrigger render={<Button variant="outline" size="sm" />}>
+        <PlusIcon />
+        Add
+      </MenuTrigger>
+      <MenuPopup align="start" side="bottom" sideOffset={6}>
+        {(["Part", "Assembly", "Stock"] as const).map((kind) => {
+          const Icon = DRAFT_ICONS[kind];
+          return (
+            <MenuItem key={kind} onClick={() => props.onAdd(kind)}>
+              <Icon />
+              {DRAFT_TITLES[kind]}
+            </MenuItem>
+          );
+        })}
+      </MenuPopup>
+    </Menu>
+  );
+}
+
+/**
+ * A part, assembly or off-the-shelf part not made yet: its name, what is wired into it (drag a
+ * size's or a part's dot onto it), and what it is, sent as one ask. Once asked it says so until
+ * the agent's part takes its place.
+ */
+function DraftCard(props: {
+  readonly node: GraphNode;
+  readonly draft: Draft;
+  readonly spot: Spot;
+  readonly inputs: ReadonlyArray<InputSocket>;
+  readonly role: TraceRole | null;
+  readonly litIn: ReadonlyArray<string>;
+  readonly dropTarget: boolean;
+  readonly canSend: boolean;
+  readonly onHeight: (height: number) => void;
+  readonly onDots: (dots: Dots) => void;
+  readonly onTrace: (pointed: Trace | null) => void;
+  readonly onNodePress: (event: PointerEvent<HTMLElement>) => void;
+  readonly onName: (name: string) => void;
+  readonly onUnwire: (input: InputSocket) => void;
+  readonly onSend: (ask: string) => void;
+  readonly onRemove: () => void;
+}) {
+  const { node, draft } = props;
+  const [ask, setAsk] = useState("");
+  const card = useRef<HTMLElement>(null);
+  const onHeight = props.onHeight;
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (element === null) return;
+    return observeResize(element, () => onHeight(element.offsetHeight));
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
+  }, []);
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (element === null) return;
+    const box = element.getBoundingClientRect();
+    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
+    const found: Record<string, number> = {};
+    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
+      const at = dot.getBoundingClientRect();
+      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
+    }
+    props.onDots(found);
+  });
+  const stock = draft.kind === "Stock";
+  const sent = draft.sent !== null;
+  const ready = props.canSend && !sent && ask.trim() !== "" && (stock || slugOf(draft.name) !== "");
+  const send = () => {
+    if (!ready) return;
+    props.onSend(ask);
+  };
+  const Icon = DRAFT_ICONS[draft.kind];
+
+  return (
+    <section
+      ref={card}
+      data-node={node.id}
+      aria-label={node.name}
+      className={cn(
+        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border border-dashed bg-card shadow-md",
+        props.role === "apart"
+          ? "border-border opacity-50"
+          : props.dropTarget || props.role !== null
+            ? "border-primary/60"
+            : "border-border",
+      )}
+      style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+    >
+      <header
+        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        style={{ height: HEADER_H }}
+        onPointerDown={props.onNodePress}
+      >
+        <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="truncate text-xs font-medium text-foreground">{node.name}</span>
+        <span className="ml-auto shrink-0 text-2xs text-muted-foreground">Not made yet</span>
+        <Button
+          variant="ghost"
+          size="icon-tiny"
+          aria-label={`Remove ${node.name}`}
+          onClick={props.onRemove}
+        >
+          <XIcon />
+        </Button>
+      </header>
+      {stock ? null : (
+        <div
+          className="flex flex-col"
+          style={{ paddingTop: SOCKETS_TOP, paddingBottom: SOCKETS_TOP }}
+        >
+          {props.inputs.map((socket) => {
+            const lit = props.litIn.includes(socket.id);
+            return (
+              <div
+                key={socket.id}
+                className={cn(
+                  "relative flex items-center gap-1 rounded-r-md pl-3 pr-1",
+                  lit ? "bg-primary/10" : null,
+                )}
+                style={{ height: SOCKET_ROW }}
+                onPointerEnter={() =>
+                  props.onTrace({ from: socket.from, socket: socket.fromSocket, to: node.id })
+                }
+                onPointerLeave={() => props.onTrace(null)}
+              >
+                <SocketDot type={socket.type} side="in" dot={`in:${socket.id}`} lit={lit} />
+                <span className="min-w-0 flex-1 truncate text-2xs text-foreground">
+                  {socket.type === "Size" ? humanName(socket.name) : socket.name}
+                </span>
+                {sent ? null : (
+                  <Button
+                    variant="ghost"
+                    size="icon-tiny"
+                    aria-label={`Stop using ${socket.name}`}
+                    onClick={() => props.onUnwire(socket)}
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+          {sent ? null : (
+            <p className="px-3 py-1 text-2xs text-muted-foreground">
+              {draft.kind === "Assembly"
+                ? "Drag each part's dot here to put it in."
+                : "Drag a size's or a part's dot here to use it."}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="flex flex-col gap-1.5 rounded-b-lg border-t border-border px-2 py-2">
+        {stock ? null : (
+          <Input
+            size="sm"
+            value={draft.name}
+            disabled={sent}
+            onChange={(event) => props.onName(event.target.value)}
+            placeholder={draft.kind === "Assembly" ? "Name, as Belt drive" : "Name, as Belt clamp"}
+            aria-label={`Name of the ${DRAFT_TITLES[draft.kind].toLowerCase()}`}
+          />
+        )}
+        <div className="flex items-center gap-1">
+          <Input
+            size="sm"
+            value={ask}
+            disabled={sent || !props.canSend}
+            onChange={(event) => setAsk(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") send();
+            }}
+            placeholder={
+              stock
+                ? "What to find, as an M3 x 10 socket head screw"
+                : draft.kind === "Assembly"
+                  ? "How they go together"
+                  : "What it is and what it must do"
+            }
+            aria-label={`What ${node.name} is`}
+          />
+          <Button
+            size="icon-xs"
+            aria-label={`Ask for ${node.name}`}
+            disabled={!ready}
+            onClick={send}
+          >
+            <ArrowUpIcon />
+          </Button>
+        </div>
+        {sent ? (
+          <p className="px-1 text-2xs text-muted-foreground">
+            {stock ? "Finding it." : "Building it."} It shows here once the agent has made it.
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }

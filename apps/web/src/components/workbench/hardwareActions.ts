@@ -116,7 +116,7 @@ const printCheck = (
   short: (name) => `Check ${name} for ${method}`,
 });
 
-export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
+const JOBS: ReadonlyArray<HardwareAction> = [
   {
     id: "strength",
     group: "Evaluate",
@@ -533,6 +533,29 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `MoveIt SRDF for ${name}`,
   },
 ];
+
+/** The skills whose manufacturing checks write a review with a findings table (`nodes/dfmReview.ts`). */
+const REVIEWS = new Set(["dfm", "dfam-check", "sendcutsend"]);
+
+/** What a check's review is saved as, after the part's file name: `_cnc_dfm.md`, `_sendcutsend.md`. */
+export const reviewSuffix = (id: string) =>
+  id === "sendcutsend" ? "_sendcutsend.md" : `_${id.replaceAll("-", "_")}_dfm.md`;
+
+/**
+ * Every job. A manufacturing check also saves its review beside the project's docs, wherever it is
+ * started (a Toolbox tile, ⌘K, a check on the Nodes canvas), so its findings stay with the part.
+ */
+export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = JOBS.map((action) =>
+  action.skill !== null &&
+  REVIEWS.has(action.skill) &&
+  (action.checks || action.id === "sendcutsend")
+    ? {
+        ...action,
+        prompt: (file: string) =>
+          `${action.prompt(file)} Save the review in docs/ as the part's file name followed by ${reviewSuffix(action.id)}, its findings table giving each finding's result as pass, fail, review or unverified.`,
+      }
+    : action,
+);
 
 const GROUPS: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "Document"];
 

@@ -6,6 +6,7 @@
  */
 
 import type { CheckIssue, CheckResult, CheckStatus } from "../checkResults";
+import { reviewSuffix } from "../hardwareActions";
 
 /** A review's file: `docs/motor_plate_dfm.md`, `docs/bracket_sendcutsend.md`. */
 const REVIEW_FILE = /(?:dfm|sendcutsend)[^/]*\.md$/i;
@@ -21,6 +22,7 @@ function resultOf(cell: string): Result | null {
   if (cell.includes("✅")) return "pass";
   if (cell.includes("❌")) return "fail";
   if (cell.includes("⚠")) return "review";
+  if (cell.includes("❓") || /need more info/i.test(cell)) return "unverified";
   return null;
 }
 
@@ -146,7 +148,5 @@ export function reviewPathFor(script: string, actionId: string): string {
   const name = baseName(script)
     .replace(/\.[^.]+$/, "")
     .toLowerCase();
-  return actionId === "sendcutsend"
-    ? `docs/${name}_sendcutsend.md`
-    : `docs/${name}_${actionId.replaceAll("-", "_")}_dfm.md`;
+  return `docs/${name}${reviewSuffix(actionId)}`;
 }

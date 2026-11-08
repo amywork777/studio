@@ -40,6 +40,15 @@ describe("manufacturing reviews", () => {
     ]);
   });
 
+  it("takes the printing check's ❓ as not checked", () => {
+    expect(
+      parseReview(
+        "docs/a_fdm_dfm.md",
+        "| Finding | Status |\n| --- | --- |\n| Watertight | ✅ pass |\n| Thin walls | ❓ need more info |",
+      )?.issues,
+    ).toEqual([{ severity: "warning", summary: "Thin walls: not checked", fix: null }]);
+  });
+
   it("is no review without a result column, and passes when every finding does", () => {
     expect(
       parseReview(
