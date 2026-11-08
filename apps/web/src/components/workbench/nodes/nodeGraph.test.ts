@@ -6,7 +6,10 @@ import {
   downstream,
   graphParts,
   nodePrompt,
+  nodeSockets,
+  scriptImportNames,
   scriptImports,
+  wirePrompt,
   sharedName,
   upstream,
   type GraphPart,
@@ -61,6 +64,21 @@ describe("scriptImports", () => {
   });
 });
 
+describe("scriptImportNames", () => {
+  it("reads the names each import takes, over several lines and past comments", () => {
+    expect(
+      scriptImportNames(
+        "from sizes import (\n    MOTOR_FRAME,  # the face\n    MOTOR_PILOT as PILOT,\n)\n" +
+          "from cadgen.ap242 import annotate, datum\nimport motor_plate as mp\n",
+      ),
+    ).toEqual([
+      { module: "sizes", names: ["MOTOR_FRAME", "MOTOR_PILOT"] },
+      { module: "cadgen", names: ["annotate", "datum"] },
+      { module: "motor_plate", names: ["*"] },
+    ]);
+  });
+});
+
 describe("buildNodeGraph", () => {
   const graph = buildNodeGraph(MODELS, SOURCES);
 
@@ -77,16 +95,38 @@ describe("buildNodeGraph", () => {
   it("wires each part to what it imports, left to right", () => {
     expect(graph.edges).toEqual(
       expect.arrayContaining([
-        { from: "parts/sizes.py", to: "doc:plate" },
-        { from: "doc:plate", to: "doc:mount" },
-        { from: "doc:nema", to: "doc:mount" },
-        { from: "parts/sizes.py", to: "doc:mount" },
+        { from: "parts/sizes.py", to: "doc:plate", names: ["MOTOR_BOLT_PATTERN"] },
+        { from: "doc:plate", to: "doc:mount", names: ["SCREW_CLEARANCE", "motor_plate"] },
+        { from: "doc:nema", to: "doc:mount", names: ["nema17"] },
+        { from: "parts/sizes.py", to: "doc:mount", names: ["MOTOR_BODY_LENGTH"] },
       ]),
     );
     expect(graph.edges).toHaveLength(4);
     const column = (id: string) => graph.nodes.find((node) => node.id === id)?.column;
     expect([column("parts/sizes.py"), column("doc:plate"), column("doc:mount")]).toEqual([0, 1, 2]);
     expect(column("doc:nema")).toBe(0);
+  });
+
+  it("gives each node a socket per name it takes and gives", () => {
+    expect(nodeSockets(graph, "doc:mount").inputs.map((socket) => socket.name)).toEqual([
+      "SCREW_CLEARANCE",
+      "Motor plate",
+      "NEMA 17",
+      "MOTOR_BODY_LENGTH",
+    ]);
+    expect(nodeSockets(graph, "doc:plate").outputs.map((socket) => socket.id)).toEqual([
+      "shape",
+      "SCREW_CLEARANCE",
+    ]);
+    expect(nodeSockets(graph, "parts/sizes.py").outputs.map((socket) => socket.id)).toEqual([
+      "MOTOR_BOLT_PATTERN",
+      "MOTOR_BODY_LENGTH",
+    ]);
+    expect(nodeSockets(graph, "doc:mount").inputs[1]).toMatchObject({
+      from: "doc:plate",
+      fromSocket: "shape",
+      type: "Part",
+    });
   });
 
   it("knows what rebuilds after a change, and what a part uses", () => {
@@ -183,10 +223,28 @@ describe("graphParts", () => {
     const graph = buildNodeGraph(parts, SOURCES);
     expect(graph.edges).toEqual(
       expect.arrayContaining([
-        { from: "parts/sizes.py", to: "parts/motor_plate.step" },
-        { from: "parts/motor_plate.step", to: "assemblies/motor_mount.step" },
-        { from: "parts/nema17.step", to: "assemblies/motor_mount.step" },
+        expect.objectContaining({ from: "parts/sizes.py", to: "parts/motor_plate.step" }),
+        expect.objectContaining({
+          from: "parts/motor_plate.step",
+          to: "assemblies/motor_mount.step",
+        }),
+        expect.objectContaining({ from: "parts/nema17.step", to: "assemblies/motor_mount.step" }),
       ]),
+    );
+  });
+});
+
+describe("wirePrompt", () => {
+  it("asks for a size drawn into a part to be used there", () => {
+    expect(
+      wirePrompt({
+        fromLink: "[Sizes](parts/sizes.py)",
+        name: "MOTOR_FRAME",
+        type: "Size",
+        toLink: "[Motor plate](parts/motor_plate.step)",
+      }),
+    ).toBe(
+      "Use the size MOTOR_FRAME from [Sizes](parts/sizes.py) in [Motor plate](parts/motor_plate.step), importing it by name. Edit only [Motor plate](parts/motor_plate.step)'s script, then rebuild it and what uses it.",
     );
   });
 });

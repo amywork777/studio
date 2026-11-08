@@ -22,7 +22,7 @@ import {
   sharedSizePrompt,
 } from "./sizes";
 import { addSharedSize, changeSize, useProjectSizes } from "./useSizes";
-import { useCadService } from "./useVersions";
+import { type CadPost, useCadService } from "./useVersions";
 
 /** A name as typed, as the scripts write one: "wall thickness" reads WALL_THICKNESS. */
 const asSizeName = (typed: string) =>
@@ -78,41 +78,9 @@ export function ProjectSizes(props: {
       ensureLeadingBoundary: true,
       stayHidden: true,
     });
-
-  const change = async (
-    folder: string,
-    group: SizeGroup,
-    size: NamedSize,
-    text: string,
-  ): Promise<boolean> => {
-    if (post === null) return false;
-    const result = await changeSize(post, {
-      folder,
-      file: group.file,
-      name: size.name,
-      line: size.line,
-      old: size.text,
-      text,
-    });
-    if ("error" in result) {
-      toastManager.add({
-        type: "error",
-        title: `Couldn't change ${size.name}`,
-        description: plainSizesError(result.error),
-      });
-      return false;
-    }
-    tell(sizeChangedNote({ name: size.name, file: group.file, from: size.text, to: text }));
-    toastManager.add({
-      type: "success",
-      title: `${size.name} is ${text}`,
-      ...(result.parts.length === 0
-        ? {}
-        : { description: `Rebuilding ${result.parts.map(humanName).join(", ")}` }),
-    });
-    setReads((value) => value + 1);
-    return true;
-  };
+  const changeSize = useChangeSize(post, props.composerRef, () => setReads((value) => value + 1));
+  const change = (folder: string, group: SizeGroup, size: NamedSize, text: string) =>
+    changeSize(folder, group.file, size, text);
 
   const add = async (name: string, text: string, note: string): Promise<string | null> => {
     if (post === null || home === null) return "Studio's CAD service is not running.";
@@ -195,6 +163,49 @@ export function ProjectSizes(props: {
       </div>
     </OverviewModule>
   );
+}
+
+/**
+ * Changes one size where it is written, tells the agent as of a hand change, and says which parts
+ * rebuild: the one way a size changes, from Sizes or from a node. Resolves to whether it changed.
+ */
+export function useChangeSize(
+  post: CadPost | null,
+  composerRef: ComposerHandleRef | null,
+  onChanged: () => void,
+) {
+  return async (folder: string, file: string, size: NamedSize, text: string): Promise<boolean> => {
+    if (post === null) return false;
+    const result = await changeSize(post, {
+      folder,
+      file,
+      name: size.name,
+      line: size.line,
+      old: size.text,
+      text,
+    });
+    if ("error" in result) {
+      toastManager.add({
+        type: "error",
+        title: `Couldn't change ${size.name}`,
+        description: plainSizesError(result.error),
+      });
+      return false;
+    }
+    composerRef?.current?.insertTextAtEnd(
+      sizeChangedNote({ name: size.name, file, from: size.text, to: text }),
+      { ensureLeadingBoundary: true, stayHidden: true },
+    );
+    toastManager.add({
+      type: "success",
+      title: `${size.name} is ${text}`,
+      ...(result.parts.length === 0
+        ? {}
+        : { description: `Rebuilding ${result.parts.map(humanName).join(", ")}` }),
+    });
+    onChanged();
+    return true;
+  };
 }
 
 /** One script's sizes: a shared file's, with the parts that use them, or a part's own. */

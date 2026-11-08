@@ -32,6 +32,8 @@ export interface GraphEdge {
   readonly from: string;
   /** The node that uses it. */
   readonly to: string;
+  /** What it takes from it, as its script imports them; "*" for the whole script. */
+  readonly names: ReadonlyArray<string>;
 }
 
 export interface NodeGraph {
@@ -72,22 +74,44 @@ export function graphParts(
 const fileStem = (path: string) =>
   (path.split("/").pop() ?? path).replace(/\.[^.]+$/, "").toLowerCase();
 
-const FROM_IMPORT = /^\s*from\s+([A-Za-z_][\w.]*)\s+import\s/gm;
+const FROM_IMPORT = /^[ \t]*from[ \t]+([A-Za-z_][\w.]*)[ \t]+import[ \t]+(\([^)]*\)|[^\n]*)/gm;
 const PLAIN_IMPORT =
-  /^\s*import\s+([A-Za-z_][\w.]*(?:\s+as\s+\w+)?(?:\s*,\s*[A-Za-z_][\w.]*(?:\s+as\s+\w+)?)*)/gm;
+  /^[ \t]*import[ \t]+([A-Za-z_][\w.]*(?:[ \t]+as[ \t]+\w+)?(?:[ \t]*,[ \t]*[A-Za-z_][\w.]*(?:[ \t]+as[ \t]+\w+)?)*)/gm;
+
+/** One import of a script: the top-level module, and the names taken from it ("*" for all of it). */
+export interface ScriptImport {
+  readonly module: string;
+  readonly names: ReadonlyArray<string>;
+}
+
+/** What a Python script imports, by module in order, each module once with its names merged. */
+export function scriptImportNames(source: string): ReadonlyArray<ScriptImport> {
+  const found = new Map<string, string[]>();
+  const add = (module: string, names: ReadonlyArray<string>) => {
+    const top = module.split(".")[0] ?? "";
+    if (top === "") return;
+    const held = found.get(top) ?? [];
+    for (const name of names) if (!held.includes(name)) held.push(name);
+    found.set(top, held);
+  };
+  for (const match of source.matchAll(FROM_IMPORT)) {
+    const list = (match[2] ?? "")
+      .replace(/#[^\n]*/g, "")
+      .replace(/[()\\]/g, "")
+      .split(",")
+      .map((name) => name.trim().split(/\s+/)[0] ?? "")
+      .filter((name) => /^[A-Za-z_*]\w*$|^\*$/.test(name));
+    add(match[1] ?? "", list);
+  }
+  for (const match of source.matchAll(PLAIN_IMPORT)) {
+    for (const part of (match[1] ?? "").split(",")) add(part.trim().split(/\s+/)[0] ?? "", ["*"]);
+  }
+  return [...found].map(([module, names]) => ({ module, names }));
+}
 
 /** The top-level module names a Python script imports, in order, each once. */
 export function scriptImports(source: string): ReadonlyArray<string> {
-  const names: string[] = [];
-  const add = (name: string) => {
-    const top = name.split(".")[0] ?? "";
-    if (top !== "" && !names.includes(top)) names.push(top);
-  };
-  for (const match of source.matchAll(FROM_IMPORT)) add(match[1] ?? "");
-  for (const match of source.matchAll(PLAIN_IMPORT)) {
-    for (const part of (match[1] ?? "").split(",")) add(part.trim().split(/\s+/)[0] ?? "");
-  }
-  return names;
+  return scriptImportNames(source).map((entry) => entry.module);
 }
 
 const stem = (script: string) =>
@@ -114,11 +138,15 @@ export function buildNodeGraph(
   }
   for (const model of models) scriptsByStem.set(stem(model.script), model.script);
 
-  // What each script uses of the project's own scripts.
-  const usesOf = (script: string): ReadonlyArray<string> =>
-    scriptImports(sources.get(script) ?? "")
-      .map((name) => scriptsByStem.get(name.toLowerCase()))
-      .filter((used): used is string => used !== undefined && used !== script);
+  // What each script uses of the project's own scripts, and the names it takes from each.
+  const takenBy = (
+    script: string,
+  ): ReadonlyArray<{ script: string; names: ReadonlyArray<string> }> =>
+    scriptImportNames(sources.get(script) ?? "").flatMap((entry) => {
+      const used = scriptsByStem.get(entry.module.toLowerCase());
+      return used === undefined || used === script ? [] : [{ script: used, names: entry.names }];
+    });
+  const usesOf = (script: string) => takenBy(script).map((entry) => entry.script);
 
   const parts = new Map<string, GraphPart>();
   const byScript = new Map<string, GraphPart[]>();
@@ -145,10 +173,10 @@ export function buildNodeGraph(
 
   const edges: GraphEdge[] = [];
   for (const part of parts.values()) {
-    for (const used of usesOf(part.script)) {
-      for (const from of byScript.get(used) ?? []) {
+    for (const used of takenBy(part.script)) {
+      for (const from of byScript.get(used.script) ?? []) {
         if (!edges.some((edge) => edge.from === from.id && edge.to === part.id)) {
-          edges.push({ from: from.id, to: part.id });
+          edges.push({ from: from.id, to: part.id, names: used.names });
         }
       }
     }
@@ -231,4 +259,85 @@ export function nodePrompt(input: {
       : `Edit only this script, then rebuild it.`,
   );
   return lines.join("\n");
+}
+
+/** What flows along a wire: a part's shape, or a size (a named number). */
+export type SocketType = "Part" | "Size";
+
+export interface OutputSocket {
+  readonly id: string;
+  /** The name it carries, as the scripts write it, or the node's kind for its shape. */
+  readonly name: string;
+  readonly type: SocketType;
+}
+
+export interface InputSocket {
+  readonly id: string;
+  readonly name: string;
+  readonly type: SocketType;
+  /** The node and output socket its wire comes from. */
+  readonly from: string;
+  readonly fromSocket: string;
+}
+
+/** The output socket every part and assembly has: its shape. */
+export const SHAPE = "shape";
+
+const isSize = (name: string) => /^[A-Z][A-Z0-9_]*$/.test(name);
+
+/** Which output of `node` carries `name`: a size its own socket; a part's functions, its shape. */
+function outputFor(node: GraphPart, name: string): OutputSocket {
+  if (isSize(name)) return { id: name, name, type: "Size" };
+  if (node.kind !== "Shared" || name === "*") return { id: SHAPE, name: node.kind, type: "Part" };
+  return { id: name, name, type: "Part" };
+}
+
+/**
+ * A node's sockets, after ComfyUI: on the right what other nodes take from it (a part's shape, each
+ * size used elsewhere), on the left what it takes from others, one socket per name it imports.
+ */
+export function nodeSockets(
+  graph: NodeGraph,
+  id: string,
+): { readonly inputs: ReadonlyArray<InputSocket>; readonly outputs: ReadonlyArray<OutputSocket> } {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const node = byId.get(id);
+  if (node === undefined) return { inputs: [], outputs: [] };
+  const outputs: OutputSocket[] = node.kind === "Shared" ? [] : [outputFor(node, "*")];
+  for (const edge of graph.edges) {
+    if (edge.from !== id) continue;
+    for (const name of edge.names) {
+      const socket = outputFor(node, name);
+      if (!outputs.some((held) => held.id === socket.id)) outputs.push(socket);
+    }
+  }
+  const inputs: InputSocket[] = [];
+  for (const edge of graph.edges) {
+    const from = byId.get(edge.from);
+    if (edge.to !== id || from === undefined) continue;
+    for (const name of edge.names) {
+      const socket = outputFor(from, name);
+      const input = {
+        id: `${edge.from}:${socket.id}`,
+        name: socket.type === "Part" && socket.id === SHAPE ? from.name : socket.name,
+        type: socket.type,
+        from: edge.from,
+        fromSocket: socket.id,
+      };
+      if (!inputs.some((held) => held.id === input.id)) inputs.push(input);
+    }
+  }
+  return { inputs, outputs };
+}
+
+/** The message a wire drawn by hand sends: use what one node gives in another. */
+export function wirePrompt(input: {
+  readonly fromLink: string;
+  readonly name: string;
+  readonly type: SocketType;
+  readonly toLink: string;
+}): string {
+  const what =
+    input.type === "Size" ? `the size ${input.name} from ${input.fromLink}` : input.fromLink;
+  return `Use ${what} in ${input.toLink}, importing it by name. Edit only ${input.toLink}'s script, then rebuild it and what uses it.`;
 }

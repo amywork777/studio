@@ -706,6 +706,7 @@ export function ProjectPage(props: {
       {shownTab === "nodes" ? (
         <ProjectNodes
           environmentId={environmentId}
+          threadRef={threadRef}
           root={cwd}
           mutationId={props.workspaceMutationId}
           composerRef={composerRef}
