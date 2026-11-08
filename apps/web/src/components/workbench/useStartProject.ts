@@ -5,21 +5,17 @@ import { useCallback, useState } from "react";
 
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useRightPanelStore } from "~/rightPanelStore";
-import { toastManager } from "../ui/toast";
-import { BRIEF_REFERENCES } from "./briefFolder";
-import { plainError } from "./importIntoProject";
+import { copyIntoReferences } from "./attachToReferences";
 import type { NewJob } from "./NewDialog";
 import { humanName } from "./partNames";
 import type { ListedProject } from "./projectList";
 import {
   nameFromAttachment,
   provisionalProjectName,
-  referencePaths,
   setPendingStart,
   type StartAttachment,
   startMessage,
 } from "./startProject";
-import { readStudioImport } from "./studioImportBridge";
 import { useCreateStudioProject } from "./useCreateStudioProject";
 
 /**
@@ -36,30 +32,6 @@ export type ProjectStart =
       readonly project: ListedProject | null;
     }
   | { readonly kind: "new"; readonly job: NewJob };
-
-/**
- * Copies files and folders into a project folder's References (`brief/references`), as Import
- * into a project copies, never over a file there, and resolves to the copies' paths in the
- * folder. Outside the desktop app nothing is copied; a failed copy says so, and the start goes on.
- */
-async function copyIntoReferences(
-  folder: string,
-  paths: ReadonlyArray<string>,
-): Promise<ReadonlyArray<string>> {
-  const bridge = readStudioImport();
-  if (bridge === null || paths.length === 0) return [];
-  try {
-    const into = `${folder.replace(/[\\/]+$/, "")}/${BRIEF_REFERENCES}`;
-    return referencePaths(await bridge.copy(paths, into));
-  } catch (error) {
-    toastManager.add({
-      type: "error",
-      title: "Could not copy your files into the project",
-      description: plainError(error),
-    });
-    return [];
-  }
-}
 
 /**
  * A project started from New is named by what New names: "Servo bracket", else as new work of its

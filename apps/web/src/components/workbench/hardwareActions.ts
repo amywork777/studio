@@ -176,7 +176,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     label: "Explain these results",
     gets: "A walk through the results: what fails, by how much, and what to change.",
     skill: "fea",
-    kinds: ["FEA study"],
+    kinds: ["FEA study", "Result"],
     checks: true,
     prompt: (file) =>
       `Walk me through the results in ${file} and tell me what fails, by how much, and what to change.`,

@@ -59,7 +59,6 @@ export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchIte
   // them, and the Interface switch (Settings, Advanced, Interface) is the way there.
   "code-font",
   "terminal-font",
-  "provider-update-checks",
   "response-streaming",
   "composer-rich-text",
   "send-shortcut",
@@ -92,6 +91,13 @@ const ENGINEERING_SETTINGS_COPY: ReadonlyMap<string, SettingCopy> = new Map<
     { title: "Model for short text", description: "Names chats and writes other short text." },
   ],
   ["thread-notifications", { title: "Chat notifications" }],
+  [
+    "provider-update-checks",
+    {
+      title: "Agent update checks",
+      description: "Check whether a newer version of your AI agents is available.",
+    },
+  ],
   [
     "auto-resume-limited-threads",
     {
@@ -144,6 +150,7 @@ const ENGINEERING_SETTINGS_COPY: ReadonlyMap<string, SettingCopy> = new Map<
 /** What Restore defaults lists, in the rows' own words: a setting a row hides is still listed. */
 const ENGINEERING_RESTORE_LABELS: ReadonlyMap<string, string> = new Map([
   ["Thread notifications", "Chat notifications"],
+  ["Provider update checks", "Agent update checks"],
   ["Visible threads", "Visible chats"],
   ["Auto-settle inactive threads", "Mark inactive chats done"],
   ["Auto-settle merged threads", "Mark merged chats done"],

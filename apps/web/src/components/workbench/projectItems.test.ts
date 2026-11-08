@@ -3,6 +3,27 @@ import { describe, expect, it } from "vite-plus/test";
 import { itemType, projectFileItems } from "./projectItems";
 
 describe("project items", () => {
+  it("shows a study once, whatever a solve left beside it", () => {
+    const items = projectFileItems([
+      {
+        root: "/case",
+        paths: [
+          "studies/case_t0.4.step",
+          "studies/case_t0.4.fea.glb",
+          "studies/case_t0.4.fea.json",
+          "studies/case_pads_t0.4.step",
+          "studies/early/case_t0.4.fea.glb",
+          "studies/early/case_t0.4.step",
+        ],
+      },
+    ]);
+    expect(items.map((item) => item.file.path)).toEqual([
+      "studies/case_pads_t0.4.step",
+      "studies/case_t0.4.fea.glb",
+      "studies/early/case_t0.4.fea.glb",
+    ]);
+  });
+
   it("lists every file once, by type then name, by the file that shows it", () => {
     const items = projectFileItems([
       {

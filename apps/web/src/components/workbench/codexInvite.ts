@@ -86,21 +86,39 @@ export async function checkInviteCode(
   }
 }
 
-/** The instance on an invite: Codex from `binaryPath`, its requests to the invite server. */
+/**
+ * The Codex a code can run on without moving it: one that works already on the person's own setup.
+ * Null sends the dialog to Studio's installer, which needs the instance on Studio's own setup, a
+ * move that would sign out a working Codex if the install then failed or was cancelled.
+ */
+export function workingCodexBinary(config: unknown, ready: boolean): string | null {
+  const value = configObject(config);
+  if (!ready || value.setupMode === "managed") return null;
+  return typeof value.binaryPath === "string" && value.binaryPath.trim().length > 0
+    ? value.binaryPath
+    : "codex";
+}
+
+/**
+ * The instance on an invite: Codex from `binaryPath`, its requests to the invite server. The setup
+ * it came from stays in `beforeInvite`, so that leaving the code finds it signed in as it was.
+ */
 export function inviteInstance(
   instance: ProviderInstanceConfig,
   code: string,
   binaryPath: string,
 ): ProviderInstanceConfig {
+  const config = configObject(instance.config);
   return {
     ...instance,
     enabled: true,
     config: {
-      ...configObject(instance.config),
+      ...config,
       enabled: true,
       setupMode: "existing",
       binaryPath,
       launchArgs: inviteLaunchArgs(),
+      beforeInvite: config.beforeInvite ?? config,
     },
     environment: [
       ...(instance.environment ?? []).filter(
@@ -112,19 +130,25 @@ export function inviteInstance(
 }
 
 /**
- * The instance back on Studio's own Codex setup, where ChatGPT signs in and Codex is installed.
- * The binary path goes too: managed setup only installs Codex for an instance without one.
+ * The instance off its code, on the setup it came from. With none saved, as for a code used before
+ * Studio kept one, and for the dialog on its way to the installer, it goes on Studio's own setup,
+ * where ChatGPT signs in and Codex is installed. The binary path goes too: managed setup only
+ * installs Codex for an instance without one.
  */
 export function instanceWithoutInvite(instance: ProviderInstanceConfig): ProviderInstanceConfig {
   const {
     binaryPath: _binaryPath,
     launchArgs: _launchArgs,
+    beforeInvite,
     ...config
   } = configObject(instance.config);
   return {
     ...instance,
     enabled: true,
-    config: { ...config, enabled: true, setupMode: "managed" },
+    config:
+      beforeInvite === undefined
+        ? { ...config, enabled: true, setupMode: "managed" }
+        : { ...configObject(beforeInvite), enabled: true },
     environment: (instance.environment ?? []).filter(
       (variable) => variable.name !== STUDIO_INVITE_CODE_ENV,
     ),

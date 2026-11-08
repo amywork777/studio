@@ -240,13 +240,18 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
         </ComposerBanner.Actions>
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <ComposerBanner.Scroll>
-          <ComposerBanner.Body className="pe-1 pb-1 wrap-anywhere">
+        {/* A long question scrolls by itself: its answers start in view, not below it. */}
+        <ComposerBanner.Scroll className="max-h-20">
+          <ComposerBanner.Body className="pe-1 wrap-anywhere">
             <p className="text-sm text-foreground/85">{activeQuestion.question}</p>
             {activeQuestion.multiSelect ? (
               <p className="mt-1 text-secondary-label text-xs">Select one or more options.</p>
             ) : null}
-            <div className="mt-2 space-y-0.5">
+          </ComposerBanner.Body>
+        </ComposerBanner.Scroll>
+        <ComposerBanner.Scroll className="mt-1.5 max-h-[min(20rem,32dvh)]">
+          <ComposerBanner.Body className="pe-1 pb-1 wrap-anywhere">
+            <div className="space-y-0.5">
               {activeQuestion.options.map((option, index) => {
                 const optionValue = option.value ?? option.label;
                 const isOptimisticallySelected =
@@ -257,7 +262,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                   (!customAnswerActive && progress.selectedOptionValues.includes(optionValue));
                 const shortcutKey = index < 9 ? index + 1 : null;
                 const className = cn(
-                  "group flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left outline-none transition-colors duration-150 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/25",
+                  "group flex w-full items-center gap-2 rounded-md px-2.5 py-1 text-left outline-none transition-colors duration-150 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/25",
                   isSelected
                     ? "bg-muted/55 text-foreground"
                     : "bg-transparent text-foreground/85 hover:bg-muted/30",
@@ -266,7 +271,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
                 );
                 const content = (
                   <>
-                    <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
                       <span className="text-sm font-medium">{option.label}</span>
                       {option.description && option.description !== option.label ? (
                         <span className="text-secondary-label text-2xs">{option.description}</span>

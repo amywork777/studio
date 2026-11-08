@@ -41,6 +41,7 @@ import {
   inviteInstance,
   normalizedInviteCode,
   usesInvite,
+  workingCodexBinary,
 } from "./codexInvite";
 import { useEngineeringInterface } from "./studioInterface";
 
@@ -132,6 +133,8 @@ function InviteInstaller(props: {
 export function CodexInviteDialog(props: {
   readonly environmentId: EnvironmentId;
   readonly instanceId: ProviderInstanceId;
+  /** Codex works already, so the code must not put that at risk on its way in. */
+  readonly codexReady?: boolean;
   readonly onClose: () => void;
 }) {
   const { environmentId, instanceId, onClose } = props;
@@ -145,6 +148,12 @@ export function CodexInviteDialog(props: {
     setError(message);
     setStep("code");
   };
+  const finish = async (binaryPath: string) => {
+    setStep("saving");
+    const failed = await save(inviteInstance(instance, accepted.current, binaryPath));
+    if (failed !== null) stop(failed);
+    else onClose();
+  };
   const submit = async () => {
     const value = normalizedInviteCode(code);
     if (value.length === 0 || step !== "code") return;
@@ -153,18 +162,14 @@ export function CodexInviteDialog(props: {
     const check = await checkInviteCode(value);
     if (!check.ok) return stop(check.message);
     accepted.current = value;
+    const working = workingCodexBinary(instance.config, props.codexReady === true);
+    if (working !== null) return finish(working);
     // Only Studio's own setup installs Codex, so the instance is on it while Codex is found.
     if (readCodexSetupMode(instance.config) !== "managed") {
       const failed = await save(instanceWithoutInvite(instance));
       if (failed !== null) return stop(failed);
     }
     setStep("codex");
-  };
-  const finish = async (binaryPath: string) => {
-    setStep("saving");
-    const failed = await save(inviteInstance(instance, accepted.current, binaryPath));
-    if (failed !== null) stop(failed);
-    else onClose();
   };
 
   const busy = step !== "code";
@@ -233,21 +238,13 @@ export function CodexInviteDialog(props: {
 
 /**
  * The welcome screen's invite row, in Studio only, beside Claude's and Codex's cards: a friend with
- * a code uses it here without knowing it sets up Codex. It goes once Codex is ready or on a code;
- * its dialog belongs to the screen, which stays while Codex's card changes setup underneath.
+ * a code uses it here without knowing it sets up Codex. It stays whatever is signed in, and goes
+ * only once Codex is on a code, when Codex's card says so and holds the way back. Its dialog belongs
+ * to the screen, which stays while Codex's card changes setup underneath.
  */
-export function InviteCodeRow(props: {
-  readonly provider: ServerProvider | undefined;
-  readonly config: unknown;
-  readonly onUse: () => void;
-}) {
+export function InviteCodeRow(props: { readonly config: unknown; readonly onUse: () => void }) {
   const engineering = useEngineeringInterface();
-  if (
-    !engineering ||
-    usesInvite(props.config) ||
-    getOnboardingProviderState(props.provider) === "ready"
-  )
-    return null;
+  if (!engineering || usesInvite(props.config)) return null;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background p-3">
       <TicketIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />

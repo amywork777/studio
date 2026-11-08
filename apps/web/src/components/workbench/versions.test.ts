@@ -73,12 +73,12 @@ describe("versions", () => {
   it("lists the sizes that changed, were added or were removed", () => {
     const changes = sizeChanges(
       sizes(["HOOK_DEPTH", 40], ["SCREW_HOLE", 6], ["OLD_TAB", 5], ["WALL", 2]),
-      sizes(["HOOK_DEPTH", 48], ["SCREW_HOLE", 6.35], ["WALL", 2.0004], ["RIB", 3]),
+      sizes(["HOOK_DEPTH", 48], ["SCREW_HOLE", 6.35], ["WALL", 2.0004], ["RIB_DEPTH", 3]),
     )!;
     expect(changes.map((change) => sizeLine(change, "mm"))).toEqual([
       "Hook depth 40 to 48 mm",
       "Screw hole 6 to 6.35 mm",
-      "Rib added: 3 mm",
+      "Rib depth added: 3 mm",
       "Old tab removed",
     ]);
     expect(sizeChanges(null, sizes(["A", 1]))).toBeNull();
@@ -89,7 +89,23 @@ describe("versions", () => {
       sizes(["WIDTH", 10], ["WIDTH", 20]),
       sizes(["WIDTH", 10], ["WIDTH", 25]),
     )!;
-    expect(changes.map((change) => sizeLine(change, ""))).toEqual(["Width (2) 20 to 25"]);
+    expect(changes.map((change) => sizeLine(change, ""))).toEqual(["WIDTH (2) 20 to 25"]);
+  });
+
+  it("says a one-word size in its comment's words, else as the script writes it", () => {
+    const script = (value: number) =>
+      `STAGE = ${value}  # the lift of the tray: about 19 at rest\nPLATE = ${value}\nGAP = ${value}  # 3\n`;
+    const line = (name: string, at: number) => ({ name, value: 19, line: at });
+    const lines = sizeChanges(
+      [line("STAGE", 1), line("PLATE", 2), line("GAP", 3)],
+      [
+        { ...line("STAGE", 1), value: 20 },
+        { ...line("PLATE", 2), value: 20 },
+        { ...line("GAP", 3), value: 20 },
+      ],
+      { older: script(19), newer: script(20) },
+    )!.map((change) => sizeLine(change, "mm"));
+    expect(lines).toEqual(["Lift of the tray 19 to 20 mm", "PLATE 19 to 20 mm", "GAP 19 to 20 mm"]);
   });
 
   it("says how the volume and the size changed", () => {

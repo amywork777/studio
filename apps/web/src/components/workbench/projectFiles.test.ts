@@ -26,6 +26,14 @@ const demo = [
 ];
 
 describe("project files", () => {
+  it("lists a study as one card, in the code interface's lists too", () => {
+    const groups = groupProjectFiles(["studies/a.step", "studies/a.fea.glb", "parts/a.step"]);
+    expect(groups.map(({ group, files }) => [group, files.map((file) => file.path)])).toEqual([
+      ["CAD", ["parts/a.step"]],
+      ["Analysis", ["studies/a.fea.glb"]],
+    ]);
+  });
+
   it("files a project the way an engineer would, leaving source and tooling out", () => {
     expect(
       groupProjectFiles(demo).map(({ group, files }) => [group, files.map((file) => file.name)]),

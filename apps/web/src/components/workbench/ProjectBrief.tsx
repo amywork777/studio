@@ -23,7 +23,6 @@ import { Textarea } from "../ui/textarea";
 import { toastManager } from "../ui/toast";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import {
-  BRIEF_REFERENCES,
   EMPTY_BRIEF,
   PROCESSES,
   type ProjectBrief as Brief,
@@ -306,14 +305,10 @@ function BriefSheet(props: {
     });
   };
 
-  // Reference files go to the agent, which files them: the project takes text writes only.
   const attach = (files: File[]) => {
     const composer = props.composerRef.current;
     if (!composer || files.length === 0) return;
-    composer.addDroppedFiles(files);
-    composer.insertTextAtEnd(`File the attached references under ${BRIEF_REFERENCES}/.`, {
-      ensureLeadingBoundary: true,
-    });
+    composer.addReferences(files);
     setAttached((count) => count + files.length);
   };
 
@@ -375,8 +370,8 @@ function BriefSheet(props: {
                 }}
               >
                 <span>
-                  Drop sketches, photos, datasheets or mating parts. The agent files them under{" "}
-                  {BRIEF_REFERENCES}/ with your next message.
+                  Drop sketches, photos, datasheets or mating parts. They go in the project's
+                  References.
                 </span>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
@@ -385,8 +380,7 @@ function BriefSheet(props: {
                   </Button>
                   {attached === 0 ? null : (
                     <span role="status" className="text-foreground">
-                      {attached === 1 ? "1 file" : `${attached} files`} ready to send with your next
-                      message
+                      {attached === 1 ? "1 file" : `${attached} files`} added
                     </span>
                   )}
                 </div>

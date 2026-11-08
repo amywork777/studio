@@ -148,6 +148,33 @@ const CAM_FOLDER = /^(?:cam|toolpaths?|machining)$/i;
 const REFERENCE_FOLDER =
   /^(?:references?|vendor|vendors|suppliers?|library|libs?|third[-_]?party|purchased|datasheets?|off[-_]?the[-_]?shelf)$/i;
 
+/** A study's name, whichever of its files this is: `plate.fea.glb`, `plate.fea.json`, `plate.step`. */
+const studyStem = (name: string) => name.replace(/(?:\.fea)?\.[^.]+$/i, "").toLowerCase();
+/** Which of a study's files shows it, first first: its result, then the shape it was run on. */
+const STUDY_SHOWS = [/\.fea\.glb$/i, /\.glb$/i, /\.(?:step|stp)$/i, /\.(?:stl|3mf|obj)$/i];
+const studyRank = (name: string) => {
+  const rank = STUDY_SHOWS.findIndex((test) => test.test(name));
+  return rank === -1 ? STUDY_SHOWS.length : rank;
+};
+
+/**
+ * Each study once, by the file that shows it. A solve keeps its result, its numbers and the STEP it
+ * ran on under one name, and those are one thing to the person, not three cards of nearly the same
+ * picture. Only the Analysis group's files fold; two studies in different folders stay two.
+ */
+export function oneCardPerStudy(files: ReadonlyArray<ProjectFile>): ProjectFile[] {
+  const shows = new Map<string, ProjectFile>();
+  const keyOf = (file: ProjectFile) => `${file.folder}\n${studyStem(file.name)}`;
+  for (const file of files) {
+    if (file.group !== "Analysis") continue;
+    const held = shows.get(keyOf(file));
+    if (held === undefined || studyRank(file.name) < studyRank(held.name)) {
+      shows.set(keyOf(file), file);
+    }
+  }
+  return files.filter((file) => file.group !== "Analysis" || shows.get(keyOf(file)) === file);
+}
+
 /**
  * The project's files by group, in the page's order, each by folder then
  * name, narrowed by a search over their names, kinds and paths.
@@ -168,9 +195,11 @@ export function groupFiles(
   query = "",
 ): Array<{ readonly group: ProjectGroup; readonly files: ProjectFile[] }> {
   const needle = query.trim().toLowerCase();
-  const files = classified.filter(
-    (file) =>
-      needle === "" || `${file.path}\n${file.title}\n${file.kind}`.toLowerCase().includes(needle),
+  const files = oneCardPerStudy(
+    classified.filter(
+      (file) =>
+        needle === "" || `${file.path}\n${file.title}\n${file.kind}`.toLowerCase().includes(needle),
+    ),
   );
   return PROJECT_GROUPS.flatMap((group) => {
     const inGroup = files

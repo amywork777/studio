@@ -206,6 +206,10 @@ function startingAProject(record: string | null): string {
   ].join("\n");
 }
 
+/** What the person attached stays in the project, so every chat can read it (`attachToReferences`). */
+const REFERENCES =
+  "The project's PRD, data sheets and other files the person gave it are in `brief/references/`. Read what bears on the work before you design from it. A message that links a file there has just added it.";
+
 const section = (title: string, body: string) =>
   body.trim() === "" ? [] : [`## ${title}`, "", body.trim(), ""];
 
@@ -267,6 +271,7 @@ export function studioProjectContext(
     ),
     ...section("Links", links),
     ...section("Notes", brief.notes),
+    ...section("References", REFERENCES),
     ...section("Sketches the person can edit", EDITABLE_SKETCHES),
     ...section("Talking to the person", TALKING_TO_THE_PERSON),
     ...section("Questions and recommendations", RECOMMEND),

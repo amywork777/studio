@@ -17,7 +17,7 @@ const LABELS: Record<StudioInterface, string> = {
 
 const DESCRIPTIONS: Record<StudioInterface, string> = {
   engineering:
-    "Parts, checks and outputs first: the project's Overview, and Analysis, Manufacturing and Documents. Branches, diffs and the terminal stay out of the way.",
+    "Parts, checks and outputs first: the project's Overview, and Analysis, Manufacturing and Documents. The code tools and the terminal stay out of the way.",
   both: "The engineering surfaces with every coding tool kept in view: the project's Overview, plus branches, diffs, the terminal, source files and the agent's commands.",
   code: "Every coding tool in view: branches, diffs, the terminal and the agent's commands, for working on the code behind a model.",
 };

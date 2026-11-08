@@ -37,6 +37,17 @@ const tunnel = async (value: unknown, gzip = false) => {
 };
 
 describe("describePart", () => {
+  it("reads a mesh in a study's folder as its result, not a part to make", () => {
+    const root = "/Users/me/results/flexure-case";
+    expect(describePart(`${root}/studies/tray/refined.glb`, null, null, root).kind).toBe("Result");
+    expect(describePart(`${root}/FEA/tray.lid-press.glb`, null, null, root).kind).toBe("FEA study");
+    expect(describePart("studies/plate.stl", null).kind).toBe("Result");
+    // The study's folder is the project's, not one of the folders the project sits in.
+    expect(describePart(`${root}/parts/tray.glb`, null, null, root).kind).toBe("Mesh");
+    expect(describePart(`${root}/parts/tray.glb`, null).kind).toBe("Mesh");
+    expect(describePart(`${root}/studies/tray.step`, null, null, root).kind).toBe("Part");
+  });
+
   it("names a model by the name the engine gives it, a part or an assembly as its parts say", () => {
     expect(describePart(MODEL, "part", "servo_bracket")).toEqual({
       name: "Servo bracket",

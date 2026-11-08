@@ -61,7 +61,10 @@ const factsKey = (shown: ShownView) =>
  * changed are read once per revision through the viewer's routes. Null until
  * the viewer has shown a model this session.
  */
-export function usePartContext(threadRef: ScopedThreadRef): {
+export function usePartContext(
+  threadRef: ScopedThreadRef,
+  root: string | null = null,
+): {
   readonly part: PartContext;
   readonly pluginId: string;
 } | null {
@@ -172,7 +175,7 @@ export function usePartContext(threadRef: ScopedThreadRef): {
     pluginId: shown.pluginId,
     part: {
       path: shown.path,
-      ...describePart(shown.path, current?.kind ?? null, current?.name ?? null),
+      ...describePart(shown.path, current?.kind ?? null, current?.name ?? null, root),
       materials: current?.materials ?? null,
       build: partBuild(
         live !== null && live.id === shown.path ? live.reply : null,

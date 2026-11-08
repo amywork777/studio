@@ -23,6 +23,7 @@ import { useFileSaveCoordinator } from "../files/useFileSaveCoordinator";
 import { Skeleton } from "../ui/skeleton";
 import { OverviewModule, ShowAll, useFoldedModules } from "./OverviewModules";
 import { MODULE_HEADING, MODULE_NOTE, SECTION_STACK } from "./studioLayout";
+import { viewerLinkModel } from "./viewerLink";
 import {
   isPlainReadmeText,
   type ReadmeBlock,
@@ -75,6 +76,14 @@ function ReadmeText(props: { readonly text: string; readonly onOpenPath: (path: 
       );
     }
     if (piece.kind === "text") return <span key={key}>{words}</span>;
+    const model = viewerLinkModel(piece.target);
+    if (model !== null) {
+      return (
+        <button key={key} type="button" onClick={() => props.onOpenPath(model)} className={LINK}>
+          {words}
+        </button>
+      );
+    }
     return /^https?:\/\//i.test(piece.target) ? (
       <a key={key} href={piece.target} target="_blank" rel="noreferrer" className={LINK}>
         {words}

@@ -72,7 +72,6 @@ describe("engineering settings", () => {
     const hidden = [
       ["code font", "code-font"],
       ["terminal font", "terminal-font"],
-      ["update checks", "provider-update-checks"],
       ["streaming", "response-streaming"],
       ["rich text", "composer-rich-text"],
       ["send shortcut", "send-shortcut"],
@@ -88,6 +87,16 @@ describe("engineering settings", () => {
       expect(everything(query).map((item) => item.id)).toContain(id);
       expect(engineering(query).map((item) => item.id)).not.toContain(id);
     }
+  });
+
+  it("keeps the agent update switch, in plain words", () => {
+    expect(CODE_SETTINGS_ROWS.has("provider-update-checks")).toBe(false);
+    const engineering = searchSettings(
+      "update checks",
+      engineeringSettingsSearchItems(SETTINGS_SEARCH_ITEMS),
+    );
+    expect(engineering.map((item) => item.id)).toContain("provider-update-checks");
+    expect(engineeringRestoreLabel("Provider update checks", true)).toBe("Agent update checks");
   });
 
   it("finds Diagnostics under Advanced, not on General", () => {

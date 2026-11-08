@@ -179,6 +179,29 @@ export function sizeName(name: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** What a size's own comment says it is: `STAGE = 20  # the lift of the tray` is "Lift of the tray". */
+function commentWords(script: string | null | undefined, line: number): string | null {
+  const comment = script?.split("\n")[line - 1]?.split("#")[1]?.trim() ?? "";
+  // Its first clause: the rest is reasoning, and a number there goes out of date.
+  const words = comment
+    .split(/[:;,(]/)[0]!
+    .trim()
+    .replace(/^the\s+/i, "");
+  if (!/^[a-z]/i.test(words) || !/[a-z]{3}/i.test(words) || words.length > 40) return null;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * A size as a line says it: its name in words where it has several (`HOOK_DEPTH` is "Hook depth").
+ * One word alone ("Stage") says too little: its comment says what it is, else its name stands as
+ * the script writes it, as Sizes shows it.
+ */
+function sizeLabel(size: NamedSize, script: string | null | undefined): string {
+  const name = sizeName(size.name);
+  if (name.includes(" ")) return name;
+  return commentWords(script, size.line) ?? size.name;
+}
+
 export interface SizeChange {
   readonly kind: "changed" | "added" | "removed";
   readonly name: string;
@@ -190,36 +213,39 @@ const rounded = (value: number) => Math.round(value * 1000) / 1000;
 
 /**
  * The named sizes that changed between two versions of a script, in the newer one's order, then
- * those it no longer has. A name written twice is told apart by its order ("Width (2)").
+ * those it no longer has, each as `sizeLabel` says it from that version's text (`scripts`). A name
+ * written twice is told apart by its order ("Width (2)").
  */
 export function sizeChanges(
   older: ReadonlyArray<NamedSize> | null,
   newer: ReadonlyArray<NamedSize> | null,
+  scripts?: { readonly older: string | null; readonly newer: string | null },
 ): SizeChange[] | null {
   if (older === null || newer === null) return null;
-  const keyed = (sizes: ReadonlyArray<NamedSize>) => {
+  const keyed = (sizes: ReadonlyArray<NamedSize>, script: string | null | undefined) => {
     const seen = new Map<string, number>();
     return sizes.map((size) => {
       const count = seen.get(size.name) ?? 0;
       seen.set(size.name, count + 1);
       return {
         key: `${size.name}#${count}`,
-        name: count === 0 ? sizeName(size.name) : `${sizeName(size.name)} (${count + 1})`,
+        name: count === 0 ? sizeLabel(size, script) : `${sizeLabel(size, script)} (${count + 1})`,
         size,
       };
     });
   };
-  const before = new Map(keyed(older).map((entry) => [entry.key, entry.size]));
-  const now = keyed(newer);
+  const was = keyed(older, scripts?.older);
+  const before = new Map(was.map((entry) => [entry.key, entry.size]));
+  const now = keyed(newer, scripts?.newer);
   const after = new Set(now.map((entry) => entry.key));
   const changes: SizeChange[] = [];
   for (const { key, name, size } of now) {
-    const was = before.get(key);
-    if (was === undefined) changes.push({ kind: "added", name, to: size.value });
-    else if (rounded(was.value) !== rounded(size.value))
-      changes.push({ kind: "changed", name, from: was.value, to: size.value });
+    const held = before.get(key);
+    if (held === undefined) changes.push({ kind: "added", name, to: size.value });
+    else if (rounded(held.value) !== rounded(size.value))
+      changes.push({ kind: "changed", name, from: held.value, to: size.value });
   }
-  for (const { key, name, size } of keyed(older)) {
+  for (const { key, name, size } of was) {
     if (!after.has(key)) changes.push({ kind: "removed", name, from: size.value });
   }
   return changes;

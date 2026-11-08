@@ -1,6 +1,6 @@
 import { overviewParts } from "./checkResults";
 import { partLabel } from "./partNames";
-import type { ProjectFile, ProjectGroup } from "./projectFiles";
+import { oneCardPerStudy, type ProjectFile, type ProjectGroup } from "./projectFiles";
 import { folderFiles, type ProjectModel } from "./projectModels";
 
 /**
@@ -79,7 +79,7 @@ export function projectFileItems(
 ): FileItem[] {
   const items: FileItem[] = [];
   for (const folder of folders) {
-    const files = folderFiles(folder.paths ?? [], folder.models).filter(
+    const files = oneCardPerStudy(folderFiles(folder.paths ?? [], folder.models)).filter(
       (file) => !/^readme\.md$/i.test(file.path),
     );
     for (const file of overviewParts(files)) {

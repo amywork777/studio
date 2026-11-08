@@ -5,7 +5,7 @@ import { pluginEnvironment } from "~/state/plugins";
 import { useAtomCommand } from "~/state/use-atom-command";
 
 /** A file's picture, or none yet and when that was learned. */
-interface Cached {
+export interface Cached {
   readonly picture: string | null;
   readonly at: number;
 }
@@ -21,15 +21,23 @@ const BATCH = 24;
  */
 const RETRY_MS = 20_000;
 const TRIES = 3;
+/**
+ * A file's picture has no build to name it, so a study solved again or a STEP written again keeps
+ * its path. Past this age a page shown again asks once more: the server answers from its own
+ * cache, by the file's size and time, unless the file changed, and the old picture stands until then.
+ */
+const REFRESH_MS = 30_000;
 
 /** A picture's place in the cache: a model's names its build, so a new build is a new picture. */
 const pictureKey = (path: string, versions: Readonly<Record<string, string>> | undefined) =>
   versions?.[path] === undefined ? path : `${path}\n${versions[path]}`;
 
-const wantsPicture = (key: string, now: number) => {
-  const cached = pictureCache.get(key);
-  return cached === undefined || (cached.picture === null && now - cached.at >= RETRY_MS);
-};
+/** Whether to ask the server for a picture; a model's is named by its build (`built`). */
+export function wantsPicture(cached: Cached | undefined, built: boolean, now: number): boolean {
+  if (cached === undefined) return true;
+  if (cached.picture === null) return now - cached.at >= RETRY_MS;
+  return !built && now - cached.at >= REFRESH_MS;
+}
 
 /**
  * Pictures of the project's models, boards and drawings, rendered on the
@@ -60,7 +68,13 @@ export function usePictures(input: {
     const known: Record<string, string> = JSON.parse(versions);
     const missing = wanted
       .split("\n")
-      .filter((path) => wantsPicture(`${cwd}\n${pictureKey(path, known)}`, Date.now()));
+      .filter((path) =>
+        wantsPicture(
+          pictureCache.get(`${cwd}\n${pictureKey(path, known)}`),
+          known[path] !== undefined,
+          Date.now(),
+        ),
+      );
     void (async () => {
       let unpictured = false;
       for (let start = 0; start < missing.length; start += BATCH) {
@@ -83,8 +97,13 @@ export function usePictures(input: {
         }
         for (const picture of result.value.pictures) {
           if (picture.png === null) unpictured = true;
-          pictureCache.set(`${cwd}\n${pictureKey(picture.path, known)}`, {
-            picture: picture.png === null ? null : `data:image/png;base64,${picture.png}`,
+          const key = `${cwd}\n${pictureKey(picture.path, known)}`;
+          // A render that failed takes nothing away: the picture on screen stays.
+          pictureCache.set(key, {
+            picture:
+              picture.png === null
+                ? (pictureCache.get(key)?.picture ?? null)
+                : `data:image/png;base64,${picture.png}`,
             at: Date.now(),
           });
         }

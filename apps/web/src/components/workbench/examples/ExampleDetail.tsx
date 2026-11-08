@@ -108,7 +108,7 @@ function ExampleContent(props: {
       />
       <section className={SECTION_STACK}>
         <h2 className={MODULE_HEADING}>What it is</h2>
-        {whatItIs === null ? null : <p className="text-sm text-foreground">{whatItIs}</p>}
+        {whatItIs === null ? null : <p className="max-w-2xl text-sm text-foreground">{whatItIs}</p>}
       </section>
       {sample.shows.length === 0 ? null : (
         <section className={SECTION_STACK}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { changesPhrase, designChanges } from "./designChanges";
+import { changesPhrase, designChanges, foldChanges } from "./designChanges";
 
 describe("design changes", () => {
   it("folds a part's files into the part, and keeps documents their own", () => {
@@ -96,5 +96,16 @@ describe("design changes", () => {
     expect(changesPhrase(changes)).toBe("the A and 2 more");
     expect(changesPhrase(changes.slice(0, 1), 2)).toBe("the A and 2 more");
     expect(changesPhrase([])).toBeNull();
+  });
+
+  it("folds a long line of changes behind a count, and opens it again", () => {
+    const six = ["a", "b", "c", "d", "e", "f"];
+    expect(foldChanges(six, false)).toEqual({ shown: ["a", "b", "c", "d"], hidden: 2 });
+    expect(foldChanges(six, true)).toEqual({ shown: six, hidden: 0 });
+  });
+
+  it("does not fold a single change behind a control as big as it", () => {
+    const five = ["a", "b", "c", "d", "e"];
+    expect(foldChanges(five, false)).toEqual({ shown: five, hidden: 0 });
   });
 });

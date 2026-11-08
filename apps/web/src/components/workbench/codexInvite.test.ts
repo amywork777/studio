@@ -1,5 +1,6 @@
-import { ProviderDriverKind, type ProviderInstanceConfig } from "@t3tools/contracts";
+import { CodexSettings, ProviderDriverKind, type ProviderInstanceConfig } from "@t3tools/contracts";
 import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
+import { Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -12,8 +13,10 @@ import {
   normalizedInviteCode,
   STUDIO_INVITE_CODE_ENV,
   usesInvite,
+  workingCodexBinary,
 } from "./codexInvite";
 
+const decodeCodexSettings = Schema.decodeUnknownSync(CodexSettings);
 const codex = ProviderDriverKind.make("codex");
 const managed: ProviderInstanceConfig = {
   driver: codex,
@@ -60,6 +63,40 @@ describe("invite code", () => {
     expect(usesInvite(back.config)).toBe(false);
     expect(back.config).toEqual(managed.config);
     expect(back.environment).toEqual(managed.environment);
+  });
+
+  it("leaves a code for the setup it came from, still signed in", () => {
+    const own = {
+      driver: managed.driver,
+      enabled: true,
+      config: { enabled: true, binaryPath: "/opt/bin/codex", launchArgs: "-c 'model=\"x\"'" },
+    };
+    const invited = inviteInstance(own, "STUDIO-AAAA-BBBB-CCCC", "/opt/bin/codex");
+    expect(usesInvite(invited.config)).toBe(true);
+    // The driver reads the same settings it did, with the saved setup beside them.
+    expect(decodeCodexSettings(invited.config).setupMode).toBe("existing");
+
+    const again = inviteInstance(invited, "STUDIO-DDDD-EEEE-FFFF", "/opt/bin/codex");
+    const back = instanceWithoutInvite(again);
+    expect(back.config).toEqual(own.config);
+    expect(back.environment).toEqual([]);
+  });
+
+  it("goes to Studio's own setup when no setup was saved", () => {
+    const { beforeInvite: _beforeInvite, ...saved } = inviteInstance(managed, "CODE", binary)
+      .config as Record<string, unknown>;
+    expect(instanceWithoutInvite({ ...managed, config: saved }).config).toMatchObject({
+      setupMode: "managed",
+    });
+    expect(instanceWithoutInvite(managed).config).toEqual(managed.config);
+  });
+
+  it("uses a working Codex where it is, and leaves the rest to the installer", () => {
+    expect(workingCodexBinary({ binaryPath: "/opt/bin/codex" }, true)).toBe("/opt/bin/codex");
+    expect(workingCodexBinary({ setupMode: "existing" }, true)).toBe("codex");
+    expect(workingCodexBinary({}, true)).toBe("codex");
+    expect(workingCodexBinary({}, false)).toBeNull();
+    expect(workingCodexBinary({ setupMode: "managed" }, true)).toBeNull();
   });
 
   it("knows an invite only by its provider, not by any command-line Codex", () => {

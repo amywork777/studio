@@ -25,6 +25,8 @@ export function useProjectHeading(
  * panel's toolbar carries the rest (`StudioPanelBar`). Short of room the switcher stops at about
  * half the row, truncating its own name, and the chat has the rest: its name gives way, then its
  * icon, which wraps out of the one row shown rather than clip. Its name stays on its tooltip.
+ * Under 16rem (the chat column at its narrowest, beside the window's controls) the chat is left
+ * out and the project has the whole row, since a name cut to one letter names nothing.
  */
 export function StudioWorkspaceBar(props: {
   readonly environmentId: EnvironmentId;
@@ -37,7 +39,7 @@ export function StudioWorkspaceBar(props: {
   return (
     <nav
       aria-label="Where you are"
-      className="flex h-10 min-w-0 flex-1 flex-wrap content-start items-center gap-1 overflow-hidden py-0.5"
+      className="@container/where flex h-10 min-w-0 flex-1 flex-wrap content-start items-center gap-1 overflow-hidden py-0.5"
     >
       <ProjectSwitcher environmentId={props.environmentId} folder={folder} title={title} />
       <Tooltip>
@@ -45,7 +47,7 @@ export function StudioWorkspaceBar(props: {
           render={
             <span
               aria-current="page"
-              className="flex max-w-fit min-w-6 flex-[1_1_1.5rem] items-center gap-2 overflow-hidden px-1 text-sm font-medium text-foreground"
+              className="hidden max-w-fit min-w-6 flex-[1_1_1.5rem] items-center gap-2 overflow-hidden px-1 text-sm font-medium text-foreground @min-[16rem]/where:flex"
             />
           }
         >

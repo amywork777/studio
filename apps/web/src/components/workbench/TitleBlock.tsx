@@ -75,7 +75,10 @@ export function TitleBlock(props: TitleBlockProps) {
 }
 
 function ThreadTitleBlock(props: TitleBlockProps) {
-  const shown = usePartContext({ environmentId: props.environmentId, threadId: props.threadId });
+  const shown = usePartContext(
+    { environmentId: props.environmentId, threadId: props.threadId },
+    props.cwd ?? null,
+  );
   useNowMinute();
   const studio = useStudioProjectAt(props.environmentId, props.cwd ?? null);
   const folders = useMemo(

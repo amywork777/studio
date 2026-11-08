@@ -15,6 +15,7 @@ import { surfaceFile } from "./sameFile";
 import { modeOf, setSimpleView, simpleOf, simpleViewToggle, useSimpleView } from "./simpleView";
 import { StudioNew } from "./StudioNew";
 import { StudioTour } from "./StudioTour";
+import { studyMeshKind } from "./partContext";
 import { partName } from "./partNames";
 import { useLeadPart } from "./useLeadPart";
 import { useAddPart } from "./useNewPart";
@@ -45,7 +46,7 @@ export function usePartInFront(
     const surface = selectActiveRightPanelSurface(store.byThreadKey, threadRef);
     return surface?.kind === "plugin-app" ? surfaceFile(surface) : null;
   });
-  const shown = usePartContext(threadRef);
+  const shown = usePartContext(threadRef, folder);
   const process = useStudioProjectAt(threadRef.environmentId, folder)?.project.brief.process;
   const shownPath = shown?.part.path ?? null;
   const shownKind = shown?.part.kind ?? null;
@@ -58,8 +59,11 @@ export function usePartInFront(
           ? { path: shownPath, kind: shownKind, ...(shownName === null ? {} : { name: shownName }) }
           : frontFile === null
             ? null
-            : { path: frontFile, kind: partName(frontFile)?.kind ?? "Part" },
-    [frontFile, frontKind, shownKind, shownName, shownPath],
+            : {
+                path: frontFile,
+                kind: studyMeshKind(frontFile, folder) ?? partName(frontFile)?.kind ?? "Part",
+              },
+    [folder, frontFile, frontKind, shownKind, shownName, shownPath],
   );
   return { part, process, shown };
 }
@@ -103,6 +107,8 @@ export function StudioPanelBar(props: {
   readonly threadRef: ScopedThreadRef;
   /** The thread's workspace changes: a part the agent just made can be opened. */
   readonly mutationId: string | null;
+  /** The agent is working, or a question waits: the tour holds off (`StudioTour`). */
+  readonly chatBusy: boolean;
 }) {
   const { folder, threadRef } = props;
   usePanelTabShortcuts(threadRef);
@@ -164,7 +170,7 @@ export function StudioPanelBar(props: {
 
   return (
     <div className="flex items-center gap-2" data-studio-toolbar="">
-      <StudioTour />
+      <StudioTour chatBusy={props.chatBusy} />
       {/* The AI | CAD switch, Import and New close the row; Home's Your projects ends in Import and New too. */}
       {toggle === "hidden" ? null : (
         <>

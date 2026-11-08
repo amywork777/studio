@@ -182,6 +182,7 @@ import { cn } from "../lib/utils";
 import { useRemoteOpenResolution, type RemoteOpenMode } from "../remoteOpen";
 import { useRightPanelStore } from "../rightPanelStore";
 import { useOpenChatFile } from "./workbench/useOpenInWorkbench";
+import { viewerLinkModel } from "./workbench/viewerLink";
 import { readThreadShell, useProjects } from "../state/entities";
 import { serverEnvironment } from "../state/server";
 import { shellEnvironment } from "../state/shell";
@@ -2769,6 +2770,7 @@ function useChatMarkdownState({
       onUseArtifactTemplate,
       onRunShellCommand,
       openChangeRequestLink,
+      openChatFile,
       openDeferredMarkdownLink,
       openExternalLinkInPreview,
       openMarkdownMedia,
@@ -2802,6 +2804,7 @@ function useChatMarkdownState({
       onUseArtifactTemplate,
       onRunShellCommand,
       openChangeRequestLink,
+      openChatFile,
       openDeferredMarkdownLink,
       openExternalLinkInPreview,
       openMarkdownMedia,
@@ -2951,6 +2954,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       threadRef,
       openMarkdownMedia,
       openChangeRequestLink,
+      openChatFile,
       openDeferredMarkdownLink,
       linkTargetPreference,
       openExternalLinkInPreview,
@@ -3052,6 +3056,14 @@ const CHAT_MARKDOWN_COMPONENTS = {
                   ? event.target
                   : event.currentTarget.querySelector("img"),
               );
+              return;
+            }
+            // A CAD viewer's own page opens as the model in Studio's CAD view. A modifier click
+            // is the way out, as it is for the in-app browser below.
+            const model = href && !event.metaKey && !event.ctrlKey ? viewerLinkModel(href) : null;
+            if (model !== null && openChatFile(model)) {
+              event.preventDefault();
+              event.stopPropagation();
               return;
             }
             // A link to a change request in a workspace project opens beside the

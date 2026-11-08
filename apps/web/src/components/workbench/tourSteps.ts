@@ -50,20 +50,31 @@ export function tourDone(): boolean {
   }
 }
 
-/** The tour, open or not, and its step; it opens on its own once, and from Take the tour in ⌘K. */
+/**
+ * The tour, open or not, and its step; it opens on its own once, and from Take the tour in ⌘K. Opened
+ * on its own it gives way to the chat (`hold`): a reply or a question comes first, and it comes back
+ * when the chat is quiet. Asked for, it stays.
+ */
 export const useTourStore = create<{
   readonly open: boolean;
   readonly step: number;
+  /** Opened on its own, not from ⌘K. */
+  readonly auto: boolean;
   readonly start: () => void;
+  readonly startFirst: () => void;
+  readonly hold: () => void;
   readonly next: () => void;
   readonly finish: () => void;
 }>()((set) => ({
   open: false,
   step: 0,
-  start: () => set({ open: true, step: 0 }),
+  auto: false,
+  start: () => set({ open: true, step: 0, auto: false }),
+  startFirst: () => set({ open: true, step: 0, auto: true }),
+  hold: () => set((state) => (state.auto ? { open: false, step: 0, auto: false } : state)),
   next: () => set((state) => ({ step: state.step + 1 })),
   finish: () => {
-    set({ open: false, step: 0 });
+    set({ open: false, step: 0, auto: false });
     try {
       globalThis.localStorage?.setItem(DONE_KEY, "1");
     } catch {

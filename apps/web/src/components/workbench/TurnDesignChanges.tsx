@@ -1,9 +1,10 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
+import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { type DesignChange, designChanges } from "./designChanges";
+import { type DesignChange, designChanges, foldChanges } from "./designChanges";
 import { FILE_ICONS, fileIconKey, fileTint } from "./kinds";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { showOverview } from "./overviewPanel";
@@ -15,6 +16,9 @@ import { useVersionRequestStore } from "./useVersions";
 
 /** A part's model, which has versions to compare (`PartVersions`). */
 const VERSIONED = /\.(?:step|stp)$/i;
+
+/** About what a chip shows before it truncates; a longer name says itself on hover. */
+const LONG_LABEL = 24;
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
@@ -30,10 +34,15 @@ function ChangeChip(props: {
   const Icon = FILE_ICONS[key];
   // In its kind's color, as the reply's own file chips and the panel's tabs show it.
   const tint = fileTint(key);
-  // Which of a part's files changed with it (its model, its drawing), said on hover.
-  const aspects = change.aspects.length < 2 ? undefined : change.aspects.join(", ");
+  // The whole name, and which of a part's files changed with it (its model, its drawing), on hover.
+  const hint =
+    change.aspects.length < 2
+      ? change.label.length > LONG_LABEL
+        ? change.label
+        : undefined
+      : `${change.name}: ${change.aspects.join(", ")}`;
   const chip =
-    "inline-flex h-6 min-w-0 max-w-56 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-foreground";
+    "inline-flex h-6 min-w-0 max-w-44 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-foreground";
   const body = (
     <>
       <Icon className={`size-3.5 shrink-0 ${tint}`} aria-hidden="true" />
@@ -55,12 +64,12 @@ function ChangeChip(props: {
     );
   return (
     <li className="flex min-w-0">
-      {aspects === undefined ? (
+      {hint === undefined ? (
         control
       ) : (
         <Tooltip>
           <TooltipTrigger render={control} />
-          <TooltipPopup side="top">{aspects}</TooltipPopup>
+          <TooltipPopup side="top">{hint}</TooltipPopup>
         </Tooltip>
       )}
     </li>
@@ -76,6 +85,8 @@ function DesignChanges(props: {
 }) {
   const open = useOpenInWorkbench(props.threadRef);
   const { changes, other, checkpointRef, threadRef } = props;
+  const [expanded, setExpanded] = useState(false);
+  const { shown, hidden } = foldChanges(changes, expanded);
   const workspace = useOpenWorkspaceStore((state) => state.workspace?.folder ?? "");
   const models = useFolderModels(threadRef.environmentId, workspace);
   const compares = (change: DesignChange) =>
@@ -114,7 +125,7 @@ function DesignChanges(props: {
         <>
           <h3 className="text-xs text-muted-foreground">Changed</h3>
           <ul className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {changes.map((change) => (
+            {shown.map((change) => (
               <ChangeChip
                 key={`${change.kind}\n${change.label}`}
                 change={change}
@@ -123,6 +134,16 @@ function DesignChanges(props: {
               />
             ))}
           </ul>
+          {hidden === 0 ? null : (
+            <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(true)}>
+              {hidden} more
+            </Button>
+          )}
+          {expanded ? (
+            <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(false)}>
+              Show less
+            </Button>
+          ) : null}
         </>
       )}
       {other === 0 ? null : (

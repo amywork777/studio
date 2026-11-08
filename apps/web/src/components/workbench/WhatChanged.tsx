@@ -131,6 +131,7 @@ export function WhatChanged(props: {
     const changes = sizeChanges(
       comparison?.script?.olderSizes ?? null,
       comparison?.script?.newerSizes ?? null,
+      comparison?.script,
     );
     return changes === null ? null : changes.map((change) => sizeLine(change, props.units));
   }, [comparison, props.units]);

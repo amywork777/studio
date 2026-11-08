@@ -11,8 +11,10 @@
  */
 
 import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
+import { isAbsolutePath, workspaceRelativeFilePath } from "@t3tools/shared/path";
 
 import { humanName } from "./partNames";
+import { classifyProjectFile } from "./projectFiles";
 
 /** What a thread's viewer shows, from its last sync. */
 export interface ShownView {
@@ -79,14 +81,29 @@ const KINDS: ReadonlyArray<{
 ];
 
 /**
+ * What a mesh in a study's folder is, as the project files it (`classifyProjectFile`): its result,
+ * or the FEA study it holds. Null for any other file. `root` is the project's folder, which an
+ * absolute path is read from: without it, only a path in the project can be told.
+ */
+export function studyMeshKind(path: string, root: string | null): string | null {
+  if (!/\.(?:stl|3mf|glb|obj)$/i.test(path)) return null;
+  const inProject = workspaceRelativeFilePath(path, root) ?? path;
+  if (isAbsolutePath(inProject)) return null;
+  const filed = classifyProjectFile(inProject);
+  return filed?.group === "Analysis" ? filed.kind : null;
+}
+
+/**
  * What the document is and what it is called ("L bracket"): a file from its path, a model by the
  * name the engine gives it (its function's), either one part or an assembly as its document's parts
- * say (`readDocumentKind`).
+ * say (`readDocumentKind`). A mesh in a study's folder is a result (`studyMeshKind`), so its jobs
+ * are a result's.
  */
 export function describePart(
   path: string,
   documentKind: string | null,
   documentName: string | null = null,
+  root: string | null = null,
 ): Pick<PartContext, "name" | "kind" | "units"> {
   const solid = (kind: string) =>
     kind === "Part" && documentKind === "assembly" ? "Assembly" : kind;
@@ -98,7 +115,7 @@ export function describePart(
   const match = KINDS.find((entry) => lower.endsWith(entry.ending) && lower !== entry.ending);
   if (match === undefined) return { name: file, kind: "File", units: null };
   const name = humanName(file.slice(0, file.length - match.ending.length));
-  return { name, kind: solid(match.kind), units: match.units };
+  return { name, kind: studyMeshKind(path, root) ?? solid(match.kind), units: match.units };
 }
 
 /** What a view's `cad_sync` says it shows; null for any other call, or a view on its home. */

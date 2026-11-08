@@ -16,12 +16,18 @@ interface Box {
  * Studio's tour of a workspace (`tourSteps.ts`): the first time one opens, a card points at the
  * project, its Overview, the tabs and the toolbar in turn, the rest of the window dimmed. Skip or
  * Escape ends it; it is not shown again on this computer, and Take the tour in ⌘K brings it back.
- * A step whose place is not on screen (the sidebar folded) shows its card in the middle.
+ * A step whose place is not on screen (the sidebar folded) shows its card in the middle. It waits
+ * for a quiet chat (`chatBusy`), so it never sits over a question or a reply being written.
  */
-export function StudioTour() {
+export function StudioTour(props: {
+  /** The agent is working, or a question waits for the person. */
+  readonly chatBusy: boolean;
+}) {
+  const { chatBusy } = props;
   const open = useTourStore((store) => store.open);
   const step = useTourStore((store) => store.step);
-  const start = useTourStore((store) => store.start);
+  const startFirst = useTourStore((store) => store.startFirst);
+  const hold = useTourStore((store) => store.hold);
   const next = useTourStore((store) => store.next);
   const finish = useTourStore((store) => store.finish);
   const card = useRef<HTMLDivElement>(null);
@@ -33,12 +39,16 @@ export function StudioTour() {
   } | null>(null);
   const current = TOUR_STEPS[step] ?? null;
 
-  // The first workspace opened: the tour starts once it has settled.
+  // The first workspace opened: the tour starts once it has settled and the chat is quiet.
   useEffect(() => {
-    if (tourDone()) return;
-    const timer = setTimeout(start, 900);
+    if (chatBusy) {
+      hold();
+      return;
+    }
+    if (tourDone() || useTourStore.getState().open) return;
+    const timer = setTimeout(startFirst, 900);
     return () => clearTimeout(timer);
-  }, [start]);
+  }, [chatBusy, hold, startFirst]);
 
   useEffect(() => {
     if (!open || current === null) return;

@@ -865,7 +865,6 @@ function ConnectedAgentsStep({
           ),
         )}
         <InviteCodeRow
-          provider={codex?.provider}
           config={serverConfig?.settings.providerInstances[codexInstanceId]?.config}
           onUse={() => setInviting(true)}
         />
@@ -874,6 +873,7 @@ function ConnectedAgentsStep({
         <CodexInviteDialog
           environmentId={environmentId}
           instanceId={codexInstanceId}
+          codexReady={getOnboardingProviderState(codex?.provider) === "ready"}
           onClose={() => setInviting(false)}
         />
       ) : null}

@@ -154,7 +154,10 @@ export function ProjectSwitcher(props: {
                   <button
                     type="button"
                     aria-label={`Project ${props.title}: switch project`}
-                    className={cn(PROJECT_CONTROL_CLASS, "h-9 max-w-[55%]")}
+                    className={cn(
+                      PROJECT_CONTROL_CLASS,
+                      "h-9 max-w-full @min-[16rem]/where:max-w-[55%]",
+                    )}
                   />
                 }
               />

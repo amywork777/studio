@@ -155,3 +155,17 @@ export function changesPhrase(changes: ReadonlyArray<DesignChange>, extra = 0): 
   const others = (second === undefined ? 0 : 1) + more;
   return others === 0 ? inSentence(first.label) : `${inSentence(first.label)} and ${others} more`;
 }
+
+/** How many changes a turn's line shows before the rest fold into "3 more". */
+export const CHANGES_SHOWN = 4;
+
+/** A turn's changes as its line shows them: the first few, unless opened, and how many are left. */
+export function foldChanges<Change>(
+  changes: ReadonlyArray<Change>,
+  expanded: boolean,
+  limit = CHANGES_SHOWN,
+): { readonly shown: ReadonlyArray<Change>; readonly hidden: number } {
+  // One more than the limit would fold a single chip behind a control as big as it.
+  if (expanded || changes.length <= limit + 1) return { shown: changes, hidden: 0 };
+  return { shown: changes.slice(0, limit), hidden: changes.length - limit };
+}

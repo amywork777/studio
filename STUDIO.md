@@ -291,7 +291,7 @@ Source beside the pinned Project tab for the explorer. Code shows T3 Code's surf
 `<html data-studio-focus>` (`hardware`, `both` or `code`) carries the choice for `brand/theme.css`.
 
 Settings in Engineering leave out what a programmer sets (`CODE_SETTINGS_ROWS` in
-`components/workbench/engineeringSettings.ts`): the code font, agent update checks, response
+`components/workbench/engineeringSettings.ts`): the code font, response
 streaming, the rich text composer, the send shortcut, follow-up behaviour, glass opacity and
 contrast, a project's Workspace and Checkouts. Hiding changes nothing stored: each keeps its value
 and default, and Engineering with code and Code show them all (Settings, Advanced, Interface is
@@ -601,7 +601,14 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   then "Phone stand 2") and opens it, so the example never changes
   (`components/workbench/examples/`). The Library's and New's See the example open the servo
   bracket's page. The first workspace opened gives a five-step tour, once (`StudioTour.tsx`,
-  `tourSteps.ts`): the project, its Overview, the tabs, the toolbar and the Toolbox.
+  `tourSteps.ts`): the project, its Overview, the tabs, the toolbar and the Toolbox. It waits for a
+  quiet chat, so it never sits over a reply being written or a question.
+- **Attach in a project.** A PRD, a data sheet or anything else but a picture goes in the project's
+  References, as Home's box puts it there: a copy, never over a file there, and the original is not
+  touched. The message links to it and the agent's standing context says where they live. A picture
+  belongs to its message and stays in the chat; the Brief's Attach files pictures too. On a remote
+  project, or with no path on this computer, the file goes with the message and the agent files it
+  (`attachToReferences.ts`).
 - **Chats in no project.** Home's Ask, which made them, is gone (Amy, 2026-10-26: one Start
   box). The chats it made stay: they run in the folder that holds the Studio projects, registered
   as the workspace "No project", and Chats and the sidebar still list them under No project
@@ -618,9 +625,11 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   (`CodexInviteCode.tsx`, `codexInvite.ts`). The dialog checks the code with Amy's invite server
   (`~/code/studio-invite`, studio-invite.vercel.app, deployed with the Vercel CLI, not on
   GitHub), puts the instance on Studio's own setup for as long as Codex is installed or found (only
-  that setup installs Codex), then saves it as an "existing" instance run from that Codex, with
-  the server as its provider in launch arguments and the code as a sensitive variable. Stop using
-  it puts it back on Studio's own setup. Trap: Codex shows no models from a plain OpenAI model
+  that setup installs Codex; a Codex already working stays where it is, so a failed install cannot
+  sign it out), then saves it as an "existing" instance run from that Codex, with the server as its
+  provider in launch arguments and the code as a sensitive variable. The row stays whatever is
+  signed in. Stop using it puts the instance back on the setup it came from, kept in `beforeInvite`.
+  Trap: Codex shows no models from a plain OpenAI model
   list, so the server answers the model list from Codex's own catalog (`npm run catalog` there).
 - **The workspace reads like SolidWorks** (Amy, 2026-10-26: "SolidWorks names", as the tools now
   behave as SolidWorks' do; from 2026-10-23 it read in NX's words, "really similar to NX", which the
@@ -638,8 +647,10 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   file, line and words the engine reports (the call into a helper, where the helper raised), and
   nothing marked otherwise, and no timeline along the bottom: the tree is the one history, with its
   rollback bar; the sketch tools as SolidWorks names them (Exit Sketch, Smart
-  Dimension, Trim Entities). The script and the agent's notes keep their own names. A purple dot
-  marks what the agent made and a grey one what you made, on the design tree's rows; a feature from before Studio kept track has neither (`cad/edit/authors.py`
+  Dimension, Trim Entities). The script and the agent's notes keep their own names. On a part you
+  and the agent both worked on, a purple dot marks what the agent made and a grey one what you
+  made, on the design tree's rows; a part only one of you made has no dots, since they would tell
+  no row from another, and a feature from before Studio kept track has neither (`cad/edit/authors.py`
   records it in the project's `.studio/authors.jsonl`, and only once a chat has run there), and nor
   does any in a repository with linked worktrees, whose checkouts' checkpoints share refs that do
   not say which checkout made them. S finds any button of the toolbar by name, SolidWorks' or

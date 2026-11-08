@@ -44,6 +44,8 @@ describe("studio projects", () => {
     expect(context).toContain("- `robots/`: robot descriptions (URDF, SRDF, SDF)");
     expect(context).not.toContain("## Requirements");
     expect(context).toContain("## Show your work");
+    expect(context).toContain("## References");
+    expect(context).toContain("`brief/references/`");
     // An engineer hears about the design, not the tools: Studio keeps a version every turn.
     expect(context).toContain("## Talking to the person");
     expect(context).toContain("never offer to commit");

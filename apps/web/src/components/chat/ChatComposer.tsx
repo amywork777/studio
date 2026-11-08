@@ -1153,6 +1153,12 @@ import { partLabel } from "../workbench/partNames";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 import { ENGINEERING_RUNTIME_MODES } from "../workbench/engineeringTraits";
 import { SketchDialog } from "../workbench/SketchDialog";
+import {
+  copyIntoReferences,
+  FILE_ATTACHED_REFERENCES,
+  splitForReferences,
+} from "../workbench/attachToReferences";
+import { droppedPath } from "../workbench/studioImportBridge";
 
 const WORKSPACE_SNAPSHOT_RETRY_COOLDOWN_MS = 10_000;
 
@@ -1468,6 +1474,8 @@ export interface ChatComposerHandle {
   restoreAfterTimelineReachedEnd: () => void;
   collapseForTimelineScrollKey: (key: string) => void;
   addDroppedFiles: (files: File[]) => void;
+  /** Studio: the Brief's Attach, which files everything in References, pictures too. */
+  addReferences: (files: File[]) => void;
   addDroppedFolders: (folders: File[]) => void;
   hasPendingAttachments: () => boolean;
   insertTextAtEnd: (
@@ -6237,6 +6245,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         ensureLeadingBoundary?: boolean;
         citationCommentAnchor?: AssistantCitationSourceAnchor;
         clipboardData?: DataTransfer;
+        stayHidden?: boolean;
       },
     ): boolean => {
       // Studio: a job written in while the agent waits on a question is the person's answer to
@@ -6277,7 +6286,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               },
               focusEditorAfterReplace: false,
             }
-          : undefined,
+          : // A note written while working elsewhere leaves the keyboard there: the next keys
+            // are the view's, and must not land inside the note.
+            options?.stayHidden === true
+            ? { focusEditorAfterReplace: false }
+            : undefined,
       );
     },
     [
@@ -6503,6 +6516,47 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     setIsComposerModelPickerOpen(true);
   }, [composerControlsHidden, setIsComposerFocused, setIsComposerScrollCollapsed]);
 
+  /**
+   * Attach and drop: in a Studio project a PRD or a data sheet goes in its References and the message
+   * links to it (`attachToReferences.ts`); the rest, and everything elsewhere, is a chat attachment.
+   * A question waiting takes what is attached as its answer.
+   */
+  const attachFiles = async (files: File[], pictures: "chat" | "references" = "chat") => {
+    if (!engineeringInterface || pendingUserInputs.length > 0 || gitCwd === null) {
+      return addComposerAttachments(files);
+    }
+    // A remote environment's folder is not on this computer: its agent files what it is sent.
+    const here = environmentId === primaryEnvironmentId;
+    const { copied, filedByAgent, chat } = splitForReferences(
+      files,
+      (file) => (here ? droppedPath(file) : null),
+      pictures,
+    );
+    const references = await copyIntoReferences(
+      gitCwd,
+      copied.map((entry) => entry.path),
+    );
+    for (const reference of references) {
+      insertComposerTextAtEnd(`${serializeComposerFileLink(`${gitCwd}/${reference}`)} `, {
+        ensureLeadingBoundary: true,
+      });
+    }
+    if (references.length > 0) {
+      toastManager.add({
+        type: "success",
+        title: "Added to References",
+        description: copied.map((entry) => entry.file.name).join(", "),
+      });
+    }
+    // A copy that failed has said so: its files go with the message, so nothing is lost.
+    const forAgent = [...filedByAgent, ...(references.length > 0 ? [] : copied.map((c) => c.file))];
+    const inserted = await addComposerAttachments([...chat, ...forAgent]);
+    if (forAgent.length > 0) {
+      insertComposerTextAtEnd(FILE_ATTACHED_REFERENCES, { ensureLeadingBoundary: true });
+    }
+    return inserted || references.length > 0 || forAgent.length > 0;
+  };
+
   useImperativeHandle(
     composerRef,
     () => ({
@@ -6530,7 +6584,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         }
       },
       addDroppedFiles: (files: File[]) => {
-        void addComposerAttachments(files).then((inserted) => {
+        void attachFiles(files).then((inserted) => {
+          if (!inserted) focusComposer();
+        });
+      },
+      addReferences: (files: File[]) => {
+        void attachFiles(files, "references").then((inserted) => {
           if (!inserted) focusComposer();
         });
       },
@@ -6729,6 +6788,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       submitComposer,
       activeThread,
       addComposerAttachments,
+      attachFiles,
       foldPastedText,
       composerDraftTarget,
       composerCursor,
@@ -7777,7 +7837,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                           // Inserting a chip refocuses the editor after the draft renders;
                           // focusing synchronously here would report the editor's stale text
                           // over the prompt that was just written.
-                          void addComposerAttachments(files).then((inserted) => {
+                          void attachFiles(files).then((inserted) => {
                             if (!inserted) focusComposer();
                           });
                         }}

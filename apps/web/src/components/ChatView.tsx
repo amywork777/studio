@@ -3652,6 +3652,7 @@ export default function ChatView(props: ChatViewProps) {
     isConnecting ||
     isCompacting ||
     runlessWorkStartedAt !== null;
+  const chatBusy = isWorking || pendingUserInputs.length > 0;
   const activeContextWindow = useMemo(
     () =>
       deriveLatestContextWindowSnapshot(
@@ -12314,6 +12315,7 @@ export default function ChatView(props: ChatViewProps) {
                     composerRef={composerRef}
                     threadRef={activeThreadRef}
                     mutationId={workspaceMutationId}
+                    chatBusy={chatBusy}
                   />
                 ),
               }
@@ -12393,6 +12395,7 @@ export default function ChatView(props: ChatViewProps) {
                       composerRef={composerRef}
                       threadRef={activeThreadRef}
                       mutationId={workspaceMutationId}
+                      chatBusy={chatBusy}
                     />
                   ),
                 }
