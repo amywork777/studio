@@ -1,5 +1,12 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { ArrowUpIcon, MaximizeIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  ClipboardCheckIcon,
+  MaximizeIcon,
+  MinusIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
@@ -10,20 +17,35 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } from "../../ui/menu";
 import { toastManager } from "../../ui/toast";
-import { overviewParts } from "../checkResults";
+import { CheckBadge } from "../CheckBadge";
+import {
+  checkOutOfDate,
+  overviewParts,
+  proposeFixPrompt,
+  resultsFor,
+  type CheckIssue,
+  type CheckResult,
+} from "../checkResults";
+import { HARDWARE_ACTIONS, type HardwareAction } from "../hardwareActions";
 import { handToChat } from "../handToChat";
 import { partLink } from "../partLink";
 import { humanName } from "../partNames";
 import { useChangeSize } from "../ProjectSizes";
 import { folderFiles } from "../projectModels";
 import { type NamedSize, type SizeGroup, SIZE_NUMBER } from "../sizes";
+import { toolIcon } from "../toolIcons";
+import { withToolLine } from "../toolUsed";
 import { useFolderModels } from "../useFolderModels";
 import { useFolderPaths } from "../useFolderPaths";
 import { usePictures } from "../usePictures";
+import { useProjectChecks } from "../useProjectChecks";
 import { useProjectSizes } from "../useSizes";
 import { useCadService } from "../useVersions";
+import { isReviewPath, parseReview, reviewOwner, reviewPathFor } from "./dfmReview";
 import {
+  addChecks,
   buildNodeGraph,
   downstream,
   graphParts,
@@ -70,6 +92,45 @@ type Dots = Readonly<Record<string, number>>;
 /** The view: the canvas is shifted by (x, y) and scaled by k. */
 type View = { readonly x: number; readonly y: number; readonly k: number };
 
+/**
+ * The checks a node can add after a part: each way of making it the Toolbox checks (`dfm`,
+ * `dfam-check`, SendCutSend's preflight) and its strength. They run as the Toolbox runs them.
+ */
+const CHECK_ACTIONS = HARDWARE_ACTIONS.filter(
+  (action) =>
+    action.id === "strength" ||
+    action.id === "sendcutsend" ||
+    (action.group === "Manufacture" && action.checks),
+);
+
+/** The check that makes a result named `check` ("CNC machining", "Strength"), to run it again. */
+const actionFor = (check: string) => {
+  const word = check.toLowerCase();
+  return (
+    CHECK_ACTIONS.find(
+      (action) =>
+        action.label.toLowerCase().includes(word) || action.process?.toLowerCase() === word,
+    ) ?? null
+  );
+};
+
+/** A check's name on its node: "CNC machining", "Sheet metal", "Strength under load". */
+const checkName = (action: HardwareAction) => {
+  const name = action.process ?? action.label.replace(/^Check (?:for|as) /, "");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+/** A check node: the result it shows (null before it has run), the part it is of, how it runs. */
+interface CheckNode {
+  readonly id: string;
+  readonly of: string;
+  readonly name: string;
+  readonly result: CheckResult | null;
+  readonly action: HardwareAction | null;
+  /** A review the skill writes as Markdown (`dfmReview.ts`), saved where the node reads it. */
+  readonly review: boolean;
+}
+
 /** A socket's colour by what flows through it: a part's shape is CAD's hue, a size a quiet grey. */
 const WIRE: Record<SocketType, string> = {
   Part: "var(--kind-cad)",
@@ -102,6 +163,7 @@ export function ProjectNodes(props: {
   // Every script's text, for its imports; read again after the agent changes files.
   const [sources, setSources] = useState<ReadonlyMap<string, string>>(new Map());
   const [context, setContext] = useState<PartContext>({});
+  const [reviews, setReviews] = useState<ReadonlyArray<CheckResult>>([]);
   const scripts = useMemo(
     () => (paths ?? []).filter((path) => path.toLowerCase().endsWith(".py")).slice(0, MOST_SCRIPTS),
     [paths],
@@ -118,6 +180,17 @@ export function ProjectNodes(props: {
         setSources(new Map(pairs.filter((pair): pair is [string, string] => pair[1] !== null)));
       },
     );
+    // Each manufacturing review, with when it was written, to say when its part changed since.
+    void Promise.all(
+      (paths ?? []).filter(isReviewPath).map(async (relativePath) => {
+        const result = await read({ environmentId, input: { cwd: root, relativePath } });
+        return result._tag === "Success"
+          ? parseReview(relativePath, result.value.contents, result.value.modifiedAt)
+          : null;
+      }),
+    ).then((found) => {
+      if (live) setReviews(found.filter((review): review is CheckResult => review !== null));
+    });
     if ((paths ?? []).includes(CONTEXT_FILE)) {
       void text(CONTEXT_FILE).then((contents) => {
         if (live && contents !== null) setContext(readPartContext(contents));
@@ -131,11 +204,61 @@ export function ProjectNodes(props: {
 
   // The parts the Overview lists, so a project of STEPs made by scripts shows as well as one of
   // cadgen models.
-  const parts = useMemo(
-    () => graphParts(overviewParts(folderFiles(paths ?? [], models)), paths ?? []),
-    [paths, models],
+  const files = useMemo(() => overviewParts(folderFiles(paths ?? [], models)), [paths, models]);
+  const parts = useMemo(() => graphParts(files, paths ?? []), [files, paths]);
+  const folders = useMemo(() => [root], [root]);
+  const [checked] = useProjectChecks({ environmentId, folders, mutationId: props.mutationId });
+  // The checks added on the canvas that have not run yet, by part and check.
+  const [planned, setPlanned] = useState<ReadonlyArray<{ of: string; action: string }>>([]);
+  const checks = useMemo(() => {
+    const list: CheckNode[] = [];
+    // The checks each part has been through: its studies, as the Overview lists them, and its
+    // manufacturing reviews.
+    for (const file of files) {
+      for (const result of resultsFor(file, checked?.results ?? [])) {
+        list.push({
+          id: result.path,
+          of: file.path,
+          name: result.check,
+          result,
+          action: actionFor(result.check),
+          review: false,
+        });
+      }
+    }
+    const scripted = parts.filter((part) => part.script.toLowerCase().endsWith(".py"));
+    for (const review of reviews) {
+      const of = reviewOwner(review.path, scripted);
+      if (of === null) continue;
+      list.push({
+        id: review.path,
+        of,
+        name: review.check,
+        result: review,
+        action: actionFor(review.check),
+        review: true,
+      });
+    }
+    for (const plan of planned) {
+      const action = CHECK_ACTIONS.find((held) => held.id === plan.action);
+      const part = parts.find((held) => held.id === plan.of);
+      if (action === undefined || part === undefined) continue;
+      const review = action.skill !== "fea";
+      const id = review ? reviewPathFor(part.script, action.id) : `${part.id}#${action.id}`;
+      if (
+        list.some((check) => check.id === id || (check.of === plan.of && check.action === action))
+      ) {
+        continue;
+      }
+      list.push({ id, of: plan.of, name: checkName(action), result: null, action, review });
+    }
+    return list;
+  }, [files, parts, checked, reviews, planned]);
+  const checkById = useMemo(() => new Map(checks.map((check) => [check.id, check])), [checks]);
+  const graph = useMemo(
+    () => addChecks(buildNodeGraph(parts, sources), checks),
+    [parts, sources, checks],
   );
-  const graph = useMemo(() => buildNodeGraph(parts, sources), [parts, sources]);
   const pictures = usePictures({
     environmentId,
     cwd: root,
@@ -147,7 +270,6 @@ export function ProjectNodes(props: {
 
   const post = useCadService(props.threadRef);
   const [reads, setReads] = useState(0);
-  const folders = useMemo(() => [root], [root]);
   const sizes = useProjectSizes({ post, folders, mutationId: props.mutationId, reads });
   const sizeGroups = useMemo(
     () =>
@@ -209,14 +331,19 @@ export function ProjectNodes(props: {
     const node = byId.get(trace.from);
     if (node === undefined) return null;
     const name = trace.socket === SHAPE ? node.name : humanName(trace.socket);
-    const users = listOf(names(reach.users));
+    const checked = reach.users.filter((id) => checkById.has(id));
+    const users = listOf(names(reach.users.filter((id) => !checkById.has(id))));
     const rebuilds = listOf(names(reach.rebuilds));
+    const recheck =
+      checked.length === 0
+        ? ""
+        : ` Then ${listOf(names(checked).map((check) => `the ${check.toLowerCase()} check`))} needs running again.`;
     if (users === "") {
       return node.kind === "Shared"
         ? `No part uses ${name} yet.`
-        : `Changing ${name} rebuilds ${rebuilds}.`;
+        : `Changing ${name} rebuilds ${rebuilds}.${recheck}`;
     }
-    return `${name} goes into ${users}. Changing it rebuilds ${rebuilds}.`;
+    return `${name} goes into ${users}. Changing it rebuilds ${rebuilds}.${recheck}`;
   })();
   // What the size followed does to each part it rebuilds, from edit mode's own preview: a number
   // typed over it, or else a little more, which lights the faces it shapes.
@@ -283,6 +410,30 @@ export function ProjectNodes(props: {
       [node.id]: { at, by: node.id },
       ...Object.fromEntries(downstream(graph, node.id).map((id) => [id, { at, by: node.id }])),
     }));
+  };
+
+  // When each check was run from its node (seconds), to say it is running until its result is newer.
+  const [ran, setRan] = useState<Record<string, number>>({});
+  const runCheck = (check: CheckNode) => {
+    const part = byId.get(check.of);
+    const composerRef = props.composerRef;
+    if (part === undefined || check.action === null || composerRef === null) return;
+    const save = check.review
+      ? `\n\nSave the review as ${check.id}, its findings table giving each finding's result as pass, fail, review or unverified, so the check's node in Nodes reads it.`
+      : "";
+    handToChat(
+      composerRef,
+      withToolLine(check.action.label, check.action.prompt(linkOf(part)) + save),
+    );
+    setRan((before) => ({ ...before, [check.id]: Date.now() / 1000 }));
+  };
+  const proposeFix = (check: CheckNode, issue: CheckIssue) => {
+    const part = byId.get(check.of);
+    if (check.result === null || props.composerRef === null) return;
+    handToChat(
+      props.composerRef,
+      proposeFixPrompt(check.result, issue, part === undefined ? undefined : linkOf(part)),
+    );
   };
 
   // The canvas: pan by dragging the background or scrolling, zoom by pinching or Ctrl and scroll.
@@ -533,60 +684,122 @@ export function ProjectNodes(props: {
             />
           ) : null}
         </svg>
-        {graph.nodes.map((node) => (
-          <NodeCard
-            key={node.id}
-            node={node}
-            spot={spotOf(node.id)}
-            inputs={sockets.get(node.id)?.inputs ?? []}
-            outputs={sockets.get(node.id)?.outputs ?? []}
-            sizes={sizeGroups.get(node.script) ?? null}
-            picture={pictures.get(node.id)}
-            context={context[node.script] ?? []}
-            selected={selected === node.id}
-            follows={following.has(node.id)}
-            role={roleOf(node.id)}
-            litOut={trace?.from === node.id ? trace.socket : null}
-            litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
-              tracing(input, node.id) ? [input.id] : [],
-            )}
-            preview={previews.get(node.id)}
-            typed={pinned !== null && typed !== null}
-            onTrace={(next, pin) => {
-              const trail =
-                next === null
-                  ? null
-                  : next.to === undefined
-                    ? { from: next.from ?? node.id, socket: next.socket }
-                    : { from: next.from ?? node.id, socket: next.socket, to: next.to };
-              if (pin) setPinned(trail);
-              else setHovered(trail);
-            }}
-            onTyped={(text) => setTyped(text === null ? null : Number(text))}
-            onDots={(found) =>
-              setDots((before) =>
-                sameDots(before[node.id], found) ? before : { ...before, [node.id]: found },
-              )
-            }
-            dropTarget={drawing !== null && drawing.from !== node.id}
-            asked={asked[node.id]}
-            askedBy={byId.get(asked[node.id]?.by ?? "")?.name}
-            canChange={props.composerRef !== null}
-            onHeight={(height) =>
+        {graph.nodes.map((node) => {
+          const check = checkById.get(node.id);
+          const measure = {
+            onHeight: (height: number) =>
               setHeights((before) =>
                 Math.abs((before[node.id] ?? 0) - height) < 1
                   ? before
                   : { ...before, [node.id]: height },
-              )
-            }
-            onOpen={() => props.onOpen(root, node.kind === "Shared" ? node.script : node.id)}
-            onContext={(lines) => void saveContext({ ...context, [node.script]: lines })}
-            onChange={(ask) => change(node, ask)}
-            onChangeSize={(group, size, text) => changeSize(root, group.file, size, text)}
-            onNodePress={(event) => startNode(node.id, event)}
-            onWirePress={(socket, event) => startWire(node.id, socket, event)}
-          />
-        ))}
+              ),
+            onDots: (found: Dots) =>
+              setDots((before) =>
+                sameDots(before[node.id], found) ? before : { ...before, [node.id]: found },
+              ),
+          };
+          if (check !== undefined) {
+            const part = byId.get(check.of);
+            const result = check.result;
+            return (
+              <CheckCard
+                key={node.id}
+                node={node}
+                check={check}
+                spot={spotOf(node.id)}
+                inputs={sockets.get(node.id)?.inputs ?? []}
+                role={roleOf(node.id)}
+                litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
+                  tracing(input, node.id) ? [input.id] : [],
+                )}
+                outOfDate={
+                  result !== null &&
+                  part !== undefined &&
+                  part.updated !== null &&
+                  checkOutOfDate(result, { version: part.updated })
+                }
+                running={ran[node.id] !== undefined && (result?.written ?? 0) < (ran[node.id] ?? 0)}
+                canRun={props.composerRef !== null && check.action !== null}
+                {...measure}
+                onTrace={(next) => setHovered(next)}
+                onNodePress={(event) => startNode(node.id, event)}
+                onOpen={() => {
+                  if (result !== null) props.onOpen(root, result.model);
+                }}
+                onRun={() => runCheck(check)}
+                onFix={(issue) => proposeFix(check, issue)}
+                onRemove={
+                  result === null
+                    ? () =>
+                        setPlanned((before) =>
+                          before.filter(
+                            (plan) => plan.of !== check.of || plan.action !== check.action?.id,
+                          ),
+                        )
+                    : null
+                }
+              />
+            );
+          }
+          return (
+            <NodeCard
+              key={node.id}
+              node={node}
+              spot={spotOf(node.id)}
+              inputs={sockets.get(node.id)?.inputs ?? []}
+              outputs={sockets.get(node.id)?.outputs ?? []}
+              sizes={sizeGroups.get(node.script) ?? null}
+              picture={pictures.get(node.id)}
+              context={context[node.script] ?? []}
+              selected={selected === node.id}
+              follows={following.has(node.id)}
+              role={roleOf(node.id)}
+              litOut={trace?.from === node.id ? trace.socket : null}
+              litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
+                tracing(input, node.id) ? [input.id] : [],
+              )}
+              preview={previews.get(node.id)}
+              typed={pinned !== null && typed !== null}
+              onTrace={(next, pin) => {
+                const trail =
+                  next === null
+                    ? null
+                    : next.to === undefined
+                      ? { from: next.from ?? node.id, socket: next.socket }
+                      : { from: next.from ?? node.id, socket: next.socket, to: next.to };
+                if (pin) setPinned(trail);
+                else setHovered(trail);
+              }}
+              onTyped={(text) => setTyped(text === null ? null : Number(text))}
+              onDots={measure.onDots}
+              checkActions={
+                node.kind === "Part" || node.kind === "Assembly"
+                  ? CHECK_ACTIONS.filter(
+                      (action) => action.kinds === null || action.kinds.includes(node.kind),
+                    )
+                  : []
+              }
+              onAddCheck={(action) =>
+                setPlanned((before) =>
+                  before.some((plan) => plan.of === node.id && plan.action === action)
+                    ? before
+                    : [...before, { of: node.id, action }],
+                )
+              }
+              dropTarget={drawing !== null && drawing.from !== node.id}
+              asked={asked[node.id]}
+              askedBy={byId.get(asked[node.id]?.by ?? "")?.name}
+              canChange={props.composerRef !== null}
+              onHeight={measure.onHeight}
+              onOpen={() => props.onOpen(root, node.kind === "Shared" ? node.script : node.id)}
+              onContext={(lines) => void saveContext({ ...context, [node.script]: lines })}
+              onChange={(ask) => change(node, ask)}
+              onChangeSize={(group, size, text) => changeSize(root, group.file, size, text)}
+              onNodePress={(event) => startNode(node.id, event)}
+              onWirePress={(socket, event) => startWire(node.id, socket, event)}
+            />
+          );
+        })}
       </div>
       <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg border border-border bg-popover p-1 shadow-xs">
         <Button
@@ -706,6 +919,9 @@ function NodeCard(props: {
   readonly asked: { at: number; by: string } | undefined;
   readonly askedBy: string | undefined;
   readonly canChange: boolean;
+  /** The checks that can follow this part, to add as nodes. */
+  readonly checkActions: ReadonlyArray<HardwareAction>;
+  readonly onAddCheck: (action: string) => void;
   readonly onHeight: (height: number) => void;
   readonly onDots: (dots: Dots) => void;
   readonly onTrace: (pointed: Pointed | null, pin: boolean) => void;
@@ -1011,6 +1227,35 @@ function NodeCard(props: {
             <PlusIcon />
           </Button>
         )}
+        {props.checkActions.length === 0 ? null : (
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Add a check after ${node.name}`}
+                />
+              }
+            >
+              <ClipboardCheckIcon />
+            </MenuTrigger>
+            <MenuPopup align="end" side="bottom" sideOffset={6}>
+              <MenuGroup>
+                <MenuGroupLabel>Add a check after {node.name}</MenuGroupLabel>
+                {props.checkActions.map((action) => {
+                  const Icon = toolIcon(action);
+                  return (
+                    <MenuItem key={action.id} onClick={() => props.onAddCheck(action.id)}>
+                      <Icon />
+                      {action.label}
+                    </MenuItem>
+                  );
+                })}
+              </MenuGroup>
+            </MenuPopup>
+          </Menu>
+        )}
         <Button
           size="icon-xs"
           aria-label={`Send the change to ${node.name}`}
@@ -1033,6 +1278,189 @@ function NodeCard(props: {
           {state}
         </p>
       )}
+    </section>
+  );
+}
+
+/** A check node shows this many of its findings; the rest are in its result. */
+const FINDINGS_SHOWN = 3;
+
+/**
+ * A check after a part, fed by its shape: how its last run went (`CheckBadge`, out of date once the
+ * part has changed since), the findings to fix or look at, each with "Propose a fix", and the check
+ * to run again, as the Toolbox runs it. Before it has run it says "Not checked".
+ */
+function CheckCard(props: {
+  readonly node: GraphNode;
+  readonly check: CheckNode;
+  readonly spot: Spot;
+  readonly inputs: ReadonlyArray<InputSocket>;
+  readonly role: TraceRole | null;
+  readonly litIn: ReadonlyArray<string>;
+  readonly outOfDate: boolean;
+  readonly running: boolean;
+  readonly canRun: boolean;
+  readonly onHeight: (height: number) => void;
+  readonly onDots: (dots: Dots) => void;
+  readonly onTrace: (pointed: Trace | null) => void;
+  readonly onNodePress: (event: PointerEvent<HTMLElement>) => void;
+  readonly onOpen: () => void;
+  readonly onRun: () => void;
+  readonly onFix: (issue: CheckIssue) => void;
+  /** Takes a check not yet run off the canvas; null once it has a result. */
+  readonly onRemove: (() => void) | null;
+}) {
+  const { node, check } = props;
+  const result = check.result;
+  const card = useRef<HTMLElement>(null);
+  const onHeight = props.onHeight;
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (element === null) return;
+    return observeResize(element, () => onHeight(element.offsetHeight));
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
+  }, []);
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (element === null) return;
+    const box = element.getBoundingClientRect();
+    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
+    const found: Record<string, number> = {};
+    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
+      const at = dot.getBoundingClientRect();
+      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
+    }
+    props.onDots(found);
+  });
+  const shown = result?.issues.slice(0, FINDINGS_SHOWN) ?? [];
+  const more = (result?.issues.length ?? 0) - shown.length;
+
+  return (
+    <section
+      ref={card}
+      data-node={node.id}
+      aria-label={`${check.name} check`}
+      className={cn(
+        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
+        props.role === "user"
+          ? "border-primary ring-1 ring-primary/30"
+          : props.role === "apart"
+            ? "border-border opacity-50"
+            : "border-border",
+      )}
+      style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+    >
+      <header
+        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        style={{ height: HEADER_H }}
+        onPointerDown={props.onNodePress}
+      >
+        <span
+          aria-hidden
+          className="size-2 shrink-0 rounded-xs"
+          style={{
+            backgroundColor:
+              check.action?.skill === "fea" ? "var(--kind-analysis)" : "var(--kind-manufacturing)",
+          }}
+        />
+        <span className="truncate text-xs font-medium text-foreground">{check.name}</span>
+        <span className="ml-auto shrink-0 text-2xs text-muted-foreground">Check</span>
+        {props.onRemove === null ? null : (
+          <Button
+            variant="ghost"
+            size="icon-tiny"
+            aria-label={`Remove the ${check.name} check`}
+            onClick={props.onRemove}
+          >
+            <XIcon />
+          </Button>
+        )}
+      </header>
+      <div
+        className="flex flex-col"
+        style={{ paddingTop: SOCKETS_TOP, paddingBottom: SOCKETS_TOP }}
+      >
+        {props.inputs.map((socket) => {
+          const lit = props.litIn.includes(socket.id);
+          return (
+            <div
+              key={socket.id}
+              className={cn(
+                "relative flex items-center rounded-r-md pl-3",
+                lit ? "bg-primary/10" : null,
+              )}
+              style={{ height: SOCKET_ROW }}
+              onPointerEnter={() =>
+                props.onTrace({ from: socket.from, socket: socket.fromSocket, to: node.id })
+              }
+              onPointerLeave={() => props.onTrace(null)}
+            >
+              <SocketDot type={socket.type} side="in" dot={`in:${socket.id}`} lit={lit} />
+              <span
+                className={cn(
+                  "truncate text-2xs",
+                  lit ? "font-medium text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {socket.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-col gap-1.5 border-t border-border px-3 py-2">
+        {result === null ? (
+          <p className="text-xs text-muted-foreground">Not checked</p>
+        ) : (
+          <>
+            <div className="min-w-0">
+              <CheckBadge result={result} outOfDate={props.outOfDate} onOpen={props.onOpen} />
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              {props.outOfDate ? "The part changed since this check." : result.headline}
+            </p>
+            {props.outOfDate
+              ? null
+              : shown.map((issue) => (
+                  <div key={issue.summary} className="flex items-start gap-1">
+                    <span className="min-w-0 flex-1 text-xs text-foreground">{issue.summary}</span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={!props.canRun}
+                      onClick={() => props.onFix(issue)}
+                    >
+                      Propose a fix
+                    </Button>
+                  </div>
+                ))}
+            {props.outOfDate || more <= 0 ? null : (
+              <button
+                type="button"
+                onClick={props.onOpen}
+                className="self-start rounded-sm text-2xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              >
+                {more} more in the result
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-1 rounded-b-lg border-t border-border px-2 py-2">
+        <Button
+          variant="outline"
+          size="xs"
+          disabled={!props.canRun || props.running}
+          onClick={props.onRun}
+        >
+          {props.running ? "Checking…" : result === null ? "Run check" : "Run again"}
+        </Button>
+        {result === null ? null : (
+          <Button variant="ghost" size="xs" onClick={props.onOpen}>
+            Open result
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

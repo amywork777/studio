@@ -2,6 +2,7 @@ import { classifyProjectFile } from "../projectFiles";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  addChecks,
   buildNodeGraph,
   downstream,
   graphParts,
@@ -300,6 +301,44 @@ describe("socketReach", () => {
       users: ["doc:mount"],
       rebuilds: ["doc:mount"],
     });
+  });
+});
+
+describe("addChecks", () => {
+  const graph = addChecks(buildNodeGraph(MODELS, SOURCES), [
+    { id: "docs/motor_plate_dfm.md", of: "doc:plate", name: "CNC machining" },
+    { id: "docs/gone_dfm.md", of: "doc:gone", name: "Sheet metal" },
+  ]);
+  const columnOf = (id: string) => graph.nodes.find((node) => node.id === id)?.column;
+
+  it("puts a part's check between the part and the assembly that uses it", () => {
+    expect(graph.nodes.map((node) => node.id)).not.toContain("docs/gone_dfm.md");
+    expect(
+      ["parts/sizes.py", "doc:plate", "docs/motor_plate_dfm.md", "doc:mount"].map(columnOf),
+    ).toEqual([0, 1, 2, 3]);
+    expect(nodeSockets(graph, "docs/motor_plate_dfm.md")).toEqual({
+      inputs: [
+        {
+          id: "doc:plate:shape",
+          name: "Motor plate",
+          type: "Part",
+          from: "doc:plate",
+          fromSocket: "shape",
+        },
+      ],
+      outputs: [],
+    });
+  });
+
+  it("takes the part's shape but rebuilds nothing, and is no part's user", () => {
+    expect(socketReach(graph, "doc:plate", "shape")).toEqual({
+      users: ["doc:mount", "docs/motor_plate_dfm.md"],
+      rebuilds: ["doc:plate", "doc:mount"],
+    });
+    expect(socketReach(graph, "doc:plate", "shape", "docs/motor_plate_dfm.md").rebuilds).toEqual([
+      "doc:plate",
+    ]);
+    expect(downstream(graph, "parts/sizes.py")).not.toContain("docs/motor_plate_dfm.md");
   });
 });
 

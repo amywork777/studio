@@ -15,7 +15,8 @@ export interface GraphPart {
   readonly name: string;
   /** Its script, relative to the folder, with forward slashes. */
   readonly script: string;
-  readonly kind: "Part" | "Assembly" | "Shared";
+  /** A check is a part's manufacturing review (`addChecks`), fed by the part's shape. */
+  readonly kind: "Part" | "Assembly" | "Shared" | "Check";
   /** When the engine last built it (seconds, as a string); null before it says, and for shared scripts. */
   readonly updated: string | null;
 }
@@ -223,7 +224,61 @@ export function buildNodeGraph(
   return { nodes, edges };
 }
 
-const KIND_ORDER: Record<GraphPart["kind"], number> = { Shared: 0, Part: 1, Assembly: 2 };
+const KIND_ORDER: Record<GraphPart["kind"], number> = { Shared: 0, Part: 1, Assembly: 2, Check: 3 };
+
+/**
+ * The graph with each part's checks after it: a check is fed by its part's shape and sits in a
+ * column of its own between the part and what uses the part, so a flow reads part, check,
+ * assembly. A check rebuilds nothing; a change to its part puts it out of date.
+ */
+export function addChecks(
+  graph: NodeGraph,
+  checks: ReadonlyArray<{ readonly id: string; readonly of: string; readonly name: string }>,
+): NodeGraph {
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+  const placed = checks.flatMap((check) => {
+    const part = byId.get(check.of);
+    return part === undefined || byId.has(check.id) ? [] : [{ check, part }];
+  });
+  if (placed.length === 0) return graph;
+  // Every column doubled, a check one past its part's, then the empty columns closed up.
+  const wide = [
+    ...graph.nodes.map((node) => ({ node, at: node.column * 2, after: node.row })),
+    ...placed.map(({ check, part }) => ({
+      node: {
+        id: check.id,
+        name: check.name,
+        script: check.id,
+        kind: "Check" as const,
+        updated: null,
+        column: 0,
+        row: 0,
+      },
+      at: part.column * 2 + 1,
+      after: part.row,
+    })),
+  ];
+  const used = [...new Set(wide.map((entry) => entry.at))].toSorted((a, b) => a - b);
+  const rows = new Map<number, number>();
+  const nodes = wide
+    .toSorted((a, b) => a.at - b.at || a.after - b.after)
+    .map(({ node, at }) => {
+      const column = used.indexOf(at);
+      const row = rows.get(column) ?? 0;
+      rows.set(column, row + 1);
+      return { ...node, column, row };
+    });
+  return {
+    nodes,
+    edges: [
+      ...graph.edges,
+      ...placed.map(({ check, part }) => ({ from: part.id, to: check.id, names: ["*"] })),
+    ],
+  };
+}
+
+const checkIds = (graph: NodeGraph) =>
+  new Set(graph.nodes.filter((node) => node.kind === "Check").map((node) => node.id));
 
 const STRING = /(["'])((?:(?!\1)[^\\\n]|\\.)*)\1/g;
 
@@ -238,12 +293,18 @@ function namesFile(source: string, name: string): boolean {
 
 /** Every node that uses `id`, directly or through others: what rebuilds after it changes. */
 export function downstream(graph: NodeGraph, id: string): ReadonlyArray<string> {
+  const checks = checkIds(graph);
   const found: string[] = [];
   const queue = [id];
   while (queue.length > 0) {
     const current = queue.shift() as string;
     for (const edge of graph.edges) {
-      if (edge.from === current && edge.to !== id && !found.includes(edge.to)) {
+      if (
+        edge.from === current &&
+        edge.to !== id &&
+        !checks.has(edge.to) &&
+        !found.includes(edge.to)
+      ) {
         found.push(edge.to);
         queue.push(edge.to);
       }
@@ -327,7 +388,8 @@ export function nodeSockets(
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const node = byId.get(id);
   if (node === undefined) return { inputs: [], outputs: [] };
-  const outputs: OutputSocket[] = node.kind === "Shared" ? [] : [outputFor(node, "*")];
+  const outputs: OutputSocket[] =
+    node.kind === "Shared" || node.kind === "Check" ? [] : [outputFor(node, "*")];
   for (const edge of graph.edges) {
     if (edge.from !== id) continue;
     for (const name of edge.names) {
@@ -375,7 +437,10 @@ export function socketReach(
         edge.names.some((name) => outputFor(node, name).id === socket),
     )
     .map((edge) => edge.to);
-  const starts = node.kind === "Shared" || only !== undefined ? users : [id];
+  const checks = checkIds(graph);
+  const starts = (node.kind === "Shared" || only !== undefined ? users : [id]).filter(
+    (start) => !checks.has(start),
+  );
   const rebuilds: string[] = node.kind === "Shared" ? [] : [id];
   for (const start of starts) {
     for (const next of [start, ...downstream(graph, start)]) {
