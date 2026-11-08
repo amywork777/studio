@@ -102,19 +102,20 @@ export function parseReview(
   const warnings = issues.filter((issue) => issue.severity === "warning");
   const status: CheckStatus =
     errors.length > 0 ? "fix" : warnings.length > 0 ? "warnings" : "ready";
-  const first = (errors[0] ?? warnings[0])?.summary.split(":")[0];
+  const passed = rows - errors.length - warnings.length;
   return {
     path,
     model: path,
     part: reviewStem(path),
     check: checkName(title, path),
     status,
-    headline:
-      status === "ready"
-        ? `All ${rows} findings pass`
-        : status === "fix"
-          ? `${errors.length} to fix · ${first}`
-          : `${warnings.length} to look at · ${first}`,
+    headline: [
+      errors.length > 0 ? `${errors.length} to fix` : null,
+      warnings.length > 0 ? `${warnings.length} to look at` : null,
+      passed > 0 ? `${passed} pass` : null,
+    ]
+      .filter((part) => part !== null)
+      .join(", "),
     issues: [...errors, ...warnings],
     ...(modifiedAt === undefined ? {} : { written: Date.parse(modifiedAt) / 1000 }),
   };

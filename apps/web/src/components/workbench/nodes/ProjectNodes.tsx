@@ -19,7 +19,7 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } from "../../ui/menu";
 import { toastManager } from "../../ui/toast";
-import { CheckBadge } from "../CheckBadge";
+import { CheckBadge, OutOfDateIcon } from "../CheckBadge";
 import {
   checkOutOfDate,
   overviewParts,
@@ -44,6 +44,7 @@ import { useProjectChecks } from "../useProjectChecks";
 import { useProjectSizes } from "../useSizes";
 import { useCadService } from "../useVersions";
 import { isReviewPath, parseReview, reviewOwner, reviewPathFor } from "./dfmReview";
+import { studyFigures, type Figure } from "./studyFigures";
 import {
   addChecks,
   buildNodeGraph,
@@ -259,10 +260,34 @@ export function ProjectNodes(props: {
     () => addChecks(buildNodeGraph(parts, sources), checks),
     [parts, sources, checks],
   );
+  // A study's numbers, read from its result, and its picture (the stress map beside it).
+  const studies = checks.flatMap((check) =>
+    check.review || check.result === null ? [] : [check.result],
+  );
+  const studyKey = studies.map((study) => study.path).join("\n");
+  const [figures, setFigures] = useState<ReadonlyMap<string, ReadonlyArray<Figure>>>(new Map());
+  useEffect(() => {
+    let live = true;
+    void Promise.all(
+      (studyKey === "" ? [] : studyKey.split("\n")).map(async (relativePath) => {
+        const result = await read({ environmentId, input: { cwd: root, relativePath } });
+        return [
+          relativePath,
+          result._tag === "Success" ? studyFigures(result.value.contents) : [],
+        ] as const;
+      }),
+    ).then((pairs) => {
+      if (live) setFigures(new Map(pairs));
+    });
+    return () => {
+      live = false;
+    };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A study run again (`mutationId`) is read again.
+  }, [environmentId, read, root, studyKey, props.mutationId]);
   const pictures = usePictures({
     environmentId,
     cwd: root,
-    paths: parts.map((part) => part.id),
+    paths: [...parts.map((part) => part.id), ...studies.map((study) => study.model)],
     versions: Object.fromEntries(
       parts.flatMap((part) => (part.updated === null ? [] : [[part.id, part.updated]])),
     ),
@@ -706,6 +731,9 @@ export function ProjectNodes(props: {
                 key={node.id}
                 node={node}
                 check={check}
+                partName={part?.name ?? "The part"}
+                figures={result === null ? [] : (figures.get(result.path) ?? [])}
+                picture={result === null || check.review ? undefined : pictures.get(result.model)}
                 spot={spotOf(node.id)}
                 inputs={sockets.get(node.id)?.inputs ?? []}
                 role={roleOf(node.id)}
@@ -1293,6 +1321,10 @@ const FINDINGS_SHOWN = 3;
 function CheckCard(props: {
   readonly node: GraphNode;
   readonly check: CheckNode;
+  readonly partName: string;
+  /** A study's numbers as its result gives them, and its picture. */
+  readonly figures: ReadonlyArray<Figure>;
+  readonly picture: string | undefined;
   readonly spot: Spot;
   readonly inputs: ReadonlyArray<InputSocket>;
   readonly role: TraceRole | null;
@@ -1408,6 +1440,21 @@ function CheckCard(props: {
           );
         })}
       </div>
+      {props.picture === undefined ? null : (
+        <button
+          type="button"
+          onClick={props.onOpen}
+          aria-label={`Open the ${check.name.toLowerCase()} result`}
+          className="relative mx-2 mb-2 flex h-28 items-center justify-center overflow-hidden rounded-md bg-(--model-ground) outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <img
+            src={props.picture}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+            draggable={false}
+          />
+        </button>
+      )}
       <div className="flex flex-col gap-1.5 border-t border-border px-3 py-2">
         {result === null ? (
           <p className="text-xs text-muted-foreground">Not checked</p>
@@ -1416,25 +1463,42 @@ function CheckCard(props: {
             <div className="min-w-0">
               <CheckBadge result={result} outOfDate={props.outOfDate} onOpen={props.onOpen} />
             </div>
-            <p className="text-2xs text-muted-foreground">
-              {props.outOfDate ? "The part changed since this check." : result.headline}
-            </p>
-            {props.outOfDate
-              ? null
-              : shown.map((issue) => (
-                  <div key={issue.summary} className="flex items-start gap-1">
-                    <span className="min-w-0 flex-1 text-xs text-foreground">{issue.summary}</span>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      disabled={!props.canRun}
-                      onClick={() => props.onFix(issue)}
-                    >
-                      Propose a fix
-                    </Button>
+            {props.outOfDate ? (
+              <p className="flex items-start gap-1 text-2xs text-muted-foreground">
+                <OutOfDateIcon aria-hidden className="mt-px size-3 shrink-0" />
+                {props.partName} changed since this check. These results are from before.
+              </p>
+            ) : null}
+            <p className="text-xs text-foreground">{result.headline}</p>
+            {props.figures.length === 0 ? null : (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-2xs">
+                {props.figures.map((item) => (
+                  <div key={item.label} className="contents">
+                    <dt className="text-muted-foreground">{item.label}</dt>
+                    <dd className="min-w-0 text-foreground tabular-nums">{item.value}</dd>
                   </div>
                 ))}
-            {props.outOfDate || more <= 0 ? null : (
+              </dl>
+            )}
+            {shown.map((issue) => (
+              <div key={issue.summary} className="flex flex-col gap-0.5">
+                <div className="flex items-start gap-1">
+                  <span className="min-w-0 flex-1 text-xs text-foreground">{issue.summary}</span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    disabled={!props.canRun}
+                    onClick={() => props.onFix(issue)}
+                  >
+                    Propose a fix
+                  </Button>
+                </div>
+                {issue.fix === null ? null : (
+                  <p className="line-clamp-2 text-2xs text-muted-foreground">{issue.fix}</p>
+                )}
+              </div>
+            ))}
+            {more <= 0 ? null : (
               <button
                 type="button"
                 onClick={props.onOpen}

@@ -9,7 +9,7 @@ describe("manufacturing reviews", () => {
     const review = parseReview("docs/motor_plate_dfm.md", SAMPLE);
     expect(review?.check).toBe("CNC machining");
     expect(review?.status).toBe("warnings");
-    expect(review?.headline).toBe("3 to look at · Pilot bore");
+    expect(review?.headline).toBe("3 to look at, 8 pass");
     expect(review?.issues.map((issue) => issue.summary)).toEqual([
       "Pilot bore: to review",
       "Outline edges: to review",
@@ -33,7 +33,7 @@ describe("manufacturing reviews", () => {
     );
     expect(review?.check).toBe("SendCutSend");
     expect(review?.status).toBe("fix");
-    expect(review?.headline).toBe("1 to fix · Flange length");
+    expect(review?.headline).toBe("1 to fix, 1 to look at, 1 pass");
     expect(review?.issues).toEqual([
       { severity: "error", summary: "Flange length: fails", fix: "Lengthen the flange to 4 mm" },
       { severity: "warning", summary: "Bend radius: not checked", fix: "Confirm the material" },
