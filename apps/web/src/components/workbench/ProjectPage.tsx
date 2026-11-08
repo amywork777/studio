@@ -32,6 +32,7 @@ import { NewDialog } from "./NewDialog";
 import { useNewDialogStore } from "./newDialogStore";
 import { type Discipline, templateOffers } from "./newTemplates";
 import { ProjectSetup } from "./ProjectBrief";
+import { ProjectNodes } from "./nodes/ProjectNodes";
 import { ProjectOverview } from "./ProjectOverview";
 import { ReadmeOverview } from "./ReadmeOverview";
 import { projectChats } from "./workspaceTitle";
@@ -403,7 +404,9 @@ export function ProjectPage(props: {
   readonly firstTurnWorking: boolean;
 }) {
   const { environmentId, cwd, threadRef } = props;
-  const [tab, setTab] = useState<"overview" | "files" | "references" | "threads">("overview");
+  const [tab, setTab] = useState<"overview" | "nodes" | "files" | "references" | "threads">(
+    "overview",
+  );
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"grid" | "list">(readView);
   const [newOpen, setNewOpen] = useState<{
@@ -446,7 +449,8 @@ export function ProjectPage(props: {
       ...(asked.templateId === null ? {} : { templateId: asked.templateId }),
     }));
   }, [pendingNew, showsNew, takeNew]);
-  const shownTab = plainWords ? "overview" : tab;
+  // The Nodes prototype shows in both interfaces; Engineering has no other tabs.
+  const shownTab = plainWords ? (tab === "nodes" ? "nodes" : "overview") : tab;
   const studio = useStudioProjectAt(environmentId, cwd);
   const saveProject = useSaveStudioProject(environmentId);
   const knownFolders = useEnvironmentFolders(environmentId);
@@ -579,6 +583,7 @@ export function ProjectPage(props: {
                 {(
                   [
                     ["overview", "Overview"],
+                    ["nodes", "Nodes"],
                     ["files", "Files"],
                     ["references", "References"],
                     ...(isProject
@@ -624,7 +629,12 @@ export function ProjectPage(props: {
             className="mt-3"
           />
         ) : null}
-        <div className={cn("mt-3 flex items-center gap-2", shownTab === "overview" && "hidden")}>
+        <div
+          className={cn(
+            "mt-3 flex items-center gap-2",
+            (shownTab === "overview" || shownTab === "nodes") && "hidden",
+          )}
+        >
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -667,86 +677,124 @@ export function ProjectPage(props: {
         </div>
       </header>
 
-      {/* One column in Studio, as Home is, so the README and the files below line up. */}
-      <WorkspacePageContainer className={plainWords ? undefined : "mx-0 max-w-none"}>
-        {shownTab === "overview" ? (
-          <ProjectOverview
-            environmentId={environmentId}
-            folders={folders}
-            mutationId={props.workspaceMutationId}
-            composerRef={composerRef}
-            projectRefs={projectRefs}
-            folderNames={folderNames}
-            currentThreadId={threadRef.threadId}
-            onOpen={openPath}
-            linkTo={(root, path) => serializeComposerFileLink(threadPath(root, path))}
-            onShowThreads={isProject && !plainWords ? () => setTab("threads") : null}
-            onNewDocument={composerRef === null ? null : () => openNew("Documents")}
-            byHand={byHand}
-            onStartPart={startPart}
-            threadRef={threadRef}
-            units={studio?.project.brief.units ?? "mm"}
-            readme={
-              plainWords ? (
-                <ReadmeOverview
-                  environmentId={environmentId}
-                  cwd={cwd}
-                  purpose={studio?.project.brief.purpose ?? ""}
-                  // A later chat in a project with no README may have no reason to write one.
-                  writing={props.firstTurnWorking && onlyChat}
-                  mutationId={props.workspaceMutationId}
-                  onOpenPath={(path) => openPath(cwd, path)}
-                />
-              ) : null
-            }
-          />
-        ) : shownTab === "threads" ? (
-          <ProjectThreads
-            projectRefs={projectRefs}
-            folderNames={folderNames}
-            currentThreadId={threadRef.threadId}
-            query={query}
-          />
-        ) : (
-          folders.map((folder) => (
-            <FolderFiles
-              key={folder}
+      {plainWords ? (
+        <div role="tablist" aria-label="Project view" className="flex gap-2 px-6 pt-3">
+          {(
+            [
+              ["overview", "Overview"],
+              ["nodes", "Nodes"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={shownTab === id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "h-7 rounded-lg px-2.5 text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                shownTab === id
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {shownTab === "nodes" ? (
+        <ProjectNodes
+          environmentId={environmentId}
+          root={cwd}
+          mutationId={props.workspaceMutationId}
+          composerRef={composerRef}
+          onOpen={openPath}
+        />
+      ) : (
+        /* One column in Studio, as Home is, so the README and the files below line up. */
+        <WorkspacePageContainer className={plainWords ? undefined : "mx-0 max-w-none"}>
+          {shownTab === "overview" ? (
+            <ProjectOverview
               environmentId={environmentId}
-              root={folder}
-              label={folders.length > 1 ? studioFolderName(folder) : null}
-              tab={shownTab}
-              query={query}
-              view={view}
-              mutationId={
-                studioFolderKey(folder) === studioFolderKey(cwd) ? props.workspaceMutationId : null
+              folders={folders}
+              mutationId={props.workspaceMutationId}
+              composerRef={composerRef}
+              projectRefs={projectRefs}
+              folderNames={folderNames}
+              currentThreadId={threadRef.threadId}
+              onOpen={openPath}
+              linkTo={(root, path) => serializeComposerFileLink(threadPath(root, path))}
+              onShowThreads={isProject && !plainWords ? () => setTab("threads") : null}
+              onNewDocument={composerRef === null ? null : () => openNew("Documents")}
+              byHand={byHand}
+              onStartPart={startPart}
+              threadRef={threadRef}
+              units={studio?.project.brief.units ?? "mm"}
+              readme={
+                plainWords ? (
+                  <ReadmeOverview
+                    environmentId={environmentId}
+                    cwd={cwd}
+                    purpose={studio?.project.brief.purpose ?? ""}
+                    // A later chat in a project with no README may have no reason to write one.
+                    writing={props.firstTurnWorking && onlyChat}
+                    mutationId={props.workspaceMutationId}
+                    onOpenPath={(path) => openPath(cwd, path)}
+                  />
+                ) : null
               }
-              emptyText={
-                shownTab === "files"
-                  ? folders.length > 1
-                    ? "Nothing filed here yet."
-                    : "Nothing here yet. The models, boards and documents the agent makes show up here."
-                  : folders.length > 1
-                    ? "No references here."
-                    : "No references yet. Add sketches, photos, datasheets or links in the brief."
-              }
-              onOpen={openIn(folder)}
             />
-          ))
-        )}
-        {links.length > 0 && (shownTab === "references" || plainWords) ? (
-          <LinksList links={links} />
-        ) : null}
-        {isProject && plainWords ? (
-          <FoldersRow
-            environmentId={environmentId}
-            folders={folders}
-            cwd={cwd}
-            onRemove={studio === null ? null : removeFolder}
-            onAdd={addFolder}
-            className="border-t border-border pt-3"
-          />
-        ) : null}
-      </WorkspacePageContainer>
+          ) : shownTab === "threads" ? (
+            <ProjectThreads
+              projectRefs={projectRefs}
+              folderNames={folderNames}
+              currentThreadId={threadRef.threadId}
+              query={query}
+            />
+          ) : (
+            folders.map((folder) => (
+              <FolderFiles
+                key={folder}
+                environmentId={environmentId}
+                root={folder}
+                label={folders.length > 1 ? studioFolderName(folder) : null}
+                tab={shownTab}
+                query={query}
+                view={view}
+                mutationId={
+                  studioFolderKey(folder) === studioFolderKey(cwd)
+                    ? props.workspaceMutationId
+                    : null
+                }
+                emptyText={
+                  shownTab === "files"
+                    ? folders.length > 1
+                      ? "Nothing filed here yet."
+                      : "Nothing here yet. The models, boards and documents the agent makes show up here."
+                    : folders.length > 1
+                      ? "No references here."
+                      : "No references yet. Add sketches, photos, datasheets or links in the brief."
+                }
+                onOpen={openIn(folder)}
+              />
+            ))
+          )}
+          {links.length > 0 && (shownTab === "references" || plainWords) ? (
+            <LinksList links={links} />
+          ) : null}
+          {isProject && plainWords ? (
+            <FoldersRow
+              environmentId={environmentId}
+              folders={folders}
+              cwd={cwd}
+              onRemove={studio === null ? null : removeFolder}
+              onAdd={addFolder}
+              className="border-t border-border pt-3"
+            />
+          ) : null}
+        </WorkspacePageContainer>
+      )}
       {/* In Engineering New is the panel toolbar's, always there (`StudioNew`). */}
       {composerRef === null || plainWords ? null : (
         <NewDialog
