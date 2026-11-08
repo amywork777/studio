@@ -182,6 +182,19 @@ export function buildNodeGraph(
     }
   }
 
+  // A part with no script (a downloaded screw, say) is wired to the scripts that read its file.
+  for (const file of parts.values()) {
+    if (file.script.toLowerCase().endsWith(".py")) continue;
+    const name = (file.id.split("/").pop() ?? file.id).toLowerCase();
+    for (const part of parts.values()) {
+      if (part.id === file.id || !part.script.toLowerCase().endsWith(".py")) continue;
+      if (!namesFile(sources.get(part.script) ?? "", name)) continue;
+      if (!edges.some((edge) => edge.from === file.id && edge.to === part.id)) {
+        edges.push({ from: file.id, to: part.id, names: ["*"] });
+      }
+    }
+  }
+
   // Columns by the longest chain of uses, so every wire runs left to right. A loop of imports
   // (which Python itself refuses) stops at the parts already on the chain.
   const columns = new Map<string, number>();
@@ -211,6 +224,17 @@ export function buildNodeGraph(
 }
 
 const KIND_ORDER: Record<GraphPart["kind"], number> = { Shared: 0, Part: 1, Assembly: 2 };
+
+const STRING = /(["'])((?:(?!\1)[^\\\n]|\\.)*)\1/g;
+
+/** Whether a script names a file (`name`, lowercase) in one of its strings, alone or as a path's end. */
+function namesFile(source: string, name: string): boolean {
+  for (const match of source.matchAll(STRING)) {
+    const text = (match[2] ?? "").replace(/\\\\/g, "/").toLowerCase();
+    if (text === name || text.endsWith(`/${name}`)) return true;
+  }
+  return false;
+}
 
 /** Every node that uses `id`, directly or through others: what rebuilds after it changes. */
 export function downstream(graph: NodeGraph, id: string): ReadonlyArray<string> {
@@ -328,6 +352,37 @@ export function nodeSockets(
     }
   }
   return { inputs, outputs };
+}
+
+/**
+ * Where one output of a node goes (`only`: along the one wire into that node): the nodes that take
+ * it, and every node that rebuilds after it changes. A part rebuilds itself and all that uses it; a
+ * shared size, only the parts that take it and what follows them.
+ */
+export function socketReach(
+  graph: NodeGraph,
+  id: string,
+  socket: string,
+  only?: string,
+): { readonly users: ReadonlyArray<string>; readonly rebuilds: ReadonlyArray<string> } {
+  const node = graph.nodes.find((held) => held.id === id);
+  if (node === undefined) return { users: [], rebuilds: [] };
+  const users = graph.edges
+    .filter(
+      (edge) =>
+        edge.from === id &&
+        (only === undefined || edge.to === only) &&
+        edge.names.some((name) => outputFor(node, name).id === socket),
+    )
+    .map((edge) => edge.to);
+  const starts = node.kind === "Shared" || only !== undefined ? users : [id];
+  const rebuilds: string[] = node.kind === "Shared" ? [] : [id];
+  for (const start of starts) {
+    for (const next of [start, ...downstream(graph, start)]) {
+      if (!rebuilds.includes(next)) rebuilds.push(next);
+    }
+  }
+  return { users, rebuilds };
 }
 
 /** The message a wire drawn by hand sends: use what one node gives in another. */

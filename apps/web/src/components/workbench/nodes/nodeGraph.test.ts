@@ -11,6 +11,7 @@ import {
   scriptImports,
   wirePrompt,
   sharedName,
+  socketReach,
   upstream,
   type GraphPart,
 } from "./nodeGraph";
@@ -231,6 +232,74 @@ describe("graphParts", () => {
         expect.objectContaining({ from: "parts/nema17.step", to: "assemblies/motor_mount.step" }),
       ]),
     );
+  });
+
+  it("wires a downloaded STEP to the scripts that read it, not to ones that only mention it", () => {
+    const sources = new Map([
+      ...SOURCES,
+      [
+        "assemblies/motor_mount.py",
+        `${SOURCES.get("assemblies/motor_mount.py")}SCREW = PARTS / "imported" / "iso4762_socket_head_cap_screw_m3x6.step"\n`,
+      ],
+      [
+        "parts/nema17.py",
+        '"""Read from stepper_motor_nema17_l0040_single_shaft, as downloaded."""\n' +
+          'SOURCE = HERE / "imported/stepper_motor_nema17_l0040_single_shaft.step"\n',
+      ],
+      [
+        "parts/motor_plate.py",
+        `${SOURCES.get("parts/motor_plate.py")}# its holes clear iso4762_socket_head_cap_screw_m3x6.step\n`,
+      ],
+    ]);
+    const PATHS_WITH_SCREW = [...PATHS, "parts/imported/iso4762_socket_head_cap_screw_m3x6.step"];
+    const withScrew = PATHS_WITH_SCREW.flatMap((path) => {
+      const file = classifyProjectFile(path);
+      return file !== null && path.endsWith(".step") ? [file] : [];
+    });
+    const graph = buildNodeGraph(graphParts(withScrew, PATHS_WITH_SCREW), sources);
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        {
+          from: "parts/imported/iso4762_socket_head_cap_screw_m3x6.step",
+          to: "assemblies/motor_mount.step",
+          names: ["*"],
+        },
+        {
+          from: "parts/imported/stepper_motor_nema17_l0040_single_shaft.step",
+          to: "parts/nema17.step",
+          names: ["*"],
+        },
+      ]),
+    );
+    expect(
+      graph.edges.filter((edge) => edge.from.includes("iso4762")).map((edge) => edge.to),
+    ).toEqual(["assemblies/motor_mount.step"]);
+  });
+});
+
+describe("socketReach", () => {
+  const graph = buildNodeGraph(MODELS, SOURCES);
+
+  it("follows one shared size to the parts that take it and what follows them", () => {
+    expect(socketReach(graph, "parts/sizes.py", "MOTOR_BOLT_PATTERN")).toEqual({
+      users: ["doc:plate"],
+      rebuilds: ["doc:plate", "doc:mount"],
+    });
+    expect(socketReach(graph, "parts/sizes.py", "MOTOR_FRAME")).toEqual({
+      users: [],
+      rebuilds: [],
+    });
+  });
+
+  it("rebuilds a part and all that uses it, or one wire's end alone", () => {
+    expect(socketReach(graph, "doc:plate", "PLATE_LENGTH")).toEqual({
+      users: [],
+      rebuilds: ["doc:plate", "doc:mount"],
+    });
+    expect(socketReach(graph, "parts/sizes.py", "MOTOR_BODY_LENGTH", "doc:mount")).toEqual({
+      users: ["doc:mount"],
+      rebuilds: ["doc:mount"],
+    });
   });
 });
 

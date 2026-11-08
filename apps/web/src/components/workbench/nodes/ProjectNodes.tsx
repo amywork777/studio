@@ -29,6 +29,8 @@ import {
   graphParts,
   nodePrompt,
   nodeSockets,
+  SHAPE,
+  socketReach,
   upstream,
   wirePrompt,
   type GraphNode,
@@ -36,6 +38,8 @@ import {
   type OutputSocket,
   type SocketType,
 } from "./nodeGraph";
+import { PreviewPicture } from "./PreviewPicture";
+import { useSizePreview, type PartPreview } from "./useSizePreview";
 import { CONTEXT_FILE, readPartContext, writePartContext, type PartContext } from "./partContext";
 
 const NODE_W = 248;
@@ -57,6 +61,12 @@ const MAX_ZOOM = 1.6;
 
 /** A point on the canvas, before the view's pan and zoom. */
 type Spot = { readonly x: number; readonly y: number };
+/** One output being followed (`to`: along its one wire into that node), while it is pointed at or changed. */
+type Trace = { readonly from: string; readonly socket: string; readonly to?: string };
+/** How a card stands to the output being followed. */
+type TraceRole = "source" | "user" | "rebuilds" | "apart";
+/** Where a card's dots sit below its top, by `out:<socket>` and `in:<input>`. */
+type Dots = Readonly<Record<string, number>>;
 /** The view: the canvas is shifted by (x, y) and scaled by k. */
 type View = { readonly x: number; readonly y: number; readonly k: number };
 
@@ -154,6 +164,7 @@ export function ProjectNodes(props: {
   );
   // Each node's measured height, so a column's nodes stack without overlapping.
   const [heights, setHeights] = useState<Record<string, number>>({});
+  const [dots, setDots] = useState<Record<string, Dots>>({});
   const [moved, setMoved] = useState<Record<string, Spot>>({});
   const laidOut = useMemo(() => {
     const spots = new Map<string, Spot>();
@@ -178,6 +189,63 @@ export function ProjectNodes(props: {
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph]);
   const names = (ids: ReadonlyArray<string>) =>
     ids.flatMap((id) => (byId.has(id) ? [byId.get(id)?.name ?? id] : []));
+
+  // The output being followed: the one being changed, else the one pointed at.
+  const [hovered, setHovered] = useState<Trace | null>(null);
+  const [pinned, setPinned] = useState<Trace | null>(null);
+  const trace = pinned ?? hovered;
+  const reach = useMemo(
+    () => (trace === null ? null : socketReach(graph, trace.from, trace.socket, trace.to)),
+    [graph, trace],
+  );
+  const roleOf = (id: string): TraceRole | null => {
+    if (trace === null || reach === null) return null;
+    if (id === trace.from) return "source";
+    if (reach.users.includes(id)) return "user";
+    return reach.rebuilds.includes(id) ? "rebuilds" : "apart";
+  };
+  const traceLine = (() => {
+    if (trace === null || reach === null) return null;
+    const node = byId.get(trace.from);
+    if (node === undefined) return null;
+    const name = trace.socket === SHAPE ? node.name : humanName(trace.socket);
+    const users = listOf(names(reach.users));
+    const rebuilds = listOf(names(reach.rebuilds));
+    if (users === "") {
+      return node.kind === "Shared"
+        ? `No part uses ${name} yet.`
+        : `Changing ${name} rebuilds ${rebuilds}.`;
+    }
+    return `${name} goes into ${users}. Changing it rebuilds ${rebuilds}.`;
+  })();
+  // What the size followed does to each part it rebuilds, from edit mode's own preview: a number
+  // typed over it, or else a little more, which lights the faces it shapes.
+  const [typed, setTyped] = useState<number | null>(null);
+  const previewed = (() => {
+    if (trace === null || trace.socket === SHAPE) return null;
+    const node = byId.get(trace.from);
+    const group = node === undefined ? undefined : sizeGroups.get(node.script);
+    const size = group?.sizes.find((held) => held.name === trace.socket);
+    if (group === undefined || size === undefined || size.value === null) return null;
+    return { file: group.file, line: size.line, name: size.name, now: size.value };
+  })();
+  const previewParts = (previewed === null || reach === null ? [] : reach.rebuilds).flatMap(
+    (id) => {
+      const node = byId.get(id);
+      return node !== undefined && node.script.toLowerCase().endsWith(".py")
+        ? [{ id, script: node.script }]
+        : [];
+    },
+  );
+  const previews = useSizePreview({
+    post,
+    root,
+    mutationId: props.mutationId,
+    parts: previewParts,
+    size: previewed,
+    typed: pinned === null ? null : typed,
+  });
+
   const linkOf = (node: GraphNode) =>
     node.kind === "Shared"
       ? `[${node.name}](${node.script})`
@@ -388,20 +456,27 @@ export function ProjectNodes(props: {
     );
   }
 
+  // Each dot where its card measured it, else where the socket rows would put it.
   const outputSpot = (id: string, socket: string): Spot | null => {
     const index = sockets.get(id)?.outputs.findIndex((held) => held.id === socket) ?? -1;
     if (index < 0) return null;
     const spot = spotOf(id);
-    return { x: spot.x + NODE_W, y: spot.y + socketY(index) };
+    return { x: spot.x + NODE_W, y: spot.y + (dots[id]?.[`out:${socket}`] ?? socketY(index)) };
   };
   const wires = graph.nodes.flatMap((node) =>
     (sockets.get(node.id)?.inputs ?? []).flatMap((input, index) => {
       const start = outputSpot(input.from, input.fromSocket);
       if (start === null) return [];
       const spot = spotOf(node.id);
-      return [{ input, to: node.id, start, end: { x: spot.x, y: spot.y + socketY(index) } }];
+      const y = dots[node.id]?.[`in:${input.id}`] ?? socketY(index);
+      return [{ input, to: node.id, start, end: { x: spot.x, y: spot.y + y } }];
     }),
   );
+  const tracing = (input: InputSocket, to: string) =>
+    trace !== null &&
+    input.from === trace.from &&
+    input.fromSocket === trace.socket &&
+    (trace.to === undefined || trace.to === to);
   const pending =
     drawing === null
       ? null
@@ -429,18 +504,22 @@ export function ProjectNodes(props: {
       >
         <svg className="absolute top-0 left-0 overflow-visible" width={1} height={1} aria-hidden>
           {wires.map(({ input, to, start, end: finish }) => {
+            const traced = tracing(input, to);
             const lit =
-              selected !== null &&
-              (input.from === selected || following.has(input.from)) &&
-              following.has(to);
+              trace === null
+                ? selected !== null &&
+                  (input.from === selected || following.has(input.from)) &&
+                  following.has(to)
+                : traced;
+            const quiet = trace === null ? selected !== null && !lit : !traced;
             return (
               <path
                 key={`${input.id}>${to}`}
                 d={curve(start, finish)}
                 fill="none"
-                stroke={WIRE[input.type]}
-                strokeOpacity={selected === null || lit ? 0.9 : 0.25}
-                strokeWidth={lit ? 3 : 2}
+                stroke={traced ? "var(--primary)" : WIRE[input.type]}
+                strokeOpacity={quiet ? 0.18 : 0.9}
+                strokeWidth={traced ? 3.5 : lit ? 3 : 2}
               />
             );
           })}
@@ -466,6 +545,29 @@ export function ProjectNodes(props: {
             context={context[node.script] ?? []}
             selected={selected === node.id}
             follows={following.has(node.id)}
+            role={roleOf(node.id)}
+            litOut={trace?.from === node.id ? trace.socket : null}
+            litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
+              tracing(input, node.id) ? [input.id] : [],
+            )}
+            preview={previews.get(node.id)}
+            typed={pinned !== null && typed !== null}
+            onTrace={(next, pin) => {
+              const trail =
+                next === null
+                  ? null
+                  : next.to === undefined
+                    ? { from: next.from ?? node.id, socket: next.socket }
+                    : { from: next.from ?? node.id, socket: next.socket, to: next.to };
+              if (pin) setPinned(trail);
+              else setHovered(trail);
+            }}
+            onTyped={(text) => setTyped(text === null ? null : Number(text))}
+            onDots={(found) =>
+              setDots((before) =>
+                sameDots(before[node.id], found) ? before : { ...before, [node.id]: found },
+              )
+            }
             dropTarget={drawing !== null && drawing.from !== node.id}
             asked={asked[node.id]}
             askedBy={byId.get(asked[node.id]?.by ?? "")?.name}
@@ -522,10 +624,34 @@ export function ProjectNodes(props: {
           <MaximizeIcon />
         </Button>
       </div>
-      <p className="pointer-events-none absolute right-3 bottom-3 text-xs text-muted-foreground">
-        Drag a dot onto another node to use it there
-      </p>
+      {traceLine === null ? (
+        <p className="pointer-events-none absolute right-3 bottom-3 text-xs text-muted-foreground">
+          Point at a size to see where it goes. Drag a dot onto another node to use it there.
+        </p>
+      ) : (
+        <p
+          aria-live="polite"
+          className="pointer-events-none absolute right-3 bottom-3 max-w-md rounded-lg border border-border bg-popover px-3 py-2 text-xs text-foreground shadow-xs"
+        >
+          {traceLine}
+        </p>
+      )}
     </div>
+  );
+}
+
+/** Names in a sentence: "A", "A and B", "A, B and C". */
+function listOf(items: ReadonlyArray<string>): string {
+  if (items.length < 2) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+function sameDots(before: Dots | undefined, after: Dots): boolean {
+  if (before === undefined) return false;
+  const keys = Object.keys(after);
+  return (
+    keys.length === Object.keys(before).length &&
+    keys.every((key) => Math.abs((before[key] ?? -1) - (after[key] ?? 0)) < 0.5)
   );
 }
 
@@ -535,18 +661,29 @@ function curve(start: Spot, end: Spot): string {
   return `M ${start.x} ${start.y} C ${start.x + bend} ${start.y}, ${end.x - bend} ${end.y}, ${end.x} ${end.y}`;
 }
 
-function SocketDot(props: { readonly type: SocketType; readonly side: "in" | "out" }) {
+function SocketDot(props: {
+  readonly type: SocketType;
+  readonly side: "in" | "out";
+  /** Its key among its card's dots (`out:<socket>`, `in:<input>`), where its wire meets it. */
+  readonly dot: string;
+  readonly lit?: boolean;
+}) {
   return (
     <span
       aria-hidden
+      data-socket={props.dot}
       className={cn(
-        "absolute top-1/2 size-2.5 -translate-y-1/2 rounded-full border-2 border-card",
+        "absolute top-1/2 -translate-y-1/2 rounded-full border-2 border-card",
+        props.lit ? "size-3" : "size-2.5",
         props.side === "in" ? "-left-[5px]" : "-right-[5px]",
       )}
-      style={{ backgroundColor: WIRE[props.type] }}
+      style={{ backgroundColor: props.lit ? "var(--primary)" : WIRE[props.type] }}
     />
   );
 }
+
+/** What a card says a size pointed at does: the follow being made a trace by its parent. */
+type Pointed = { readonly socket: string; readonly from?: string; readonly to?: string };
 
 function NodeCard(props: {
   readonly node: GraphNode;
@@ -559,10 +696,20 @@ function NodeCard(props: {
   readonly selected: boolean;
   readonly follows: boolean;
   readonly dropTarget: boolean;
+  readonly role: TraceRole | null;
+  /** The output of this card being followed, and the inputs its wire comes in by. */
+  readonly litOut: string | null;
+  readonly litIn: ReadonlyArray<string>;
+  /** What the size followed does to this part, from edit mode's preview; `typed` for a number typed. */
+  readonly preview: PartPreview | undefined;
+  readonly typed: boolean;
   readonly asked: { at: number; by: string } | undefined;
   readonly askedBy: string | undefined;
   readonly canChange: boolean;
   readonly onHeight: (height: number) => void;
+  readonly onDots: (dots: Dots) => void;
+  readonly onTrace: (pointed: Pointed | null, pin: boolean) => void;
+  readonly onTyped: (text: string | null) => void;
   readonly onOpen: () => void;
   readonly onContext: (lines: ReadonlyArray<string>) => void;
   readonly onChange: (ask: string) => void;
@@ -570,7 +717,7 @@ function NodeCard(props: {
   readonly onNodePress: (event: PointerEvent<HTMLElement>) => void;
   readonly onWirePress: (socket: OutputSocket, event: PointerEvent<HTMLElement>) => void;
 }) {
-  const { node } = props;
+  const { node, onTrace } = props;
   const [line, setLine] = useState("");
   const [addingLine, setAddingLine] = useState(false);
   const [ask, setAsk] = useState("");
@@ -583,6 +730,20 @@ function NodeCard(props: {
     return observeResize(element, () => onHeight(element.offsetHeight));
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
   }, []);
+  // Where each dot sits, read after every layout: the size rows move as sizes load and open out.
+  // The card is drawn scaled, so the offsets are divided by the scale it shows at.
+  useLayoutEffect(() => {
+    const element = card.current;
+    if (element === null) return;
+    const box = element.getBoundingClientRect();
+    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
+    const found: Record<string, number> = {};
+    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
+      const at = dot.getBoundingClientRect();
+      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
+    }
+    props.onDots(found);
+  });
 
   const built = node.updated === null ? null : Number(node.updated);
   const state =
@@ -600,9 +761,24 @@ function NodeCard(props: {
     setLine("");
     setAddingLine(false);
   };
-  const rows = Math.max(props.inputs.length, props.outputs.length);
+  // A size other parts take carries its dot on its own row, first and always shown; the socket
+  // rows keep the part's shape and any size with no row of its own.
   const sizeList = props.sizes?.sizes ?? [];
-  const shownSizes = allSizes ? sizeList : sizeList.slice(0, SIZES_SHOWN);
+  const sizeNames = new Set(sizeList.map((size) => size.name));
+  const sized = new Map(
+    props.outputs.flatMap((socket) =>
+      socket.type === "Size" && sizeNames.has(socket.id) ? [[socket.id, socket] as const] : [],
+    ),
+  );
+  const rowOutputs = props.outputs.filter((socket) => !sized.has(socket.id));
+  const ordered = [
+    ...sizeList.filter((size) => sized.has(size.name)),
+    ...sizeList.filter((size) => !sized.has(size.name)),
+  ];
+  const shownSizes = allSizes ? ordered : ordered.slice(0, Math.max(SIZES_SHOWN, sized.size));
+  const rows = Math.max(props.inputs.length, rowOutputs.length);
+  const preview = props.preview;
+  const drawn = preview !== undefined && (preview.body !== null || preview.change !== null);
 
   return (
     <section
@@ -611,13 +787,21 @@ function NodeCard(props: {
       aria-label={node.name}
       className={cn(
         "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
-        props.selected
+        props.role === "source"
           ? "border-primary ring-2 ring-primary/40"
-          : props.follows
-            ? "border-primary/60"
-            : props.dropTarget
-              ? "border-dashed border-primary/60"
-              : "border-border",
+          : props.role === "user"
+            ? "border-primary ring-1 ring-primary/30"
+            : props.role === "rebuilds"
+              ? "border-primary/60"
+              : props.role === "apart"
+                ? "border-border opacity-50"
+                : props.selected
+                  ? "border-primary ring-2 ring-primary/40"
+                  : props.follows
+                    ? "border-primary/60"
+                    : props.dropTarget
+                      ? "border-dashed border-primary/60"
+                      : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
     >
@@ -642,33 +826,56 @@ function NodeCard(props: {
           style={{ paddingTop: SOCKETS_TOP, paddingBottom: SOCKETS_TOP }}
         >
           <div className="flex min-w-0 flex-col">
-            {props.inputs.map((socket) => (
-              <div
-                key={socket.id}
-                className="relative flex items-center pl-3"
-                style={{ height: SOCKET_ROW }}
-              >
-                <SocketDot type={socket.type} side="in" />
-                <span className="truncate text-2xs text-muted-foreground">
-                  {socket.type === "Size" ? humanName(socket.name) : socket.name}
-                </span>
-              </div>
-            ))}
+            {props.inputs.map((socket) => {
+              const lit = props.litIn.includes(socket.id);
+              return (
+                <div
+                  key={socket.id}
+                  className={cn(
+                    "relative flex items-center rounded-r-md pl-3",
+                    lit ? "bg-primary/10" : null,
+                  )}
+                  style={{ height: SOCKET_ROW }}
+                  onPointerEnter={() =>
+                    onTrace({ from: socket.from, socket: socket.fromSocket, to: node.id }, false)
+                  }
+                  onPointerLeave={() => onTrace(null, false)}
+                >
+                  <SocketDot type={socket.type} side="in" dot={`in:${socket.id}`} lit={lit} />
+                  <span
+                    className={cn(
+                      "truncate text-2xs",
+                      lit ? "font-medium text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {socket.type === "Size" ? humanName(socket.name) : socket.name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
           <div className="flex min-w-0 flex-col">
-            {props.outputs.map((socket) => (
-              <div
-                key={socket.id}
-                className="relative flex cursor-crosshair items-center justify-end pr-3"
-                style={{ height: SOCKET_ROW }}
-                onPointerDown={(event) => props.onWirePress(socket, event)}
-              >
-                <span className="truncate text-2xs text-foreground">
-                  {socket.type === "Size" ? humanName(socket.name) : socket.name}
-                </span>
-                <SocketDot type={socket.type} side="out" />
-              </div>
-            ))}
+            {rowOutputs.map((socket) => {
+              const lit = props.litOut === socket.id;
+              return (
+                <div
+                  key={socket.id}
+                  className={cn(
+                    "relative flex cursor-crosshair items-center justify-end rounded-l-md pr-3",
+                    lit ? "bg-primary/10" : null,
+                  )}
+                  style={{ height: SOCKET_ROW }}
+                  onPointerDown={(event) => props.onWirePress(socket, event)}
+                  onPointerEnter={() => onTrace({ socket: socket.id }, false)}
+                  onPointerLeave={() => onTrace(null, false)}
+                >
+                  <span className="truncate text-2xs text-foreground">
+                    {socket.type === "Size" ? humanName(socket.name) : socket.name}
+                  </span>
+                  <SocketDot type={socket.type} side="out" dot={`out:${socket.id}`} lit={lit} />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -677,9 +884,11 @@ function NodeCard(props: {
           type="button"
           onClick={props.onOpen}
           aria-label={`Open ${node.name} in the viewer`}
-          className="mx-2 mb-2 flex h-28 items-center justify-center rounded-md bg-(--model-ground) outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="relative mx-2 mb-2 flex h-28 items-center justify-center overflow-hidden rounded-md bg-(--model-ground) outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
-          {props.picture ? (
+          {drawn ? (
+            <PreviewPicture body={preview.body} change={preview.change} typed={props.typed} />
+          ) : props.picture ? (
             <img
               src={props.picture}
               alt=""
@@ -689,22 +898,49 @@ function NodeCard(props: {
           ) : (
             <span className="text-xs text-muted-foreground">No picture yet</span>
           )}
+          {preview === undefined ? null : (
+            <span className="absolute bottom-1 left-1.5 rounded bg-card/80 px-1 text-2xs text-muted-foreground">
+              {preview.status === "working"
+                ? "Previewing…"
+                : (preview.note ??
+                  (props.typed
+                    ? "Filled: added. Pale: taken away."
+                    : "Lit: what this size shapes"))}
+            </span>
+          )}
         </button>
       )}
       {props.sizes === null || sizeList.length === 0 ? null : (
         <div className="flex flex-col gap-0.5 px-2 pb-2">
-          {shownSizes.map((size) => (
-            <SizeField
-              key={size.name}
-              size={size}
-              onChange={(text) =>
-                props.sizes === null
-                  ? Promise.resolve(false)
-                  : props.onChangeSize(props.sizes, size, text)
-              }
-            />
-          ))}
-          {sizeList.length > SIZES_SHOWN ? (
+          {shownSizes.map((size) => {
+            const output = sized.get(size.name);
+            const group = props.sizes;
+            return (
+              <SizeField
+                key={size.name}
+                size={size}
+                lit={props.litOut === size.name}
+                dot={
+                  output === undefined
+                    ? null
+                    : {
+                        key: `out:${output.id}`,
+                        onPress: (event) => props.onWirePress(output, event),
+                      }
+                }
+                onPoint={(pointing) => onTrace(pointing ? { socket: size.name } : null, false)}
+                onEditing={(editing) => {
+                  onTrace(editing ? { socket: size.name } : null, true);
+                  if (!editing) props.onTyped(null);
+                }}
+                onTyped={props.onTyped}
+                onChange={(text) =>
+                  group === null ? Promise.resolve(false) : props.onChangeSize(group, size, text)
+                }
+              />
+            );
+          })}
+          {ordered.length > shownSizes.length || allSizes ? (
             <button
               type="button"
               onClick={() => setAllSizes((before) => !before)}
@@ -801,17 +1037,33 @@ function NodeCard(props: {
   );
 }
 
-/** A size inside a node, as a ComfyUI widget: its name and its number, which a click changes. */
+/**
+ * A size inside a node, as a ComfyUI widget: its name and its number, which a click changes. A size
+ * other parts take has its dot on the row's right edge, to draw a wire from. Pointing at it, or
+ * typing over it, tells the canvas to follow it.
+ */
 function SizeField(props: {
   readonly size: NamedSize;
+  readonly lit: boolean;
+  readonly dot: {
+    readonly key: string;
+    readonly onPress: (event: PointerEvent<HTMLElement>) => void;
+  } | null;
+  readonly onPoint: (pointing: boolean) => void;
+  readonly onEditing: (editing: boolean) => void;
+  readonly onTyped: (text: string | null) => void;
   readonly onChange: (text: string) => Promise<boolean>;
 }) {
   const { size } = props;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const edit = (on: boolean) => {
+    setEditing(on);
+    props.onEditing(on);
+  };
   const save = async (typed: string) => {
     if (typed === size.text) {
-      setEditing(false);
+      edit(false);
       return;
     }
     if (!SIZE_NUMBER.test(typed)) {
@@ -825,11 +1077,25 @@ function SizeField(props: {
     setSaving(true);
     const done = await props.onChange(typed);
     setSaving(false);
-    if (done) setEditing(false);
+    if (done) edit(false);
   };
   return (
-    <div className="flex h-7 items-center gap-2 rounded-md bg-muted/50 px-2 text-xs">
-      <span className="min-w-0 flex-1 truncate text-muted-foreground">{humanName(size.name)}</span>
+    <div
+      className={cn(
+        "relative flex h-7 items-center gap-2 rounded-md px-2 text-xs",
+        props.lit ? "bg-primary/10 ring-1 ring-primary/50 ring-inset" : "bg-muted/50",
+      )}
+      onPointerEnter={() => props.onPoint(true)}
+      onPointerLeave={() => props.onPoint(false)}
+    >
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate",
+          props.lit ? "font-medium text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {humanName(size.name)}
+      </span>
       {editing ? (
         <Input
           size="sm"
@@ -839,18 +1105,22 @@ function SizeField(props: {
           className="w-20"
           aria-label={`${size.name}, Enter to change`}
           onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => {
+            const text = event.currentTarget.value.trim();
+            props.onTyped(SIZE_NUMBER.test(text) && text !== size.text ? text : null);
+          }}
           onBlur={() => {
-            if (!saving) setEditing(false);
+            if (!saving) edit(false);
           }}
           onKeyDown={(event) => {
-            if (event.key === "Escape") setEditing(false);
+            if (event.key === "Escape") edit(false);
             else if (event.key === "Enter") void save(event.currentTarget.value.trim());
           }}
         />
       ) : size.editable ? (
         <button
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={() => edit(true)}
           aria-label={`Change ${size.name}, now ${size.text}`}
           className="shrink-0 rounded px-1 text-foreground tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
@@ -858,6 +1128,14 @@ function SizeField(props: {
         </button>
       ) : (
         <span className="max-w-24 shrink-0 truncate text-muted-foreground">= {size.text}</span>
+      )}
+      {props.dot === null ? null : (
+        <span
+          className="absolute top-0 -right-2 bottom-0 w-4 cursor-crosshair"
+          onPointerDown={props.dot.onPress}
+        >
+          <SocketDot type="Size" side="out" dot={props.dot.key} lit={props.lit} />
+        </span>
       )}
     </div>
   );
