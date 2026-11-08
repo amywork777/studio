@@ -1,8 +1,10 @@
+import { classifyProjectFile } from "../projectFiles";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildNodeGraph,
   downstream,
+  graphParts,
   nodePrompt,
   scriptImports,
   sharedName,
@@ -140,6 +142,51 @@ describe("nodePrompt", () => {
         "",
         "Edit only this script. Then rebuild it and what uses it. If one of those no longer fits, say which and why, and don't change it.",
       ].join("\n"),
+    );
+  });
+});
+
+describe("graphParts", () => {
+  // The motor mount project as Studio files it: STEPs made by scripts, and two imported STEPs.
+  const PATHS = [
+    "assemblies/motor_mount.py",
+    "assemblies/motor_mount.step",
+    "parts/motor_plate.py",
+    "parts/motor_plate.step",
+    "parts/motor_plate_drawing.py",
+    "parts/nema17.py",
+    "parts/nema17.step",
+    "parts/sizes.py",
+    "parts/imported/stepper_motor_nema17_l0040_single_shaft.step",
+    "checks/motor_plate_geometry.py",
+  ];
+  const steps = PATHS.flatMap((path) => {
+    const file = classifyProjectFile(path);
+    return file !== null && path.endsWith(".step") ? [file] : [];
+  });
+
+  it("finds each STEP's script by its name, and marks the assembly", () => {
+    const parts = graphParts(steps, PATHS);
+    const byId = new Map(parts.map((part) => [part.id, part]));
+    expect(byId.get("parts/motor_plate.step")?.script).toBe("parts/motor_plate.py");
+    expect(byId.get("assemblies/motor_mount.step")).toMatchObject({
+      script: "assemblies/motor_mount.py",
+      kind: "Assembly",
+    });
+    expect(byId.get("parts/imported/stepper_motor_nema17_l0040_single_shaft.step")?.script).toBe(
+      "parts/imported/stepper_motor_nema17_l0040_single_shaft.step",
+    );
+  });
+
+  it("wires a project with no cadgen models", () => {
+    const parts = graphParts(steps, PATHS);
+    const graph = buildNodeGraph(parts, SOURCES);
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        { from: "parts/sizes.py", to: "parts/motor_plate.step" },
+        { from: "parts/motor_plate.step", to: "assemblies/motor_mount.step" },
+        { from: "parts/nema17.step", to: "assemblies/motor_mount.step" },
+      ]),
     );
   });
 });

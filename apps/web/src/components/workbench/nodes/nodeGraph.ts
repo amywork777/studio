@@ -6,6 +6,8 @@
  * where a part is its script and an assembly is a script that imports its parts.
  */
 
+import type { ProjectFile } from "../projectFiles";
+
 /** A part of the project as the graph needs it: a cadgen model, or a shared script parts import. */
 export interface GraphPart {
   /** What opens it: a model's document id, or a shared script's path. */
@@ -36,6 +38,39 @@ export interface NodeGraph {
   readonly nodes: ReadonlyArray<GraphNode>;
   readonly edges: ReadonlyArray<GraphEdge>;
 }
+
+/**
+ * The graph's parts from the parts the project's Overview lists (`overviewParts`), so both show
+ * the same parts. A cadgen model brings its script; a STEP made by a script is matched to the
+ * script of its name (`motor_plate.step` to `parts/motor_plate.py`), the one beside it first. A
+ * STEP no script makes (an imported motor, say) is a node with no wires.
+ */
+export function graphParts(
+  files: ReadonlyArray<ProjectFile>,
+  paths: ReadonlyArray<string>,
+): ReadonlyArray<GraphPart> {
+  const scripts = paths.filter((path) => path.toLowerCase().endsWith(".py"));
+  const folderOf = (path: string) => path.split("/").slice(0, -1).join("/");
+  const scriptFor = (file: ProjectFile) => {
+    if (file.script !== undefined) return file.script;
+    const named = scripts.filter((script) => stem(script) === fileStem(file.path));
+    return named.find((script) => folderOf(script) === folderOf(file.path)) ?? named[0] ?? null;
+  };
+  return files.map((file): GraphPart => {
+    const script = scriptFor(file);
+    const assembly = file.kind === "Assembly" || /(?:^|\/)assembl/i.test(script ?? file.path);
+    return {
+      id: file.path,
+      name: file.title,
+      script: script ?? file.path,
+      kind: assembly ? "Assembly" : "Part",
+      updated: file.version ?? null,
+    };
+  });
+}
+
+const fileStem = (path: string) =>
+  (path.split("/").pop() ?? path).replace(/\.[^.]+$/, "").toLowerCase();
 
 const FROM_IMPORT = /^\s*from\s+([A-Za-z_][\w.]*)\s+import\s/gm;
 const PLAIN_IMPORT =

@@ -11,7 +11,9 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { toastManager } from "../../ui/toast";
 import { handToChat } from "../handToChat";
+import { overviewParts } from "../checkResults";
 import { partLink } from "../partLink";
+import { folderFiles } from "../projectModels";
 import { useFolderModels } from "../useFolderModels";
 import { useFolderPaths } from "../useFolderPaths";
 import { usePictures } from "../usePictures";
@@ -21,7 +23,7 @@ import {
   nodePrompt,
   upstream,
   type GraphNode,
-  type GraphPart,
+  graphParts,
 } from "./nodeGraph";
 import { CONTEXT_FILE, readPartContext, writePartContext, type PartContext } from "./partContext";
 
@@ -88,16 +90,11 @@ export function ProjectNodes(props: {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- An agent's change (`mutationId`) reads the scripts again.
   }, [environmentId, read, root, scripts, paths, props.mutationId]);
 
+  // The parts the Overview lists, so a project of STEPs made by scripts shows as well as one of
+  // cadgen models.
   const parts = useMemo(
-    () =>
-      models.map((model): GraphPart => ({
-        id: model.id,
-        name: model.name,
-        script: model.script,
-        kind: model.kind,
-        updated: model.updated,
-      })),
-    [models],
+    () => graphParts(overviewParts(folderFiles(paths ?? [], models)), paths ?? []),
+    [paths, models],
   );
   const graph = useMemo(() => buildNodeGraph(parts, sources), [parts, sources]);
   const pictures = usePictures({
