@@ -1,7 +1,7 @@
 """Facts from the bracket's exported STEP, the file SendCutSend is sent: its solid, volume, bounds and cylinders.
-Run from the project root after `cadgen run exports.py`."""
-from cadgen import read_step
-p = read_step("parts/shelf_bracket.step")
+Run from the project root after `cad run exports.py`."""
+from cad import step
+p = step.read("parts/shelf_bracket.step")
 solids = p.solids()
 print("solids", len(solids), "valid", p.is_valid, "volume mm3", round(p.volume, 1))
 bb = p.bounding_box(); print("bbox", [round(v,3) for v in (bb.min.X,bb.min.Y,bb.min.Z,bb.max.X,bb.max.Y,bb.max.Z)])

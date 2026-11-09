@@ -6,6 +6,7 @@
  */
 
 import coverFile from "./pictures/covers.json";
+import { TEXT_TO_CAD } from "./skillAvailability";
 
 export interface CoverMark {
   /** `hue` is the entry's shelf's; the others are status, ink and the ground. */
@@ -58,7 +59,7 @@ const IMAGES = import.meta.glob<string>("./pictures/*.webp", { eager: true, impo
 
 const imageOf = (cover: string) => IMAGES[`./pictures/${cover}.webp`] ?? null;
 
-/** Which cover each entry shows; a document type and the skill that makes it show the same one. */
+/** Which cover each document type shows. */
 const ENTRY_COVERS: Readonly<Record<string, string>> = {
   "doc:part": "adapter",
   "doc:assembly": "mount",
@@ -86,21 +87,49 @@ const ENTRY_COVERS: Readonly<Record<string, string>> = {
   "doc:requirements": "requirements",
   "doc:fmea": "fmea",
   "doc:design-review": "design-review",
-  "skill:text-to-cad/bambu-labs": "bambu",
-  "skill:text-to-cad/cad": "bracket",
-  "skill:text-to-cad/cam": "toolpaths",
-  "skill:text-to-cad/dfam-check": "dfam",
-  "skill:text-to-cad/dfm": "flags",
-  "skill:text-to-cad/dxf": "dxf",
-  "skill:text-to-cad/engineering-drawing": "drawing",
-  "skill:text-to-cad/fea": "stress",
-  "skill:text-to-cad/gcode": "gcode",
-  "skill:text-to-cad/sdf": "sdf",
-  "skill:text-to-cad/sendcutsend": "nest",
-  "skill:text-to-cad/srdf": "srdf",
-  "skill:text-to-cad/step-parts": "catalog",
-  "skill:text-to-cad/urdf": "urdf",
-  "skill:text-to-cad/work-instructions": "instructions",
+  "doc:circuit-board": "board",
+};
+
+/**
+ * The cover of each text-to-cad skill on the Toolbox page, by its name: Jake's skills, then each
+ * job that is a skill of its own (`jobSkills.ts`). Every one is its own, so no two tiles there show
+ * the same picture (`libraryPictures.test.ts`).
+ */
+const SKILL_COVERS: Readonly<Record<string, string>> = {
+  cad: "bracket",
+  cam: "cam",
+  "engineering-drawing": "drawing",
+  fea: "fea",
+  pcb: "board",
+  print3d: "print3d",
+  "robot-simulation": "robot",
+  sendcutsend: "nest",
+  "work-instructions": "instructions",
+  fit: "clearance",
+  motion: "motion",
+  mass: "fit",
+  fdm: "fdm",
+  resin: "resin",
+  powder: "sls",
+  "metal-print": "metal-print",
+  cnc: "cnc",
+  "sheet-metal": "flags",
+  dxf: "flat-pattern",
+  molding: "molding",
+  "board-check": "board-drc",
+  "board-review": "board-review",
+  "board-fab": "board-fab",
+  "board-step": "board-step",
+  export: "step",
+  pmi: "pmi",
+  exploded: "exploded",
+  pictures: "views",
+  "motion-video": "motion-video",
+};
+
+const skillCover = (entryId: string) => {
+  const prefix = `skill:${TEXT_TO_CAD}/`;
+  return entryId.startsWith(prefix) ? SKILL_COVERS[entryId.slice(prefix.length)] : undefined;
 };
 
 /**
@@ -108,7 +137,7 @@ const ENTRY_COVERS: Readonly<Record<string, string>> = {
  * which `LibraryPicture` draws from the template itself.
  */
 export function coverOf(entryId: string): LibraryCover | null {
-  const name = ENTRY_COVERS[entryId];
+  const name = ENTRY_COVERS[entryId] ?? skillCover(entryId);
   const cover = name === undefined ? undefined : COVERS[name];
   if (name === undefined || cover === undefined) return null;
   return {

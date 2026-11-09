@@ -1,11 +1,11 @@
-// @effect-diagnostics nodeBuiltinImport:off -- a stand-in renderer writes files the way `cad snapshot` does.
+// @effect-diagnostics nodeBuiltinImport:off -- a stand-in renderer writes files the way `cad <type> snapshot` does.
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderModelPictures, snapshotLaunch } from "./modelPictures.ts";
+import { documentType, renderModelPictures, snapshotLaunch } from "./modelPictures.ts";
 
 const server = (args: string[]) => ({
   command: "uvx",
@@ -19,29 +19,40 @@ const server = (args: string[]) => ({
 });
 
 describe("model pictures", () => {
-  it("renders with the plugin's own release: its CAD server's `cad snapshot`", () => {
-    const release = snapshotLaunch(
-      {
-        root: "/plugin",
-        servers: {
-          cad: server(["--no-config", "--python", "3.14", "--from", "cad-mcp==0.10.0", "cad-mcp"]),
+  it("renders with the plugin's own release: its CAD server's `cad <type> snapshot`", () => {
+    const launchOf = (pin: string) =>
+      snapshotLaunch(
+        {
+          root: "/plugin",
+          servers: {
+            cad: server([
+              "--no-config",
+              "--python",
+              "3.14",
+              "--from",
+              `cad-mcp==${pin}`,
+              "cad-mcp",
+            ]),
+          },
         },
-      },
-      { PATH: "/usr/bin" },
-    );
+        { PATH: "/usr/bin" },
+      );
+    const release = launchOf("0.11.3");
     expect(release?.args).toEqual([
       "--no-config",
       "--python",
       "3.14",
       "--from",
-      "cad-server==0.10.0",
+      "cad-server==0.11.3",
       "cad",
-      "snapshot",
     ]);
+    expect(release?.typeless).toBeUndefined();
     expect(release?.env).toMatchObject({
       PATH: "/usr/bin",
       CAD_INSTALL_CHANNEL: "agent-plugins",
     });
+    // 0.10's `cad snapshot` took a document of any type.
+    expect(launchOf("0.10.4")?.typeless).toBe(true);
     const checkout = snapshotLaunch(
       {
         root: "/plugin",
@@ -51,10 +62,65 @@ describe("model pictures", () => {
       },
       {},
     );
-    expect(checkout?.args).toEqual(["-m", "cad_server.cli", "snapshot"]);
+    expect(checkout?.args).toEqual(["-m", "cad_server.cli"]);
+    expect(checkout?.typeless).toBeUndefined();
     expect(
       snapshotLaunch({ root: "/p", servers: { other: server(["some-server", "mcp"]) } }, {}),
     ).toBeNull();
+  });
+
+  it("names each document's type, as `cad <type> snapshot` takes it", () => {
+    expect(
+      [
+        "parts/bracket.STEP",
+        "parts/clip.stp",
+        "XBF/plate.xbf",
+        "out/plate.3mf",
+        "studies/tip-load/result.glb",
+        "drawings/sheet.dxf",
+        "robots/arm.urdf",
+        "0b9c3c1e-5d0a-5f8e-9a43-2f1d6c7b8a90",
+        "notes.md",
+      ].map(documentType),
+    ).toEqual(["step", "step", "xbf", "threemf", "glb", "dxf", "urdf", "model", null]);
+  });
+
+  it("draws one batch a document type, each with its own type's command", async () => {
+    const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "pictures-"));
+    for (const name of ["a.step", "b.step", "c.glb"]) {
+      NodeFS.writeFileSync(NodePath.join(dir, name), "x");
+    }
+    const runs = NodePath.join(dir, "runs.txt");
+    // Stands in for `cad <type> snapshot --job`, saying which command drew which files.
+    const renderer = NodePath.join(dir, "renderer.mjs");
+    NodeFS.writeFileSync(
+      renderer,
+      `import fs from "node:fs";
+       import path from "node:path";
+       const at = process.argv.indexOf("--job");
+       const jobs = JSON.parse(fs.readFileSync(process.argv[at + 1], "utf8"));
+       const command = process.argv.slice(2, at).join(" ");
+       fs.appendFileSync(${JSON.stringify(runs)}, command + ": " + jobs.map((job) => path.basename(job.input)).join(",") + "\\n");
+       for (const job of jobs) fs.writeFileSync(job.outputs[0].path, "PNG");`,
+    );
+    const launch = { command: process.execPath, args: [renderer, "cad"], env: {}, cwd: dir };
+    const paths = ["a.step", "c.glb", "b.step"];
+    await renderModelPictures({ launch, cwd: dir, paths, cacheDir: NodePath.join(dir, "cache") });
+    expect(NodeFS.readFileSync(runs, "utf8").trim().split("\n")).toEqual([
+      "cad step snapshot: a.step,b.step",
+      "cad glb snapshot: c.glb",
+    ]);
+    // A release before 0.11 draws them all in one `cad snapshot`.
+    NodeFS.rmSync(runs);
+    await renderModelPictures({
+      launch: { ...launch, typeless: true },
+      cwd: dir,
+      paths,
+      cacheDir: NodePath.join(dir, "cache-0.10"),
+    });
+    expect(NodeFS.readFileSync(runs, "utf8").trim().split("\n")).toEqual([
+      "cad snapshot: a.step,c.glb,b.step",
+    ]);
   });
 
   it("renders what is missing in one batch, then answers from the cache", async () => {
@@ -64,7 +130,7 @@ describe("model pictures", () => {
     NodeFS.writeFileSync(NodePath.join(project, "parts", "bracket.step"), "ISO-10303-21;");
     NodeFS.writeFileSync(NodePath.join(project, "parts", "broken.step"), "not a step");
     const runs = NodePath.join(dir, "runs.txt");
-    // Stands in for `cad snapshot --job`: writes each job's picture, refuses broken files.
+    // Stands in for `cad <type> snapshot --job`: writes each job's picture, refuses broken files.
     const renderer = NodePath.join(dir, "renderer.mjs");
     NodeFS.writeFileSync(
       renderer,
@@ -98,7 +164,7 @@ describe("model pictures", () => {
     NodeFS.writeFileSync(NodePath.join(dir, "bracket.step"), "ISO-10303-21;");
     NodeFS.writeFileSync(NodePath.join(dir, "sheet.dxf"), "0\nEOF");
     const outputs = NodePath.join(dir, "outputs.txt");
-    // Stands in for `cad snapshot --job`, saying how each job asked to be finished.
+    // Stands in for `cad <type> snapshot --job`, saying how each job asked to be finished.
     const renderer = NodePath.join(dir, "renderer.mjs");
     NodeFS.writeFileSync(
       renderer,
@@ -129,7 +195,7 @@ describe("model pictures", () => {
     NodeFS.mkdirSync(NodePath.join(project, "XBF"), { recursive: true });
     NodeFS.writeFileSync(NodePath.join(project, "XBF", "plate.xbf"), "xbf");
     const inputs = NodePath.join(dir, "inputs.txt");
-    // Stands in for `cad snapshot --job`, saying what each job drew.
+    // Stands in for `cad <type> snapshot --job`, saying what each job drew.
     const renderer = NodePath.join(dir, "renderer.mjs");
     NodeFS.writeFileSync(
       renderer,

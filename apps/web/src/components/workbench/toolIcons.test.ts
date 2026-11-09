@@ -49,7 +49,7 @@ describe("toolIcon", () => {
     }
   });
 
-  it("tells the tools in a section apart", () => {
+  it("tells the tools in a section apart, and the tools on one tab", () => {
     const clashes: string[] = [];
     for (const section of ACTION_SECTIONS) {
       const jobs = HARDWARE_ACTIONS.filter((action) => action.section === section.id);
@@ -62,6 +62,11 @@ describe("toolIcon", () => {
       });
     }
     expect(clashes).toEqual([]);
+    // The Toolbox shows one group's tab at a time: no two of its tiles share a picture.
+    for (const group of new Set(HARDWARE_ACTIONS.map((action) => action.group))) {
+      const icons = HARDWARE_ACTIONS.filter((action) => action.group === group).map(toolIcon);
+      expect(new Set(icons).size, group).toBe(icons.length);
+    }
   });
 
   it("falls back to the section's picture, then the group's, for a job without one", () => {

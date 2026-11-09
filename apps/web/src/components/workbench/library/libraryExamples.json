@@ -12,7 +12,7 @@
     "example": "drawings/servo_bracket_drawing.pdf"
   },
   "doc:simulation": {
-    "example": "studies/servo_bracket.fea.glb"
+    "example": "studies/servo_bracket/result.glb"
   },
   "doc:fit-mass": {
     "example": "assemblies/servo_mount_fit.md"
@@ -21,7 +21,7 @@
     "example": "parts/servo_bracket_sheet_metal.md"
   },
   "doc:cam-job": {
-    "example": "cam/horn_adapter.cam.glb"
+    "example": "cam/horn_adapter/result.glb"
   },
   "doc:print": null,
   "doc:pmi": {
@@ -37,6 +37,7 @@
   "doc:standard-parts": {
     "example": "parts/imported/iso4762_socket_head_cap_screw_m3x8.step"
   },
+  "doc:circuit-board": null,
   "doc:export": {
     "example": "parts/servo_bracket.3mf"
   },
@@ -77,43 +78,25 @@
   "doc:design-review": {
     "example": "docs/design_review.md"
   },
-  "skill:text-to-cad/bambu-labs": null,
   "skill:text-to-cad/cad": {
     "example": "parts/servo_bracket.py"
   },
   "skill:text-to-cad/cam": {
-    "example": "cam/horn_adapter.cam.glb"
-  },
-  "skill:text-to-cad/dfam-check": {
-    "example": "parts/cable_clip_fdm.md"
-  },
-  "skill:text-to-cad/dfm": {
-    "example": "parts/servo_bracket_sheet_metal.md"
-  },
-  "skill:text-to-cad/dxf": {
-    "example": "cut/servo_bracket_cut.dxf"
+    "example": "cam/horn_adapter/result.glb"
   },
   "skill:text-to-cad/engineering-drawing": {
     "example": "drawings/servo_bracket_drawing.pdf"
   },
   "skill:text-to-cad/fea": {
-    "example": "studies/servo_bracket.fea.glb"
+    "example": "studies/servo_bracket/result.glb"
   },
-  "skill:text-to-cad/gcode": null,
-  "skill:text-to-cad/sdf": {
-    "example": "robots/servo_mount.sdf"
+  "skill:text-to-cad/pcb": null,
+  "skill:text-to-cad/print3d": null,
+  "skill:text-to-cad/robot-simulation": {
+    "example": "robots/servo_mount.urdf"
   },
   "skill:text-to-cad/sendcutsend": {
     "example": "cut/servo_bracket_sendcutsend.md"
-  },
-  "skill:text-to-cad/srdf": {
-    "example": "robots/servo_mount.srdf"
-  },
-  "skill:text-to-cad/step-parts": {
-    "example": "parts/imported/iso4762_socket_head_cap_screw_m3x8.step"
-  },
-  "skill:text-to-cad/urdf": {
-    "example": "robots/servo_mount.urdf"
   },
   "skill:text-to-cad/work-instructions": null
 }

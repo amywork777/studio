@@ -1,5 +1,5 @@
 """Stress and movement read off the strength study's GLB: near the wall holes, at the corner relief, along the brace, at the tip.
-Run from the project root: cadgen run checks/shelf_bracket_fea_probe.py studies/shelf_bracket.fea.glb studies/shelf_bracket.fea.json "[[14,-25],[14,-125]]"."""
+Run from the project root: cad run checks/shelf_bracket_fea_probe.py studies/shelf_bracket/result.glb studies/shelf_bracket/result.json "[[14,-25],[14,-125]]"."""
 import sys, json
 import numpy as np
 sys.path.insert(0, __import__("os").path.dirname(__file__))
@@ -7,7 +7,7 @@ from fea_glb import load
 glb, sidecar = sys.argv[1], sys.argv[2]
 js, prims = load(glb)
 sc = json.load(open(sidecar))
-scale = sc["summary"]["deformation_scale"]
+scale = sc["measurements"]["deformation_scale"]
 p = prims[0]
 g = p["POSITION"].astype(float) - scale * p["_DISPLACEMENT"].astype(float)
 pos = np.c_[g[:, 0], -g[:, 2], g[:, 1]] * 1000.0

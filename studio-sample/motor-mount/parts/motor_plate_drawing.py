@@ -3,7 +3,7 @@ parts/motor_plate_drawing.py` builds the plate as it is now and projects its vie
 from it, and every size a dimension points at is imported from the model, so moving a feature in the model moves its
 dimension here. The holes and slots are listed in a hole table, their sizes read off the part. The general tolerance (ISO 2768-m) and the pilot bore's tolerance are assumed for a prototype, not asked."""
 
-from cadgen.eng_drawing import Sheet, eng_drawing
+from cad.eng_drawing import Sheet, eng_drawing
 
 from motor_plate import (
     CHAMFER,

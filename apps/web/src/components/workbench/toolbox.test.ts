@@ -14,8 +14,7 @@ import {
   writeToolboxTab,
 } from "./toolbox";
 
-const menus = () =>
-  hardwareActions("Part", new Set(["fea", "dfm", "dfam-check", "cam"]), "CNC machining");
+const menus = () => hardwareActions("Part", new Set(["fea", "cad", "cam"]), "CNC machining");
 
 describe("pairLoneSections", () => {
   const [tool] = menus().flatMap((menu) => menu.sections.flatMap((section) => section.actions));
@@ -132,7 +131,7 @@ describe("toolboxLibraryLink", () => {
 });
 
 describe("the Toolbox on a file that is not a part", () => {
-  const SKILLS = new Set(["fea", "cad", "dfm", "cam", "dxf", "sendcutsend"]);
+  const SKILLS = new Set(["fea", "cad", "cam", "sendcutsend"]);
   const groupsFor = (kind: string) => toolboxGroups(hardwareActions(kind, SKILLS));
   const labels = (kind: string, tab: Parameters<typeof toolboxShownGroup>[1]) =>
     toolboxShownGroup(groupsFor(kind), tab)?.sections.flatMap((section) =>
@@ -141,21 +140,21 @@ describe("the Toolbox on a file that is not a part", () => {
 
   it("stays on the group left open where it has jobs", () => {
     expect(toolboxShownGroup(groupsFor("Part"), "Manufacture")?.group).toBe("Manufacture");
-    expect(labels("CAM job", "Evaluate")).toEqual(["Explain this job"]);
+    expect(labels("CAM job", "Manufacture")).toEqual(["G-code for CNC"]);
   });
 
   it("opens on a group with jobs where the one left open has none for this kind", () => {
-    expect(toolboxShownGroup(groupsFor("CAM job"), "Manufacture")?.group).toBe("Evaluate");
+    expect(toolboxShownGroup(groupsFor("CAM job"), "Evaluate")?.group).toBe("Manufacture");
     // A study's result, however it is named: its jobs are the study's, not a mesh's to print.
     expect(toolboxShownGroup(groupsFor("Result"), "Manufacture")?.group).toBe("Evaluate");
-    expect(labels("Drawing", "Evaluate")).toEqual(["Cut-ready DXF", "Check for SendCutSend"]);
+    expect(labels("Drawing", "Evaluate")).toEqual(["Flat pattern DXF", "Check for SendCutSend"]);
     expect(labels("Document", "Manufacture")).toEqual(["Write up the results"]);
   });
 
   it("says what is left out, and what to open for it", () => {
     expect(toolboxLeftOut(groupsFor("Part"), "Part")).toBeNull();
     expect(toolboxLeftOut(groupsFor("CAM job"), "CAM job")).toBe(
-      "No Manufacturing jobs for this CAM job. Open a part to see them.",
+      "No Analysis jobs for this CAM job. Open a part to see them.",
     );
     expect(toolboxLeftOut(groupsFor("Drawing"), "Drawing")).toBe(
       "No Analysis jobs for this drawing. Open a part to see them.",

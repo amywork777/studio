@@ -24,7 +24,7 @@
   assumptions:
   - every assumption in servo_mount.urdf's ledger holds here
   - the joint has no damping or friction: none is known for the MG996R
-  - checks: cadgen sdf validate only; gz is not installed here, so gz sdf's check and a Gazebo load were not run
+  - checks: cad sdf validate only; gz is not installed here, so gz sdf's check and a Gazebo load were not run
 -->
 <sdf version="1.12">
   <model name="servo_mount">

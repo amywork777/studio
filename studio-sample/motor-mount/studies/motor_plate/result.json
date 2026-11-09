@@ -1,0 +1,304 @@
+{
+ "ok": true,
+ "path": "parts/motor_plate.step",
+ "findings": [
+  {
+   "severity": "warning",
+   "code": "solver_note",
+   "message": "199236 degrees of freedom: expect a slow solve; a larger mesh.size_mm is usually enough",
+   "location": null,
+   "hint": null
+  }
+ ],
+ "summary": "solved motor_plate/motor_plate of motor_plate.step: peak 0.5293 MPa, safety factor 521.397",
+ "measurements": {
+  "max_von_mises_MPa": 0.5293,
+  "max_von_mises_gauss_MPa": 0.4855,
+  "max_von_mises_at_mm": [
+   33.055,
+   -1.945,
+   0.0
+  ],
+  "yield_MPa": 276.0,
+  "max_displacement_mm": 0.000114,
+  "max_displacement_at_mm": [
+   -0.0,
+   -11.1,
+   3.0
+  ],
+  "applied_force_N": [
+   -50.0,
+   0.0,
+   0.0
+  ],
+  "reaction_force_N": [
+   50.0,
+   0.0,
+   0.0
+  ],
+  "deformation_scale": 54000.0,
+  "safety_factor": 521.397,
+  "checks": [
+   {
+    "kind": "stress",
+    "label": "Strength, 50 N of belt tension on the motor, along the belt",
+    "value": 0.5293,
+    "limit": 276.0,
+    "unit": "MPa",
+    "ratio": 0.001918,
+    "close_at": 0.5,
+    "margin": 2.0,
+    "status": "passes",
+    "where": {
+     "ref": "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63",
+     "at": [
+      33.055,
+      -1.945,
+      0.0
+     ]
+    }
+   }
+  ],
+  "mesh": {
+   "elements": 38599,
+   "straightened": 0,
+   "nodes": 66412,
+   "dofs": 199236,
+   "size_mm": 1.5,
+   "order": 2,
+   "mesher": "netgen",
+   "solver": "calculix 2.23 (C3D10)"
+  },
+  "timings": {
+   "mesh_s": 2.807,
+   "solve_s": 17.525,
+   "stress_s": 0.031
+  },
+  "study": {
+   "material": {
+    "name": "aluminum-6061-t6",
+    "E_MPa": 68900.0,
+    "nu": 0.33,
+    "yield_MPa": 276.0,
+    "density_t_per_mm3": 2.7e-09
+   },
+   "fixtures": [
+    {
+     "faces": [
+      "motor_plate/f:motor_plate.plate_pognbn~0536602222de",
+      "motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833",
+      "motor_plate/f:motor_plate.plate_pognbn~826fc30e3624",
+      "motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a",
+      "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63",
+      "motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2",
+      "motor_plate/f:motor_plate.plate_pognbn~e310eef9d498",
+      "motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1"
+     ],
+     "type": "fixed"
+    }
+   ],
+   "loads": [
+    {
+     "faces": [
+      "motor_plate/f:motor_plate.plate_oickae~d144bca40c47",
+      "motor_plate/f:motor_plate.plate_ljfdoo~99ccc6689cec",
+      "motor_plate/f:motor_plate.plate_ljfdoo~56d99d9a616f",
+      "motor_plate/f:motor_plate.plate_ljfdoo~00d509e8d150",
+      "motor_plate/f:motor_plate.plate_ljfdoo~d14b01df935d"
+     ],
+     "type": "force",
+     "vector_N": [
+      -50,
+      0,
+      0
+     ]
+    }
+   ],
+   "mesh": {
+    "size_mm": 1.5
+   },
+   "margin": 2,
+   "checks": [
+    {
+     "kind": "stress",
+     "label": "Strength, 50 N of belt tension on the motor, along the belt"
+    }
+   ]
+  },
+  "material": {
+   "name": "aluminum-6061-t6",
+   "E_MPa": 68900.0,
+   "nu": 0.33,
+   "yield_MPa": 276.0,
+   "density_t_per_mm3": 2.7e-09,
+   "source": "study"
+  },
+  "fixtures": [
+   {
+    "faces": [
+     "motor_plate/f:motor_plate.plate_pognbn~0536602222de",
+     "motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833",
+     "motor_plate/f:motor_plate.plate_pognbn~826fc30e3624",
+     "motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a",
+     "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63",
+     "motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2",
+     "motor_plate/f:motor_plate.plate_pognbn~e310eef9d498",
+     "motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1"
+    ],
+    "type": "fixed",
+    "reaction_N": [
+     50.0,
+     0.0,
+     0.0
+    ]
+   }
+  ],
+  "connections": [],
+  "overlaps": [],
+  "refined": null,
+  "named_faces": {
+   "motor_plate/f:motor_plate.plate_pognbn~0536602222de": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~0536602222de",
+    "ordinal": 22,
+    "area": 51.836278784235,
+    "center": [
+     -46.75070437401074,
+     -1.8148627179510332e-13,
+     3.0
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833",
+    "ordinal": 23,
+    "area": 59.999999999999986,
+    "center": [
+     -40.0,
+     -2.75,
+     2.9999999999999996
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~826fc30e3624": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~826fc30e3624",
+    "ordinal": 24,
+    "area": 51.836278784235,
+    "center": [
+     -33.24929562598926,
+     1.8148177728427912e-13,
+     3.0
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a",
+    "ordinal": 25,
+    "area": 59.999999999999986,
+    "center": [
+     -40.0,
+     2.75,
+     2.9999999999999996
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63",
+    "ordinal": 28,
+    "area": 51.836278784235,
+    "center": [
+     33.24929562598926,
+     -1.8148627179510332e-13,
+     3.0
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2",
+    "ordinal": 29,
+    "area": 59.999999999999986,
+    "center": [
+     40.0,
+     -2.75,
+     2.9999999999999996
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~e310eef9d498": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~e310eef9d498",
+    "ordinal": 30,
+    "area": 51.836278784235,
+    "center": [
+     46.75070437401074,
+     1.8148177728427912e-13,
+     3.0
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1": {
+    "ref": "motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1",
+    "ordinal": 31,
+    "area": 59.999999999999986,
+    "center": [
+     40.0,
+     2.75,
+     2.9999999999999996
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_oickae~d144bca40c47": {
+    "ref": "motor_plate/f:motor_plate.plate_oickae~d144bca40c47",
+    "ordinal": 27,
+    "area": 209.230070729094,
+    "center": [
+     7.318590178329032e-13,
+     -3.7257484384943323e-16,
+     1.5
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_ljfdoo~99ccc6689cec": {
+    "ref": "motor_plate/f:motor_plate.plate_ljfdoo~99ccc6689cec",
+    "ordinal": 21,
+    "area": 32.044245066618004,
+    "center": [
+     -15.499999999999888,
+     -15.5,
+     1.5
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_ljfdoo~56d99d9a616f": {
+    "ref": "motor_plate/f:motor_plate.plate_ljfdoo~56d99d9a616f",
+    "ordinal": 26,
+    "area": 32.044245066618004,
+    "center": [
+     15.500000000000112,
+     -15.5,
+     1.5
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_ljfdoo~00d509e8d150": {
+    "ref": "motor_plate/f:motor_plate.plate_ljfdoo~00d509e8d150",
+    "ordinal": 32,
+    "area": 32.044245066618004,
+    "center": [
+     -15.499999999999888,
+     15.5,
+     1.5
+    ]
+   },
+   "motor_plate/f:motor_plate.plate_ljfdoo~d14b01df935d": {
+    "ref": "motor_plate/f:motor_plate.plate_ljfdoo~d14b01df935d",
+    "ordinal": 33,
+    "area": 32.044245066618004,
+    "center": [
+     15.500000000000112,
+     15.5,
+     1.5
+    ]
+   }
+  }
+ },
+ "occurrence": "motor_plate/motor_plate",
+ "written": [
+  "studies/motor_plate/result.json",
+  "studies/motor_plate/result.glb",
+  "studies/motor_plate/result.vtu",
+  "studies/motor_plate/stress.png",
+  "studies/motor_plate/displacement.png"
+ ],
+ "contact_tolerance_mm": null,
+ "parts": [],
+ "pairs": [],
+ "faces": []
+}

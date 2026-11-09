@@ -12,11 +12,11 @@
 | checks/phone_stand_tip.py | docs/phone_stand_mass_and_tip.md | Mass, fit and tip-over |
 | checks/phone_stand_print_facts.py | (prints JSON) | The bridges and plate contact the FDM check's tool does not measure |
 
-Build: `cadgen run assemblies/phone_stand_portrait.py` from the project root builds the stand with the phone in it and
-both parts, and `cadgen run parts/phone_stand_print.py` the stand as it prints, each a model with its own page. A run
-writes no file: `cadgen run exports.py` writes the STEP files and the print files. The drawing and the checks call the
-models themselves: `cadgen run parts/phone_stand_drawing.py` draws the stand, and `cadgen run checks/phone_stand_tip.py`
+Build: `cad run assemblies/phone_stand_portrait.py` from the project root builds the stand with the phone in it and
+both parts, and `cad run parts/phone_stand_print.py` the stand as it prints, each a model with its own page. A run
+writes no file: `cad run exports.py` writes the STEP files and the print files. The drawing and the checks call the
+models themselves: `cad run parts/phone_stand_drawing.py` draws the stand, and `cad run checks/phone_stand_tip.py`
 checks it again.
 
-Pictures: `cadgen snapshot --job pictures/phone_stand_pictures.job.json` draws them from the exported STEP files and
+Pictures: `cad step snapshot --job pictures/phone_stand_pictures.job.json` draws them from the exported STEP files and
 STL.

@@ -1,0 +1,321 @@
+{
+ "ok": true,
+ "path": "parts/horn_adapter.step",
+ "findings": [
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T6 1 mm flat: spindle 79580 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 1",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T1 6 mm flat: spindle 13260 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 2, operation 6",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T5 1.5 mm flat: spindle 53050 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 3",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T3 2.5 mm drill: spindle 19100 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 4",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T4 3.4 mm drill: spindle 14040 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 5",
+   "hint": "the machine's limit holds the table's number"
+  }
+ ],
+ "summary": "Ready to cut \u00b7 5 min \u00b7 5 tools",
+ "measurements": {
+  "verdict": {
+   "status": "ready",
+   "headline": "Ready to cut \u00b7 5 min \u00b7 5 tools",
+   "errors": 0,
+   "warnings": 5,
+   "duration_s": 301.54,
+   "tools": 5
+  },
+  "duration_s": 301.54,
+  "tools": [
+   "T6",
+   "T1",
+   "T5",
+   "T3",
+   "T4"
+  ],
+  "tool_changes": {
+   "count": 5,
+   "order": [
+    "T6",
+    "T1",
+    "T5",
+    "T3",
+    "T4",
+    "T1"
+   ]
+  },
+  "setups": [
+   {
+    "id": "bottom",
+    "plain": "bottom",
+    "orientation": "-Z",
+    "origin": "stock-top-center",
+    "origin_part_mm": [
+     0.0025,
+     -0.0,
+     -0.0
+    ],
+    "matrix": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    ],
+    "time_s": 172.93,
+    "t0": 0.0,
+    "t1": 172.929
+   },
+   {
+    "id": "top",
+    "plain": "top",
+    "orientation": "+Z",
+    "origin": "stock-top-center",
+    "origin_part_mm": [
+     0.0025,
+     0.0,
+     9.0
+    ],
+    "matrix": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "time_s": 128.61,
+    "t0": 172.929,
+    "t1": 301.54
+   }
+  ],
+  "post": "linuxcnc",
+  "machine": "",
+  "material": "aluminum-6061",
+  "planner": "freecad 1.1.1",
+  "stock_mm": {
+   "min": [
+    -13.995,
+    -13.9988,
+    0.0
+   ],
+   "max": [
+    14.0,
+    13.9988,
+    9.0
+   ]
+  },
+  "operations": [
+   {
+    "index": 0,
+    "setup": "bottom",
+    "op": "pocket",
+    "plain": "Pocket",
+    "tool": "T6",
+    "tool_plain": "1 mm flat",
+    "tool_diameter_mm": 1.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 163.0,
+    "plunge_mm_min": 48.0,
+    "faces": [
+     "horn_adapter/f:horn_adapter.adapter_aecmfo~ec6e525faf47"
+    ],
+    "clamped": [
+     "spindle 79580 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "The spline bore, 4 mm deep",
+    "time_s": 172.93,
+    "t0": 0.0,
+    "t1": 172.929,
+    "summary": "Pocket horn_adapter/f:horn_adapter.adapter_aecmfo~ec6e525faf47 with T6 1 mm flat, 3 min"
+   },
+   {
+    "index": 1,
+    "setup": "top",
+    "op": "face",
+    "plain": "Face",
+    "tool": "T1",
+    "tool_plain": "6 mm flat",
+    "tool_diameter_mm": 6.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 1225.0,
+    "plunge_mm_min": 360.0,
+    "faces": [
+     "horn_adapter/f:horn_adapter.adapter_hlhjhg~20008c9bc261"
+    ],
+    "clamped": [
+     "spindle 13260 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Face the top",
+    "time_s": 12.93,
+    "t0": 172.929,
+    "t1": 185.859,
+    "summary": "Face horn_adapter/f:horn_adapter.adapter_hlhjhg~20008c9bc261 with T1 6 mm flat, 13 s"
+   },
+   {
+    "index": 2,
+    "setup": "top",
+    "op": "pocket",
+    "plain": "Pocket",
+    "tool": "T5",
+    "tool_plain": "1.5 mm flat",
+    "tool_diameter_mm": 1.5,
+    "rpm": 10000.0,
+    "feed_mm_min": 225.0,
+    "plunge_mm_min": 66.0,
+    "faces": [
+     "horn_adapter/f:horn_adapter.adapter_pdijib~9abf75ea723a"
+    ],
+    "clamped": [
+     "spindle 53050 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "The screw's counterbore",
+    "time_s": 81.02,
+    "t0": 185.859,
+    "t1": 266.874,
+    "summary": "Pocket horn_adapter/f:horn_adapter.adapter_pdijib~9abf75ea723a with T5 1.5 mm flat, 1 min"
+   },
+   {
+    "index": 3,
+    "setup": "top",
+    "op": "drill",
+    "plain": "Drill",
+    "tool": "T3",
+    "tool_plain": "2.5 mm drill",
+    "tool_diameter_mm": 2.5,
+    "rpm": 10000.0,
+    "feed_mm_min": 500.0,
+    "plunge_mm_min": 500.0,
+    "faces": [
+     "horn_adapter/f:horn_adapter.adapter_khafhb~9844bcaed5a3",
+     "horn_adapter/f:horn_adapter.adapter_khafhb~07d20f22d69d",
+     "horn_adapter/f:horn_adapter.adapter_khafhb~7d6cddd476a4",
+     "horn_adapter/f:horn_adapter.adapter_khafhb~d10ec679db9a"
+    ],
+    "clamped": [
+     "spindle 19100 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Drill the four M3 tapping holes",
+    "time_s": 7.34,
+    "t0": 266.874,
+    "t1": 274.211,
+    "summary": "Drill horn_adapter/f:horn_adapter.adapter_khafhb~9844bcaed5a3, horn_adapter/f:horn_adapter.adapter_khafhb~07d20f22d69d, horn_adapter/f:horn_adapter.adapter_khafhb~7d6cddd476a4, horn_adapter/f:horn_adapter.adapter_khafhb~d10ec679db9a with T3 2.5 mm drill, 7 s"
+   },
+   {
+    "index": 4,
+    "setup": "top",
+    "op": "drill",
+    "plain": "Drill",
+    "tool": "T4",
+    "tool_plain": "3.4 mm drill",
+    "tool_diameter_mm": 3.4,
+    "rpm": 10000.0,
+    "feed_mm_min": 680.0,
+    "plunge_mm_min": 680.0,
+    "faces": [
+     "horn_adapter/f:horn_adapter.adapter_pdijib~9c41fb3cf003"
+    ],
+    "clamped": [
+     "spindle 14040 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Drill the screw's clearance hole",
+    "time_s": 1.47,
+    "t0": 274.211,
+    "t1": 275.684,
+    "summary": "Drill horn_adapter/f:horn_adapter.adapter_pdijib~9c41fb3cf003 with T4 3.4 mm drill, 1 s"
+   },
+   {
+    "index": 5,
+    "setup": "top",
+    "op": "profile",
+    "plain": "Profile",
+    "tool": "T1",
+    "tool_plain": "6 mm flat",
+    "tool_diameter_mm": 6.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 1200.0,
+    "plunge_mm_min": 360.0,
+    "faces": [],
+    "clamped": [
+     "spindle 13260 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Cut the outline free",
+    "time_s": 25.86,
+    "t0": 275.684,
+    "t1": 301.54,
+    "summary": "Profile with T1 6 mm flat, 26 s"
+   }
+  ],
+  "posts": [
+   {
+    "setup": "bottom",
+    "file": "cam/horn_adapter/horn_adapter.bottom.ngc",
+    "post": "linuxcnc",
+    "tool": null
+   },
+   {
+    "setup": "top",
+    "file": "cam/horn_adapter/horn_adapter.top.ngc",
+    "post": "linuxcnc",
+    "tool": null
+   }
+  ],
+  "assumed": [],
+  "safety": "Generated by text-to-cad with FreeCAD; not proven on a machine. Air-cut or single-block it first, and check the work offset and every tool length.",
+  "timings": {
+   "total_s": 22.9982
+  }
+ },
+ "occurrence": "horn_adapter/horn_adapter",
+ "written": [
+  "cam/horn_adapter/result.json",
+  "cam/horn_adapter/result.glb",
+  "cam/horn_adapter/horn_adapter.bottom.ngc",
+  "cam/horn_adapter/horn_adapter.top.ngc"
+ ],
+ "faces": [],
+ "holes": [],
+ "floors": []
+}

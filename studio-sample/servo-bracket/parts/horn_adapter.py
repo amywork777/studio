@@ -4,8 +4,8 @@ the servo's horn screw, with four M3 tapped holes to bolt an arm or a load to. I
 the servo's output axis."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import SERVO_SPLINE
 

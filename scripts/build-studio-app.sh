@@ -114,8 +114,10 @@ if [ "$platform" = win ]; then
 else
   cp -R "$(cd "$(dirname "$python")/.." && pwd -P)" "$BUNDLE/python"
 fi
-# The library with its kernel (`cad[build123d]`, which brings netgen for FEA), the server (its
-# packaged runtime, which bundle.sh just built) and the agent apps' stdio transport, `cad-mcp`.
+# The library with its kernel and the integrations a part, a strength check and a manufacturing
+# check run on (`cad[build123d,netgen,calculix,trimesh]`: 0.11 counts an integration present only when
+# its extra is installed, else it makes an environment for it), the server (its packaged runtime,
+# which bundle.sh just built) and the agent apps' stdio transport, `cad-mcp`.
 wheel_url() {
   local wheel
   wheel="$(ls "$work"/"$1"-*.whl)"
@@ -128,59 +130,39 @@ done
 uv pip freeze --python "$(native "$venv_python")" | grep -v -E '^-e |^cad(-server|-mcp)?==|^ziglang' >"$work/constraints.txt"
 uv pip install --python "$(native "$bundle_python")" --break-system-packages \
   -c "$(native "$work/constraints.txt")" \
-  "cad[build123d] @ $(wheel_url cad)" "cad-server @ $(wheel_url cad_server)" "cad-mcp @ $(wheel_url cad_mcp)"
-"$bundle_python" -c "import cad_mcp.shim, cad_server.cli, OCP, netgen"
+  "cad[build123d,netgen,calculix,trimesh] @ $(wheel_url cad)" "cad-server @ $(wheel_url cad_server)" "cad-mcp @ $(wheel_url cad_mcp)"
+"$bundle_python" -c "import cad_mcp.shim, cad_server.cli, OCP, netgen, cad_ccx, trimesh"
+# An integration made on first use (kicad's) installs the library again in an environment of its own,
+# from the archive its record names (direct_url.json): here the build's wheel, gone once the build ends.
+# So the app keeps the library's wheel (`wheels`, which it names to the CAD tools as
+# CAD_UPDATE_FIND_LINKS, studioAppBundle.ts) and the records go: `cad==<version>` then resolves to that
+# wheel, Studio's text-to-cad, before the index's.
+mkdir -p "$BUNDLE/wheels"
+cp "$work"/cad-*.whl "$BUNDLE/wheels/"
+"$bundle_python" - <<'PY'
+from importlib.metadata import distribution
 
-step "Adding the FEA solver"
-# CalculiX from conda-forge, which moves with its folder; the app points the CAD tools at it (CAD_CCX,
-# apps/desktop/src/studio/studioAppBundle.ts), so a strength check needs nothing installed.
-# micromamba fetches it: this machine's, else its one-file build, kept in the work folder.
-if command -v micromamba >/dev/null 2>&1; then
-  mamba=micromamba
-else
-  mamba_platform=osx-arm64 mamba_program=bin/micromamba
-  [ "$platform" = win ] && mamba_platform=win-64 mamba_program=Library/bin/micromamba.exe
-  curl -fsSL "https://micro.mamba.pm/api/micromamba/$mamba_platform/latest" | tar -xj -C "$work" "$mamba_program"
-  mamba="$work/$mamba_program"
-fi
-# Windows's conda-forge BLAS is Intel's MKL by default, 500 MB more than OpenBLAS.
-blas=()
-[ "$platform" = win ] && blas=("libblas=*=*openblas")
-solver="$BUNDLE/calculix"
-MAMBA_ROOT_PREFIX="$(native "$work/mamba")" "$mamba" create -y -q -p "$(native "$solver")" \
-  -c conda-forge "calculix>=2.20" ${blas[@]+"${blas[@]}"}
-# Only the program and its libraries go in the app.
-for unused in conda-meta include share Library/include Library/share; do rm -rf "${solver:?}/$unused"; done
-if [ "$platform" = win ]; then ccx="$solver/Library/bin/ccx.exe"; else ccx="$solver/bin/ccx"; fi
-if [ "$platform" = win ] && [ -d "$solver/Library/mingw-w64/bin" ]; then
-  # Windows finds a program's DLLs beside it, and conda-forge files ARPACK's in mingw-w64\bin.
-  for dll in "$solver"/Library/mingw-w64/bin/*.dll; do
-    [ -e "$solver/Library/bin/${dll##*/}" ] || cp "$dll" "$solver/Library/bin/"
-  done
-  rm -rf "$solver/Library/mingw-w64"
-fi
-if [ "$platform" = mac ]; then
-  # Of its libraries, only those ccx loads: conda gives one OpenBLAS a dozen names, and each link
-  # becomes a 13 MB copy once the bundle's links are made files below.
-  loads() { otool -L "$1" | awk 'NR > 1 && $1 ~ /^@rpath\// { sub("@rpath/", "", $1); print $1 }'; }
-  keep=" " todo="$(loads "$ccx")"
-  while [ -n "$todo" ]; do
-    next=""
-    for lib in $todo; do
-      case "$keep" in *" $lib "*) continue ;; esac
-      keep="$keep$lib "
-      # A kept name that links to another becomes that file, which goes with the rest below.
-      [ -L "$solver/lib/$lib" ] && cp -L "$solver/lib/$lib" "$solver/lib/$lib.real" &&
-        mv -f "$solver/lib/$lib.real" "$solver/lib/$lib"
-      next="$next $(loads "$solver/lib/$lib")"
-    done
-    todo="$next"
-  done
-  for file in "$solver"/lib/*; do
-    case "$keep" in *" ${file##*/} "*) ;; *) rm -rf "$file" ;; esac
-  done
-fi
-# `ccx -v` prints its version and exits 201.
+for name in ("cad", "cad-server", "cad-mcp"):
+    found = distribution(name)
+    for file in found.files or ():
+        if file.name != "direct_url.json":
+            continue
+        record = found.locate_file(file)
+        record.unlink(missing_ok=True)
+        listing = record.with_name("RECORD")
+        kept = [line for line in listing.read_text(encoding="utf-8").splitlines(keepends=True)
+                if not line.startswith(f"{record.parent.name}/direct_url.json,")]
+        listing.write_text("".join(kept), encoding="utf-8")
+PY
+"$bundle_python" -c "
+from importlib.metadata import distribution
+left = [name for name in ('cad', 'cad-server', 'cad-mcp') if distribution(name).read_text('direct_url.json')]
+assert not left, f'still named by a build wheel: {left}'"
+
+# The FEA solver is cad[calculix]'s own CalculiX (the cad-ccx package), which carries its libraries
+# and moves with the bundle's Python. `ccx -v` prints its version and exits 201.
+ccx="$("$bundle_python" -c "import cad_ccx; print(cad_ccx.executable())" | tr -d '\r')"
+[ "$platform" = win ] && ccx="$(cygpath -u "$ccx")"
 ccx_says="$("$ccx" -v 2>&1 || true)"
 case "$ccx_says" in
   *"Version 2."*) ;;
@@ -195,6 +177,11 @@ done
 step "Laying out the CAD plugin"
 text_to_cad="$(tr -d '[:space:]' <"$CAD/VERSION")"
 "$bundle_python" "$(native "$ROOT/scripts/studio-app-plugin.py")" "$(native "$CAD")" "$(native "$BUNDLE/marketplace")"
+# Studio's law 13 (AGENTS.md): every skill of text-to-cad's ships in the app.
+skills_of() { find "$1" -mindepth 2 -maxdepth 2 -name SKILL.md | awk -F/ '{print $(NF-1)}' | sort; }
+# text-to-cad's skills (law 13) and Studio's job skills (scripts/studio_job_skills.py), all of them.
+left_out="$(comm -23 <(cat <(skills_of "$CAD/skills") <(skills_of "$ROOT/studio-job-skills") | sort) <(skills_of "$BUNDLE"/marketplace/plugins/*/skills))"
+[ -z "$left_out" ] || stop "The app's CAD plugin leaves out these skills: $(echo $left_out)"
 # The Electron profile's folder is named by the app's id, which no other app shares; a folder
 # called "studio" could be any app's of that name.
 # A build sends anonymous usage counts, once the person says yes, to Studio's usage receiver
@@ -228,8 +215,9 @@ cd "$ROOT"
 T3CODE_DESKTOP_SIGNED="$signed" T3CODE_DESKTOP_STUDIO_BUNDLE="$(native "$BUNDLE")" VITE_APP_BASE_NAME=Studio \
   APP_VERSION="$VERSION" T3CODE_BRAND_DIR="$(native "$ROOT/brand")" \
   node scripts/build-desktop-artifact.ts --platform "$platform" --target "$target" --arch "$arch" --build-version "$VERSION"
-# A build whose pages say another version would count every use under the wrong release.
-grep -rqF --include='*.js' "\"$VERSION\"" "$ROOT/apps/server/dist/client/assets" ||
+# A build whose pages say another version would count every use under the wrong release. The
+# minifier writes the version as a template string (`0.1.5`), so either quote counts.
+grep -rqF --include='*.js' -e "\"$VERSION\"" -e "\`$VERSION\`" "$ROOT/apps/server/dist/client/assets" ||
   stop "The app's pages do not say version $VERSION: APP_VERSION did not reach the web build."
 
 if [ "$platform" = win ]; then

@@ -53,11 +53,14 @@ step "Downloading the desktop app's runtime (Electron)"
 step "Setting up the CAD plugin's Python"
 cd "$CAD"
 # 3.14, which the CAD packages need: a .venv made on an older Python is made again. Its
-# requirements are the library with its kernel (FEA's netgen too), the server and cad-mcp.
+# requirements are the library with its kernel, the server and cad-mcp.
 if ! { [ -x .venv/bin/python ] && .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 14))'; }; then
   uv venv --clear --python 3.14 .venv
 fi
 uv pip install --python .venv/bin/python -r requirements-dev.txt
+# With strength checks' mesher and solver (netgen, cad-ccx's CalculiX), as the Mac app has them, so a
+# check runs here at once rather than making an environment for them first.
+uv pip install --python .venv/bin/python --editable "./packages/cad[build123d,trimesh,netgen,calculix]"
 
 step "Building the CAD plugin's viewer and runtime"
 npm ci

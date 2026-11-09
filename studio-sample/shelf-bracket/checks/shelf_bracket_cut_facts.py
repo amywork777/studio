@@ -1,9 +1,12 @@
+# /// script
+# dependencies = ["cad[build123d]"]
+# ///
 """Facts from the cut file for the SendCutSend preflight: measurements only, no pass or fail."""
 import sys
 import numpy as np
 import ezdxf
 from ezdxf import bbox
-from cadgen.engine.export.dxf import validate_dxf_file
+from cad.engine.export.dxf import validate_dxf_file
 
 path = "cut/shelf_bracket_cut.dxf"
 doc = ezdxf.readfile(path); msp = doc.modelspace()

@@ -1,0 +1,277 @@
+{
+ "ok": true,
+ "path": "parts/servo_bracket.step",
+ "findings": [
+  {
+   "severity": "warning",
+   "code": "solver_note",
+   "message": "234063 degrees of freedom: expect a slow solve; a larger mesh.size_mm is usually enough",
+   "location": null,
+   "hint": null
+  }
+ ],
+ "summary": "solved servo_bracket/servo_bracket of servo_bracket.step: peak 48.0812 MPa, safety factor 3.729",
+ "measurements": {
+  "max_von_mises_MPa": 48.0812,
+  "max_von_mises_gauss_MPa": 46.2791,
+  "max_von_mises_at_mm": [
+   20.712,
+   12.309,
+   0.0
+  ],
+  "yield_MPa": 179.3,
+  "max_displacement_mm": 0.140941,
+  "max_displacement_at_mm": [
+   29.0,
+   40.0,
+   0.0
+  ],
+  "applied_force_N": [
+   0.0,
+   0.0,
+   -20.0
+  ],
+  "reaction_force_N": [
+   0.0,
+   -0.0,
+   20.0
+  ],
+  "deformation_scale": 29.0,
+  "safety_factor": 3.729,
+  "checks": [
+   {
+    "kind": "stress",
+    "label": "Strength, 20 N down at the horn through the servo's 4 screws",
+    "value": 48.0812,
+    "limit": 179.3,
+    "unit": "MPa",
+    "ratio": 0.268168,
+    "close_at": 0.5,
+    "margin": 2.0,
+    "status": "passes",
+    "where": {
+     "ref": "servo_bracket/f:servo_bracket.bracket_kdabdf~01bdc045c495",
+     "at": [
+      20.712,
+      12.309,
+      0.0
+     ]
+    }
+   }
+  ],
+  "mesh": {
+   "elements": 51621,
+   "straightened": 0,
+   "nodes": 78021,
+   "dofs": 234063,
+   "size_mm": 2.0494,
+   "order": 2,
+   "mesher": "netgen",
+   "solver": "calculix 2.23 (C3D10)"
+  },
+  "timings": {
+   "mesh_s": 4.483,
+   "solve_s": 75.506,
+   "stress_s": 0.067
+  },
+  "study": {
+   "material": {
+    "name": "aluminium-5052-h32",
+    "E_MPa": 68258,
+    "nu": 0.33,
+    "yield_MPa": 179.3,
+    "density_t_per_mm3": 2.713e-09
+   },
+   "fixtures": [
+    {
+     "faces": [
+      "servo_bracket/f:servo_bracket.bracket_aijloh~0dfaef4410be",
+      "servo_bracket/f:servo_bracket.bracket_aijloh~f72eec084300"
+     ],
+     "type": "fixed"
+    },
+    {
+     "faces": [
+      "servo_bracket/f:servo_bracket.bracket_kpkmmn~22577347f833"
+     ],
+     "type": "roller"
+    }
+   ],
+   "loads": [
+    {
+     "faces": [
+      "servo_bracket/f:servo_bracket.bracket_ncbhei~21f6bfd86b93",
+      "servo_bracket/f:servo_bracket.bracket_ncbhei~722412049df2"
+     ],
+     "type": "force",
+     "vector_N": [
+      0,
+      0,
+      -14.194
+     ]
+    },
+    {
+     "faces": [
+      "servo_bracket/f:servo_bracket.bracket_ncbhei~f907b4d4fef2",
+      "servo_bracket/f:servo_bracket.bracket_ncbhei~7be0d6d30ae1"
+     ],
+     "type": "force",
+     "vector_N": [
+      0,
+      0,
+      -5.806
+     ]
+    }
+   ],
+   "mesh": {
+    "refine": [
+     {
+      "center_mm": [
+       20.6,
+       12.4,
+       -1.0
+      ],
+      "radius_mm": 2.0,
+      "size_mm": 0.17
+     },
+     {
+      "center_mm": [
+       -20.6,
+       12.4,
+       -1.0
+      ],
+      "radius_mm": 2.0,
+      "size_mm": 0.17
+     }
+    ]
+   },
+   "margin": 2,
+   "checks": [
+    {
+     "kind": "stress",
+     "label": "Strength, 20 N down at the horn through the servo's 4 screws"
+    }
+   ]
+  },
+  "material": {
+   "name": "aluminium-5052-h32",
+   "E_MPa": 68258.0,
+   "nu": 0.33,
+   "yield_MPa": 179.3,
+   "density_t_per_mm3": 2.713e-09,
+   "source": "study"
+  },
+  "fixtures": [
+   {
+    "faces": [
+     "servo_bracket/f:servo_bracket.bracket_aijloh~0dfaef4410be",
+     "servo_bracket/f:servo_bracket.bracket_aijloh~f72eec084300"
+    ],
+    "type": "fixed",
+    "reaction_N": [
+     0.0,
+     -1.2113,
+     20.0
+    ]
+   },
+   {
+    "faces": [
+     "servo_bracket/f:servo_bracket.bracket_kpkmmn~22577347f833"
+    ],
+    "type": "roller",
+    "reaction_N": [
+     0.0,
+     1.2113,
+     0.0
+    ]
+   }
+  ],
+  "connections": [],
+  "overlaps": [],
+  "refined": null,
+  "named_faces": {
+   "servo_bracket/f:servo_bracket.bracket_aijloh~0dfaef4410be": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_aijloh~0dfaef4410be",
+    "ordinal": 13,
+    "area": 28.274333882306273,
+    "center": [
+     -26.000000000000146,
+     1.0,
+     -16.0
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_aijloh~f72eec084300": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_aijloh~f72eec084300",
+    "ordinal": 14,
+    "area": 28.274333882306273,
+    "center": [
+     25.99999999999985,
+     1.0,
+     -16.0
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_kpkmmn~22577347f833": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_kpkmmn~22577347f833",
+    "ordinal": 5,
+    "area": 1822.5685413235578,
+    "center": [
+     2.3314683517128287e-15,
+     -7.395570986446986e-32,
+     -17.47902474398984
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_ncbhei~21f6bfd86b93": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_ncbhei~21f6bfd86b93",
+    "ordinal": 19,
+    "area": 15.707963267947932,
+    "center": [
+     23.72499999999992,
+     27.05,
+     -1.0
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_ncbhei~722412049df2": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_ncbhei~722412049df2",
+    "ordinal": 28,
+    "area": 15.707963267947932,
+    "center": [
+     23.72499999999992,
+     17.55,
+     -1.0
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_ncbhei~f907b4d4fef2": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_ncbhei~f907b4d4fef2",
+    "ordinal": 17,
+    "area": 15.707963267947932,
+    "center": [
+     -23.725000000000083,
+     27.05,
+     -1.0
+    ]
+   },
+   "servo_bracket/f:servo_bracket.bracket_ncbhei~7be0d6d30ae1": {
+    "ref": "servo_bracket/f:servo_bracket.bracket_ncbhei~7be0d6d30ae1",
+    "ordinal": 18,
+    "area": 15.707963267947932,
+    "center": [
+     -23.725000000000083,
+     17.55,
+     -1.0
+    ]
+   }
+  }
+ },
+ "occurrence": "servo_bracket/servo_bracket",
+ "written": [
+  "studies/servo_bracket/result.json",
+  "studies/servo_bracket/result.glb",
+  "studies/servo_bracket/result.vtu",
+  "studies/servo_bracket/stress.png",
+  "studies/servo_bracket/displacement.png"
+ ],
+ "contact_tolerance_mm": null,
+ "parts": [],
+ "pairs": [],
+ "faces": []
+}

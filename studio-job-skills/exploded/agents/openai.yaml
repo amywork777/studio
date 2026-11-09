@@ -1,0 +1,4 @@
+interface:
+  display_name: "Exploded view"
+  short_description: "Exploded-view PNGs that show how its parts go together."
+  default_prompt: "Use $exploded to make exploded-view pictures of the assembly that show how its parts go together."

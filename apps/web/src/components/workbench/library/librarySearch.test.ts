@@ -12,7 +12,7 @@ import {
 } from "./librarySearch";
 
 /** A display name that no document type's own words hold, so only the shown name can find it. */
-const DISPLAY_NAMES: Readonly<Record<string, string>> = { "dfam-check": "Printability review" };
+const DISPLAY_NAMES: Readonly<Record<string, string>> = { pcb: "Board layout" };
 
 const detail = (name: string): PluginSkillDetail => ({
   name,
@@ -21,7 +21,7 @@ const detail = (name: string): PluginSkillDetail => ({
   defaultPrompt: null,
 });
 
-const SKILLS = ["cad", "dfam-check", "engineering-drawing", "fea", "sendcutsend"];
+const SKILLS = ["cad", "engineering-drawing", "fea", "pcb", "sendcutsend"];
 
 /** text-to-cad, enabled, with the skills these searches reach. */
 const fixturePlugins: ReadonlyArray<InstalledPlugin> = [
@@ -57,12 +57,12 @@ describe("filterLibrary", () => {
 
   it("finds a document type by the skill that makes it", () => {
     expect(found("sendcutsend")).toContain("doc:order");
-    expect(found("dfam-check")).toContain("doc:manufacturing-check");
+    expect(found("pcb")).toContain("doc:circuit-board");
   });
 
   it("finds a document type by its skill's name as the page shows it, and by its own name", () => {
-    expect(found("printability review")).toEqual(
-      expect.arrayContaining(["doc:manufacturing-check", "skill:text-to-cad/dfam-check"]),
+    expect(found("board layout")).toEqual(
+      expect.arrayContaining(["doc:circuit-board", "skill:text-to-cad/pcb"]),
     );
     expect(found("fea")).toContain("doc:simulation");
     // The job's one name stands for its skill, whatever the skill's own files say.
@@ -128,10 +128,20 @@ describe("findInLibrary", () => {
 describe("the Toolbox's shelves", () => {
   it("stands each skill on the shelf of the work it does", () => {
     expect(skillGroup("cad")).toBe("New");
-    expect(skillGroup("urdf")).toBe("New");
+    expect(skillGroup("pcb")).toBe("New");
+    expect(skillGroup("robot-simulation")).toBe("New");
+    expect(skillGroup("print3d")).toBe("Manufacture");
     expect(skillGroup("fea")).toBe("Evaluate");
     expect(skillGroup("cam")).toBe("Manufacture");
     expect(skillGroup("work-instructions")).toBe("Document");
+  });
+
+  it("stands each job skill on the shelf of its job's menu", () => {
+    expect(skillGroup("fdm")).toBe("Manufacture");
+    expect(skillGroup("export")).toBe("Manufacture");
+    expect(skillGroup("fit")).toBe("Evaluate");
+    expect(skillGroup("board-check")).toBe("Evaluate");
+    expect(skillGroup("exploded")).toBe("Document");
   });
 
   it("files a type no skill makes as a document, not under New", () => {
@@ -145,7 +155,6 @@ describe("libraryGroup", () => {
     expect(libraryGroup(doc("doc:part"))).toBe("New");
     expect(libraryGroup(doc("doc:prd"))).toBe("New");
     expect(libraryGroup(doc("doc:simulation"))).toBe("Evaluate");
-    // Its toolpaths are in Manufacture and its results in Evaluate: it shows in the first.
     expect(libraryGroup(doc("doc:cam-job"))).toBe("Manufacture");
     expect(libraryGroup(doc("doc:drawing"))).toBe("Document");
   });

@@ -6,7 +6,7 @@ page, as parts/shelf_bracket_sheet_metal.md and cut/shelf_bracket_sendcutsend.md
 
 from math import atan2, cos, pi, sin
 
-from cadgen.eng_drawing import Sheet, eng_drawing
+from cad.eng_drawing import Sheet, eng_drawing
 
 from shelf_bracket import (
     ARM_LENGTH,

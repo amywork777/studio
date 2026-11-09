@@ -1,6 +1,6 @@
 # Motor plate: 3D PMI check
 
-Measured on the plate's model (`parts/motor_plate.py`) and its AP242 STEP (`parts/motor_plate.step`, written by `cadgen run exports.py`) with `cadgen run checks/motor_plate_pmi.py`.
+Measured on the plate's model (`parts/motor_plate.py`) and its AP242 STEP (`parts/motor_plate.step`, written by `cad run exports.py`) with `cad run checks/motor_plate_pmi.py`.
 
 | Check | Measured | Expected | Result |
 | --- | --- | --- | --- |

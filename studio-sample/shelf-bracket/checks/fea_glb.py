@@ -1,4 +1,4 @@
-"""Read a cadgen FEA GLB: positions, displacement and von Mises per vertex; report the stress away from points."""
+"""Read a strength study's result.glb: positions, displacement and von Mises per vertex; report the stress away from points."""
 import json, struct, sys
 import numpy as np
 

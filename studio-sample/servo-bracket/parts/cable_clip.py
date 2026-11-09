@@ -3,8 +3,8 @@ servo. The lead is pressed into the channel through its opening. The channel run
 standing up, the way it is drawn, with nothing overhanging. Origin: the centre of the bonded face; +Y out of it."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 BASE_WIDTH = 8.0
 HEIGHT = 8.0  # along the channel

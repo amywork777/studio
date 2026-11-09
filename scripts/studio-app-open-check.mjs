@@ -25,7 +25,7 @@ const EXIT_TIMEOUT_MS = 15_000;
 const HOME_REMOVAL_ATTEMPTS = 20;
 const HOME_REMOVAL_WAIT_MS = 2_000;
 const HOME_GONE_CHECKS = 5;
-// Beside the app's 3345, a checkout's 3346 and the app check's 3347.
+// Beside the app's 3345 and a checkout's 3346; the app check takes a free port of its own.
 const CHECK_ENGINE_PORT = "3348";
 const ERROR_SCREEN = "Something went wrong.";
 

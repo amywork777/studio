@@ -1,6 +1,6 @@
 """Checks the motor plate against its named sizes: its size, its holes and slots, its pocket, its mass, and that it
 is one sound solid. It calls the plate's model, so it checks the plate as it is now. Run from the project root with
-`cadgen run checks/motor_plate_geometry.py`; writes checks/motor_plate_geometry.md."""
+`cad run checks/motor_plate_geometry.py`; writes checks/motor_plate_geometry.md."""
 
 import sys
 from pathlib import Path
@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "parts"))
 
 import build123d as bd  # noqa: E402
-from cadgen.geometry import topology_errors  # noqa: E402
+from cad.build123d import topology_errors  # noqa: E402
 
 import motor_plate as mp  # noqa: E402
 from sizes import MOTOR_BOLT_PATTERN  # noqa: E402
@@ -74,7 +74,7 @@ rows.append(("Mass, 6061-T6 at 2.70 g/cm3", "%.1f g" % mass, "", ""))
 rows.append(("Saved against a plain 110 x 56 x 6 block", "%.1f g (%.0f %%)" % (solid_block - mass, 100 * (1 - mass / solid_block)), "", ""))
 
 lines = ["# Motor plate: geometry check", "",
-         "Measured on the plate's model (`parts/motor_plate.py`) with `cadgen run checks/motor_plate_geometry.py`, against the named sizes in "
+         "Measured on the plate's model (`parts/motor_plate.py`) with `cad run checks/motor_plate_geometry.py`, against the named sizes in "
          "`parts/motor_plate.py` and `parts/sizes.py`. Millimetres.", "",
          "| Check | Measured | Expected | Result |", "| --- | --- | --- | --- |"]
 lines += [f"| {a} | {b} | {c} | {d} |" for a, b, c, d in rows]

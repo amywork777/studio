@@ -52,6 +52,19 @@ describe("design changes", () => {
     ]);
   });
 
+  it("opens a 0.11 study's answer as the result model in its folder", () => {
+    const { changes } = designChanges([
+      "studies/tip-load/result.json",
+      "studies/tip-load/result.glb",
+    ]);
+    expect(changes.map((change) => [change.label, change.kind, change.open])).toEqual([
+      ["Tip load FEA study", "FEA study", "studies/tip-load/result.glb"],
+    ]);
+    expect(
+      designChanges(["studies/tip-load/result.json"]).changes.map((change) => change.open),
+    ).toEqual(["studies/tip-load/result.glb"]);
+  });
+
   it("names a lone aspect with its part, and opens a study's numbers as its model", () => {
     const { changes } = designChanges([
       "drawings/bracket.dxf",

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for resin printing"
+  short_description: "Findings for resin printing, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $resin to check the part for resin printing: supports, thin walls, small holes and fine features, and the best orientation. Tell me what to change."

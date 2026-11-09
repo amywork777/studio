@@ -30,14 +30,15 @@ export interface ActionSectionDef {
 }
 
 /**
- * The sections, as text-to-cad's skills cover the work: `fea` for strength, `cad` for fit,
- * motion, mass, pictures and video and for exporting STEP, STL and 3MF, `dfam-check` for each way of printing (FDM, SLA/DLP, SLS and
- * MJF, metal powder bed), `dfm` for machining, sheet metal and molding, and `urdf`, `sdf` and `srdf` for robot descriptions.
+ * The sections, as text-to-cad's skills cover the work: `fea` for strength and its results; `cad`
+ * for fit, motion, mass, pictures and video, exporting STEP, STL, 3MF and DXF, and checking each way
+ * of making it (printing, machining, sheet metal, molding); `print3d` for slicing and printing; `cam`
+ * for toolpaths and its jobs; `pcb` for circuit boards; and `robot-simulation` for robot files.
  */
 export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
   { id: "simulation", group: "Evaluate", title: "Simulation" },
   { id: "fit-mass", group: "Evaluate", title: "Fit, motion and mass" },
-  { id: "results", group: "Evaluate", title: "Results" },
+  { id: "board-checks", group: "Evaluate", title: "Circuit board" },
   {
     id: "printing",
     group: "Manufacture",
@@ -62,6 +63,7 @@ export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
     processes: ["Sheet metal", "Laser or waterjet cutting"],
   },
   { id: "files", group: "Manufacture", title: "Files and off-the-shelf parts" },
+  { id: "board-files", group: "Manufacture", title: "Circuit board" },
   { id: "drawings", group: "Document", title: "Drawings" },
   { id: "building", group: "Document", title: "Building it" },
   { id: "pictures", group: "Document", title: "Pictures and video" },
@@ -97,7 +99,7 @@ export interface HardwareAction {
 const SOLID = ["Part", "Assembly"];
 const PRINTABLE = ["Part", "Assembly", "Mesh"];
 
-/** A printability check by the `dfam-check` skill. */
+/** A printability check by the `cad` skill's manufacturing check for printing. */
 const printCheck = (
   id: string,
   section: string,
@@ -109,7 +111,7 @@ const printCheck = (
   section,
   label: `Check for ${method}`,
   gets: `Findings for ${method}, each passing, to fix or to check, with the fix.`,
-  skill: "dfam-check",
+  skill: "cad",
   kinds: PRINTABLE,
   checks: true,
   prompt: (file) => `Check ${file} for ${method}: ${looks}. Tell me what to change.`,
@@ -124,10 +126,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     label: "Strength under load",
     gets: "A study with the stress plot, the peak stress, the safety factor and a pass or fail.",
     skill: "fea",
-    kinds: SOLID,
+    kinds: [...SOLID, "FEA study", "Result"],
     checks: true,
     prompt: (file) =>
-      `Check ${file} for strength under its working load. Ask me for the loads, supports and material you need, then tell me where it is weakest and what to change.`,
+      `Check ${file} for strength under its working load. If it is a study already, walk me through its results; if not, ask me for the loads, supports and material you need. Then tell me where it is weakest, by how much, and what to change.`,
     short: (name) => `Check ${name} under load`,
   },
   {
@@ -169,32 +171,6 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
       `Tell me the weight, volume and center of mass of ${file} in the project's material, and what makes up most of the weight.`,
     short: (name) => `Weight of ${name}`,
   },
-  {
-    id: "fea-results",
-    group: "Evaluate",
-    section: "results",
-    label: "Explain these results",
-    gets: "A walk through the results: what fails, by how much, and what to change.",
-    skill: "fea",
-    kinds: ["FEA study", "Result"],
-    checks: true,
-    prompt: (file) =>
-      `Walk me through the results in ${file} and tell me what fails, by how much, and what to change.`,
-    short: (name) => `Explain the ${name} study`,
-  },
-  {
-    id: "cam-results",
-    group: "Evaluate",
-    section: "results",
-    label: "Explain this job",
-    gets: "A walk through the job: its cycle time, its tools and what to fix before cutting.",
-    skill: "cam",
-    kinds: ["CAM job"],
-    checks: true,
-    prompt: (file) =>
-      `Walk me through ${file} and tell me the cycle time, the tools, and anything to fix before cutting.`,
-    short: (name) => `Explain the ${name} job`,
-  },
   printCheck(
     "fdm",
     "printing",
@@ -205,26 +181,14 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     id: "slice",
     group: "Manufacture",
     section: "printing",
-    label: "Slice for FDM",
-    gets: "Sliced G-code from OrcaSlicer, checked against your printer and filament.",
-    skill: "gcode",
-    kinds: PRINTABLE,
-    checks: false,
-    prompt: (file) => `Slice ${file} for FDM printing and check the G-code.`,
-    short: (name) => `Slice ${name} for printing`,
-  },
-  {
-    id: "bambu",
-    group: "Manufacture",
-    section: "printing",
-    label: "Print on a Bambu printer",
-    gets: "The print opened in Bambu Connect or Bambu Studio, for you to check and start.",
-    skill: "bambu-labs",
+    label: "Slice and print",
+    gets: "G-code from OrcaSlicer checked against your printer, or the print opened on your Bambu.",
+    skill: "print3d",
     kinds: PRINTABLE,
     checks: false,
     prompt: (file) =>
-      `Slice ${file} and get it ready on my Bambu printer. Check with me before the print starts.`,
-    short: (name) => `Print ${name} on the Bambu`,
+      `Slice ${file} for FDM printing and check the G-code. Ask me which printer and filament; on a Bambu printer, get the print ready there and check with me before it starts.`,
+    short: (name) => `Slice ${name} for printing`,
   },
   printCheck(
     "resin",
@@ -232,18 +196,19 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     "resin printing",
     "supports, thin walls, small holes and fine features, and the best orientation",
   ),
-  printCheck(
-    "sls",
-    "printing",
-    "SLS printing",
-    "wall thickness, small holes and features, and powder trapped inside",
-  ),
-  printCheck(
-    "mjf",
-    "printing",
-    "MJF printing",
-    "wall thickness, small holes and features, and powder trapped inside",
-  ),
+  {
+    id: "powder",
+    group: "Manufacture",
+    section: "printing",
+    label: "Check for powder printing",
+    gets: "Findings for SLS or MJF printing, each passing, to fix or to check, with the fix.",
+    skill: "cad",
+    kinds: PRINTABLE,
+    checks: true,
+    prompt: (file) =>
+      `Check ${file} for powder printing (SLS or MJF): wall thickness, small holes and features, and powder trapped inside. Tell me what to change.`,
+    short: (name) => `Check ${name} for powder printing`,
+  },
   printCheck(
     "metal-print",
     "printing",
@@ -257,7 +222,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     process: "CNC machining",
     label: "Check for CNC machining",
     gets: "Findings for CNC machining, each passing, to fix or to check, with the fix.",
-    skill: "dfm",
+    skill: "cad",
     kinds: SOLID,
     checks: true,
     prompt: (file) =>
@@ -272,10 +237,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     label: "G-code for CNC",
     gets: "G-code for each setup, and its toolpaths to look over before cutting.",
     skill: "cam",
-    kinds: ["Part"],
+    kinds: ["Part", "CAM job"],
     checks: false,
     prompt: (file) =>
-      `Plan the toolpaths for ${file} and post its G-code. Ask me for the machine, stock, tools and workholding you need.`,
+      `Plan the toolpaths for ${file} and post its G-code. If it is a CAM job already, walk me through its cycle time, its tools and anything to fix before cutting; if not, ask me for the machine, stock, tools and workholding you need.`,
     short: (name) => `Post G-code for ${name}`,
   },
   {
@@ -284,7 +249,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "sheet",
     label: "Check as sheet metal",
     gets: "Findings for sheet metal, each passing, to fix or to check, with the fix.",
-    skill: "dfm",
+    skill: "cad",
     kinds: ["Part"],
     checks: true,
     prompt: (file) =>
@@ -292,28 +257,16 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Check ${name} as sheet metal`,
   },
   {
-    id: "flat-pattern",
-    group: "Manufacture",
-    section: "sheet",
-    label: "Flat pattern DXF",
-    gets: "The flat pattern as a DXF, its bend lines on a layer of their own.",
-    skill: "dxf",
-    kinds: ["Part"],
-    checks: false,
-    prompt: (file) =>
-      `Make the flat pattern of ${file} as a DXF with its bend lines, ready to cut.`,
-    short: (name) => `Flat pattern of ${name}`,
-  },
-  {
     id: "dxf",
     group: "Manufacture",
     section: "sheet",
-    label: "Cut-ready DXF",
-    gets: "A DXF of the outline and holes to cut, each cut closed and drawn once.",
-    skill: "dxf",
+    label: "Flat pattern DXF",
+    gets: "A DXF ready to cut: the outline and holes, and any bend lines on a layer of their own.",
+    skill: "cad",
     kinds: ["Part", "Drawing"],
     checks: false,
-    prompt: (file) => `Make a cut-ready DXF of ${file} for laser or waterjet cutting.`,
+    prompt: (file) =>
+      `Make a cut-ready DXF of ${file} for laser or waterjet cutting. If it is bent sheet metal, flatten it and put its bend lines on a layer of their own.`,
     short: (name) => `Make a cut file of ${name}`,
   },
   {
@@ -336,7 +289,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     process: "Injection molding",
     label: "Check for injection molding",
     gets: "Findings for injection molding, each passing, to fix or to check, with the fix.",
-    skill: "dfm",
+    skill: "cad",
     kinds: ["Part"],
     checks: true,
     prompt: (file) =>
@@ -348,8 +301,8 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     group: "Manufacture",
     section: "files",
     label: "Off-the-shelf parts",
-    gets: "Each part's STEP file from step.parts, checked against its record.",
-    skill: "step-parts",
+    gets: "Each part with where to buy it, and its STEP file where the maker offers one.",
+    skill: null,
     kinds: SOLID,
     checks: false,
     prompt: (file) =>
@@ -357,28 +310,68 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Find standard parts for ${name}`,
   },
   {
-    id: "export-step",
-    group: "Manufacture",
-    section: "files",
-    label: "STEP",
-    gets: "A STEP file, saved beside the part.",
-    skill: "cad",
-    kinds: SOLID,
-    checks: false,
-    prompt: (file) => `Export ${file} as STEP.`,
-    short: (name) => `Export ${name} as STEP`,
+    id: "board-check",
+    group: "Evaluate",
+    section: "board-checks",
+    label: "Board checks",
+    gets: "KiCad's rule checks, each finding with where it is on the board or schematic and the fix.",
+    skill: "pcb",
+    kinds: ["Board", "Schematic"],
+    checks: true,
+    prompt: (file) =>
+      `Run KiCad's rule checks on ${file}: the design rule check on a board, the electrical rule check on a schematic. Tell me each problem, where it is, and how to fix it.`,
+    short: (name) => `Check ${name}`,
   },
   {
-    id: "export-mesh",
+    id: "board-review",
+    group: "Evaluate",
+    section: "board-checks",
+    label: "Review before ordering",
+    gets: "A review against the fab's limits, decoupling, track widths for current and the parts list.",
+    skill: "pcb",
+    kinds: ["Board"],
+    checks: true,
+    prompt: (file) =>
+      `Review ${file} before I order it: the fab's limits, decoupling, track widths for the current they carry, and whether every part can be bought. Ask me which fab and what current you need.`,
+    short: (name) => `Review the ${name} board`,
+  },
+  {
+    id: "board-fab",
+    group: "Manufacture",
+    section: "board-files",
+    label: "Fabrication files",
+    gets: "Gerbers, drill files, the parts list and placement files, ready to upload to a fab.",
+    skill: "pcb",
+    kinds: ["Board"],
+    checks: false,
+    prompt: (file) =>
+      `Export the fabrication files for ${file}: gerbers, drill files, the parts list and the placement file. Ask me which fab it is for.`,
+    short: (name) => `Fabrication files for ${name}`,
+  },
+  {
+    id: "board-step",
+    group: "Manufacture",
+    section: "board-files",
+    label: "Board STEP",
+    gets: "The board with its parts as a STEP file, to design its enclosure around.",
+    skill: "pcb",
+    kinds: ["Board"],
+    checks: false,
+    prompt: (file) =>
+      `Export ${file} as a STEP file with its parts, to design an enclosure around.`,
+    short: (name) => `Export the ${name} board as STEP`,
+  },
+  {
+    id: "export",
     group: "Manufacture",
     section: "files",
-    label: "STL and 3MF",
-    gets: "An STL and a 3MF, saved beside the part.",
+    label: "Export",
+    gets: "STEP, STL and 3MF files, saved beside the part.",
     skill: "cad",
     kinds: SOLID,
     checks: false,
-    prompt: (file) => `Export ${file} as STL and 3MF.`,
-    short: (name) => `Export ${name} as STL and 3MF`,
+    prompt: (file) => `Export ${file} as STEP, STL and 3MF.`,
+    short: (name) => `Export ${name}`,
   },
   {
     id: "drawing",
@@ -496,41 +489,17 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Write up the results for ${name}`,
   },
   {
-    id: "urdf",
+    id: "robot-files",
     group: "Document",
     section: "robot",
-    label: "URDF",
-    gets: "A validated URDF with its links, joints, limits and a mesh for each link.",
-    skill: "urdf",
+    label: "Robot files",
+    gets: "A validated URDF with its links, joints, limits and meshes, and an SDF or SRDF if you want.",
+    skill: "robot-simulation",
     kinds: ["Part", "Assembly"],
     checks: false,
-    prompt: (file) => `Make a URDF for ${file} with its links, joints and limits.`,
-    short: (name) => `Describe ${name} as a robot`,
-  },
-  {
-    id: "sdf",
-    group: "Document",
-    section: "robot",
-    label: "SDF for Gazebo",
-    gets: "A validated SDF model for Gazebo, with its links, joints and meshes.",
-    skill: "sdf",
-    kinds: ["Assembly"],
-    checks: false,
-    prompt: (file) => `Make an SDF model of ${file} for simulating it in Gazebo.`,
-    short: (name) => `SDF model of ${name}`,
-  },
-  {
-    id: "srdf",
-    group: "Document",
-    section: "robot",
-    label: "SRDF for MoveIt",
-    gets: "A validated SRDF for MoveIt: planning groups, end effectors and collisions to ignore.",
-    skill: "srdf",
-    kinds: ["Assembly"],
-    checks: false,
     prompt: (file) =>
-      `Make a MoveIt SRDF for ${file}: its planning groups, end effectors and the collisions to ignore.`,
-    short: (name) => `MoveIt SRDF for ${name}`,
+      `Make a URDF for ${file} with its links, joints and limits. Ask me whether I also want an SDF for Gazebo or a MoveIt SRDF.`,
+    short: (name) => `Describe ${name} as a robot`,
   },
 ];
 

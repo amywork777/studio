@@ -1,6 +1,6 @@
 # Motor mount: fit check
 
-Measured on the motor mount's model (`assemblies/motor_mount.py`) with `cadgen run checks/motor_mount_fit.py`. Millimetres; the plate's underside is Z 0.
+Measured on the motor mount's model (`assemblies/motor_mount.py`) with `cad run checks/motor_mount_fit.py`. Millimetres; the plate's underside is Z 0.
 
 ## Overlaps between parts
 

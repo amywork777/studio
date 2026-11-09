@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for FDM printing"
+  short_description: "Findings for FDM printing, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $fdm to check the part for FDM printing: overhangs, thin walls, small holes, bridges and bed fit, and the best build orientation. Tell me what to change."

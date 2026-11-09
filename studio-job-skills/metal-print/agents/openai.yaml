@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for metal printing"
+  short_description: "Findings for metal printing, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $metal-print to check the part for metal printing: overhangs and supports, thin walls, small holes and bridges, and the best orientation. Tell me what to change."

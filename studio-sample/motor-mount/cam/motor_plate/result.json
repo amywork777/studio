@@ -1,0 +1,268 @@
+{
+ "ok": true,
+ "path": "parts/motor_plate.step",
+ "findings": [
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T2 6 mm flat: spindle 13260 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 2, operation 3",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T4 3.4 mm drill: spindle 14040 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 4",
+   "hint": "the machine's limit holds the table's number"
+  },
+  {
+   "severity": "warning",
+   "code": "clamped",
+   "message": "T3 4 mm flat: spindle 19890 rpm clamped to the machine's 10000 rpm",
+   "location": "operation 5",
+   "hint": "the machine's limit holds the table's number"
+  }
+ ],
+ "summary": "Ready to cut \u00b7 5 min \u00b7 4 tools",
+ "measurements": {
+  "verdict": {
+   "status": "ready",
+   "headline": "Ready to cut \u00b7 5 min \u00b7 4 tools",
+   "errors": 0,
+   "warnings": 3,
+   "duration_s": 313.26,
+   "tools": 4
+  },
+  "duration_s": 313.26,
+  "tools": [
+   "T1",
+   "T2",
+   "T4",
+   "T3"
+  ],
+  "tool_changes": {
+   "count": 4,
+   "order": [
+    "T1",
+    "T2",
+    "T4",
+    "T3",
+    "T1"
+   ]
+  },
+  "setups": [
+   {
+    "id": "top",
+    "plain": "top",
+    "orientation": "+Z",
+    "origin": "stock-top-center",
+    "origin_part_mm": [
+     0.0,
+     0.0,
+     7.0
+    ],
+    "matrix": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      1.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ],
+    "time_s": 313.26,
+    "t0": 0.0,
+    "t1": 313.258
+   }
+  ],
+  "post": "linuxcnc",
+  "machine": "Tormach 1100MX",
+  "material": "aluminum-6061",
+  "planner": "freecad 1.1.1",
+  "stock_mm": {
+   "min": [
+    -58.0,
+    -31.0,
+    -0.0
+   ],
+   "max": [
+    58.0,
+    31.0,
+    7.0
+   ]
+  },
+  "operations": [
+   {
+    "index": 0,
+    "setup": "top",
+    "op": "face",
+    "plain": "Face",
+    "tool": "T1",
+    "tool_plain": "10 mm flat",
+    "tool_diameter_mm": 10.0,
+    "rpm": 7960.0,
+    "feed_mm_min": 1462.0,
+    "plunge_mm_min": 430.0,
+    "faces": [
+     "motor_plate/f:motor_plate.plate_pjdcfj~1c420d81fdc7"
+    ],
+    "name": "Face the top",
+    "time_s": 64.44,
+    "t0": 0.0,
+    "t1": 64.441,
+    "summary": "Face motor_plate/f:motor_plate.plate_pjdcfj~1c420d81fdc7 with T1 10 mm flat, 1 min"
+   },
+   {
+    "index": 1,
+    "setup": "top",
+    "op": "pocket",
+    "plain": "Pocket",
+    "tool": "T2",
+    "tool_plain": "6 mm flat",
+    "tool_diameter_mm": 6.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 1225.0,
+    "plunge_mm_min": 360.0,
+    "faces": [
+     "motor_plate/f:motor_plate.plate_ljfdoo~86f9c474bfb9"
+    ],
+    "clamped": [
+     "spindle 13260 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Weight-saving pocket",
+    "time_s": 112.9,
+    "t0": 64.441,
+    "t1": 177.341,
+    "summary": "Pocket motor_plate/f:motor_plate.plate_ljfdoo~86f9c474bfb9 with T2 6 mm flat, 2 min"
+   },
+   {
+    "index": 2,
+    "setup": "top",
+    "op": "profile",
+    "plain": "Profile",
+    "tool": "T2",
+    "tool_plain": "6 mm flat",
+    "tool_diameter_mm": 6.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 1200.0,
+    "plunge_mm_min": 360.0,
+    "faces": [
+     "motor_plate/f:motor_plate.plate_oickae~d144bca40c47"
+    ],
+    "clamped": [
+     "spindle 13260 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Cut the pilot bore",
+    "time_s": 14.9,
+    "t0": 177.341,
+    "t1": 192.239,
+    "summary": "Profile motor_plate/f:motor_plate.plate_oickae~d144bca40c47 with T2 6 mm flat, 15 s"
+   },
+   {
+    "index": 3,
+    "setup": "top",
+    "op": "drill",
+    "plain": "Drill",
+    "tool": "T4",
+    "tool_plain": "3.4 mm drill",
+    "tool_diameter_mm": 3.4,
+    "rpm": 10000.0,
+    "feed_mm_min": 680.0,
+    "plunge_mm_min": 680.0,
+    "faces": [
+     "motor_plate/f:motor_plate.plate_ljfdoo~99ccc6689cec",
+     "motor_plate/f:motor_plate.plate_ljfdoo~56d99d9a616f",
+     "motor_plate/f:motor_plate.plate_ljfdoo~00d509e8d150",
+     "motor_plate/f:motor_plate.plate_ljfdoo~d14b01df935d"
+    ],
+    "clamped": [
+     "spindle 14040 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Drill the M3 clearance holes",
+    "time_s": 5.97,
+    "t0": 192.239,
+    "t1": 198.207,
+    "summary": "Drill motor_plate/f:motor_plate.plate_ljfdoo~99ccc6689cec, motor_plate/f:motor_plate.plate_ljfdoo~56d99d9a616f, motor_plate/f:motor_plate.plate_ljfdoo~00d509e8d150, motor_plate/f:motor_plate.plate_ljfdoo~d14b01df935d with T4 3.4 mm drill, 6 s"
+   },
+   {
+    "index": 4,
+    "setup": "top",
+    "op": "profile",
+    "plain": "Profile",
+    "tool": "T3",
+    "tool_plain": "4 mm flat",
+    "tool_diameter_mm": 4.0,
+    "rpm": 10000.0,
+    "feed_mm_min": 800.0,
+    "plunge_mm_min": 240.0,
+    "faces": [
+     "motor_plate/f:motor_plate.plate_pognbn~0536602222de",
+     "motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833",
+     "motor_plate/f:motor_plate.plate_pognbn~826fc30e3624",
+     "motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a",
+     "motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63",
+     "motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2",
+     "motor_plate/f:motor_plate.plate_pognbn~e310eef9d498",
+     "motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1"
+    ],
+    "clamped": [
+     "spindle 19890 rpm clamped to the machine's 10000 rpm"
+    ],
+    "name": "Cut the belt slots",
+    "time_s": 53.67,
+    "t0": 198.207,
+    "t1": 251.876,
+    "summary": "Profile motor_plate/f:motor_plate.plate_pognbn~0536602222de, motor_plate/f:motor_plate.plate_pognbn~d72ffbb3a833, motor_plate/f:motor_plate.plate_pognbn~826fc30e3624, motor_plate/f:motor_plate.plate_pognbn~57ff47aa8c3a, motor_plate/f:motor_plate.plate_pognbn~ba41dfa91b63, motor_plate/f:motor_plate.plate_pognbn~63c9821a28a2, motor_plate/f:motor_plate.plate_pognbn~e310eef9d498, motor_plate/f:motor_plate.plate_pognbn~68e01a9b24e1 with T3 4 mm flat, 54 s"
+   },
+   {
+    "index": 5,
+    "setup": "top",
+    "op": "profile",
+    "plain": "Profile",
+    "tool": "T1",
+    "tool_plain": "10 mm flat",
+    "tool_diameter_mm": 10.0,
+    "rpm": 7960.0,
+    "feed_mm_min": 1433.0,
+    "plunge_mm_min": 430.0,
+    "faces": [],
+    "name": "Cut the outline free",
+    "time_s": 61.38,
+    "t0": 251.876,
+    "t1": 313.258,
+    "summary": "Profile with T1 10 mm flat, 1 min"
+   }
+  ],
+  "posts": [
+   {
+    "setup": "top",
+    "file": "cam/motor_plate/motor_plate.top.ngc",
+    "post": "linuxcnc",
+    "tool": null
+   }
+  ],
+  "assumed": [],
+  "safety": "Generated by text-to-cad with FreeCAD; not proven on a machine. Air-cut or single-block it first, and check the work offset and every tool length.",
+  "timings": {
+   "total_s": 24.9283
+  }
+ },
+ "occurrence": "motor_plate/motor_plate",
+ "written": [
+  "cam/motor_plate/result.json",
+  "cam/motor_plate/result.glb",
+  "cam/motor_plate/motor_plate.top.ngc"
+ ],
+ "faces": [],
+ "holes": [],
+ "floors": []
+}

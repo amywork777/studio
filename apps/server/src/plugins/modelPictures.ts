@@ -3,12 +3,13 @@
  * Pictures of a project's models for Studio's project page: every part,
  * assembly, board, drawing and mesh, not only the ones a viewer has opened.
  * text-to-cad renders them itself: its plugin's MCP server is `cad-mcp`, and
- * the server of the same release, `cad snapshot`, renders any document or file
- * it opens (a model by its document id, STEP, xbf, meshes, DXF, robots) to a
- * PNG, a whole batch in one run. So a release runs the release's server and a
- * development checkout or the Studio app its own Python's. Pictures are cached
- * by the file's size and time, or by a model's build, so a page renders only
- * what changed.
+ * the server of the same release, `cad <type> snapshot` (0.11's, by the
+ * document's type: `cad step snapshot`, `cad model snapshot` for a model by its
+ * document id), renders any document or file it opens (STEP, xbf, meshes, DXF,
+ * robots) to a PNG, a whole batch of one type in one run. So a release runs the
+ * release's server and a development checkout or the Studio app its own
+ * Python's. Pictures are cached by the file's size and time, or by a model's
+ * build, so a page renders only what changed.
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
@@ -32,19 +33,45 @@ const DRAWING = /\.dxf$/i;
 /** A CAD document id: a model's, which its script's run prints (the library's `ids.is_id`). */
 const DOCUMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/** Each renderable ending's document type, as `cad <type> snapshot` names it (`cad.registry`). */
+const DOCUMENT_TYPES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\.(?:step|stp)$/i, "step"],
+  [/\.xbf$/i, "xbf"],
+  [/\.stl$/i, "stl"],
+  [/\.3mf$/i, "threemf"],
+  [/\.glb$/i, "glb"],
+  [/\.dxf$/i, "dxf"],
+  [/\.urdf$/i, "urdf"],
+  [/\.srdf$/i, "srdf"],
+  [/\.sdf$/i, "sdf"],
+];
+
+/** The type `cad <type> snapshot` draws a document of: a model by its id, a file by its ending. */
+export function documentType(path: string): string | null {
+  if (DOCUMENT_ID.test(path)) return "model";
+  return DOCUMENT_TYPES.find(([ending]) => ending.test(path))?.[1] ?? null;
+}
+
 export interface SnapshotLaunch {
   readonly command: string;
+  /** The CAD command's arguments, up to the document type: `… cad`, `-m cad_server.cli`. */
   readonly args: ReadonlyArray<string>;
   readonly env: Readonly<Record<string, string>>;
   readonly cwd: string;
+  /** A release before 0.11, whose `cad snapshot` takes a document of any type. */
+  readonly typeless?: true;
 }
+
+/** A release's version as its pin names it (`==0.10.4`), or null for none. */
+const releaseOf = (pin: string | undefined) => /^==(\d+)\.(\d+)/.exec(pin ?? "");
 
 /**
  * The command that renders pictures, from a plugin's CAD server: a release's
  * `uvx … --from cad-mcp==<version> cad-mcp` becomes that release's server's
- * `uvx … --from cad-server==<version> cad snapshot`, and a Python's
- * `python -m cad_mcp` (a checkout's .venv, the Studio app's own) that
- * Python's `-m cad_server.cli snapshot`. Null for a server that is not CAD's.
+ * `uvx … --from cad-server==<version> cad`, and a Python's `python -m cad_mcp`
+ * (a checkout's .venv, the Studio app's own) that Python's `-m cad_server.cli`,
+ * each then given the document's type and `snapshot`. Null for a server that is
+ * not CAD's.
  */
 export function snapshotLaunch(
   plugin: { readonly root: string; readonly servers: Readonly<Record<string, PluginServerConfig>> },
@@ -52,8 +79,9 @@ export function snapshotLaunch(
 ): SnapshotLaunch | null {
   for (const config of Object.values(plugin.servers)) {
     if (config.command === null) continue;
-    const args = snapshotArgs(config.args);
-    if (args === null) continue;
+    const found = cadArgs(config.args);
+    if (found === null) continue;
+    const { args, typeless } = found;
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(environment))
       if (value !== undefined) env[key] = value;
@@ -66,29 +94,39 @@ export function snapshotLaunch(
       args: args.map((arg) => expandPluginRoot(arg, plugin.root)),
       env,
       cwd: plugin.root,
+      ...(typeless ? { typeless: true as const } : {}),
     };
   }
   return null;
 }
 
-/** The snapshot's arguments for a CAD server's launch arguments; null for another server's. */
-function snapshotArgs(args: ReadonlyArray<string>): string[] | null {
+/** The CAD command's arguments for a CAD server's launch arguments; null for another server's. */
+function cadArgs(
+  args: ReadonlyArray<string>,
+): { readonly args: string[]; readonly typeless: boolean } | null {
   const last = args.at(-1);
   if (last === "cad_mcp" && args.at(-2) === "-m")
-    return [...args.slice(0, -2), "-m", "cad_server.cli", "snapshot"];
+    return { args: [...args.slice(0, -2), "-m", "cad_server.cli"], typeless: false };
   if (last !== "cad-mcp") return null;
   const from = args.indexOf("--from");
   const release = from === -1 ? undefined : /^cad-mcp(==.+)$/.exec(args[from + 1] ?? "")?.[1];
   if (release === undefined) return null;
-  return [
-    ...args.slice(0, from),
-    "--from",
-    `cad-server${release}`,
-    ...args.slice(from + 2, -1),
-    "cad",
-    "snapshot",
-  ];
+  const version = releaseOf(release);
+  return {
+    args: [
+      ...args.slice(0, from),
+      "--from",
+      `cad-server${release}`,
+      ...args.slice(from + 2, -1),
+      "cad",
+    ],
+    typeless: version !== null && Number(version[1]) === 0 && Number(version[2]) < 11,
+  };
 }
+
+/** The arguments that draw a batch of one document type: `<type> snapshot`, or before 0.11 `snapshot`. */
+const snapshotOf = (launch: SnapshotLaunch, type: string) =>
+  launch.typeless === true ? [...launch.args, "snapshot"] : [...launch.args, type, "snapshot"];
 
 export const isRenderable = (path: string) => RENDERABLE.test(path);
 
@@ -110,11 +148,19 @@ export function pictureFile(cacheDir: string, absolute: string, stat: NodeFS.Sta
   return cached(cacheDir, `${absolute}\n${stat.size}\n${stat.mtimeMs}`);
 }
 
-function run(launch: SnapshotLaunch, jobFile: string): Promise<void> {
+function run(launch: SnapshotLaunch, type: string, jobFile: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = NodeChildProcess.spawn(
       launch.command,
-      [...launch.args, "--job", jobFile, "--width", String(WIDTH), "--height", String(HEIGHT)],
+      [
+        ...snapshotOf(launch, type),
+        "--job",
+        jobFile,
+        "--width",
+        String(WIDTH),
+        "--height",
+        String(HEIGHT),
+      ],
       {
         cwd: launch.cwd,
         env: launch.env,
@@ -151,9 +197,9 @@ interface PicturesInput {
 /**
  * The pictures of `paths` under `cwd`, as base64 PNGs, null for a file that
  * is gone or would not render, and for a model whose build is not named.
- * Cached ones come back at once; the rest render in one batch, and a batch
- * that fails renders one by one, so one broken file costs only its own
- * picture.
+ * Cached ones come back at once; the rest render in one batch a document type
+ * (`cad step snapshot`, `cad model snapshot`), and a batch that fails renders
+ * one by one, so one broken file costs only its own picture.
  */
 export async function renderModelPictures(
   input: PicturesInput,
@@ -207,22 +253,29 @@ async function render(input: PicturesInput) {
     // nothing would be lost on a dark tile.
     output: { padding: 0.08, ...(DRAWING.test(file.absolute) ? {} : { transparent: true }) },
   });
-  const runJobs = async (jobs: ReadonlyArray<ReturnType<typeof job>>) => {
+  const runJobs = async (type: string, jobs: ReadonlyArray<ReturnType<typeof job>>) => {
     const jobFile = NodePath.join(input.cacheDir, `job-${NodeCrypto.randomUUID()}.json`);
     NodeFS.writeFileSync(jobFile, JSON.stringify(jobs));
     try {
-      await run(input.launch, jobFile);
+      await run(input.launch, type, jobFile);
     } finally {
       NodeFS.rmSync(jobFile, { force: true });
     }
   };
-  if (missing.length > 0) {
+  // One batch a document type, in the order the page asked for them; before 0.11, one in all.
+  const batches = new Map<string, Array<(typeof missing)[number]>>();
+  for (const file of missing) {
+    const type = input.launch.typeless === true ? "" : (documentType(file.path) ?? "");
+    if (input.launch.typeless !== true && type === "") continue;
+    batches.set(type, [...(batches.get(type) ?? []), file]);
+  }
+  for (const [type, files] of batches) {
     try {
-      await runJobs(missing.map(job));
+      await runJobs(type, files.map(job));
     } catch {
-      for (const file of missing) {
+      for (const file of files) {
         if (NodeFS.existsSync(file.picture)) continue;
-        await runJobs([job(file)]).catch(() => undefined);
+        await runJobs(type, [job(file)]).catch(() => undefined);
       }
     }
   }

@@ -4,7 +4,7 @@ dimension points at is imported from the model, so moving a hole in the model mo
 are SendCutSend's for the sheet the bracket is cut and bent from, ALU-080 (sendcutsend-specs.json and their CNC bending
 page, as parts/servo_bracket_sheet_metal.md and cut/servo_bracket_sendcutsend.md cite them)."""
 
-from cadgen.eng_drawing import Sheet, eng_drawing
+from cad.eng_drawing import Sheet, eng_drawing
 
 from servo_bracket import (
     BEND_RADIUS,

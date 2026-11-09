@@ -9,7 +9,7 @@
     (assemblies/servo_mount.py), and parts/sizes.py (Tower Pro's MG996R datasheet)
   meshes: meshes/, one 3MF per link, of the models base_link.py and horn_link.py beside this file (exports.py writes
     them), each in that link's own frame, so every visual origin is identity; source units mm, scale 0.001; display
-    meshes at cadgen 0.8's one mesh tolerance (0.25 % of each part's size, 28.5 degrees)
+    meshes at text-to-cad 0.8's one mesh tolerance (0.25 % of each part's size, 28.5 degrees)
   inertials: OCCT volume properties (centre of mass and inertia about it) of each part in the saved STEP, combined per
     link with the parallel-axis theorem, computed by a throwaway script. Densities: 5052-H32 and 6061 aluminium
     169.344 lb/ft^3 = 2712.6 kg/m^3 (SendCutSend, sendcutsend-specs.json); PETG 1.25 g/cm^3 (Bambu Studio's Bambu

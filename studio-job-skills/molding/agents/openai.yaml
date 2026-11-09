@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for injection molding"
+  short_description: "Findings for injection molding, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $molding to check the part for injection molding: draft, wall thickness and undercuts. Tell me what to change."

@@ -1,6 +1,6 @@
 # Phone stand: mass, fit and tip-over
 
-Checked `parts/phone_stand.py` and `assemblies/phone_stand_portrait.py` with `cadgen run checks/phone_stand_tip.py`. Every number below comes from that run.
+Checked `parts/phone_stand.py` and `assemblies/phone_stand_portrait.py` with `cad run checks/phone_stand_tip.py`. Every number below comes from that run.
 
 ## Verdict
 

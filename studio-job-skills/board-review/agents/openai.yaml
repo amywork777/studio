@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review before ordering"
+  short_description: "A review against the fab's limits, decoupling, track widths for current and the parts list."
+  default_prompt: "Use $board-review to review the board before I order it: the fab's limits, decoupling, track widths for the current they carry, and whether every part can be bought. Ask me which fab and what current you need."

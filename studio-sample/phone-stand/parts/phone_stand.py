@@ -10,8 +10,8 @@ desk, halfway across; +Y back from the viewer, +Z up."""
 from math import cos, radians, sin
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 ANGLE = 65.0  # the viewing angle: the phone's tilt back from the desk, degrees
 WIDTH = 80.0  # across the stand

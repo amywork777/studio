@@ -1,12 +1,12 @@
 """Work instructions for putting the desk lamp together, as a PDF in ../docs. It documents the lamp's STEP, which
-`cadgen run exports.py` writes from the lamp's model: run that first, then this. A prototype build order with a figure
+`cad run exports.py` writes from the lamp's model: run that first, then this. A simple picture guide with a figure
 per step: no process spec governs this lamp yet, so the adhesive for the weight and the hinges' screw torques print NOT
 STATED and stay open items until they are chosen."""
 
 from pathlib import Path
 
 import build123d as bd
-from cadgen.work_instruction import Instruction, work_instruction
+from cad.work_instruction import Instruction, work_instruction
 
 from desk_lamp import desk_lamp
 
@@ -15,7 +15,7 @@ ASSEMBLY = Path(__file__).parent / "desk_lamp.step"
 
 def pocket_ceiling() -> str:
     """The base's pocket ceiling, the face the weight is bonded to: flat, facing down, 10 mm up. Its ref names it by its
-    number in the base (`desk_lamp/base/face N`), as `cadgen inspect assemblies/desk_lamp.step` reads the STEP."""
+    number in the base (`desk_lamp/base/face N`), as `cad step inspect assemblies/desk_lamp.step` reads the STEP."""
     (base,) = [part for part in desk_lamp().shape.leaves if part.label == "base"]
     for number, face in enumerate(base.faces(), 1):
         if face.geom_type == bd.GeomType.PLANE and face.normal_at().Z < -0.99 and abs(face.center().Z - 10.0) < 1e-3:
@@ -31,7 +31,7 @@ def desk_lamp_wi():
         number="WI-DL-001",
         revision="A",
         part_number="desk-lamp",
-        rigor="prototype",
+        rigor="simple",
         emphasis="visual",
         scope="Putting one desk lamp together from its printed parts, its steel weight, the LED module and its screws.",
         tools=["4 mm hex key", "8 mm spanner", "2.5 mm hex key"],

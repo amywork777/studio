@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flat pattern DXF"
+  short_description: "A DXF ready to cut: the outline and holes, and any bend lines on a layer of their own."
+  default_prompt: "Use $dxf to make a cut-ready DXF of the part for laser or waterjet cutting. If it is bent sheet metal, flatten it and put its bend lines on a layer of their own."

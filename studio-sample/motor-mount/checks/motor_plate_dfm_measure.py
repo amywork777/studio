@@ -1,7 +1,7 @@
 """Measures the machining features of the motor plate for its DFM review (docs/motor_plate_dfm.md): every vertical
 inside corner's radius, the pocket's depth and width, each hole's and slot's diameter and depth, and the thinnest
 walls between features, as distances between the model's own faces. Run from the project root with
-`cadgen run checks/motor_plate_dfm_measure.py`; writes checks/motor_plate_dfm_measure.md."""
+`cad run checks/motor_plate_dfm_measure.py`; writes checks/motor_plate_dfm_measure.md."""
 
 import sys
 from pathlib import Path
@@ -83,7 +83,7 @@ rows.append(("Wall: M3 hole to pocket wall", "%.3f" % gap(screw_holes, pocket_wa
 rows.append(("Wall: M3 hole to pilot bore", "%.3f" % gap(screw_holes, bore), "in the 3 mm floor"))
 
 lines = ["# Motor plate: DFM measurements", "",
-         "Measured on the plate's model (`parts/motor_plate.py`) with `cadgen run checks/motor_plate_dfm_measure.py`, from its "
+         "Measured on the plate's model (`parts/motor_plate.py`) with `cad run checks/motor_plate_dfm_measure.py`, from its "
          "own faces (exact B-rep: radii from the cylinders, gaps as face-to-face distances). Millimetres; Z 0 is the "
          "plate's underside, Z 6 its top.", "",
          "| Feature | Measured | Where |", "| --- | --- | --- |"]

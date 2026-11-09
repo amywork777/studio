@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check as sheet metal"
+  short_description: "Findings for sheet metal, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $sheet-metal to check the part as a sheet metal part: bend radii, reliefs, and hole and edge distances. Tell me what to change."

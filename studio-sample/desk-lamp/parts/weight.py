@@ -2,8 +2,8 @@
 out. Sawn from Ø90 bar and faced to thickness. Origin: the centre of its underside; +Z up."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import WEIGHT_DIAMETER, WEIGHT_THICKNESS
 

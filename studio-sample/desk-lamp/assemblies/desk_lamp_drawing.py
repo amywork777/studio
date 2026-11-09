@@ -6,7 +6,7 @@ general tolerance have been set, and the sheets say so."""
 import sys
 from pathlib import Path
 
-from cadgen.eng_drawing import assembly_sheets, eng_drawing, parts_list
+from cad.eng_drawing import assembly_sheets, eng_drawing, parts_list
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))  # the base's sizes, so its dimensions follow the model
 

@@ -16,6 +16,7 @@ import {
   type HardwareActionGroup,
   MORE_LABELS,
 } from "../hardwareActions";
+import { jobOfSkill } from "../jobSkills";
 import { MENU_WORDS } from "../kinds";
 import { DOCUMENT_TEMPLATES, NEW_TEMPLATES, type NewTemplate } from "../newTemplates";
 import libraryExamples from "./libraryExamples.json";
@@ -90,6 +91,12 @@ const TEMPLATES = [...NEW_TEMPLATES, ...DOCUMENT_TEMPLATES];
 /** Every job a skill runs, in the menus' order. */
 const jobsRunBy = (skill: string) =>
   HARDWARE_ACTIONS.filter((job) => job.skill === skill).map((job) => job.id);
+
+/** The `cad` skill's manufacturing checks: its checks in Manufacture, one per way of making it. */
+const manufacturingChecks = () =>
+  HARDWARE_ACTIONS.filter(
+    (job) => job.skill === "cad" && job.checks && job.group === "Manufacture",
+  ).map((job) => job.id);
 
 /** A document type, with its example from `libraryExamples.json`. */
 const doc = (
@@ -176,7 +183,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:manufacturing-check",
     name: "Manufacturing check",
     templates: [],
-    actions: [...jobsRunBy("dfm"), ...jobsRunBy("dfam-check")],
+    actions: manufacturingChecks(),
     what: "A review for the way it will be made, one finding at a time: 3D printing, CNC machining, sheet metal or molding.",
     give: "The part and its process.",
     asks: null,
@@ -186,7 +193,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:cam-job",
     name: "CAM job",
     templates: ["cam-job"],
-    actions: ["toolpaths", "cam-results"],
+    actions: ["toolpaths"],
     what: "Toolpaths and G-code for a 3-axis mill or router.",
     give: "The part.",
     asks: "The machine, the stock, your tools and how the part is held.",
@@ -196,7 +203,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:print",
     name: "3D print",
     templates: ["print"],
-    actions: ["slice", "bambu"],
+    actions: ["slice"],
     what: "Sliced G-code for an FDM printer, checked before it prints.",
     give: "The part.",
     asks: "Your printer, filament and print settings.",
@@ -206,7 +213,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:cut-file",
     name: "Cut file",
     templates: ["cut-file"],
-    actions: ["dxf", "flat-pattern"],
+    actions: ["dxf"],
     what: "A DXF for laser, waterjet or plasma cutting.",
     give: "The part.",
     asks: null,
@@ -227,16 +234,26 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     name: "Off-the-shelf parts",
     templates: [],
     actions: ["standard-parts"],
-    what: "Screws, bearings, motors and other parts you buy, as real STEP files from step.parts.",
+    what: "Screws, bearings, motors and other parts you buy, with where to buy them.",
     give: "The part that needs them.",
     asks: null,
-    gets: "Each part's STEP file, checked against its step.parts record, in parts/imported/.",
+    gets: "Each part with where to buy it, and its STEP file where the maker offers one.",
+  }),
+  doc({
+    id: "doc:circuit-board",
+    name: "Circuit board",
+    templates: [],
+    actions: jobsRunBy("pcb"),
+    what: "Checks of a KiCad board and its schematic, and the files a fab and an enclosure need.",
+    give: "The board or its schematic.",
+    asks: "Which fab it is for, and the current its tracks carry.",
+    gets: "Each check's findings with where they are and the fix, the fabrication files, and the board as STEP.",
   }),
   doc({
     id: "doc:export",
     name: "Export files",
     templates: [],
-    actions: ["export-step", "export-mesh"],
+    actions: ["export"],
     what: "The part as STEP, STL and 3MF files for other CAD tools, printers and shops.",
     give: "The part.",
     asks: null,
@@ -316,7 +333,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:robot",
     name: "Robot description",
     templates: ["robot"],
-    actions: ["urdf", "sdf", "srdf"],
+    actions: ["robot-files"],
     what: "Links, joints and limits of an assembly, for simulation.",
     give: "The assembly, and which parts move.",
     asks: null,
@@ -366,26 +383,19 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
 
 /** What to ask each of text-to-cad's skills, about the sample project. */
 const TRY_ASKING: Readonly<Record<string, string>> = {
-  "bambu-labs": "Get the cable clip ready to print on my P1S.",
   cad: "Make a bracket for an MG996R servo from 2 mm aluminium.",
   cam: "Toolpaths for a 3-axis mill with a 6 mm end mill.",
-  "dfam-check": "Will this print on an FDM printer without supports?",
-  dfm: "Can a sheet metal shop make this?",
-  dxf: "Give me the flat pattern for laser cutting.",
   "engineering-drawing": "Make a drawing of the bracket for the shop.",
   fea: "Will it hold 20 N at the horn?",
-  gcode: "Slice the cable clip in PETG, 0.2 mm layers.",
-  sdf: "Make an SDF of the servo mount for Gazebo.",
+  pcb: "Run the design rule check on my board and tell me what to fix.",
+  print3d: "Slice the cable clip in PETG and send it to my P1S.",
+  "robot-simulation": "Make the URDF for the servo mount.",
   sendcutsend: "Is the bracket ready to order from SendCutSend in 2 mm 5052?",
-  srdf: "Make a MoveIt SRDF for the servo mount.",
-  "step-parts": "Add four M3 × 8 socket head screws.",
-  urdf: "Make the URDF for the servo mount.",
   "work-instructions": "Write the work instructions for building the servo mount.",
 };
 
 /** A job's one name: the skill that runs it reads as its library entry does, whatever its own files say. */
 const JOB_NAMES: Readonly<Record<string, string>> = {
-  dfm: "Manufacturing check",
   fea: "Simulation",
 };
 
@@ -395,20 +405,14 @@ const JOB_NAMES: Readonly<Record<string, string>> = {
  * that set it apart show.
  */
 const SKILL_BLURBS: Readonly<Record<string, string>> = {
-  "bambu-labs": "Send prints to Bambu printers",
   cad: "Generate CAD artifacts",
   cam: "3-axis milling and drilling toolpaths",
-  "dfam-check": "Measure meshes against DfAM rules",
-  dfm: "Sheet metal, CNC, or injection molding",
-  dxf: "2D DXF drawings",
   "engineering-drawing": "Dimensioned PDF of a CAD part",
   fea: "Linear static stress studies",
-  gcode: "Slice models into G-code",
-  sdf: "SDFormat robot models",
+  pcb: "Edit and check KiCad circuit boards",
+  print3d: "Slice and print on Bambu Lab printers",
+  "robot-simulation": "URDF, SRDF and SDF robot descriptions",
   sendcutsend: "Review DXF/STEP against specs",
-  srdf: "MoveIt2 SRDF semantics",
-  "step-parts": "Find and download STEP files",
-  urdf: "URDF robot descriptions",
   "work-instructions": "Step-by-step assembly PDF",
 };
 
@@ -418,18 +422,13 @@ const SKILL_BLURBS: Readonly<Record<string, string>> = {
  */
 const TEXT_TO_CAD_NAMES: Readonly<Record<string, string>> = {
   ...JOB_NAMES,
-  "bambu-labs": "Bambu Labs",
   cad: "CAD",
   cam: "CAM",
-  "dfam-check": "DfAM Check",
-  dxf: "DXF",
   "engineering-drawing": "Engineering Drawing",
-  gcode: "G-code",
-  sdf: "SDF",
+  pcb: "PCB",
+  print3d: "3D Printing",
+  "robot-simulation": "Robot simulation",
   sendcutsend: "SendCutSend",
-  srdf: "SRDF",
-  "step-parts": "STEP Parts",
-  urdf: "URDF",
   "work-instructions": "Work Instructions",
 };
 
@@ -563,31 +562,72 @@ export function plainPrompt(prompt: string): string {
     .replace(/\$([a-z][\w-]*)/gi, "$1");
 }
 
-/** Every skill of every installed plugin, on while its plugin is enabled. */
+/**
+ * A job skill's tile (`jobSkills.ts`): the skill that does its job, by the name it shows, and the
+ * example of the document type it makes.
+ */
+function jobTile(name: string) {
+  const job = jobOfSkill(name);
+  if (job === null) return null;
+  return {
+    blurb: `With the ${TEXT_TO_CAD_NAMES[job.skill] ?? chatName(job.skill, null)} skill`,
+    example: exampleOf(entryOfAction(job.id)?.id ?? ""),
+  };
+}
+
+/**
+ * Every skill of every installed plugin, on while its plugin is enabled: text-to-cad's own first,
+ * then Studio's job skills it carries, in the menus' order.
+ */
 export function librarySkills(plugins: ReadonlyArray<InstalledPlugin>): LibrarySkill[] {
   return plugins.flatMap((plugin) =>
-    (plugin.skillDetails ?? []).map((detail): LibrarySkill => {
-      const id = `skill:${plugin.id}/${detail.name}`;
-      const ours = plugin.id === TEXT_TO_CAD;
-      return {
-        kind: "skill",
-        id,
-        pluginId: plugin.id,
-        pluginName: plugin.displayName,
-        name: detail.name,
-        displayName:
-          (ours ? JOB_NAMES[detail.name] : undefined) ?? chatName(detail.name, detail.displayName),
-        description: detail.description,
-        blurb: (ours ? SKILL_BLURBS[detail.name] : undefined) ?? detail.description,
-        tryAsking:
-          (ours ? TRY_ASKING[detail.name] : undefined) ??
-          (detail.defaultPrompt === null ? null : plainPrompt(detail.defaultPrompt)),
-        on: plugin.enabled,
-        ...(ours ? exampleOf(id) : { example: null, exampleIn: null }),
-      };
-    }),
+    (plugin.skillDetails ?? [])
+      .map((detail): LibrarySkill => {
+        const id = `skill:${plugin.id}/${detail.name}`;
+        const ours = plugin.id === TEXT_TO_CAD;
+        const job = ours ? jobTile(detail.name) : null;
+        if (job !== null) {
+          return {
+            kind: "skill",
+            id,
+            pluginId: plugin.id,
+            pluginName: plugin.displayName,
+            name: detail.name,
+            displayName: chatName(detail.name, detail.displayName),
+            description: detail.description,
+            blurb: job.blurb,
+            tryAsking: detail.defaultPrompt === null ? null : plainPrompt(detail.defaultPrompt),
+            on: plugin.enabled,
+            ...job.example,
+          };
+        }
+        return {
+          kind: "skill",
+          id,
+          pluginId: plugin.id,
+          pluginName: plugin.displayName,
+          name: detail.name,
+          displayName:
+            (ours ? JOB_NAMES[detail.name] : undefined) ??
+            chatName(detail.name, detail.displayName),
+          description: detail.description,
+          blurb: (ours ? SKILL_BLURBS[detail.name] : undefined) ?? detail.description,
+          tryAsking:
+            (ours ? TRY_ASKING[detail.name] : undefined) ??
+            (detail.defaultPrompt === null ? null : plainPrompt(detail.defaultPrompt)),
+          on: plugin.enabled,
+          ...(ours ? exampleOf(id) : { example: null, exampleIn: null }),
+        };
+      })
+      .toSorted((a, b) => jobRank(a.name) - jobRank(b.name)),
   );
 }
+
+/** A skill's place among its plugin's: a job skill's in the menus, after every other skill. */
+const jobRank = (name: string) => {
+  const job = jobOfSkill(name);
+  return job === null ? -1 : HARDWARE_ACTIONS.indexOf(job);
+};
 
 /** The menus, in the order Studio shows them. */
 const MENUS = [...new Set(ACTION_SECTIONS.map((section) => section.group))];
@@ -610,6 +650,14 @@ const menuLabels = (group: HardwareActionGroup, skill: string) => [
  * that offers the skill.
  */
 export function showsUpAs(skill: string): ReadonlyArray<string> {
+  // A job skill is its one job: where the menus offer it.
+  const job = jobOfSkill(skill);
+  if (job !== null) {
+    const section = ACTION_SECTIONS.find((candidate) => candidate.id === job.section);
+    return [
+      `${MENU_WORDS[job.group]}: ${section?.more === true ? MORE_LABELS[job.group] : job.label}`,
+    ];
+  }
   const places = [
     {
       place: "New",

@@ -3,8 +3,8 @@ envelope the datasheet gives, its two mounting tabs with two holes each, and the
 centre of the tabs' underside, where the servo sits on what holds it: +X toward the output end, +Z up to the spline."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import (
     SERVO_CASE_HEIGHT,

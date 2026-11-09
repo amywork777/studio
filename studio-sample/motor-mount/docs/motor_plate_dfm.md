@@ -4,10 +4,10 @@ The plate can be milled as drawn on a 3-axis mill in one setup. Every measured f
 
 ## Scope
 
-- Artifact: the plate's model, `parts/motor_plate.py`, reviewed on 2026-10-26, and its STEP (`parts/motor_plate.step`, from `exports.py`); one part, one solid; millimetres. The measurements were run again on cadgen 0.8 on 2026-10-27 and read the same; the CAM plan was made again with FreeCAD on 2026-10-28.
+- Artifact: the plate's model, `parts/motor_plate.py`, reviewed on 2026-10-26, and its STEP (`parts/motor_plate.step`, from `exports.py`); one part, one solid; millimetres. The measurements were run again on text-to-cad 0.8 on 2026-10-27 and read the same; the CAM plan was made again with FreeCAD on 2026-10-28, and again on text-to-cad 0.11 with FreeCAD 1.1.1 on 2026-11-08: ready to cut.
 - Process: CNC milling, 3-axis, one setup on a sacrificial plate, from a 116 x 62 x 7 mm 6061-T6 blank, as the CAM job plans it (`cam/motor_plate.cam.json`), the pilot bore and the slots included.
 - Tooling assumed: the CAM job's proposed tools, 10 and 6 mm flat carbide end mills and a 3.4 mm drill, and a 4 mm end mill for the slots. No shop's specification was given.
-- Evidence: exact B-rep measurements of the model (`checks/motor_plate_dfm_measure.md`, from `cadgen run checks/motor_plate_dfm_measure.py`) and the CAM plan's checks (`cam/motor_plate.cam.glb`).
+- Evidence: exact B-rep measurements of the model (`checks/motor_plate_dfm_measure.md`, from `cad run checks/motor_plate_dfm_measure.py`) and the CAM plan's checks (`cam/motor_plate/result.json`).
 - Rules: Protolabs Network (Hubs), "How to design parts for CNC machining", https://www.hubs.com/knowledge-base/how-design-parts-cnc-machining/, read 2026-10-26, its table of recommended and feasible values and its best practices. ISO 2768-1 for the general tolerance, from its table of linear tolerances, not re-read this session.
 
 ## Findings
@@ -29,6 +29,6 @@ The plate can be milled as drawn on a 3-axis mill in one setup. Every measured f
 ## Coverage
 
 - Measured: every inside vertical corner, the pocket's depth and opening, every hole's and slot's diameter and depth, the thinnest walls between features, the setups and the approach directions.
-- Checked by the CAM plan rather than by rule: the tools' reach and holder clearance, gouges (`cam/motor_plate.cam.json`, "Ready to cut").
+- Checked by the CAM plan rather than by rule: the tools' reach and holder clearance, gouges (`cam/motor_plate/result.json`, "Ready to cut").
 - Not checked: the shop's own machine, tools and vise; the surface finish (none is specified); a quote or a cycle time beyond the CAM plan's estimate.
 - No finding is a blanket approval: a shop's specification, when there is one, replaces the rules above.

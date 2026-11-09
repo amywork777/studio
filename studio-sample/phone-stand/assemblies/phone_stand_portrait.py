@@ -6,7 +6,7 @@ from math import cos, radians, sin
 from pathlib import Path
 
 import build123d as bd
-from cadgen import model
+from cad import model
 
 PARTS = Path(__file__).resolve().parent.parent / "parts"
 sys.path.insert(0, str(PARTS))  # the parts are models in ../parts, each built in this run with its own document

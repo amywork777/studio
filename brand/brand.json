@@ -11,8 +11,8 @@
     { "prompt": "Check this bracket under load", "skill": "fea" },
     { "prompt": "Route this board", "skill": "pcb" },
     { "prompt": "Post G-code for grbl", "skill": "cam" },
-    { "prompt": "Check this part for CNC machining", "skill": "dfm" },
-    { "prompt": "Slice this part for FDM printing", "skill": "gcode" },
+    { "prompt": "Check this part for CNC machining", "skill": "cad" },
+    { "prompt": "Slice this part for FDM printing", "skill": "print3d" },
     { "prompt": "Design a 50 mm aluminum L-bracket with two M5 holes", "skill": "cad" }
   ]
 }

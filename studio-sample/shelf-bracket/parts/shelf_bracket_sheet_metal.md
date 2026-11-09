@@ -8,7 +8,7 @@ As drawn now, the bracket's two bends, its flanges, its holes and its corner rel
 - Process: laser cut and press-brake bent by SendCutSend, the shop the bends are drawn for.
 - Material: G90 galvanised steel (ASTM A653 G90), SendCutSend's G90-074: 0.074 in (1.880 mm), +0.006/-0.004 in. The part is drawn at that stock thickness, 1.8796 mm.
 - Tooling: SendCutSend's for G90-074: inside bend radius 0.063 in (1.600 mm), K-factor 0.40, die width 0.472 in.
-- Measured with cadgen's `read_step` on the saved STEP files (exact faces, not a mesh) and with `ezdxf` on the cut file.
+- Measured with text-to-cad's `step.read` on the saved STEP files (exact faces, not a mesh) and with `ezdxf` on the cut file.
 - Rules, read 2026-10-26:
   - SendCutSend's engineering specs, [sendcutsend-specs.json](https://cdn.sendcutsend.com/specs/sendcutsend-specs.json) (`_meta.generated_at` 2026-04-29T20:52:33Z), `materials[sku=G90-074]`, and their [CNC bending page](https://sendcutsend.com/services/cnc-bending/) and [bending deformation guidelines](https://sendcutsend.com/guidelines/bend-deformation/). These are the shop's rules and they govern.
   - For what SendCutSend gives no number for: Protolabs Network's [sheet metal fabrication guide](https://www.hubs.com/guides/sheet-metal-fabrication/), Part 3, Design for sheet metal fabrication.

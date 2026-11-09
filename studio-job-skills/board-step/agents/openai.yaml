@@ -1,0 +1,4 @@
+interface:
+  display_name: "Board STEP"
+  short_description: "The board with its parts as a STEP file, to design its enclosure around."
+  default_prompt: "Use $board-step to export the board as a STEP file with its parts, to design an enclosure around."

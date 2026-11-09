@@ -1,0 +1,4 @@
+interface:
+  display_name: "Board checks"
+  short_description: "KiCad's rule checks, each finding with where it is on the board or schematic and the fix."
+  default_prompt: "Use $board-check to run KiCad's rule checks on the board: the design rule check on a board, the electrical rule check on a schematic. Tell me each problem, where it is, and how to fix it."

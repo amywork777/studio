@@ -3,7 +3,7 @@ for the fit check, the tip-over check and the pictures. Origin: the middle of it
 its screen, +Z up its length."""
 
 import build123d as bd
-from cadgen import model
+from cad import model
 
 from sizes import PHONE_CORNER, PHONE_LENGTH, PHONE_THICKNESS, PHONE_WIDTH
 

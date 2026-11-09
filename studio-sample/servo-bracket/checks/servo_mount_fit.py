@@ -1,7 +1,7 @@
 """Fit and clearance of the servo mount: every pair of its parts checked for overlap and gap, the fits a touching
 joint hides measured on their own, and the horn adapter turned through its travel. Calls the mount's model, so it
 checks the mount as it is now, writes its findings to assemblies/servo_mount_fit.md beside it, prints them as one JSON
-line, and exits 1 when a part collides. Run it from anywhere: cadgen run checks/servo_mount_fit.py"""
+line, and exits 1 when a part collides. Run it from anywhere: cad run checks/servo_mount_fit.py"""
 
 import json
 import math
@@ -10,7 +10,7 @@ from itertools import combinations
 from pathlib import Path
 
 import build123d as bd
-from cadgen.geometry import closest_points, overlap_volume
+from cad.build123d import closest_points, overlap_volume
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "assemblies"))
@@ -67,7 +67,7 @@ def fit(name: str, a, b) -> dict:
 
 
 def main() -> int:
-    # Every placed part, by its label, with its ref's owner (`servo_mount/mg996r`, as `cadgen inspect` takes it). The
+    # Every placed part, by its label, with its ref's owner (`servo_mount/mg996r`, as `cad model inspect` takes it). The
     # mount stands at the world's origin, so its parts' own coordinates are the world's.
     mount = servo_mount().shape
     parts = {}
@@ -212,7 +212,7 @@ def markdown(result, tight, unexpected, horn_rubs) -> str:
         "",
         "## How it was checked",
         "",
-        "- Every pair of parts: the exact overlap of their solids (`cadgen.geometry.overlap_volume`, mm³) and the least "
+        "- Every pair of parts: the exact overlap of their solids (`cad.build123d.overlap_volume`, mm³) and the least "
         "distance between them (`closest_points`, mm), in the mount model's own placements. Where a gap is the "
         "same at several places (the cutout's corners), \"closest at\" names one of them, on the first part named.",
         f"- An overlap above {result['limits']['collision_mm3']} mm³ is a collision unless it is a screw's thread in its "

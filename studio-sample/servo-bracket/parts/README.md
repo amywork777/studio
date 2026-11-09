@@ -16,27 +16,30 @@
 | parts/servo_bracket_drawing.py | drawings/servo_bracket_drawing.pdf | The bracket's engineering drawing |
 | checks/servo_mount_fit.py | assemblies/servo_mount_fit.md | The mount's fit and clearance |
 
-Build: `cadgen run assemblies/servo_mount.py` from the project root builds the mount and the parts in it, and `cadgen
+Build: `cad run assemblies/servo_mount.py` from the project root builds the mount and the parts in it, and `cad
 run parts/servo_bracket_cut.py` the cut file and the flat pattern in it, each a model with its own page. A run writes
-no file: `cadgen run exports.py` writes every STEP, the printed and cut parts' files (parts/servo_bracket.stl,
+no file: `cad run exports.py` writes every STEP, the printed and cut parts' files (parts/servo_bracket.stl,
 parts/servo_bracket.3mf, parts/cable_clip.stl, cut/servo_bracket_cut.dxf) and the robot links' meshes. Rerun
-`cadgen run checks/servo_mount_fit.py` after the mount changes. `cadgen run parts/servo_bracket_drawing.py` draws the
+`cad run checks/servo_mount_fit.py` after the mount changes. `cad run parts/servo_bracket_drawing.py` draws the
 bracket from its model.
 
-Pictures, drawn from the exported mount: `cadgen snapshot --job pictures/servo_mount_pictures.job.json` (front, side,
-top, an angle, and two exploded views). The motion video was recorded with cadgen 0.7, which drew video; the horn's
-`range` motion is the mount's sequence now, played by the viewer's Motion and carried by a GLB exported from it
-(`cadgen export <the mount's id> servo_mount.glb`). The strength report's pictures are of the study's result file as
-cadgen 0.7 drew it: 0.8's snapshot draws a result file's mesh but not its stress colours.
+Pictures, drawn from the exported mount: `cad step snapshot --job pictures/servo_mount_pictures.job.json` (front,
+side, top, an angle, and two exploded views). The motion video was recorded with text-to-cad 0.7, which drew video; the
+horn's `range` motion is the mount's sequence now, played by the viewer's Motion and carried by a GLB exported from it
+(`cad model export <the mount's id> servo_mount.glb`). The strength report's pictures were drawn with text-to-cad 0.7
+from an earlier solve of the same study, which gave the same numbers; the study's own pictures are the solve's, in
+studies/servo_bracket/.
 
 Robot descriptions, authored XML beside their meshes: robots/servo_mount.urdf, robots/servo_mount.srdf and
-robots/servo_mount.sdf. Check them with `cadgen urdf validate`, `cadgen srdf validate` and `cadgen sdf validate`.
+robots/servo_mount.sdf. Check them with `cad urdf validate`, `cad srdf validate` and `cad sdf validate`.
 
 Imported source: parts/imported/iso4762_socket_head_cap_screw_m3x8.step, from step.parts.
 
-From the exported STEP files (`cadgen run exports.py` first):
+From the exported STEP files (`cad run exports.py` first):
 
-- The strength study: studies/servo_bracket.study.json, solved with `cadgen fea solve parts/servo_bracket.step
-  studies/servo_bracket.fea.glb --study studies/servo_bracket.study.json`.
-- The adapter's CAM job: `cadgen cam plan parts/horn_adapter.step --job cam/horn_adapter.cam.json --out-dir cam` writes
-  cam/horn_adapter.cam.glb and the LinuxCNC programs cam/horn_adapter.top.ngc and cam/horn_adapter.bottom.ngc.
+- The strength study: studies/servo_bracket.study.json, solved with `cad step solve parts/servo_bracket.step
+  --study studies/servo_bracket.study.json --out studies/servo_bracket`, which writes its result into
+  studies/servo_bracket/.
+- The adapter's CAM job: `cad step plan parts/horn_adapter.step --job cam/horn_adapter.cam.json --out cam/horn_adapter`
+  writes cam/horn_adapter/result.json, cam/horn_adapter/result.glb (the toolpaths) and the LinuxCNC programs
+  cam/horn_adapter/horn_adapter.top.ngc and cam/horn_adapter/horn_adapter.bottom.ngc.

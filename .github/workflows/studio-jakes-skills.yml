@@ -1,0 +1,44 @@
+name: Studio has Jake's skills
+
+# Studio's law 13 (AGENTS.md): every skill in Jake's text-to-cad is in Studio. Each day this lists the
+# skills on Jake's main and those in the text-to-cad Studio pins, and fails, naming each one, when Jake
+# has a skill Studio's pin does not. Port that release (scripts/studio-bump-text-to-cad.sh) and give
+# each new skill its Toolbox tile and jobs (apps/web/src/components/workbench/library/toolboxSkills.test.ts).
+on:
+  schedule:
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    name: Every one of Jake's skills is in Studio
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Compare Jake's main with Studio's pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # A skill is a folder of skills/ that holds a SKILL.md.
+          skills_of() {
+            gh api "repos/$1/git/trees/$2?recursive=1" \
+              --jq '.tree[].path | select(test("^skills/[^/]+/SKILL\\.md$")) | split("/")[1]' | sort
+          }
+          pin="$(gh api "repos/${GITHUB_REPOSITORY}/contents/text-to-cad?ref=${GITHUB_SHA}" --jq .sha)"
+          fork="$(gh api "repos/${GITHUB_REPOSITORY}/contents/text-to-cad?ref=${GITHUB_SHA}" \
+            --jq '.submodule_git_url | sub("^https://github.com/"; "") | sub("\\.git$"; "")')"
+          jakes="$(skills_of earthtojake/text-to-cad main)"
+          ours="$(skills_of "$fork" "$pin")"
+          echo "Jake's main: $(echo $jakes)"
+          echo "Studio's pin ($fork at ${pin:0:9}): $(echo $ours)"
+          missing="$(comm -23 <(echo "$jakes") <(echo "$ours"))"
+          if [ -n "$missing" ]; then
+            for skill in $missing; do
+              echo "::error::Jake's text-to-cad has the $skill skill, and Studio does not (law 13)."
+            done
+            exit 1
+          fi

@@ -54,9 +54,16 @@ const DOCUMENT = /\.(?:step|stp|xbf|py)$/i;
 const cli = (rest: string) =>
   new RegExp(String.raw`(?:^|[\s;&|(/])(?:cad(?:gen)?|cad_server)(?:\.cli)?\s+` + rest);
 const CLI_SNAPSHOT = cli(String.raw`(?:\S+\s+)*?(?:snapshot|render)\b`);
-const CLI_EXPORT = cli(String.raw`export\s+(.*)`);
+// 0.11 names the document's type first: `cad step export`, `cad model export <id>`.
+const CLI_EXPORT = cli(String.raw`(?:(?:model|xbf|step|stl|glb|threemf)\s+)?export\s+(.*)`);
+/** 0.11's `cad <type> solve` and `cad <type> plan`: a stress study, a CAM job. */
+const CLI_SOLVE = cli(String.raw`(?:model|xbf|step)\s+solve\b`);
+const CLI_PLAN = cli(String.raw`(?:model|xbf|step)\s+plan\b`);
+/** A document a study or a CAM job reads: a STEP or an `.xbf`. */
+const SOLID = /\.(?:step|stp|xbf)$/i;
 const CLI_OLD_EXPORT = cli(String.raw`(stl|3mf|glb|dxf)\b`);
 const CLI_INSPECT = cli(String.raw`(?:step\s+)?inspect\b`);
+const CLI_DFM = cli(String.raw`[a-z0-9]+\s+dfm\b`);
 const CLI_RUN = cli(String.raw`(?:build|run)\s+(?:-\S+\s+)*["']?([^\s"']+\.py)\b`);
 const CLI_ANY = cli("[a-z]");
 /** A skill's own tool or a helper, not a part's model script: it never "builds" a part. */
@@ -64,6 +71,29 @@ const TOOL_SCRIPT = /(?:^|[\\/])(?:scripts?|skills?|tools?|lib|utils?|helpers?)[
 const of = (part: string | null, joiner: string) => (part === null ? "" : ` ${joiner} ${part}`);
 
 const RULES: ReadonlyArray<(command: string) => StepLabel | null> = [
+  // `cad step solve part.step --study s.json --out DIR`; with no study it lists what one can name.
+  (command) => {
+    if (!CLI_SOLVE.test(command)) return null;
+    if (/--study\b/.test(command)) {
+      const file = of(fileAfter(command, /\bsolve\b/, SOLID), "on");
+      return { done: `FEA study${file}`, doing: `Running an FEA study${file}` };
+    }
+    const file = of(fileAfter(command, /\bsolve\b/, SOLID), "of");
+    return { done: `Listed the faces${file}`, doing: `Listing the faces${file}` };
+  },
+  // `cad step plan part.step --job part.cam.json --out CAM`; with no job it lists the features.
+  (command) => {
+    if (!CLI_PLAN.test(command)) return null;
+    if (/--job\b/.test(command)) {
+      const file = of(fileAfter(command, /\bplan\b/, SOLID), "for");
+      return { done: `CAM plan${file}`, doing: `Planning the CAM job${file}` };
+    }
+    const file = of(fileAfter(command, /\bplan\b/, SOLID), "of");
+    return {
+      done: `Found the machinable features${file}`,
+      doing: `Finding machinable features${file}`,
+    };
+  },
   (command) => {
     if (!/\bfea\s+solve\b/.test(command)) return null;
     const file = of(fileAfter(command, /\bsolve\b/, STEP), "on");
@@ -111,33 +141,29 @@ const RULES: ReadonlyArray<(command: string) => StepLabel | null> = [
     if (!CLI_SNAPSHOT.test(command)) return null;
     return { done: "Took a picture of the model", doing: "Taking a picture of the model" };
   },
-  // The skills' own tools, named for what they check or make.
+  // `cad <type> dfm ... --process printing|molding`: the cad skill's manufacturing check.
   (command) => {
-    const tool = /\b(dfam_tool|mold_tool|download_step_part|orca_presets)\.py\b/.exec(command)?.[1];
-    if (tool === undefined) return null;
-    const named = partNamedAfter(command, /\.py\b/, MODEL) ?? "the part";
-    switch (tool) {
-      case "dfam_tool":
-        return {
-          done: `Checked ${named} for 3D printing`,
-          doing: `Checking ${named} for 3D printing`,
-        };
-      case "mold_tool":
-        return { done: `Checked ${named} for molding`, doing: `Checking ${named} for molding` };
-      case "download_step_part":
-        return { done: "Found a standard part", doing: "Finding a standard part" };
-      default:
-        return { done: "Set up the slicer", doing: "Setting up the slicer" };
-    }
+    if (!CLI_DFM.test(command)) return null;
+    const checked = /--process[=\s]+(printing|molding)\b/.exec(command)?.[1];
+    if (checked === undefined) return null;
+    const named = partNamedAfter(command, /\bdfm\b/, MODEL) ?? "the part";
+    const way = checked === "printing" ? "3D printing" : "molding";
+    return { done: `Checked ${named} for ${way}`, doing: `Checking ${named} for ${way}` };
   },
+  // The print3d skill's own tool.
+  (command) =>
+    /\borca_presets\.py\b/.test(command)
+      ? { done: "Set up the slicer", doing: "Setting up the slicer" }
+      : null,
   // `cad export SRC DST...`: each destination's format is its file's ending.
   (command) => {
     const rest = CLI_EXPORT.exec(command)?.[1];
     if (rest === undefined) return null;
     const [source, ...outputs] = rest.split(/\s+/).filter((token) => !token.startsWith("-"));
     const format = outputs.map((output) => /\.([a-z0-9]+)["']?$/i.exec(output)?.[1]).find(Boolean);
+    // A model's document id (`cad model export <id> …`) names no part.
     const part =
-      source === undefined
+      source === undefined || !/\.[a-z0-9]+["']?$/i.test(source)
         ? "the model"
         : inSentence(humanName(base(source).replace(/\.[^.]+$/, "")));
     const as = format === undefined ? "" : ` as ${format.toUpperCase()}`;
@@ -156,8 +182,12 @@ const RULES: ReadonlyArray<(command: string) => StepLabel | null> = [
     return { done: `Read ${part}`, doing: `Reading ${part}` };
   },
   (command) =>
-    /\bpcb\s+drc\b/.test(command)
+    /\b(?:kicad_)?pcb\s+drc\b/.test(command)
       ? { done: "Checked the board", doing: "Checking the board" }
+      : null,
+  (command) =>
+    /\bkicad_sch\s+erc\b/.test(command)
+      ? { done: "Checked the schematic", doing: "Checking the schematic" }
       : null,
   // A model script builds its part: `python bracket.py`, through any interpreter or `cad run`.
   (command) => {

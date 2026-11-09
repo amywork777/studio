@@ -8,20 +8,21 @@
 | exports.py | parts/shelf_bracket.step, parts/shelf_bracket_flat.step, cut/shelf_bracket_cut.dxf | The delivered files |
 | parts/shelf_bracket_drawing.py | drawings/shelf_bracket_drawing.pdf | The bracket's engineering drawing |
 
-Build: `cadgen run parts/shelf_bracket.py` from the project root builds the bracket, and `cadgen run
+Build: `cad run parts/shelf_bracket.py` from the project root builds the bracket, and `cad run
 parts/shelf_bracket_cut.py` the cut file and the flat pattern in it, each a model with its own page. A run writes no
-file: `cadgen run exports.py` writes the STEP files and the DXF. `cadgen run parts/shelf_bracket_drawing.py` draws the
+file: `cad run exports.py` writes the STEP files and the DXF. `cad run parts/shelf_bracket_drawing.py` draws the
 bracket from its model.
 
-The strength study, from the exported STEP: studies/shelf_bracket.study.json, solved with
-`cadgen fea solve parts/shelf_bracket.step studies/shelf_bracket.fea.glb --study studies/shelf_bracket.study.json`.
+The strength study, from the exported STEP: studies/shelf_bracket.study.json, solved with `cad step solve
+parts/shelf_bracket.step --study studies/shelf_bracket.study.json --out studies/shelf_bracket`, which writes its
+result into studies/shelf_bracket/.
 
-Checks, run from the project root after `cadgen run exports.py`: `cadgen run checks/shelf_bracket_step_facts.py` (the
-STEP's solid, volume and cylinders), `cadgen run checks/shelf_bracket_cut_facts.py` (the cut file's units, layers,
-bend lines, flange depths and hole distances, for the SendCutSend preflight) and `cadgen run
-checks/shelf_bracket_fea_probe.py studies/shelf_bracket.fea.glb studies/shelf_bracket.fea.json "[[14,-25],[14,-125]]"`
+Checks, run from the project root after `cad run exports.py`: `cad run checks/shelf_bracket_step_facts.py` (the
+STEP's solid, volume and cylinders), `cad run checks/shelf_bracket_cut_facts.py` (the cut file's units, layers,
+bend lines, flange depths and hole distances, for the SendCutSend preflight) and `cad run
+checks/shelf_bracket_fea_probe.py studies/shelf_bracket/result.glb studies/shelf_bracket/result.json "[[14,-25],[14,-125]]"`
 (the strength result's stress away from the wall holes).
 
-Pictures: `cadgen snapshot --job pictures/shelf_bracket_pictures.job.json` draws the card from the exported STEP. The
-strength report's pictures are of the study's result file as cadgen 0.7 drew it: 0.8's snapshot draws a result
-file's mesh but not its stress colours.
+Pictures: `cad step snapshot --job pictures/shelf_bracket_pictures.job.json` draws the card from the exported STEP.
+The strength report's pictures were drawn with text-to-cad 0.7 from an earlier solve of the same study, which gave the
+same numbers; the study's own pictures are the solve's, in studies/shelf_bracket/.

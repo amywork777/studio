@@ -2,7 +2,7 @@
 touching joint hides measured on their own, then each hinge swung through its travel to find the angles where nothing
 collides and nothing goes through the desk, and at each pose the lamp's balance on its base and the torque each hinge
 must hold. Calls the lamp's model, so it checks the lamp as it is now, writes its findings to assemblies/desk_lamp_fit.md, prints them as
-one JSON line, and exits 1 when a part collides at rest. Run it from anywhere: cadgen run checks/desk_lamp_fit.py"""
+one JSON line, and exits 1 when a part collides at rest. Run it from anywhere: cad run checks/desk_lamp_fit.py"""
 
 import json
 import math
@@ -11,7 +11,7 @@ from itertools import combinations
 from pathlib import Path
 
 import build123d as bd
-from cadgen.geometry import closest_points, overlap_volume
+from cad.build123d import closest_points, overlap_volume
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "assemblies"))
@@ -94,7 +94,7 @@ def gap(a, b) -> tuple[float, list[float]]:
 
 def placed(node, path=()):
     """Each part of the lamp with its ref's owner, its path of labels from the root (`desk_lamp/arm_assembly/arm`, as
-    `cadgen inspect` takes it). Every sub-assembly of the lamp stands at the world's origin, so its parts' own
+    `cad model inspect` takes it). Every sub-assembly of the lamp stands at the world's origin, so its parts' own
     coordinates are the world's."""
     here = (*path, node.label)
     if not node.children:
@@ -388,7 +388,7 @@ def markdown(result) -> str:
         "",
         "## How it was checked",
         "",
-        "- Every pair of parts at rest: the exact overlap of their solids (`cadgen.geometry.overlap_volume`, mm³) and the "
+        "- Every pair of parts at rest: the exact overlap of their solids (`cad.build123d.overlap_volume`, mm³) and the "
         "least distance between them (`closest_points`, mm), in the lamp model's own placements.",
         f"- An overlap above {result['limits']['collision_mm3']} mm³ is a collision unless it is an M3 screw's thread in "
         f"its pilot hole; parts closer than {result['limits']['touch_mm']} mm touch; a gap under "

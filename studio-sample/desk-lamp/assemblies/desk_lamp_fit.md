@@ -93,7 +93,7 @@ Gaps a touching joint hides, measured between the features that make each fit.
 
 ## How it was checked
 
-- Every pair of parts at rest: the exact overlap of their solids (`cadgen.geometry.overlap_volume`, mm³) and the least distance between them (`closest_points`, mm), in the lamp model's own placements.
+- Every pair of parts at rest: the exact overlap of their solids (`cad.build123d.overlap_volume`, mm³) and the least distance between them (`closest_points`, mm), in the lamp model's own placements.
 - An overlap above 0.01 mm³ is a collision unless it is an M3 screw's thread in its pilot hole; parts closer than 0.0001 mm touch; a gap under 0.5 mm is tight. These limits are this check's own, chosen for this design.
 - Each hinge swung from rest in 5 degree steps, then a degree at a time, about the axis the assembly's joints declare: the arm with everything it carries, against the base, the weight and the base hinge's screw and nut; the head with the LED module and its screws, against the arm and everything else. A pose is blocked by an overlap, or by any part below the desk (z < 0).
 - Not checked: the LED's lead, which is not modelled; the hinge screws' thread in the locknuts, drawn as touching; and the friction itself, which only a built lamp shows.

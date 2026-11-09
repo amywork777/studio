@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pictures from every side"
+  short_description: "Four PNGs, from the front, side, top and an angle, for a presentation."
+  default_prompt: "Use $pictures to make pictures of the part from the front, side, top and an angle, for a presentation."

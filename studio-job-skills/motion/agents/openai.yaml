@@ -1,0 +1,4 @@
+interface:
+  display_name: "Range of motion"
+  short_description: "A report of the closest gap and any collision at each step of its travel."
+  default_prompt: "Use $motion to move the assembly through its range of motion and tell me where parts collide, bind or run out of travel."

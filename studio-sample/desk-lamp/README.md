@@ -16,7 +16,7 @@ A small desk lamp printed in PETG, an example project to learn Studio with. A ro
 - Give the hinges the range the fit check finds clear, rounded in to whole 5 degrees: the arm -45 to +135 degrees about its rest, the head -45 to +175 (2026-10-26, assumed)
 - Print the base standing on its underside with support in the weight's pocket only, and the head on its top with support under the yoke (2026-10-26, assumed)
 - Draw the lamp as a prototype at nominal sizes, with a sheet for each part the project makes and none for bought ones (2026-10-26, assumed)
-- Write the work instructions as a prototype build order with a figure per step (2026-10-26, assumed)
+- Write the work instructions as a simple picture guide with a figure per step (2026-10-26, assumed; text-to-cad 0.11 calls the old prototype level simple)
 
 ## Open actions
 
@@ -36,4 +36,4 @@ A small desk lamp printed in PETG, an example project to learn Studio with. A ro
 - The checks: [fit, clearance, range of motion, balance and holding](assemblies/desk_lamp_fit.md).
 - Making it: the printed parts' meshes, [base](parts/base.stl), [arm](parts/arm.stl) and [head](parts/head.stl); [the assembly drawing](drawings/desk_lamp_drawing.pdf), with its balloons and parts list, and [the work instructions](docs/desk_lamp_work_instructions.pdf).
 - The documents: [PRD](docs/prd.md) and [parts list](docs/desk_lamp_parts_list.md).
-- Pictures: [from an angle](pictures/desk_lamp_angle.png), [front](pictures/desk_lamp_front.png), [back](pictures/desk_lamp_back.png), [left](pictures/desk_lamp_left.png), [right](pictures/desk_lamp_right.png), [top](pictures/desk_lamp_top.png), [bottom](pictures/desk_lamp_bottom.png), [exploded](pictures/desk_lamp_exploded.png) and [exploded from the side](pictures/desk_lamp_exploded_side.png), and [the motion video](pictures/desk_lamp_motion.mp4), recorded with cadgen 0.7: cadgen 0.8 records no video, and the viewer's Motion plays the lamp's `range` motion.
+- Pictures: [from an angle](pictures/desk_lamp_angle.png), [front](pictures/desk_lamp_front.png), [back](pictures/desk_lamp_back.png), [left](pictures/desk_lamp_left.png), [right](pictures/desk_lamp_right.png), [top](pictures/desk_lamp_top.png), [bottom](pictures/desk_lamp_bottom.png), [exploded](pictures/desk_lamp_exploded.png) and [exploded from the side](pictures/desk_lamp_exploded_side.png), and [the motion video](pictures/desk_lamp_motion.mp4), recorded with text-to-cad 0.7: text-to-cad 0.8 and later record no video, and the viewer's Motion plays the lamp's `range` motion.

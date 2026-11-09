@@ -2,7 +2,7 @@
 
 ## What it is
 
-A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a frame: a sample project to learn Studio with. The motor sits under the plate, its 22 mm pilot in the plate's bore and its shaft up through it to a belt pulley, held by four M3 screws on its 31 mm square whose heads sit flush in a pocket on top. Two M5 screws through slots at the plate's ends fix it to the frame, and the slots give 10 mm of travel to tension the belt. It is 110 x 56 x 6 mm and weighs 76.3 g. It holds 50 N of belt tension with a safety factor of 521, and it is machined on a 3-axis mill in two setups, in 14 minutes by its CAM program. Its requirements are on the model itself, as 3D PMI (a model-based definition): datums on its underside and two sides, the bore, the M3 holes and the slots sized and positioned, the underside's flatness, the thickness and the pocket's depth, and a general profile for every other face, exported in its AP242 STEP.
+A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a frame: a sample project to learn Studio with. The motor sits under the plate, its 22 mm pilot in the plate's bore and its shaft up through it to a belt pulley, held by four M3 screws on its 31 mm square whose heads sit flush in a pocket on top. Two M5 screws through slots at the plate's ends fix it to the frame, and the slots give 10 mm of travel to tension the belt. It is 110 x 56 x 6 mm and weighs 76.3 g. It holds 50 N of belt tension with a safety factor of 521, and it is machined on a 3-axis mill in one setup, in 5 minutes by its CAM program. Its requirements are on the model itself, as 3D PMI (a model-based definition): datums on its underside and two sides, the bore, the M3 holes and the slots sized and positioned, the underside's flatness, the thickness and the pocket's depth, and a general profile for every other face, exported in its AP242 STEP.
 
 ## Decisions
 
@@ -14,7 +14,7 @@ A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a f
 - Clear the motor's M3 screws at Ø3.4 and the frame's M5 screws with 5.5 mm slots, ISO 273 medium; the slots 80 mm apart along the belt with 10 mm of travel (2026-10-26, assumed)
 - Pocket the top 46 mm square and 3 mm deep round the screw heads, leaving a 3 mm floor, to save weight (2026-10-26, assumed)
 - Round the pocket's corners R5, over the 6 mm cutter's R3, and the outline's corners R5; leave the pocket's floor sharp to its walls; chamfer the outline's top and bottom edges 0.5 mm (2026-10-26, assumed)
-- Plan the CAM for a Tormach 1100MX on LinuxCNC, with three proposed tools and flood coolant, in one setup on a sacrificial plate; cut the pilot bore and the slots by hand, since cadgen's 3-axis CAM cuts no through bore or slot (2026-10-28, assumed)
+- Plan the CAM for a Tormach 1100MX on LinuxCNC, with three proposed tools and flood coolant, in one setup on a sacrificial plate; cut the pilot bore and the slots by hand, since text-to-cad's 3-axis CAM then cut no through bore or slot (2026-10-28, assumed)
 - Check the machining on the pocket wall's finishing pass, the plate held by its two long sides: it passes (2026-10-26, assumed)
 - Check the strength with 50 N along the belt on the pilot bore and the M3 holes, the slots held fixed: it passes with a safety factor of 521 (2026-10-26, asked)
 - Draw it on one A3 sheet at 1:1, its holes and slots in a hole table, under ISO 2768-m, as a prototype (2026-10-26, assumed)
@@ -33,13 +33,14 @@ A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a f
 - Note "Deburr the holes and slots.", the drawing's own words, as Note 2 (2026-10-27, assumed)
 - Name two views: Section A-A through the bore, with the thickness, the pocket's depth, the bore and datum A's flatness, and Top, with every hole's and slot's size and position; the basic dimensions that locate the M3 holes and the slots' ends are in neither, so Top stays legible (the viewer lists them in its PMI section, and the STEP carries them) (2026-10-27, assumed)
 - Cut the pilot bore and the belt slots in the CAM program, with a 4 mm end mill added for the slots, no longer by hand (2026-10-28, assumed)
+- Give the CAM job's tools the T numbers, shank sizes and drill point angle text-to-cad 0.11 asks for: T1 to T4 as their ids, each end mill's shank its own diameter, the drill's point 118°, all proposed like the tools (2026-11-09, asked)
 
 ## Open actions
 
 - Measure the bought motor's pilot before the plate is cut: the bore is sized for 22 mm, and step.parts' model has a 17.8 mm one. The PMI gives the bore Ø22.2 +0.1/0 (assumed); the drawing still states it under ISO 2768-m alone, where it may come out 22.0 mm, line to line with the pilot.
 - Check every PMI value with the shop that will cut it and the inspector who will measure it: each one is assumed for a NEMA 17 plate, none was given.
 - Prove the CAM program on the machine before cutting: single block, feed override low, in air first. It has not been run, and its tools, stickouts and the tape's hold are proposed or assumed.
-- Cut the pilot bore and the two slots by hand, and chamfer or deburr every edge by hand: the CAM program cuts neither (`cam/motor_plate_cam.md`).
+- Chamfer or deburr every edge by hand: the CAM program cuts no chamfer (`cam/motor_plate_cam.md`).
 - The drawing's report lists four chamfers "3.54 x 45°" as not stated: they are the 0.5 mm outline chamfer running round the R5 corners, which note 3 states and the report misreads.
 - Study the belt's pull at the pulley's height once the pulley is chosen: the moment it puts on the motor's face is not in the strength study.
 - Choose the frame and the M5 screws' tightening torque, so the plate does not slide under the belt.
@@ -49,6 +50,6 @@ A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a f
 - The models: [the motor plate](parts/motor_plate.py), [the NEMA 17 motor](parts/nema17.py) and [the motor mount](assemblies/motor_mount.py), with [the models' catalog](parts/README.md).
 - Their STEP files, from [`exports.py`](exports.py): [the motor plate](parts/motor_plate.step), AP242 with its PMI, [the motor](parts/nema17.step) and [the mount](assemblies/motor_mount.step).
 - The checks: [geometry](checks/motor_plate_geometry.md), [3D PMI](checks/motor_plate_pmi.md), [fit](checks/motor_mount_fit.md), [strength](docs/motor_plate_strength_report.md) and [the CNC machining review](docs/motor_plate_dfm.md) with [its measurements](checks/motor_plate_dfm_measure.md).
-- Making it: [the CAM job](cam/motor_plate.cam.glb) and [its program](cam/motor_plate_cam.md), with [its LinuxCNC G-code](cam/motor_plate.top.ngc), and [the plate's drawing](drawings/motor_plate_drawing.pdf).
+- Making it: [the CAM job](cam/motor_plate/result.glb) and [its program](cam/motor_plate_cam.md), with [its LinuxCNC G-code](cam/motor_plate/motor_plate.top.ngc), and [the plate's drawing](drawings/motor_plate_drawing.pdf).
 - The documents: [PRD](docs/prd.md).
 - Pictures: [the mount](pictures/motor_mount_angle.png), [from below](pictures/motor_mount_below.png), [the plate's PMI, its Top view](pictures/motor_plate_pmi.png) and [the toolpaths](pictures/motor_plate_cam.png).

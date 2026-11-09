@@ -12,19 +12,19 @@
 | exports.py | assemblies/desk_lamp.step, parts/*.step, parts/base.stl, parts/arm.stl, parts/head.stl | The delivered files: every STEP, and the printed parts' meshes |
 | checks/desk_lamp_fit.py | assemblies/desk_lamp_fit.md | The lamp's fit, clearance, range of motion, balance and holding torque |
 | assemblies/desk_lamp_drawing.py | drawings/desk_lamp_drawing.pdf | The assembly drawing: the general arrangement with balloons and the parts list, and a sheet per part the project makes |
-| assemblies/desk_lamp_wi.py | docs/desk_lamp_work_instructions.pdf | The work instructions for putting it together |
+| assemblies/desk_lamp_wi.py | docs/desk_lamp_work_instructions.pdf, with its .glb and .html beside it | The work instructions for putting it together |
 
-Build: `cadgen run assemblies/desk_lamp.py` from the project root builds the lamp and the parts in it, each a model with
-its own page. A run writes no file: `cadgen run exports.py` writes the STEP files and the meshes. Rerun
-`cadgen run checks/desk_lamp_fit.py` after the lamp changes (it swings both hinges, so it takes a while), and copy the
-hinges' clear range it reports into `TILT_LIMITS` and `HEAD_LIMITS` in the assembly. `cadgen run
-assemblies/desk_lamp_drawing.py` draws the lamp from its model, and `cadgen run assemblies/desk_lamp_wi.py` writes its
+Build: `cad run assemblies/desk_lamp.py` from the project root builds the lamp and the parts in it, each a model with
+its own page. A run writes no file: `cad run exports.py` writes the STEP files and the meshes. Rerun
+`cad run checks/desk_lamp_fit.py` after the lamp changes (it swings both hinges, so it takes a while), and copy the
+hinges' clear range it reports into `TILT_LIMITS` and `HEAD_LIMITS` in the assembly. `cad run
+assemblies/desk_lamp_drawing.py` draws the lamp from its model, and `cad run assemblies/desk_lamp_wi.py` writes its
 work instructions from its exported STEP, so run `exports.py` first.
 
-Pictures, drawn from the exported STEP: `cadgen snapshot --job pictures/desk_lamp_pictures.job.json` (front, back, both
-sides, top, bottom, an angle, the card, and two exploded views). The motion video was recorded with cadgen 0.7, which
+Pictures, drawn from the exported STEP: `cad step snapshot --job pictures/desk_lamp_pictures.job.json` (front, back, both
+sides, top, bottom, an angle, the card, and two exploded views). The motion video was recorded with text-to-cad 0.7, which
 drew video; the lamp's `range` motion is its sequence now, played by the viewer's Motion and carried by a GLB exported
-from it (`cadgen export <the lamp's id> desk_lamp.glb`).
+from it (`cad model export <the lamp's id> desk_lamp.glb`).
 
 Imported source, from step.parts, each checked against its catalog checksum:
 parts/imported/iso4762_socket_head_cap_screw_m5x30.step (the two hinge screws),

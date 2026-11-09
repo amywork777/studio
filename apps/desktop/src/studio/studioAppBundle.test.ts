@@ -181,17 +181,17 @@ describe("applyStudioAppBundle", () => {
     expect(env.T3CODE_SAMPLES_DIR).toBeUndefined();
   });
 
-  it("points the CAD tools at the bundled FEA solver when the bundle has one", () => {
+  it("names the bundled library wheel to the CAD tools when the bundle has one", () => {
     const res = resources();
-    const ccx = NodePath.join(res, "studio", "calculix", "bin", "ccx");
-    write(ccx, "");
+    const wheels = NodePath.join(res, "studio", "wheels");
+    write(NodePath.join(wheels, "cad-0.11.3-py3-none-any.whl"), "");
     const env: Record<string, string | undefined> = {};
-    applyStudioAppBundle({ resourcesPath: res, homeDirectory: tempDir(), env, platform: "darwin" });
-    expect(env.CAD_CCX).toBe(ccx);
+    applyStudioAppBundle({ resourcesPath: res, homeDirectory: tempDir(), env });
+    expect(env.CAD_UPDATE_FIND_LINKS).toBe(wheels);
 
     const none: Record<string, string | undefined> = {};
     applyStudioAppBundle({ resourcesPath: resources(), homeDirectory: tempDir(), env: none });
-    expect(none.CAD_CCX).toBeUndefined();
+    expect(none.CAD_UPDATE_FIND_LINKS).toBeUndefined();
   });
 
   it("says the versions the build was given, and none it was not", () => {

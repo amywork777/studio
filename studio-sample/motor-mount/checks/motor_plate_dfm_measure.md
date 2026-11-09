@@ -1,6 +1,6 @@
 # Motor plate: DFM measurements
 
-Measured on the plate's model (`parts/motor_plate.py`) with `cadgen run checks/motor_plate_dfm_measure.py`, from its own faces (exact B-rep: radii from the cylinders, gaps as face-to-face distances). Millimetres; Z 0 is the plate's underside, Z 6 its top.
+Measured on the plate's model (`parts/motor_plate.py`) with `cad run checks/motor_plate_dfm_measure.py`, from its own faces (exact B-rep: radii from the cylinders, gaps as face-to-face distances). Millimetres; Z 0 is the plate's underside, Z 6 its top.
 
 | Feature | Measured | Where |
 | --- | --- | --- |

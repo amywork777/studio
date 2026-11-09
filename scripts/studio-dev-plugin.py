@@ -8,7 +8,8 @@ own scripts/install/dev_install.py lays one out for Codex, through that script's
 checkout's .venv registered as this install's version (`<version>-dev.<time>`), made current, and
 the `cad` command written, both in Studio's own CAD state (scripts/studio.ts sets CAD_STATE_DIR and
 CAD_LAUNCHER_DIR before it runs this), so the skills' `cad` runs it, and `cad-mcp` run by that .venv,
-serving a fresh build of apps/mcp. The result is a marketplace at <checkout>/tmp/studio-dev, which
+serving a fresh build of apps/mcp, with Studio's job skills beside the skills
+(scripts/studio_job_skills.py). The result is a marketplace at <checkout>/tmp/studio-dev, which
 Studio uses in place, and its path is the one line printed.
 
 Needs the checkout set up as CONTRIBUTING.md says: `.venv` (Python 3.14) from requirements-dev.txt,
@@ -21,6 +22,8 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+from studio_job_skills import add_job_skills
 
 
 class Options:
@@ -54,6 +57,8 @@ def main(argv: list[str]) -> int:
         # Codex's layout: its manifest carries the plugin's icon and starter prompts.
         plugin = root / "plugins" / name
         dev_install.assemble("codex", plugin, version, server, rewrites=rewrites)
+        # Studio's job skills beside text-to-cad's ($fdm, $export, $board-fab: scripts/studio_job_skills.py).
+        add_job_skills(plugin)
         dev_install.write_json(root / ".claude-plugin" / "marketplace.json", {
             "name": "text-to-cad-studio-dev",
             "owner": {"name": "this checkout"},

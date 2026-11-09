@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 import build123d as bd
-from cadgen import model, read_step
-from cadgen.ap242 import configuration_sequence
-from cadgen.mates import Coincident, Concentric, Distance, mate
+from cad import model, step
+from cad.build123d import configuration_sequence
+from cad.mates import Coincident, Concentric, Distance, mate
 
 PARTS = Path(__file__).resolve().parent.parent / "parts"
 sys.path.insert(0, str(PARTS))  # the parts are models in ../parts, each built in this run with its own document
@@ -100,13 +100,13 @@ def desk_lamp():
     hinges = []
     for name, axis, holes, sides in (("base_hinge", BASE_HINGE, clevis_holes, clevis_sides), ("head_hinge", HEAD_HINGE, head_holes, yoke_sides)):
         x, _, z = axis
-        screw = bd.Pos(x, outer, z) * bd.Rot(-90, 0, 0) * read_step(HINGE_SCREW)  # its shank along -Y, its head on the +Y cheek
+        screw = bd.Pos(x, outer, z) * bd.Rot(-90, 0, 0) * step.read(HINGE_SCREW)  # its shank along -Y, its head on the +Y cheek
         shank = round_faces(screw, 2.5)[0]  # M5
         head_underside = at_y(screw.faces().filter_by(bd.Axis.Y), outer)
         mate(screw, Concentric(shank, holes[0]), Coincident(head_underside, at_y(sides, outer)))
         screw.label = f"m5x30_screw:{name}"
 
-        nut = bd.Pos(x, -outer, z) * bd.Rot(90, 0, 0) * read_step(LOCKNUT)  # its bearing face toward +Y, against the -Y cheek
+        nut = bd.Pos(x, -outer, z) * bd.Rot(90, 0, 0) * step.read(LOCKNUT)  # its bearing face toward +Y, against the -Y cheek
         bore = nut.faces().filter_by(bd.GeomType.CYLINDER)[0]
         mate(nut, Concentric(bore, holes[0]), Coincident(at_y(nut.faces().filter_by(bd.Axis.Y), -outer), at_y(sides, -outer)))
         nut.label = f"m5_locknut:{name}"
@@ -124,7 +124,7 @@ def desk_lamp():
 
     led_screws = []
     for side, hole in zip(("left", "right"), led_holes):
-        screw = bd.Pos(hole.center().X, 0, led_front.center().Z) * bd.Rot(180, 0, 0) * read_step(LED_SCREW)  # its head under the board, its shank up into the boss
+        screw = bd.Pos(hole.center().X, 0, led_front.center().Z) * bd.Rot(180, 0, 0) * step.read(LED_SCREW)  # its head under the board, its shank up into the boss
         shank = round_faces(screw, 1.5)[0]  # M3
         mate(screw, Concentric(shank, hole), Coincident(at_z(screw.faces().filter_by(bd.Axis.Z), led_front.center().Z), led_front))
         screw.label = f"m3x8_screw:{side}"

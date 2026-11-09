@@ -59,10 +59,11 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   - the CAD tools with a Python of their own: uv's movable CPython 3.14, with the `cad`,
     `cad-server` and `cad-mcp` wheels and their dependencies pinned to the checkout's `.venv`. They make STL and DXF, and draws part pictures,
     in that Python, so the Mac needs no Node or browser for them;
-  - the FEA solver, CalculiX from conda-forge (fetched by micromamba, its one-file build when the
-    machine has none), which the app names to the CAD tools as `CAD_CCX`, so a strength check needs
-    nothing installed. Windows's comes with OpenBLAS, not conda-forge's default MKL (about 100 MB
-    against 600);
+  - the FEA solver, CalculiX, as `cad[calculix]`'s own `cad-ccx` package in that Python (about
+    16 MB with its libraries), so a strength check needs nothing installed;
+  - the `cad` wheel itself (`wheels/`, `CAD_UPDATE_FIND_LINKS`), with the wheels' install records
+    removed, so an integration made on first use (KiCad's) installs Studio's text-to-cad again
+    rather than the build machine's long-gone file;
   - their plugin, laid out by `scripts/studio-app-plugin.py`, with the app's paths left as
     `@@STUDIO_…@@` placeholders;
   - the plugin's page;
@@ -340,9 +341,10 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   each other kind of file) and its Files, References and Threads tabs. In Engineering its New starts
   new designs only. A module shows once it has something in it, folds away (remembered on this
   computer), and is read again whenever the thread's agent changes files. Checks are the results
-  text-to-cad writes beside the parts, `<name>.fea.json` (or a named study's
-  `FEA/<name>.<study>.json`) and `<stem>.<process>.result.json`
-  (`components/workbench/checkResults.ts`), named as an engineer says them (Strength, Vibration,
+  text-to-cad writes: 0.11's study folder (`cad step solve … --out studies/tip-load`), whose
+  `result.json` is the answer and `result.glb` its picture, and from earlier versions
+  `<name>.fea.json` (or a named study's `FEA/<name>.<study>.json`) and
+  `<stem>.<process>.result.json` (`components/workbench/checkResults.ts`), named as an engineer says them (Strength, Vibration,
   Casting), a study that passes saying its safety factor; a drawing is the engineering drawing's
   `<part>_drawing.pdf`. Each opens with a click.
 - **Import.** Studio scans the folders picked on this computer (Documents, Desktop and Downloads to
@@ -798,6 +800,17 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   New's Create does: each prompt asks for what it needs (the loads, the machine), so nothing waits
   on a second press. The composer's / menu offers Studio's own commands in plain words and the
   skills, not the agent's coding commands.
+- **Each job is a skill of its own.** Every job of a text-to-cad skill that does more than one
+  (CAD's checks and exports, and PCB's checks and files) is also a skill, named by its job's id,
+  so it can be called in
+  the chat (`$fdm`, `$export`, `$board-fab`) and has its own cover on the Toolbox page, on its menu's
+  shelf with the cover of the document it makes (Amy, 11/09: more skills, each triggered on its
+  own). Each only hands off: it asks for its job as the tile does and sends the agent to the
+  text-to-cad skill that does it. Its files, `studio-job-skills/`, are written from the jobs
+  (`components/workbench/jobSkills.ts`; `STUDIO_WRITE_JOB_SKILLS=1` on `jobSkills.test.ts` writes
+  them again after a job changes) and join text-to-cad's skills where Studio lays out its plugin,
+  in dev (`TEXT_TO_CAD_DEV=1`) and in the app (`scripts/studio_job_skills.py`), never inside
+  `text-to-cad/`.
 - **Three kinds, and work done on them.** What is designed is CAD, Electronics or Documents, and
   New offers those. FEA and CAM are not kinds of design but work done on one, for parts and boards
   alike, so what Evaluate, Manufacture and Document make (analysis, manufacturing files,

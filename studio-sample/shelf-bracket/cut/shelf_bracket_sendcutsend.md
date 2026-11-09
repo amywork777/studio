@@ -1,6 +1,6 @@
 # Shelf bracket: SendCutSend preflight
 
-The STEP is ready to upload for this order, in G90-074 galvanised steel with two bends: it is one solid at the stock thickness, bent at SendCutSend's radius, and every check passes. The cut file needs edits before upload: its bend lines are solid, and SendCutSend asks for dashed bend lines in a DXF, which cadgen's DXF export can't write. Order with the STEP. Nothing was uploaded, quoted or ordered.
+The STEP is ready to upload for this order, in G90-074 galvanised steel with two bends: it is one solid at the stock thickness, bent at SendCutSend's radius, and every check passes. The cut file needs edits before upload: its bend lines are solid, and SendCutSend asks for dashed bend lines in a DXF, which text-to-cad's DXF export can't write. Order with the STEP. Nothing was uploaded, quoted or ordered.
 
 ## Context
 
@@ -27,13 +27,13 @@ All read 2026-10-26.
 
 ## Geometry facts
 
-STEP, read with cadgen's `read_step` (build123d):
+STEP, read with text-to-cad's `step.read` (build123d):
 
 - One solid, one shell, valid. Units millimetres (`SI_UNIT(.MILLI.,.METRE.)`). Bounding box 25 × 180 × 150 mm.
 - Thickness 1.8796 mm (0.0740 in) between each pair of matched faces: the web, the shelf flange and the wall flange.
 - Cylindrical faces by radius: the bends' 1.6002 mm inside and 3.4798 mm outside; the rest are holes (Ø4.5, Ø5.5), the R1 relief round, R3 flange corners and R6 web corners.
 
-DXF, read with `ezdxf` and checked with cadgen's `validate_dxf_file`:
+DXF, read with `ezdxf` and checked with text-to-cad's `validate_dxf_file`:
 
 - DXF AC1027. `$INSUNITS` 4 (millimetres), 1:1, extents 201.735 × 171.735 mm (7.94 × 6.76 in).
 - Layers:
@@ -58,7 +58,7 @@ DXF, read with `ezdxf` and checked with cadgen's `validate_dxf_file`:
 
 | Status | Check | Evidence | Rule source | Recommendation |
 | --- | --- | --- | --- | --- |
-| ❌ fail | DXF: bend line type | The BEND layer is Continuous, a solid line, and both its lines take it (BYLAYER). The file defines no dashed linetype. | [CNC bending](https://sendcutsend.com/services/cnc-bending/), Get instant pricing for bending: "Bends should be indicated with a dashed line for .dxf and .dwg files". [Ordering guide](https://cdn.sendcutsend.com/specs/sendcutsend-ordering-guide.md), Bending, Bend lines in DXF: dashed (not hidden) in SolidWorks and AutoCAD, solid in Fusion 360. | Upload the STEP instead. To use the DXF, make the BEND layer dashed (DASHED, not HIDDEN) and run this preflight again: cadgen's DXF export writes every layer Continuous, so `parts/shelf_bracket_cut.py` can't. |
+| ❌ fail | DXF: bend line type | The BEND layer is Continuous, a solid line, and both its lines take it (BYLAYER). The file defines no dashed linetype. | [CNC bending](https://sendcutsend.com/services/cnc-bending/), Get instant pricing for bending: "Bends should be indicated with a dashed line for .dxf and .dwg files". [Ordering guide](https://cdn.sendcutsend.com/specs/sendcutsend-ordering-guide.md), Bending, Bend lines in DXF: dashed (not hidden) in SolidWorks and AutoCAD, solid in Fusion 360. | Upload the STEP instead. To use the DXF, make the BEND layer dashed (DASHED, not HIDDEN) and run this preflight again: text-to-cad's DXF export writes every layer Continuous, so `parts/shelf_bracket_cut.py` can't. |
 | ✅ pass | STEP: one solid at stock thickness | One valid solid, 1.8796 mm thick throughout, against 0.074 in stock | [CNC bending](https://sendcutsend.com/services/cnc-bending/), Pre-flight checklist: "single solid sheet metal body, uniform thickness with a face at every edge, modeled at stock thickness with matching bend specs"; [sendcutsend-specs.json](https://cdn.sendcutsend.com/specs/sendcutsend-specs.json) `materials[sku=G90-074].general_specs.thickness` 0.074 | None |
 | ✅ pass | STEP: bend radius | Both bends 1.6002 mm (0.0630 in) inside | [sendcutsend-specs.json](https://cdn.sendcutsend.com/specs/sendcutsend-specs.json) `materials[sku=G90-074].bending_specs.effective_bend_radius` 0.063 | None |
 | ✅ pass | STEP: bend lines | A STEP carries none, and needs none | [CNC bending](https://sendcutsend.com/services/cnc-bending/): "3D files: No bend lines needed"; [ordering guide](https://cdn.sendcutsend.com/specs/sendcutsend-ordering-guide.md), File Format Guidelines: STEP is best for parts with bends | Confirm the two 90° bends and their direction in the 3D preview. |

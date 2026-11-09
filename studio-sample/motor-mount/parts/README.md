@@ -13,22 +13,24 @@
 | checks/motor_plate_dfm_measure.py | checks/motor_plate_dfm_measure.md | The plate's machining features measured for its DFM review |
 | checks/motor_mount_fit.py | checks/motor_mount_fit.md | The mount's collisions and where each part sits |
 
-Build: `cadgen run assemblies/motor_mount.py` from the project root builds the mount and the parts in it, each a model
-with its own page. A run writes no file: `cadgen run exports.py` writes the STEP files, and the drawing and the checks
-call the models themselves (`cadgen run parts/motor_plate_drawing.py`, `cadgen run checks/motor_plate_geometry.py`).
+Build: `cad run assemblies/motor_mount.py` from the project root builds the mount and the parts in it, each a model
+with its own page. A run writes no file: `cad run exports.py` writes the STEP files, and the drawing and the checks
+call the models themselves (`cad run parts/motor_plate_drawing.py`, `cad run checks/motor_plate_geometry.py`).
 Rerun the checks after the plate changes, `checks/motor_plate_pmi.py` after `exports.py`.
 
 Imported source, from step.parts (checksums verified): parts/imported/stepper_motor_nema17_l0040_single_shaft.step
 and parts/imported/iso4762_socket_head_cap_screw_m3x6.step.
 
-Making it, from the exported STEP (`cadgen run exports.py` first):
+Making it, from the exported STEP (`cad run exports.py` first):
 
-- CAM: `cadgen cam plan parts/motor_plate.step --job cam/motor_plate.cam.json --out-dir cam` writes
-  cam/motor_plate.cam.glb and the LinuxCNC program cam/motor_plate.top.ngc.
-- Strength: `cadgen fea solve parts/motor_plate.step studies/motor_plate.fea.glb --study studies/motor_plate.study.json`.
+- CAM: `cad step plan parts/motor_plate.step --job cam/motor_plate.cam.json --out cam/motor_plate` writes
+  cam/motor_plate/result.json, cam/motor_plate/result.glb (the toolpaths) and the LinuxCNC program
+  cam/motor_plate/motor_plate.top.ngc.
+- Strength: `cad step solve parts/motor_plate.step --study studies/motor_plate.study.json --out studies/motor_plate`
+  writes studies/motor_plate/result.json, result.glb, result.vtu and its stress and displacement pictures.
 
-Pictures: `cadgen snapshot --job pictures/motor_mount_pictures.job.json` draws the mount from its STEP (the angle, from
-below and the card), and `cadgen snapshot <the plate's id> pictures/motor_plate_pmi.png --view Top --width 1200
---height 900` its PMI's Top view, the id being the one `cadgen run parts/motor_plate.py` prints. The toolpaths' and
-the stress study's pictures are of their result files, as they were drawn with cadgen 0.7: 0.8's snapshot draws a
-result file's mesh but not its toolpaths or its stress colours.
+Pictures: `cad step snapshot --job pictures/motor_mount_pictures.job.json` draws the mount from its STEP (the angle,
+from below and the card), and `cad model snapshot <the plate's id> pictures/motor_plate_pmi.png --view Top --width 1200
+--height 900` its PMI's Top view, the id being the one `cad run parts/motor_plate.py` prints. The toolpaths' picture
+(pictures/motor_plate_cam.png) and the strength report's were drawn with text-to-cad 0.7 from earlier runs of the same
+job and study; the study's own pictures are the solve's, in studies/motor_plate/.

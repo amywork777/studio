@@ -8,12 +8,12 @@ A strength check of the shelf bracket (`parts/shelf_bracket.step`) holding a 200
 
 ## What was done
 
-- A linear static study of the bracket on its own (`studies/shelf_bracket.study.json`), solved by CalculiX 2.23. The result is `studies/shelf_bracket.fea.glb`.
+- A linear static study of the bracket on its own (`studies/shelf_bracket.study.json`), solved by CalculiX 2.23 on text-to-cad 0.11 (`cad step solve parts/shelf_bracket.step --study studies/shelf_bracket.study.json --out studies/shelf_bracket`). The result is in `studies/shelf_bracket/`: the numbers in `result.json`, the coloured part in `result.glb` and its picture in `stress.png`.
 - Material: G90-074 at SendCutSend's figures: Young's modulus 199,948 MPa (29,000 ksi), Poisson's ratio 0.30, yield 317.2 MPa (46 ksi), density 7.849 t/m³.
 - Supports: the two Ø5.5 mm wall-screw holes are held fixed. The wall itself is not in the model: nothing holds the flange's back face against it.
 - Load: 147.1 N (15 kg) straight down, spread evenly over the shelf flange's top face, whose middle is 93.5 mm from the wall. A uniform 15 kg on a 200 mm shelf puts its weight 100 mm out, but on two brackets; the study puts all of it on one, about twice what each carries.
 - Mesh: 47,425 quadratic tetrahedra at 5.89 mm, made finer, 0.6 mm, within 8 mm of each wall hole, and 0.3 mm within 4 mm of the corner relief's round.
-- Mesh check: at 5.89 mm the part already has 236,052 degrees of freedom, too close to cadgen's 250,000 limit for the finer solve that would check convergence, so this run leaves it unchecked. The same study on cadgen's earlier solver, at 5.89 and 4.94 mm, came out 0.4% apart. The relief round's 130.8 MPa sits in its 0.3 mm mesh, a third of its radius.
+- Mesh check: at 5.89 mm the part already has 236,052 degrees of freedom, too close to text-to-cad's 250,000 limit for the finer solve that would check convergence, so this run leaves it unchecked. The same study solved separately at 4.94 mm (49,067 elements, 245,715 degrees of freedom) gave 218.7 MPa at the same hole's edge, 1.5% above. The relief round's 130.8 MPa sits in its 0.3 mm mesh, a third of its radius.
 - Hand check:
   - The load's moment at the wall is 147.1 N × 93.5 mm = 13,760 N·mm. Taken by the two screws 100 mm apart, it pulls the upper one out of the wall and pushes the lower one in with about 138 N each.
   - That pull bends the wall flange between the screw and its bend, 10.5 mm: 1,450 N·mm. Over about 30 mm of flange, 1.88 mm thick, that is about 82 MPa, in line with the 70 to 104 MPa the study finds 1 to 3 mm outside the hole.
@@ -21,7 +21,7 @@ A strength check of the shelf bracket (`parts/shelf_bracket.step`) holding a 200
 
 ## Results
 
-Positions are in the bracket's frame: from the outside corner where the shelf meets the wall, on the web's outside face, with Y out from the wall, Z up and X the way the flanges turn. The values away from the peak were read off the result GLB with `checks/shelf_bracket_fea_probe.py`.
+Positions are in the bracket's frame: from the outside corner where the shelf meets the wall, on the web's outside face, with Y out from the wall, Z up and X the way the flanges turn. The values away from the peak were read off `studies/shelf_bracket/result.glb` with `checks/shelf_bracket_fea_probe.py`.
 
 | Result | Value | Where |
 | --- | --- | --- |
@@ -37,11 +37,11 @@ Positions are in the bracket's frame: from the outside corner where the shelf me
 | Safety factor in the bracket itself (at the relief) | 2.43 | |
 | Tip movement | 0.910 mm: 0.339 mm down and 0.843 mm sideways (X) | The arm's tip face; the 'Tip sag' check, against 1 mm, is close |
 | Load and reaction | 147.1 N down; 147.1 N up at the wall holes | They balance |
-| Findings | `low_margin` and `peak_at_fixture`, both warnings, both at the upper wall hole | |
+| Findings | `low_margin` and `peak_at_fixture`, both warnings, both at the upper wall hole; two notes about the run: 236,052 degrees of freedom make a slow solve, and leave no room under the 250,000 limit for a finer one | |
 
 ![The shelf bracket's stress, seen from the flanges' side](shelf_bracket_strength.png)
 
-The bracket from the flanges' side. Colours run from blue at 0 MPa through cyan, green and yellow to red at the 215.4 MPa peak, and the shape is drawn bent 13 times its true movement. The red is only at the two wall holes' edges.
+The bracket from the flanges' side. Colours run from blue at 0 MPa through cyan, green and yellow to red at the 215.4 MPa peak, and the shape is drawn bent 13 times its true movement. The red is only at the two wall holes' edges. These two pictures were drawn with text-to-cad 0.7 from an earlier solve of the same study, which gave the same numbers; the 0.11 solve's own is `studies/shelf_bracket/stress.png`.
 
 ![The shelf bracket's stress, from the web's outside face](shelf_bracket_strength_web.png)
 

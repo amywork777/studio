@@ -117,16 +117,24 @@ describe("engineering tool labels", () => {
 describe("the skills' tools and exports in an engineer's words", () => {
   it("names a check or an export by what it does, never as building a tool", () => {
     expect(
-      engineeringStepLabel("python skills/dfam-check/scripts/dfam_tool.py measure parts/clip.stl")
-        .done,
+      engineeringStepLabel("cad stl dfm parts/clip.stl --process printing --angle-limit 45").done,
     ).toBe("Checked the clip for 3D printing");
-    expect(engineeringStepLabel("python scripts/download_step_part.py M3 screw").done).toBe(
-      "Found a standard part",
+    expect(engineeringStepLabel("cad step dfm parts/case.step --process molding --pull z")).toEqual(
+      { done: "Checked the case for molding", doing: "Checking the case for molding" },
     );
+    expect(
+      engineeringStepLabel("python skills/print3d/scripts/orca_presets.py --list machine").done,
+    ).toBe("Set up the slicer");
     expect(engineeringStepLabel("cadgen stl build parts/clip.step").done).toBe(
       "Exported the clip as STL",
     );
     expect(engineeringStepLabel("cadgen pcb drc board.kicad_pcb").done).toBe("Checked the board");
+    expect(engineeringStepLabel("cad kicad_pcb drc board.kicad_pcb").done).toBe(
+      "Checked the board",
+    );
+    expect(engineeringStepLabel("cad kicad_sch erc board.kicad_sch").done).toBe(
+      "Checked the schematic",
+    );
     expect(engineeringStepLabel("python scripts/helpers/fit.py").done).toBe("Worked on the design");
     expect(engineeringStepLabel("cadgen tidy").done).toBe("Worked on the design");
   });
@@ -151,6 +159,37 @@ describe("the skills' tools and exports in an engineer's words", () => {
     ).toBe("FEA study on the L bracket");
     expect(engineeringStepLabel("/Users/amy/.local/bin/cad tidy").done).toBe(
       "Worked on the design",
+    );
+  });
+
+  it("reads text-to-cad 0.11's commands, the document's type first", () => {
+    expect(
+      engineeringStepLabel(
+        "cad step solve parts/l_bracket.step --study studies/tip.json --out studies/tip --json",
+      ),
+    ).toEqual({
+      done: "FEA study on the L bracket",
+      doing: "Running an FEA study on the L bracket",
+    });
+    expect(engineeringStepLabel("cad xbf solve parts/l_bracket.xbf").done).toBe(
+      "Listed the faces of the L bracket",
+    );
+    expect(
+      engineeringStepLabel("cad step plan parts/plate.step --job cam/plate.cam.json --out CAM")
+        .done,
+    ).toBe("CAM plan for the plate");
+    expect(engineeringStepLabel("cad step plan parts/plate.step").done).toBe(
+      "Found the machinable features of the plate",
+    );
+    expect(engineeringStepLabel("cad step export parts/clip.step out/clip.stl").done).toBe(
+      "Exported the clip as STL",
+    );
+    expect(
+      engineeringStepLabel("cad model export 0b9c3c1e-5d0a-5f8e-9a43-2f1d6c7b8a90 out/clip.glb")
+        .done,
+    ).toBe("Exported the model as GLB");
+    expect(engineeringStepLabel("cad step snapshot parts/clip.step out/clip.png").done).toBe(
+      "Took a picture of the model",
     );
   });
 });

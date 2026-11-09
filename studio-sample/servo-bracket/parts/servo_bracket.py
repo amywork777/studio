@@ -5,8 +5,8 @@ wall with two M4 screws. The bend is drawn at SendCutSend's inside radius for th
 +Y out from the wall, +Z up, the shelf's top face at Z = 0 and the flange's back face at Y = 0."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import SERVO_LENGTH, SERVO_TAB_HOLE_ACROSS, SERVO_TAB_HOLE_SPACING, SERVO_WIDTH
 

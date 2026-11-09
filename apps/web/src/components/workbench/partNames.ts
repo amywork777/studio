@@ -165,11 +165,44 @@ const KNOWN: ReadonlyArray<readonly [RegExp, string, string]> = [
 
 const baseName = (path: string) => path.replaceAll("\\", "/").split("/").at(-1) ?? path;
 
+/** The answer and the picture text-to-cad 0.11 writes into the folder a solve or a plan names. */
+const RESULT_FILE = /(?:^|\/)result\.(?:json|glb)$/i;
+/** A folder of a CAM job's results, by its name: `CAM`, `cam/bracket`, `bracket-cam`. */
+const CAM_FOLDER = /(?:^|[._-])(?:cam|toolpaths?|machining)$/i;
+/** A folder named for what its results are rather than for the study (`FEA`, `studies`). */
+const RESULTS_FOLDER =
+  /^(?:fea|cam|sim|simulations?|stud(?:y|ies)|results?|analysis|analyses|toolpaths?|machining|out|output)$/i;
+
+/**
+ * A study's or a CAM job's result as text-to-cad 0.11 writes it, `<folder>/result.json` and
+ * `result.glb` (`cad step solve … --out studies/tip-load`, `cad step plan … --out CAM`): a CAM
+ * job's when a folder it is in is named for one, else an FEA study's; named after its folder
+ * (`tip-load` is "Tip load"), or null where the folder only says what it holds. Null for any
+ * other file.
+ */
+export function folderResult(
+  path: string,
+): { readonly kind: "FEA study" | "CAM job"; readonly name: string | null } | null {
+  const normalized = path.replaceAll("\\", "/");
+  if (!RESULT_FILE.test(normalized)) return null;
+  const folders = normalized.split("/").slice(0, -1).filter(Boolean);
+  const kind = folders.some((folder) => CAM_FOLDER.test(folder)) ? "CAM job" : "FEA study";
+  const own = (folders.at(-1) ?? "").replace(/[._-](?:fea|cam|study|results?)$/i, "");
+  return { kind, name: own === "" || RESULTS_FOLDER.test(own) ? null : humanName(own) };
+}
+
 /** The file as an engineer names it, or null for one that is not a part or a document of theirs. */
 export function partName(path: string): PartName | null {
   const normalized = path.replaceAll("\\", "/");
   for (const [test, name, kind] of KNOWN) {
     if (test.test(normalized)) return { name, kind, label: name };
+  }
+  const result = folderResult(normalized);
+  if (result !== null) {
+    const { kind } = result;
+    return result.name === null
+      ? { name: kind, kind, label: kind }
+      : { name: result.name, kind, label: `${result.name} ${kind}` };
   }
   // A named study, kept as the FEA skill keeps several: `FEA/bracket.bracket-load.glb`.
   const study = /(?:^|\/)FEA\/([^/]+?)(?:\.fea)?\.(?:json|glb)$/i.exec(normalized);

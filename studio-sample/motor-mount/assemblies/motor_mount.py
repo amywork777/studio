@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 import build123d as bd
-from cadgen import model, read_step
-from cadgen.mates import Coincident, Concentric, mate
+from cad import model, step
+from cad.mates import Coincident, Concentric, mate
 
 PARTS = Path(__file__).resolve().parent.parent / "parts"
 sys.path.insert(0, str(PARTS))  # the parts are models in ../parts, each built in this run with its own document
@@ -28,7 +28,7 @@ def motor_mount():
     # The motor's face sits against the plate's underside.
     motor = bd.Pos(0, 0, -MOTOR_BODY_LENGTH) * nema17().shape
 
-    screw = read_step(SCREW)
+    screw = step.read(SCREW)
     screws = []
     for hole in holes.sort_by(bd.Axis.X).sort_by(bd.Axis.Y):
         placed = screw.moved(bd.Location())

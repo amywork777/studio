@@ -5,14 +5,14 @@ smaller than the 22 mm by 2 mm pilot the plate's bore is sized for (sizes.py): c
 
 from pathlib import Path
 
-from cadgen import model, read_step
+from cad import model, step
 
 SOURCE = Path(__file__).resolve().parent / "imported" / "stepper_motor_nema17_l0040_single_shaft.step"
 
 
 @model
 def nema17():
-    motor = read_step(SOURCE)
+    motor = step.read(SOURCE)
     motor.label = "nema17_stepper"
     return motor
 

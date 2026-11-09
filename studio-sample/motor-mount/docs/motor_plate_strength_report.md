@@ -8,12 +8,12 @@ A short strength check of the motor plate (`parts/motor_plate.step`) under the b
 
 ## What was done
 
-- A linear static study of the plate on its own (`studies/motor_plate.study.json`), solved by CalculiX 2.23. The result is `studies/motor_plate.fea.glb`.
-- Material: 6061-T6 from cadgen's table: yield 276 MPa.
+- A linear static study of the plate on its own (`studies/motor_plate.study.json`), solved by CalculiX 2.23 on text-to-cad 0.11 (`cad step solve parts/motor_plate.step --study studies/motor_plate.study.json --out studies/motor_plate`). The result is in `studies/motor_plate/`: the numbers in `result.json`, the coloured part in `result.glb` and its picture in `stress.png`.
+- Material: 6061-T6 from text-to-cad's table: yield 276 MPa.
 - Supports: the walls of both M5 slots held fixed, standing in for the two screws clamping the plate to the frame.
 - Load: 50 N along -X, the way the belt pulls, spread over the walls of the pilot bore and the four M3 holes: the motor pushes on the plate through its pilot and its screws.
 - Mesh: 38,599 quadratic tetrahedra at 1.5 mm, two elements and more through the 3 mm floor.
-- Mesh check: a first solve at cadgen's own 3.09 mm (8,282 elements) gave 0.5241 MPa at an M3 hole. At 1.5 mm the peak is 0.5293 MPa, 1.0 % higher, now at the slot's end; the answer is settled.
+- Mesh check: the same study solved at text-to-cad's own 3.09 mm (8,282 elements) gave 0.5241 MPa at an M3 hole. At 1.5 mm the peak is 0.5293 MPa, 1.0 % higher, now at the slot's end; the answer is settled.
 - Hand check: the 50 N shared over the bore and the holes by their wall area (209.2 and 4 x 32.0 mm²) puts 4.7 N on each M3 hole, bearing on 3.4 x 3 mm: 0.47 MPa, and 31 N on the bore, bearing on 22.2 x 3 mm: 0.47 MPa. The solve's 0.53 MPa peak is in line.
 
 ## Results
@@ -27,11 +27,11 @@ Positions are in the plate's frame: from the centre of its underside, X along th
 | Safety factor against yield | 521 | |
 | Largest movement | 0.000114 mm | The pocket's floor beside the bore: (0, -11.1, 3) mm |
 | Load and reaction | 50 N along -X; 50.0 N back at the slots | They balance |
-| Findings | None, and no warnings | |
+| Findings | None; one note about the run: 199,236 degrees of freedom make a slow solve | |
 
 ![The motor plate's stress](motor_plate_strength.png)
 
-Colours run from blue at 0 MPa to red at the 0.53 MPa peak, and the shape is drawn bent 54,000 times its true movement: the floor round the bore takes the most.
+Colours run from blue at 0 MPa to red at the 0.53 MPa peak, and the shape is drawn bent 54,000 times its true movement: the floor round the bore takes the most. This picture was drawn with text-to-cad 0.7 from an earlier solve of the same study, which gave the same numbers; the 0.11 solve's own is `studies/motor_plate/stress.png`.
 
 ## Verdict
 

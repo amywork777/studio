@@ -1,0 +1,4 @@
+interface:
+  display_name: "Motion video"
+  short_description: "An MP4 video of the assembly moving through its range of motion."
+  default_prompt: "Use $motion-video to make a video of the assembly moving through its range of motion."

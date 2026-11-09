@@ -4,8 +4,8 @@ middle lightens it and takes the LED's lead. Origin: the base hinge's axis; the 
 its thickness along Y."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import ARM_LENGTH, ARM_WIDTH, HINGE_HOLE, TONGUE
 

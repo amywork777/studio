@@ -46,6 +46,16 @@ typecheck and the tests on every push to `main` and every change request.
     `components/workbench`._
 12. **Mac and Windows.** Studio ships for both, and a change is not done until it works on both.
     _Review, and the Windows build (`.github/workflows/studio-windows.yml`)._
+13. **Every one of Jake's skills is in Studio.** Each skill in Jake's text-to-cad ships in the app
+    and has its own tile in the Toolbox, with what it does, something to try and at least one job.
+    A skill Jake adds comes into Studio with its tile and jobs, never left for later. Where a
+    skill does more than one job, each job is a skill of its own too (`$fdm`, `$board-fab`), with its
+    own tile, so each can be called on its own.
+    _Tests: `apps/web/src/components/workbench/library/toolboxSkills.test.ts` for the Toolbox,
+    `apps/web/src/components/workbench/jobSkills.test.ts` for the job skills, the
+    app build, which stops on a skill it leaves out, and
+    `.github/workflows/studio-jakes-skills.yml`, which checks Jake's main against Studio's pin
+    every day._
 
 # T3 Code
 

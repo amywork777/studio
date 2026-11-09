@@ -7,8 +7,8 @@ bend end clear of the other. The bends are drawn at SendCutSend's inside radius 
 meets the wall, on the web's outside face; +Y out from the wall, +Z up, +X the way the flanges turn."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 THICKNESS = 1.8796  # G90-074: 0.074 in, SendCutSend's stock thickness, so the STEP uploads as drawn
 BEND_RADIUS = 1.6002  # inside: SendCutSend's 0.063 in for G90-074 (sendcutsend-specs.json)

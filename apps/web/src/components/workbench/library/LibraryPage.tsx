@@ -22,6 +22,7 @@ import { useDocumentTemplates } from "../documentTemplates";
 import { fileTint, MENU_ICONS, MENU_TINTS, MENU_WORDS } from "../kinds";
 import { useNewDialogStore } from "../newDialogStore";
 import type { NewTemplate } from "../newTemplates";
+import { jobOfSkill } from "../jobSkills";
 import { useEngineeringInterface } from "../studioInterface";
 import {
   availability,
@@ -90,8 +91,9 @@ const shelfOf = (shelf: Omit<Shelf, "count">, entries: ReadonlyArray<LibraryEntr
  * Studio's Toolbox page (`/library`, the one place on the rail for what Studio ships), laid out as
  * a library of skills: a directory of shelves down its side (`ShelfIndex`) and always-open shelves
  * of covers (`LibraryShelf`). text-to-cad's skills stand on the shelves of the work they do (New,
- * then the part menus Analysis, Manufacturing and Documents), each holding what it makes, with the
- * document types no skill makes beside them. Then every other plugin's skills, and the person's own
+ * then the part menus Analysis, Manufacturing and Documents), each holding what it makes, then each
+ * job of theirs as a skill of its own (`jobSkills.ts`) on its menu's shelf, with the document types
+ * no skill makes beside them. Then every other plugin's skills, and the person's own
  * with Add a skill: first once they have one, last until then. A shelf of one or two covers shares
  * a row with the next short one (`gatherShortShelves`). A skill's cover opens it in full
  * (`SkillDetail`), a document type's its detail, kept in the URL (`entry`) so Back closes it;
@@ -138,7 +140,13 @@ function LibraryContent(props: {
     skills.filter((skill) => skill.pluginId === MY_SKILLS_PLUGIN_ID && matching.has(skill)),
   );
   const ourSkills = skills.filter((skill) => skill.pluginId === TEXT_TO_CAD);
-  const makes = (skill: string) => documents.filter((entry) => skillsBehind(entry).includes(skill));
+  // What a skill makes; a job skill's is what its one job makes.
+  const makes = (skill: string) => {
+    const job = jobOfSkill(skill);
+    return documents.filter((entry) =>
+      job === null ? skillsBehind(entry).includes(skill) : entry.actions.includes(job.id),
+    );
+  };
   // A skill shows for its own words, or for what it makes.
   const ourShown = ourSkills.filter(
     (skill) => matching.has(skill) || makes(skill.name).some((entry) => matching.has(entry)),

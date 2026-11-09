@@ -4,7 +4,7 @@ screw, whose clamp holds the head where it is tilted. Origin: the head hinge's a
 of it along +X, its opening down (-Z)."""
 
 import build123d as bd
-from cadgen import model
+from cad import model
 
 from sizes import CHEEK, CHEEK_GAP, HINGE_HOLE, LED_SCREW_SPACING
 

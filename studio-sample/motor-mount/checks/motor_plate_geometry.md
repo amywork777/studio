@@ -1,6 +1,6 @@
 # Motor plate: geometry check
 
-Measured on the plate's model (`parts/motor_plate.py`) with `cadgen run checks/motor_plate_geometry.py`, against the named sizes in `parts/motor_plate.py` and `parts/sizes.py`. Millimetres.
+Measured on the plate's model (`parts/motor_plate.py`) with `cad run checks/motor_plate_geometry.py`, against the named sizes in `parts/motor_plate.py` and `parts/sizes.py`. Millimetres.
 
 | Check | Measured | Expected | Result |
 | --- | --- | --- | --- |

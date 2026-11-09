@@ -1,0 +1,4 @@
+interface:
+  display_name: "3D PMI"
+  short_description: "Datums, tolerances and notes on the model itself (model-based definition), exported as AP242 STEP."
+  default_prompt: "Use $pmi to add 3D PMI to the part as the cad skill's references/pmi.md says: datums on the faces it is located by, the sizes and positions that matter as tolerances, and a general profile note. Then export it as AP242 STEP with its PMI."

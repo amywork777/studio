@@ -36,11 +36,12 @@ describe("leadPartOf", () => {
       updated,
     });
     const paths = [
-      "cam/motor_plate.cam.glb",
-      "cam/motor_plate.top.ngc",
+      "cam/motor_plate/motor_plate.top.ngc",
+      "cam/motor_plate/result.glb",
+      "cam/motor_plate/result.json",
       "drawings/motor_plate_drawing.pdf",
-      "studies/motor_plate.fea.glb",
-      "studies/motor_plate.fea.json",
+      "studies/motor_plate/result.glb",
+      "studies/motor_plate/result.json",
     ];
     const models = [
       model("nema17", "Part", "300"),

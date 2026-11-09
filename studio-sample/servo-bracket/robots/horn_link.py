@@ -1,14 +1,14 @@
 """The horn link of the servo mount's robot descriptions (servo_mount.urdf, .srdf and .sdf beside this script): the
 horn adapter, the one part that turns with the servo's output, as a mesh in the horn link's frame. That frame sits on
 the output axis at the top of the spline, where the adapter's bore seats, with the assembly's axes; the horn joint
-turns it about its +Z. `cadgen run exports.py` writes its meshes, meshes/horn_link.3mf for the URDF (in colour) and
+turns it about its +Z. `cad run exports.py` writes its meshes, meshes/horn_link.3mf for the URDF (in colour) and
 meshes/horn_link.stl for the SDF (Gazebo reads no 3MF)."""
 
 import sys
 from pathlib import Path
 
 import build123d as bd
-from cadgen import model
+from cad import model
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "assemblies"))  # the mount is a model in ../assemblies
 

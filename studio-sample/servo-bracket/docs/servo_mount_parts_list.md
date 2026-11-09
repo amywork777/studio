@@ -8,7 +8,7 @@ The servo mount (`assemblies/servo_mount.step`) is eight parts of five kinds: th
 | --- | --- | --- | --- | --- |
 | Servo bracket | 1 | 5052-H32 aluminium sheet, 2 mm (SendCutSend's ALU-080, 0.080 in) | Laser cut and bent once, 90°, by SendCutSend from its cut file `cut/servo_bracket_cut.dxf` (checked in `cut/servo_bracket_sendcutsend.md`). Its four Ø2.5 mm holes are tapped M3 × 0.5 by hand after bending. | `parts/servo_bracket.step` |
 | MG996R servo | 1 | As bought | Bought: a Tower Pro MG996R (towerpro.com.tw/product/mg996r). The supplier is not chosen. The model is its datasheet's envelope, and some of its sizes are not in the datasheet (see below). | `parts/mg996r.step` |
-| Horn adapter | 1 | 6061-T6 aluminium | CNC milled from a 28 × 28 × 9 mm block in two setups (the CAM job, `cam/horn_adapter.cam.glb`), its four M3 holes then tapped by hand. Then its Ø5.9 bore is broached to the servo's 25-tooth spline. | `parts/horn_adapter.step` |
+| Horn adapter | 1 | 6061-T6 aluminium | CNC milled from a 28 × 28 × 9 mm block in two setups (the CAM job, `cam/horn_adapter/result.glb`), its four M3 holes then tapped by hand. Then its Ø5.9 bore is broached to the servo's 25-tooth spline. | `parts/horn_adapter.step` |
 | Socket head cap screw, ISO 4762, M3 × 8 | 4 | Steel, assumed: the step.parts file gives no material. Grade and finish not chosen. | Bought. Modelled from step.parts' `iso4762_socket_head_cap_screw_m3x8`. | `parts/imported/iso4762_socket_head_cap_screw_m3x8.step` |
 | Cable clip | 1 | PETG | 3D printed (FDM), standing up as drawn, at 0.2 mm layers on a Bambu Lab P1S with a 0.4 mm nozzle, then bonded to the bracket's flange. Not ready to print yet: its FDM check fails on two counts (`parts/cable_clip_fdm.md`). | `parts/cable_clip.step` |
 

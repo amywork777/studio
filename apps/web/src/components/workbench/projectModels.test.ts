@@ -109,11 +109,7 @@ describe("a project's models", () => {
       ),
     ).toEqual(["Mounting plate", "Rig"]);
     // A new chat starts from them.
-    const starters = projectStarters(
-      folderFiles(paths, models),
-      new Set(["fea", "dfm", "cad"]),
-      null,
-    );
+    const starters = projectStarters(folderFiles(paths, models), new Set(["fea", "cad"]), null);
     expect(starters.length).toBeGreaterThan(0);
     expect(starters.some((starter) => /mounting plate|rig/i.test(starter.label))).toBe(true);
   });

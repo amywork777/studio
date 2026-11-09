@@ -1,7 +1,7 @@
 """Mass, fit and tip-over of the phone stand. Calls the stand's model (its volume and centre of mass) and the model of
 the stand with the phone placeholder in it (for the fit), so it checks them as they are now, works out whether the stand
 tips when the phone's screen is tapped, writes its findings to docs/phone_stand_mass_and_tip.md, prints them as one
-JSON line, and exits 1 when a requirement fails. Run it from anywhere: cadgen run checks/phone_stand_tip.py
+JSON line, and exits 1 when a requirement fails. Run it from anywhere: cad run checks/phone_stand_tip.py
 
 The tip-over is statics, the stand and phone as one rigid body on a flat desk: it tips back about the rear edge of
 the base's flat bottom when a tap's moment about that edge passes the weight's. A tap pushes square into the screen,
@@ -13,7 +13,7 @@ from math import cos, radians, sin
 from pathlib import Path
 
 import build123d as bd
-from cadgen.geometry import closest_points, overlap_volume
+from cad.build123d import closest_points, overlap_volume
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "parts"), str(ROOT / "assemblies")]
@@ -130,7 +130,7 @@ def markdown(r: dict) -> str:
     lines = [
         "# Phone stand: mass, fit and tip-over",
         "",
-        f"Checked `{r['stand']}` and `{r['assembly']}` with `cadgen run checks/phone_stand_tip.py`. Every number below comes from that run.",
+        f"Checked `{r['stand']}` and `{r['assembly']}` with `cad run checks/phone_stand_tip.py`. Every number below comes from that run.",
         "",
         "## Verdict",
         "",

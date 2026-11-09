@@ -5,7 +5,7 @@ as no tolerance has been asked for yet."""
 
 from math import radians, sin
 
-from cadgen.eng_drawing import Sheet, eng_drawing
+from cad.eng_drawing import Sheet, eng_drawing
 
 from phone_stand import (
     ANGLE,

@@ -10,7 +10,7 @@ import {
   holdsWords,
 } from "./quickFind";
 
-const SKILLS = new Set(["fea", "cad", "dfm", "dfam-check", "cam", "gcode", "bambu-labs"]);
+const SKILLS = new Set(["fea", "cad", "cam", "print3d"]);
 const labels = (query: string, process?: string) =>
   findJobs(hardwareActions("Part", SKILLS, process), query).map(
     (job) => `${job.place}: ${job.action.label}`,
@@ -24,14 +24,14 @@ describe("quick find", () => {
   });
 
   it("finds a job the menus leave out, by its name", () => {
-    expect(labels("bambu")).toEqual(["Manufacturing · 3D printing: Print on a Bambu printer"]);
+    expect(labels("powder")).toEqual(["Manufacturing · 3D printing: Check for powder printing"]);
   });
 
   it("finds a whole section, or a menu's every job, by their names", () => {
     expect(labels("analysis simulation")).toEqual(["Analysis · Simulation: Strength under load"]);
     const manufacture = labels("manufacturing", "CNC machining");
     expect(manufacture[0]).toBe("Manufacturing · Machining and molding: Check for CNC machining");
-    expect(manufacture).toContain("Manufacturing · 3D printing: Slice for FDM");
+    expect(manufacture).toContain("Manufacturing · 3D printing: Slice and print");
   });
 
   it("finds no job until something is typed", () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Export"
+  short_description: "STEP, STL and 3MF files, saved beside the part."
+  default_prompt: "Use $export to export the part as STEP, STL and 3MF."

@@ -3,7 +3,7 @@ the head. step.parts has no LED module, so this is a generic envelope from the s
 the board bought. Origin: the centre of the board's back; the emitter faces +Z."""
 
 import build123d as bd
-from cadgen import model
+from cad import model
 
 from sizes import LED_BOARD, LED_BOARD_THICKNESS, LED_SCREW_HOLE, LED_SCREW_SPACING
 

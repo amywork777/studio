@@ -20,37 +20,45 @@
     {
       "id": "T1",
       "type": "flat",
+      "number": 1,
       "diameter_mm": 10,
       "flutes": 3,
       "flute_length_mm": 22,
       "stickout_mm": 30,
-      "name": "10 mm 3FL carbide, aluminium"
+      "name": "10 mm 3FL carbide, aluminium",
+      "shank_diameter_mm": 10
     },
     {
       "id": "T2",
       "type": "flat",
+      "number": 2,
       "diameter_mm": 6,
       "flutes": 3,
       "flute_length_mm": 13,
       "stickout_mm": 20,
-      "name": "6 mm 3FL carbide, aluminium"
+      "name": "6 mm 3FL carbide, aluminium",
+      "shank_diameter_mm": 6
     },
     {
       "id": "T3",
       "type": "flat",
+      "number": 3,
       "diameter_mm": 4,
       "flutes": 3,
       "flute_length_mm": 11,
       "stickout_mm": 18,
-      "name": "4 mm 3FL carbide, aluminium"
+      "name": "4 mm 3FL carbide, aluminium",
+      "shank_diameter_mm": 4
     },
     {
       "id": "T4",
       "type": "drill",
+      "number": 4,
       "diameter_mm": 3.4,
       "flute_length_mm": 39,
       "stickout_mm": 45,
-      "name": "3.4 mm jobber drill, M3 clearance"
+      "name": "3.4 mm jobber drill, M3 clearance",
+      "point_angle": 118
     }
   ],
   "setups": [

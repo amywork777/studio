@@ -66,9 +66,12 @@ const openRank = (kind: string) => {
   return rank < 0 ? Number.POSITIVE_INFINITY : rank;
 };
 
-/** A study's numbers open as its result model beside them (`checkResults.ts`). */
+/** A study's numbers open as its result model beside them (`checkResults.ts`), 0.11's in its folder. */
 const viewable = (path: string) =>
-  path.replace(/\.fea\.json$/i, ".fea.glb").replace(/\.result\.json$/i, ".glb");
+  path
+    .replace(/\.fea\.json$/i, ".fea.glb")
+    .replace(/\.result\.json$/i, ".glb")
+    .replace(/(^|\/)result\.json$/i, "$1result.glb");
 
 /** Folders whose files are tooling, never design, and files that are for the agent. */
 const TOOLING =

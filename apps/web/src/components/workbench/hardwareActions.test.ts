@@ -10,50 +10,46 @@ const menu = (group: string, kind: string, skills: string[], process?: string) =
 
 describe("hardware actions", () => {
   it("leads Manufacture with the project's own way of making it, whole, and keeps the others apart", () => {
-    const manufacture = menu(
-      "Manufacture",
-      "Part",
-      ["dfm", "dfam-check", "gcode", "bambu-labs", "cam", "step-parts"],
-      "3D printing (FDM)",
-    );
+    const manufacture = menu("Manufacture", "Part", ["cad", "print3d", "cam"], "3D printing (FDM)");
     expect(titled(manufacture!.sections)).toEqual([
       [
         "3D printing",
         [
           "Check for FDM printing",
-          "Slice for FDM",
-          "Print on a Bambu printer",
+          "Slice and print",
           "Check for resin printing",
-          "Check for SLS printing",
-          "Check for MJF printing",
+          "Check for powder printing",
           "Check for metal printing",
         ],
       ],
-      ["Files and off-the-shelf parts", ["Off-the-shelf parts"]],
+      ["Files and off-the-shelf parts", ["Off-the-shelf parts", "Export"]],
     ]);
     expect(titled(manufacture!.others)).toEqual([
       [
         "Machining and molding",
         ["Check for CNC machining", "G-code for CNC", "Check for injection molding"],
       ],
-      ["Sheet metal and cutting", ["Check as sheet metal"]],
+      ["Sheet metal and cutting", ["Check as sheet metal", "Flat pattern DXF"]],
     ]);
     expect(manufacture!.moreLabel).toBe("Other ways to make it");
   });
 
   it("puts the files to export in Manufacture, after the ways to make it", () => {
-    const manufacture = menu("Manufacture", "Part", ["dfm", "cad"], "CNC machining");
+    const manufacture = menu("Manufacture", "Part", ["cad"], "CNC machining");
     expect(titled(manufacture!.sections)).toEqual([
       ["Machining and molding", ["Check for CNC machining", "Check for injection molding"]],
-      ["Files and off-the-shelf parts", ["STEP", "STL and 3MF"]],
+      ["Files and off-the-shelf parts", ["Off-the-shelf parts", "Export"]],
     ]);
     expect(menu("Manufacture", "Board", ["cad"])).toBeUndefined();
   });
 
   it("keeps every way to make it apart until the project chooses one", () => {
-    const manufacture = menu("Manufacture", "Part", ["dfm", "dxf", "sendcutsend"]);
-    expect(manufacture!.sections).toEqual([]);
+    const manufacture = menu("Manufacture", "Part", ["cad", "sendcutsend"]);
+    expect(manufacture!.sections.map((section) => section.title)).toEqual([
+      "Files and off-the-shelf parts",
+    ]);
     expect(manufacture!.others.map((section) => section.title)).toEqual([
+      "3D printing",
       "Machining and molding",
       "Sheet metal and cutting",
     ]);
@@ -82,9 +78,7 @@ describe("hardware actions", () => {
       "cad",
       "engineering-drawing",
       "work-instructions",
-      "urdf",
-      "sdf",
-      "srdf",
+      "robot-simulation",
     ]);
     expect(titled(document!.sections)).toEqual([
       ["Drawings", ["Engineering drawing", "3D PMI"]],
@@ -92,17 +86,26 @@ describe("hardware actions", () => {
       ["Pictures and video", ["Pictures from every side", "Motion video"]],
       ["Reports", ["Test plan", "Write up the results"]],
     ]);
-    expect(titled(document!.others)).toEqual([
-      ["Robot description", ["URDF", "SDF for Gazebo", "SRDF for MoveIt"]],
-    ]);
+    expect(titled(document!.others)).toEqual([["Robot description", ["Robot files"]]]);
   });
 
   it("gives a mesh only the printing methods", () => {
     expect(
-      menu("Manufacture", "Mesh", ["dfm", "dfam-check", "cam"])!.others.map(
-        (section) => section.title,
-      ),
+      menu("Manufacture", "Mesh", ["cad", "cam"])!.others.map((section) => section.title),
     ).toEqual(["3D printing"]);
+  });
+
+  it("gives a board and its schematic their checks and files, and nothing else", () => {
+    expect(titled(menu("Evaluate", "Board", ["pcb", "cad"])!.sections)).toEqual([
+      ["Circuit board", ["Board checks", "Review before ordering"]],
+    ]);
+    expect(titled(menu("Evaluate", "Schematic", ["pcb"])!.sections)).toEqual([
+      ["Circuit board", ["Board checks"]],
+    ]);
+    expect(titled(menu("Manufacture", "Board", ["pcb", "cad"])!.sections)).toEqual([
+      ["Circuit board", ["Fabrication files", "Board STEP"]],
+    ]);
+    expect(menu("Evaluate", "Part", ["pcb"])).toBeUndefined();
   });
 
   it("names the part in the job it writes", () => {
@@ -122,10 +125,10 @@ describe("hardware actions", () => {
   });
 
   it("says every outcome a check reports, in one shape", () => {
-    // dfam-check and dfm report a pass, a fail and a third outcome (need more info,
-    // review, unverified): each check's line, and the library's Manufacturing check, name all three.
-    const checks = HARDWARE_ACTIONS.filter((action) =>
-      ["dfam-check", "dfm"].includes(action.skill ?? ""),
+    // The cad skill's manufacturing check reports a pass, a fail, or a review or unverified
+    // finding: each check's line, and the library's Manufacturing check, name all three.
+    const checks = HARDWARE_ACTIONS.filter(
+      (action) => action.skill === "cad" && action.checks && action.group === "Manufacture",
     );
     expect(checks).not.toEqual([]);
     const unsaid = checks.filter(

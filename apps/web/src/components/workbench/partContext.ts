@@ -13,7 +13,7 @@
 import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
 import { isAbsolutePath, workspaceRelativeFilePath } from "@t3tools/shared/path";
 
-import { humanName } from "./partNames";
+import { folderResult, humanName } from "./partNames";
 import { classifyProjectFile } from "./projectFiles";
 
 /** What a thread's viewer shows, from its last sync. */
@@ -54,7 +54,7 @@ export const fileName = (path: string) =>
 
 /**
  * Compound endings first: results are named after the model they came from
- * (`bracket.fea.glb`). Units are the viewer's: CAD files in millimetres,
+ * (`bracket.fea.glb`); 0.11's, after their folder (`studies/tip-load/result.glb`, `folderResult`). Units are the viewer's: CAD files in millimetres,
  * robot descriptions in metres (`renderOptions.js`); a DXF carries its own,
  * which only its drawing payload reads, and a schematic has none.
  */
@@ -110,6 +110,9 @@ export function describePart(
   if (isDocumentId(path)) {
     return { name: humanName(documentName ?? "part"), kind: solid("Part"), units: "mm" };
   }
+  // A 0.11 study's or CAM job's `result.glb`, named for its folder (`folderResult`).
+  const result = folderResult(workspaceRelativeFilePath(path, root) ?? path);
+  if (result !== null) return { name: result.name ?? "Result", kind: result.kind, units: "mm" };
   const file = fileName(path);
   const lower = file.toLowerCase();
   const match = KINDS.find((entry) => lower.endsWith(entry.ending) && lower !== entry.ending);

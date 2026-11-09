@@ -34,6 +34,34 @@ describe("project files", () => {
     ]);
   });
 
+  it("files text-to-cad 0.11's study folder as one study, and a CAM job's as manufacturing", () => {
+    const groups = groupProjectFiles([
+      "studies/tip-load/result.glb",
+      "studies/tip-load/result.json",
+      "studies/side-load/result.glb",
+      "CAM/result.glb",
+      "CAM/plate.top.nc",
+    ]);
+    expect(
+      groups.map(({ group, files }) => [group, files.map((file) => [file.path, file.kind])]),
+    ).toEqual([
+      [
+        "Analysis",
+        [
+          ["studies/side-load/result.glb", "FEA study"],
+          ["studies/tip-load/result.glb", "FEA study"],
+        ],
+      ],
+      [
+        "Manufacturing",
+        [
+          ["CAM/plate.top.nc", "G-code"],
+          ["CAM/result.glb", "CAM job"],
+        ],
+      ],
+    ]);
+  });
+
   it("files a project the way an engineer would, leaving source and tooling out", () => {
     expect(
       groupProjectFiles(demo).map(({ group, files }) => [group, files.map((file) => file.name)]),

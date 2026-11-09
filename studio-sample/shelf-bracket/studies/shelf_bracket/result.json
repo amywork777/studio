@@ -1,0 +1,276 @@
+{
+ "ok": true,
+ "path": "parts/shelf_bracket.step",
+ "findings": [
+  {
+   "severity": "warning",
+   "code": "low_margin",
+   "message": "It holds, but only 1.4\u00d7 the load: under the 2\u00d7 margin (the peak sits at the fixed face)",
+   "location": "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+   "hint": "safety factor 1.4, margin 2"
+  },
+  {
+   "severity": "warning",
+   "code": "peak_at_fixture",
+   "message": "Check the stress a little away from the fixed face before redesigning: the model exaggerates peaks where a part is held",
+   "location": "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+   "hint": "nodal peak 215 MPa, Gauss-point peak 223 MPa"
+  },
+  {
+   "severity": "warning",
+   "code": "solver_note",
+   "message": "236052 degrees of freedom: expect a slow solve; small features (thin walls, fillets, chamfers) set the mesh here (elements down to 0.2 mm), so a larger mesh.size_mm won't help much",
+   "location": null,
+   "hint": null
+  },
+  {
+   "severity": "warning",
+   "code": "solver_note",
+   "message": "the part's 236,052 degrees of freedom at 5.89094 mm leave no room under the 250,000 limit for a finer solve; its convergence is unchecked",
+   "location": null,
+   "hint": null
+  }
+ ],
+ "summary": "solved shelf_bracket/shelf_bracket of shelf_bracket.step: peak 215.3995 MPa, safety factor 1.472",
+ "measurements": {
+  "max_von_mises_MPa": 215.3995,
+  "max_von_mises_gauss_MPa": 223.4792,
+  "max_von_mises_at_mm": [
+   11.259,
+   1.88,
+   -24.777
+  ],
+  "yield_MPa": 317.2,
+  "max_displacement_mm": 0.9165,
+  "max_displacement_at_mm": [
+   24.089,
+   179.153,
+   0.0
+  ],
+  "applied_force_N": [
+   0.0,
+   0.0,
+   -147.1
+  ],
+  "reaction_force_N": [
+   -0.0,
+   0.0,
+   147.1
+  ],
+  "deformation_scale": 13.0,
+  "safety_factor": 1.472,
+  "checks": [
+   {
+    "kind": "stress",
+    "label": "Strength, 15 kg on the shelf flange, wall holes held",
+    "value": 215.3995,
+    "limit": 317.2,
+    "unit": "MPa",
+    "ratio": 0.679348,
+    "close_at": 0.5,
+    "margin": 2.0,
+    "status": "close",
+    "where": {
+     "ref": "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+     "at": [
+      11.259,
+      1.88,
+      -24.777
+     ]
+    }
+   },
+   {
+    "kind": "displacement",
+    "label": "Tip sag",
+    "value": 0.910028,
+    "limit": 1.0,
+    "unit": "mm",
+    "ratio": 0.910028,
+    "close_at": 0.9,
+    "status": "close",
+    "where": {
+     "ref": "shelf_bracket/f:shelf_bracket.bracket_aichcp~8cf08f7f4fd7",
+     "at": [
+      22.0,
+      180.0,
+      0.0
+     ]
+    },
+    "faces": [
+     "shelf_bracket/f:shelf_bracket.bracket_aichcp~8cf08f7f4fd7"
+    ]
+   }
+  ],
+  "mesh": {
+   "elements": 47425,
+   "straightened": 0,
+   "nodes": 78684,
+   "dofs": 236052,
+   "size_mm": 5.8909,
+   "order": 2,
+   "mesher": "netgen",
+   "solver": "calculix 2.23 (C3D10)"
+  },
+  "timings": {
+   "mesh_s": 4.45,
+   "solve_s": 23.344,
+   "stress_s": 0.094
+  },
+  "study": {
+   "material": {
+    "name": "steel-g90-galvanised",
+    "E_MPa": 199948,
+    "nu": 0.3,
+    "yield_MPa": 317.2,
+    "density_t_per_mm3": 7.849e-09
+   },
+   "fixtures": [
+    {
+     "faces": [
+      "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+      "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~fd9d0d6151c9"
+     ],
+     "type": "fixed"
+    }
+   ],
+   "loads": [
+    {
+     "faces": [
+      "shelf_bracket/f:shelf_bracket.bracket_aichcp~3937c7e4f9ec"
+     ],
+     "type": "force",
+     "vector_N": [
+      0,
+      0,
+      -147.1
+     ]
+    }
+   ],
+   "margin": 2,
+   "mesh": {
+    "refine": [
+     {
+      "center_mm": [
+       14,
+       0.94,
+       -25
+      ],
+      "radius_mm": 8,
+      "size_mm": 0.6
+     },
+     {
+      "center_mm": [
+       14,
+       0.94,
+       -125
+      ],
+      "radius_mm": 8,
+      "size_mm": 0.6
+     },
+     {
+      "center_mm": [
+       0.94,
+       6.0,
+       -6.0
+      ],
+      "radius_mm": 4,
+      "size_mm": 0.3
+     }
+    ]
+   },
+   "checks": [
+    {
+     "kind": "stress",
+     "label": "Strength, 15 kg on the shelf flange, wall holes held"
+    },
+    {
+     "kind": "displacement",
+     "limit_mm": 1.0,
+     "faces": [
+      "shelf_bracket/f:shelf_bracket.bracket_aichcp~8cf08f7f4fd7"
+     ],
+     "label": "Tip sag"
+    }
+   ]
+  },
+  "material": {
+   "name": "steel-g90-galvanised",
+   "E_MPa": 199948.0,
+   "nu": 0.3,
+   "yield_MPa": 317.2,
+   "density_t_per_mm3": 7.849e-09,
+   "source": "study"
+  },
+  "fixtures": [
+   {
+    "faces": [
+     "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+     "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~fd9d0d6151c9"
+    ],
+    "type": "fixed",
+    "reaction_N": [
+     -0.0,
+     0.0,
+     147.1
+    ]
+   }
+  ],
+  "connections": [],
+  "overlaps": [],
+  "refined": null,
+  "named_faces": {
+   "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0": {
+    "ref": "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~ff90fb4fadb0",
+    "ordinal": 13,
+    "area": 32.4771565342827,
+    "center": [
+     14.000000000000181,
+     0.9398,
+     -25.0
+    ]
+   },
+   "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~fd9d0d6151c9": {
+    "ref": "shelf_bracket/f:shelf_bracket.bracket_gclkcn_extrude1~fd9d0d6151c9",
+    "ordinal": 14,
+    "area": 32.4771565342827,
+    "center": [
+     14.000000000000181,
+     0.9398,
+     -125.0
+    ]
+   },
+   "shelf_bracket/f:shelf_bracket.bracket_aichcp~3937c7e4f9ec": {
+    "ref": "shelf_bracket/f:shelf_bracket.bracket_aichcp~3937c7e4f9ec",
+    "ordinal": 24,
+    "area": 3687.3231413235567,
+    "center": [
+     14.231399231194846,
+     93.53019268596611,
+     -2.465190328815662e-32
+    ]
+   },
+   "shelf_bracket/f:shelf_bracket.bracket_aichcp~8cf08f7f4fd7": {
+    "ref": "shelf_bracket/f:shelf_bracket.bracket_aichcp~8cf08f7f4fd7",
+    "ordinal": 19,
+    "area": 86.73691175062729,
+    "center": [
+     5.749015880367647,
+     180.0,
+     -8.367575216474979
+    ]
+   }
+  }
+ },
+ "occurrence": "shelf_bracket/shelf_bracket",
+ "written": [
+  "studies/shelf_bracket/result.json",
+  "studies/shelf_bracket/result.glb",
+  "studies/shelf_bracket/result.vtu",
+  "studies/shelf_bracket/stress.png",
+  "studies/shelf_bracket/displacement.png"
+ ],
+ "contact_tolerance_mm": null,
+ "parts": [],
+ "pairs": [],
+ "faces": []
+}

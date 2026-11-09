@@ -3,8 +3,8 @@ clevis on top whose two cheeks clamp the arm's lower end on an M5 screw. The cle
 leans forward over the base. Origin: the centre of its underside, on the desk; +Z up, the hinge's axis along Y."""
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from sizes import CHEEK, CHEEK_GAP, HINGE_HOLE, WEIGHT_DIAMETER, WEIGHT_THICKNESS
 

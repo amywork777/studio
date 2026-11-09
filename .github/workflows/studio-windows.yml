@@ -92,15 +92,27 @@ jobs:
         with:
           enable-cache: false
 
-      # text-to-cad's runtime build copies the CAD viewer with rsync, which Git Bash lacks. The
-      # runner's MSYS2 has one; a wrapper on PATH runs it.
+      # text-to-cad's runtime build copies the CAD viewer with rsync, which Git Bash lacks. An MSYS2
+      # of this run's own, brought wholly up to date, has one; a wrapper on PATH runs it. Adding
+      # rsync alone to the runner's older MSYS2 broke the day MSYS2 rebuilt it: the new rsync did
+      # not start against the older libraries there.
+      - name: Set up MSYS2 for rsync
+        id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: MSYS
+          update: true
+          install: rsync
+
       - name: Add rsync
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           set -euo pipefail
-          /c/msys64/usr/bin/pacman.exe -Sy --noconfirm --needed rsync
+          rsync_exe="$(cygpath -u "$MSYS2_LOCATION")/usr/bin/rsync.exe"
           bin="$(cygpath -u "$RUNNER_TEMP")/rsync-bin"
           mkdir -p "$bin"
-          printf '#!/bin/sh\nexec /c/msys64/usr/bin/rsync.exe "$@"\n' >"$bin/rsync"
+          printf '#!/bin/sh\nexec "%s" "$@"\n' "$rsync_exe" >"$bin/rsync"
           chmod +x "$bin/rsync"
           "$bin/rsync" --version | head -1
           cygpath -w "$bin" >>"$GITHUB_PATH"

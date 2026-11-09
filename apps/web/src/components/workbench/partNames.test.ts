@@ -33,6 +33,20 @@ describe("part names", () => {
     expect(partLabel("electronics/servo_power.bom.csv")).toBe("Servo power bill of materials");
   });
 
+  it("names text-to-cad 0.11's results for the folder they were written into", () => {
+    expect(partName("studies/tip-load/result.glb")).toEqual({
+      name: "Tip load",
+      kind: "FEA study",
+      label: "Tip load FEA study",
+    });
+    expect(partLabel("studies\\servo_bracket-fea\\result.json")).toBe("Servo bracket FEA study");
+    expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter CAM job");
+    // A folder that only says what it holds names nothing more.
+    expect(partLabel("CAM/result.glb")).toBe("CAM job");
+    expect(partLabel("FEA/result.json")).toBe("FEA study");
+    expect(partName("parts/result.step")?.kind).toBe("Part");
+  });
+
   it("calls an exported mesh by its format, and the viewer's own GLB a mesh", () => {
     expect(partLabel("exports/clip.stl")).toBe("Clip STL");
     expect(partLabel("exports/clip.3mf")).toBe("Clip 3MF");

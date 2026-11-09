@@ -1,13 +1,16 @@
+import { folderResult } from "./partNames";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
 
 /**
  * The checks a project's parts have been through, read from the results the
- * text-to-cad plugin writes beside each part: an FEA study's `<name>.fea.json`
- * (or a named study's `<name>.<study>.json`), beside the model of its result
- * (`.glb`) that the viewer opens. A result holds its
- * findings (`check`, `severity` error, warning or info, `summary`, and a
- * `fix` with its own `summary` when the check names one) and, from newer
- * versions, a verdict (`status` ready or fix, a `headline`, counts).
+ * text-to-cad plugin writes: text-to-cad 0.11's study folder (`cad step solve
+ * … --out studies/tip-load`), its answer `result.json` beside the model of its
+ * result, `result.glb`, that the viewer opens; and, from earlier versions, an
+ * FEA study's `<name>.fea.json` (or a named study's `<name>.<study>.json`)
+ * beside its `.glb`. A result holds its findings (`severity` error, warning or
+ * info, and its words: 0.11's `message` with a `hint`, earlier ones' `summary`
+ * with a `fix` that has its own `summary`) and, from some checks, a verdict
+ * (`status` ready or fix, a `headline`, counts).
  */
 
 const RESULT_FILE = /\.fea\.json$/i;
@@ -15,8 +18,11 @@ const RESULT_FILE = /\.fea\.json$/i;
 /** A study's numbers saved beside its picture, as `.result.json` or an agent's `-result.json`. */
 const STUDY_NUMBERS = /([._-]result)?\.json$/i;
 
+/** A 0.11 study's or CAM job's answer, in the folder its run wrote: `studies/tip-load/result.json`. */
+const isFolderAnswer = (path: string) => /\.json$/i.test(path) && folderResult(path) !== null;
+
 /** Whether the file is a check's result the overview reads. */
-export const isCheckResultPath = (path: string) => RESULT_FILE.test(path);
+export const isCheckResultPath = (path: string) => RESULT_FILE.test(path) || isFolderAnswer(path);
 
 /**
  * Whether the file is a named FEA study's numbers, beside its picture: the FEA
@@ -75,6 +81,9 @@ const stemOf = (name: string) => {
   return (dot <= 0 ? name : name.slice(0, dot)).toLowerCase();
 };
 
+/** A path's own folder and name: `/work/bracket/studies/copy.step` is `studies/copy.step`. */
+const lastTwo = (path: string) => path.replaceAll("\\", "/").split("/").slice(-2).join("/");
+
 const sentence = (text: string) => text.trim().replace(/[.\s]+$/, "");
 
 /** "heat_treatment" as a person says it: "Heat treatment". */
@@ -107,9 +116,9 @@ export function parseCheckResult(
     .flatMap((finding): CheckIssue[] => {
       if (!isRecord(finding)) return [];
       const severity = finding.severity;
-      const summary = text(finding.summary);
+      const summary = text(finding.summary) ?? text(finding.message);
       if ((severity !== "error" && severity !== "warning") || summary === null) return [];
-      const fix = isRecord(finding.fix) ? text(finding.fix.summary) : null;
+      const fix = isRecord(finding.fix) ? text(finding.fix.summary) : text(finding.hint);
       return [{ severity, summary, fix }];
     })
     .toSorted((a, b) => (a.severity === b.severity ? 0 : a.severity === "error" ? -1 : 1));
@@ -123,13 +132,25 @@ export function parseCheckResult(
         ? "warnings"
         : "ready";
 
+  // text-to-cad 0.11's `result.json`, in its study's folder beside `result.glb`: the solved
+  // document is its `path` (a model's document id, or the file), its numbers its `measurements`.
+  const measurements = isRecord(data.measurements) ? data.measurements : null;
+  const inFolder = isFolderAnswer(path) && measurements !== null;
+  // A CAM job's answer is its plan's verdict (`measurements.verdict`), not a check of the part.
+  if (inFolder && isRecord(measurements.verdict)) return null;
   // text-to-cad 0.10's `cad fea solve --json` names no generator: its study, and its picture at the
   // top. An agent saves it beside that picture, which stays its own when the files are renamed.
   const solved = isRecord(data.study) && text(data.glb) !== null;
   const picture = isRecord(data.files) ? text(data.files.glb) : null;
-  const fea = /\.fea\.json$/i.test(path) || data.generator === "cadgen fea" || solved;
-  const study = isRecord(data.study) ? data.study : null;
-  const summary = isRecord(data.summary) ? data.summary : null;
+  const fea = /\.fea\.json$/i.test(path) || data.generator === "cadgen fea" || solved || inFolder;
+  const study = isRecord(data.study)
+    ? data.study
+    : isRecord(measurements?.study)
+      ? measurements.study
+      : null;
+  const summary = isRecord(data.summary) ? data.summary : inFolder ? measurements : null;
+  // What was solved, as the result names it: 0.11's `path`, earlier versions' `document`.
+  const document = inFolder ? text(data.path) : text(data.document);
   const analysis = text(data.analysis) ?? text(study?.analysis);
   // An FEA study's check as the viewer's verdict names it ("Strength"), else its analysis's word.
   const named =
@@ -144,14 +165,16 @@ export function parseCheckResult(
     .slice(0, path.replaceAll("\\", "/").lastIndexOf("/") + 1);
   return {
     path,
-    model: solved
-      ? baseName(text(data.glb) ?? "") === baseName(namedPicture)
-        ? namedPicture
-        : path.replace(STUDY_NUMBERS, ".glb")
-      : fea && picture !== null
-        ? `${folder}${baseName(picture)}`
-        : path.replace(fea ? /\.json$/i : /\.result\.json$/i, ".glb"),
-    part: baseName(text(data.document) ?? name.slice(0, name.indexOf("."))),
+    model: inFolder
+      ? `${folder}result.glb`
+      : solved
+        ? baseName(text(data.glb) ?? "") === baseName(namedPicture)
+          ? namedPicture
+          : path.replace(STUDY_NUMBERS, ".glb")
+        : fea && picture !== null
+          ? `${folder}${baseName(picture)}`
+          : path.replace(fea ? /\.json$/i : /\.result\.json$/i, ".glb"),
+    part: baseName(document ?? name.slice(0, name.indexOf("."))),
     check: fea
       ? (named ?? ANALYSIS_WORDS[analysis ?? "static"] ?? humanize(analysis ?? "simulation"))
       : humanize(analysis ?? name.split(".").at(-3) ?? "Check"),
@@ -164,7 +187,9 @@ export function parseCheckResult(
         : "Passed every check"),
     issues,
     ...(modifiedAt === undefined ? {} : { written: Date.parse(modifiedAt) / 1000 }),
-    ...(classifyProjectFile(text(data.document) ?? "")?.kind === "Result"
+    // A copy kept in a study folder (`studies/stopped-panel.step`), by the folder it is in: 0.11 names
+    // it by its full path, so only its own folder and name are read.
+    ...(classifyProjectFile(lastTwo(document ?? ""))?.kind === "Result"
       ? { onStudyCopy: true as const }
       : {}),
   };
@@ -311,11 +336,14 @@ function namedFor(
   const made = new Map<string, ProjectFile[]>();
   for (const file of files) {
     if (file.group !== group) continue;
-    const name = file.name.toLowerCase();
+    // A 0.11 result is named for its folder (`studies/bracket-load/result.glb` is the bracket's).
+    const name = (
+      folderResult(file.path) === null ? file.name : (file.folder.split("/").at(-1) ?? "")
+    ).toLowerCase();
     const owner = parts
       .filter((part) => {
         const stem = stemOf(part.name);
-        return name.startsWith(stem) && /[._-]/.test(name.charAt(stem.length));
+        return name === stem || (name.startsWith(stem) && /[._-]/.test(name.charAt(stem.length)));
       })
       .toSorted(
         (a, b) =>

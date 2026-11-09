@@ -32,7 +32,7 @@ Should:
 Could:
 
 - C1. Take a motor of any NEMA 17 body length.
-- C2. Be cut on a hobby mill running GRBL (`cadgen cam plan --post grbl`).
+- C2. Be cut on a hobby mill running GRBL (`cad step plan` with a job whose `machine.post` is `grbl`).
 
 ## Performance targets: loads, life, temperatures, cycles
 
@@ -58,7 +58,7 @@ Not set. One prototype is assumed; no quote has been asked for.
 ## How success is measured
 
 - The strength study passes with a safety factor of at least 2: now 521.
-- The CAM program is ready to cut with no errors: now it is, with two warnings, its bore and slots cut by hand (`cam/motor_plate_cam.md`).
+- The CAM program is ready to cut with no errors: now it is, with three warnings, each a tool's speed held to the spindle's 10,000 rpm (`cam/motor_plate_cam.md`).
 - The DFM review finds no failure: now none, two items to review (`docs/motor_plate_dfm.md`).
 - The first plate takes a real motor and tensions a belt: not made yet.
 

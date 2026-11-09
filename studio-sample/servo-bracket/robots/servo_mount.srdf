@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-  srdf: servo_mount | urdf: servo_mount.urdf, beside it (cadgen urdf validate, strict: clean)
+  srdf: servo_mount | urdf: servo_mount.urdf, beside it (cad urdf validate, strict: clean)
   task: turning the horn through its range with joint-space goals, and a tool frame for a load bolted to the adapter
   urdf table: root base_link; links base_link, horn_link, tool0 (frame-only); joints horn_joint (revolute,
     base_link -> horn_link, -1.0471975512 to 1.0471975512 rad, no mimic) and tool0_joint (fixed, horn_link -> tool0)

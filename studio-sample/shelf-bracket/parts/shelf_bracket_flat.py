@@ -8,8 +8,8 @@ relief is the notch where the two flanges' ends meet. The cut file draws the ben
 from math import pi
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from shelf_bracket import (
     ARM_LENGTH,

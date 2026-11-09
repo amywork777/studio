@@ -40,6 +40,7 @@ describe("new templates", () => {
       "part",
       "assembly",
       "sheet-metal",
+      "cut-file",
       "test-plan",
       "prd",
       "requirements",

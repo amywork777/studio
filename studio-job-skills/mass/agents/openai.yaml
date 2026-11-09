@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weight and center of mass"
+  short_description: "The weight, volume and center of mass in the project's material, and what weighs most."
+  default_prompt: "Use $mass to tell me the weight, volume and center of mass of the part in the project's material, and what makes up most of the weight."

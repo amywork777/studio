@@ -2,7 +2,7 @@
 (on its side, +X up, its -X face on the plate): how far each flat roof bridges, and how much of the part sits on the
 plate. A roof is a flat face that faces straight down off the plate; it bridges between the edges where a wall below
 it holds it, and its span is the distance between them. Prints one JSON line. Run it from anywhere:
-cadgen run checks/phone_stand_print_facts.py"""
+cad run checks/phone_stand_print_facts.py"""
 
 import json
 import sys

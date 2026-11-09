@@ -6,8 +6,8 @@ bend line and the flange -Y, both seen from the bracket's outside face. The cut 
 from math import pi
 
 import build123d as bd
-from cadgen import model
-from cadgen.sketch import Sketch
+from cad import model
+from cad.sketch import Sketch
 
 from servo_bracket import (
     BEND_RADIUS,

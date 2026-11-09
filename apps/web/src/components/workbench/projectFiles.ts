@@ -1,4 +1,4 @@
-import { humanName, partName } from "./partNames";
+import { folderResult, humanName, partName } from "./partNames";
 
 /**
  * A project the way an engineer files it, for the project page and the sidebar: first the three
@@ -125,6 +125,12 @@ export function classifyProjectFile(path: string): ProjectFile | null {
     if (/^brief\/brief\.json$/i.test(normalized)) return null;
     return { path: normalized, name, folder, group: "References", ...named(normalized, name) };
   }
+  // A 0.11 solve's or plan's answer and picture, in the folder it was written into.
+  const result = folderResult(normalized);
+  if (result !== null) {
+    const group = result.kind === "CAM job" ? "Manufacturing" : "Analysis";
+    return { path: normalized, name, folder, group, ...named(normalized, name) };
+  }
   const rule = RULES.find((entry) => entry.test.test(normalized));
   if (rule === undefined) return null;
   const file = { path: normalized, name, folder, group: rule.group, ...named(normalized, name) };
@@ -148,7 +154,10 @@ const CAM_FOLDER = /^(?:cam|toolpaths?|machining)$/i;
 const REFERENCE_FOLDER =
   /^(?:references?|vendor|vendors|suppliers?|library|libs?|third[-_]?party|purchased|datasheets?|off[-_]?the[-_]?shelf)$/i;
 
-/** A study's name, whichever of its files this is: `plate.fea.glb`, `plate.fea.json`, `plate.step`. */
+/**
+ * A study's name, whichever of its files this is: `plate.fea.glb`, `plate.fea.json`, `plate.step`;
+ * a 0.11 study's `result.glb` and `result.json` are its folder's.
+ */
 const studyStem = (name: string) => name.replace(/(?:\.fea)?\.[^.]+$/i, "").toLowerCase();
 /** Which of a study's files shows it, first first: its result, then the shape it was run on. */
 const STUDY_SHOWS = [/\.fea\.glb$/i, /\.glb$/i, /\.(?:step|stp)$/i, /\.(?:stl|3mf|obj)$/i];

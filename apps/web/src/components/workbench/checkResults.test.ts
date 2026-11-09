@@ -12,6 +12,7 @@ import {
   parseCheckResult,
   proposeFixPrompt,
   resultsFor,
+  studiesFor,
   worstStatus,
 } from "./checkResults";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
@@ -317,6 +318,95 @@ describe("check results", () => {
     expect(resultsFor(model("parts/plate.py"), [result])).toHaveLength(0);
   });
 
+  it("reads text-to-cad 0.11's study folder: its result.json, pictured by its result.glb", () => {
+    // `cad step solve parts/bar.step --study studies/tip-load.json --out studies/tip-load --json`, as
+    // the cantilever sample in text-to-cad's own tests writes it (cut to what is read here).
+    const answer = (findings: unknown[], safety: number, path = "/work/bar/parts/bar.step") =>
+      JSON.stringify({
+        ok: true,
+        path,
+        findings,
+        summary: `solved COMPOUND of bar.step: peak 29.3828 MPa, safety factor ${safety}`,
+        measurements: {
+          safety_factor: safety,
+          checks: [{ kind: "stress", label: "Strength", status: "passes" }],
+          study: { material: { name: "Aluminum 6061-T6" } },
+        },
+        written: [
+          "/work/bar/studies/tip-load/result.json",
+          "/work/bar/studies/tip-load/result.glb",
+        ],
+      });
+    const folder = new Set(["studies/tip-load/result.json", "studies/tip-load/result.glb"]);
+    expect([...folder].map(isCheckResultPath)).toEqual([true, false]);
+    expect(isNamedStudyPath("studies/tip-load/result.json", folder)).toBe(true);
+    const passed = parseCheckResult("studies/tip-load/result.json", answer([], 9.393))!;
+    expect(passed).toMatchObject({
+      model: "studies/tip-load/result.glb",
+      part: "bar.step",
+      check: "Strength",
+      status: "ready",
+      headline: "Holds the load, safety factor 9.4",
+      issues: [],
+    });
+    expect(passed.onStudyCopy).toBeUndefined();
+    expect(resultsFor(file("parts/bar.step"), [passed])).toHaveLength(1);
+    // 0.11's findings say themselves in `message`, and what to do in `hint`.
+    const weak = parseCheckResult(
+      "studies/tip-load/result.json",
+      answer(
+        [
+          {
+            severity: "error",
+            code: "yields",
+            message: "The peak is above yield",
+            location: "bar/face 3",
+            hint: "Thicken the arm",
+          },
+        ],
+        0.8,
+      ),
+    )!;
+    expect(weak.status).toBe("fix");
+    expect(weak.issues).toEqual([
+      { severity: "error", summary: "The peak is above yield", fix: "Thicken the arm" },
+    ]);
+    // A model solved by its document id is that model's check; a copy in a study folder is a copy's.
+    const id = "7dde5cd8-809d-5212-afd0-2a5e48278472";
+    expect(parseCheckResult("FEA/result.json", answer([], 3, id))?.part).toBe(id);
+    expect(
+      parseCheckResult("studies/a/result.json", answer([], 3, "/w/studies/copy.step"))?.onStudyCopy,
+    ).toBe(true);
+  });
+
+  it("leaves a 0.11 CAM job's answer out of the part's checks, and files it with the part", () => {
+    const plan = JSON.stringify({
+      ok: true,
+      path: "/work/parts/plate.step",
+      findings: [],
+      summary: "Ready to cut",
+      measurements: { verdict: { status: "ready", headline: "Ready to cut" } },
+    });
+    expect(isCheckResultPath("CAM/result.json")).toBe(true);
+    expect(parseCheckResult("CAM/result.json", plan)).toBeNull();
+    const parts = [file("parts/plate.step"), file("parts/bracket.step")];
+    const studies = [
+      "studies/plate-load/result.glb",
+      "studies/plate-load/result.json",
+      "studies/result.glb",
+    ].map(file);
+    const made = manufacturingFor(parts, ["cam/plate/result.glb", "cam/plate.top.nc"].map(file));
+    expect(made.get("parts/plate.step")?.map((entry) => entry.path)).toEqual([
+      "cam/plate/result.glb",
+      "cam/plate.top.nc",
+    ]);
+    expect(
+      studiesFor(parts, studies)
+        .get("parts/plate.step")
+        ?.map((entry) => entry.path),
+    ).toEqual(["studies/plate-load/result.glb", "studies/plate-load/result.json"]);
+  });
+
   it("drops a check run before its model was last built, and pictures a renamed study by its own file", () => {
     // The 3 mm run, kept under a new name after the bracket went to 4 mm: its `glb` still names
     // the picture the 4 mm run now owns.
@@ -370,7 +460,7 @@ describe("check results", () => {
 
   it("leaves a copied example's check unmarked: its model has never been built", () => {
     const copied = parseCheckResult(
-      "studies/servo_bracket.fea.json",
+      "studies/servo_bracket/result.json",
       JSON.stringify({ document: "parts/servo_bracket.step", findings: [] }),
       "2026-11-06T09:00:00.000Z",
     )!;

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for CNC machining"
+  short_description: "Findings for CNC machining, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $cnc to check the part for CNC machining: tool access, internal corners, thin walls and setups. Tell me what to change."

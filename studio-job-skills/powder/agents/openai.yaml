@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check for powder printing"
+  short_description: "Findings for SLS or MJF printing, each passing, to fix or to check, with the fix."
+  default_prompt: "Use $powder to check the part for powder printing (SLS or MJF): wall thickness, small holes and features, and powder trapped inside. Tell me what to change."

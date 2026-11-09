@@ -79,6 +79,19 @@ describe("describePart", () => {
     expect(describePart("/work/mesh.glb", null).kind).toBe("Mesh");
   });
 
+  it("names a 0.11 result after the folder it was written into", () => {
+    expect(describePart("/work/studies/tip-load/result.glb", null, null, "/work")).toEqual({
+      name: "Tip load",
+      kind: "FEA study",
+      units: "mm",
+    });
+    expect(describePart("/work/CAM/result.glb", null, null, "/work")).toEqual({
+      name: "Result",
+      kind: "CAM job",
+      units: "mm",
+    });
+  });
+
   it("gives boards millimetres, robots metres, and a drawing or schematic none", () => {
     expect(describePart("/b/main.kicad_pcb", null)).toMatchObject({ kind: "Board", units: "mm" });
     expect(describePart("/b/main.kicad_sch", null).units).toBeNull();
