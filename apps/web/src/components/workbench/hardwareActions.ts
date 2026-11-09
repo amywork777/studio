@@ -542,20 +542,35 @@ export const reviewSuffix = (id: string) =>
   id === "sendcutsend" ? "_sendcutsend.md" : `_${id.replaceAll("-", "_")}_dfm.md`;
 
 /**
- * Every job. A manufacturing check also saves its review beside the project's docs, wherever it is
- * started (a Toolbox tile, ⌘K, a check on the Nodes canvas), so its findings stay with the part.
+ * The jobs whose results stay where they already go: a strength study in its study files, an
+ * off-the-shelf part in the project as a part, an explanation in the chat.
  */
-export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = JOBS.map((action) =>
-  action.skill !== null &&
-  REVIEWS.has(action.skill) &&
-  (action.checks || action.id === "sendcutsend")
-    ? {
-        ...action,
-        prompt: (file: string) =>
-          `${action.prompt(file)} Save the review in docs/ as the part's file name followed by ${reviewSuffix(action.id)}, its findings table giving each finding's result as pass, fail, review or unverified.`,
-      }
-    : action,
-);
+const KEPT_IN_PLACE = new Set(["strength", "standard-parts", "fea-results", "cam-results"]);
+
+/** Where a job saves what it makes, as its ask says it: the part's own folder in `outputs/<job>/`. */
+export const outputsLine = (id: string) =>
+  ` Save what it makes in outputs/${id}/<part>/, where <part> is the part's file name without its extension, with the settings it used (a slicer's complete presets, say), and if that folder already has settings, use them unless I ask otherwise.`;
+
+/**
+ * Every job, saying where its results go wherever it is started (a Toolbox tile, ⌘K, a block on
+ * the Nodes canvas), so they stay with the part: a manufacturing check's review in docs/, and what
+ * any other job makes in `outputs/` (`nodes/jobOutputs.ts`).
+ */
+export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = JOBS.map((action) => {
+  if (
+    action.skill !== null &&
+    REVIEWS.has(action.skill) &&
+    (action.checks || action.id === "sendcutsend")
+  ) {
+    return {
+      ...action,
+      prompt: (file: string) =>
+        `${action.prompt(file)} Save the review in docs/ as the part's file name followed by ${reviewSuffix(action.id)}, its findings table giving each finding's result as pass, fail, review or unverified.`,
+    };
+  }
+  if (KEPT_IN_PLACE.has(action.id)) return action;
+  return { ...action, prompt: (file: string) => `${action.prompt(file)}${outputsLine(action.id)}` };
+});
 
 const GROUPS: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "Document"];
 

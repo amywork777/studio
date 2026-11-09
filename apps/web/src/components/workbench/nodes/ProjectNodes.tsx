@@ -3,23 +3,31 @@ import {
   ArrowUpIcon,
   BoxesIcon,
   BoxIcon,
-  ClipboardCheckIcon,
+  CopyPlusIcon,
+  EyeOffIcon,
+  FileIcon,
+  ListPlusIcon,
   MaximizeIcon,
   MinusIcon,
   PlusIcon,
+  SquareDashedIcon,
+  Trash2Icon,
+  Undo2Icon,
   XIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
-import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
+import { pluginEnvironment } from "~/state/plugins";
 import { projectEnvironment } from "~/state/projects";
+import { useEnvironmentQuery } from "~/state/query";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
-import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } from "../../ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../../ui/menu";
 import { toastManager } from "../../ui/toast";
 import { CheckBadge, OutOfDateIcon } from "../CheckBadge";
 import {
@@ -30,7 +38,7 @@ import {
   type CheckIssue,
   type CheckResult,
 } from "../checkResults";
-import { HARDWARE_ACTIONS, type HardwareAction } from "../hardwareActions";
+import { HARDWARE_ACTIONS, hardwareActions, type HardwareAction } from "../hardwareActions";
 import { handToChat } from "../handToChat";
 import { partLink } from "../partLink";
 import { humanName } from "../partNames";
@@ -47,16 +55,23 @@ import { useProjectSizes } from "../useSizes";
 import { useCadService } from "../useVersions";
 import { isReviewPath, parseReview, reviewOwner, reviewPathFor } from "./dfmReview";
 import { studyFigures, type Figure } from "./studyFigures";
+import { CanvasMenu, type CanvasMenuItem } from "./CanvasMenu";
+import { CompareDialog, type CompareColumn } from "./CompareDialog";
 import {
   DRAFT_TITLES,
+  draftFile,
   draftMade,
   draftPart,
   draftPrompt,
   draftSource,
   slugOf,
+  variantOf,
+  variantPrompt,
   type Draft,
   type DraftKind,
 } from "./drafts";
+import { outputFolder, outputOf, PRESET_FILES, printSettings } from "./jobOutputs";
+import { useCardMeasure, type Dots } from "./useCardMeasure";
 import {
   addChecks,
   buildNodeGraph,
@@ -100,8 +115,6 @@ type Spot = { readonly x: number; readonly y: number };
 type Trace = { readonly from: string; readonly socket: string; readonly to?: string };
 /** How a card stands to the output being followed. */
 type TraceRole = "source" | "user" | "rebuilds" | "apart";
-/** Where a card's dots sit below its top, by `out:<socket>` and `in:<input>`. */
-type Dots = Readonly<Record<string, number>>;
 /** The view: the canvas is shifted by (x, y) and scaled by k. */
 type View = { readonly x: number; readonly y: number; readonly k: number };
 
@@ -135,6 +148,39 @@ const checkName = (action: HardwareAction) => {
 
 /** The Toolbox's job that finds an off-the-shelf part, which an off-the-shelf draft runs. */
 const STOCK_ACTION = HARDWARE_ACTIONS.find((action) => action.id === "standard-parts");
+
+/** The Toolbox's jobs that are about a result, not a part, so never follow one on the canvas. */
+const ABOUT_RESULTS = new Set(["fea-results", "cam-results"]);
+
+/** A job's block: what the job made for its part (none before it has run), and how it runs. */
+interface JobNode {
+  readonly id: string;
+  readonly of: string;
+  readonly name: string;
+  readonly action: HardwareAction;
+  /** The files it made, under `outputs/<job>/<part>/`. */
+  readonly files: ReadonlyArray<string>;
+}
+
+/** A selection of cards: the ones picked, and the one to follow when it is one alone. */
+type Picked = ReadonlySet<string>;
+
+/** What the canvas's menu was opened on: the empty canvas at a point, or a card. */
+type MenuAt = {
+  readonly x: number;
+  readonly y: number;
+  readonly at: Spot;
+  readonly on: string | null;
+};
+
+/** What deleting cards undoes back to. */
+type Snapshot = {
+  readonly drafts: ReadonlyArray<Draft>;
+  readonly planned: ReadonlyArray<{ of: string; action: string }>;
+  readonly hidden: ReadonlySet<string>;
+};
+
+const fileStem = (path: string) => (path.split("/").pop() ?? path).replace(/\.[^.]+$/, "");
 
 /** A check node: the result it shows (null before it has run), the part it is of, how it runs. */
 interface CheckNode {
@@ -222,6 +268,18 @@ export function ProjectNodes(props: {
   // cadgen models.
   const files = useMemo(() => overviewParts(folderFiles(paths ?? [], models)), [paths, models]);
   const parts = useMemo(() => graphParts(files, paths ?? []), [files, paths]);
+  // Cards taken off the canvas: blocks with results and parts, which stay in the project.
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  const shownParts = useMemo(() => parts.filter((part) => !hidden.has(part.id)), [parts, hidden]);
+  // The jobs the enabled plugins have skills for, as the Toolbox offers them.
+  const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} }));
+  const skills = useMemo(
+    () =>
+      new Set(
+        (plugins.data?.plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : [])),
+      ),
+    [plugins.data],
+  );
   const folders = useMemo(() => [root], [root]);
   const [checked] = useProjectChecks({ environmentId, folders, mutationId: props.mutationId });
   // The checks added on the canvas that have not run yet, by part and check.
@@ -271,6 +329,93 @@ export function ProjectNodes(props: {
     return list;
   }, [files, parts, checked, reviews, planned]);
   const checkById = useMemo(() => new Map(checks.map((check) => [check.id, check])), [checks]);
+  // Every other job's block: what it saved in `outputs/<job>/<part>/`, and the jobs added on the
+  // canvas that have not made anything yet.
+  const jobs = useMemo(() => {
+    const byStem = new Map(parts.map((part) => [fileStem(part.script), part]));
+    const found = new Map<string, { of: string; action: HardwareAction; files: string[] }>();
+    for (const path of paths ?? []) {
+      const made = outputOf(path);
+      const part = made === null ? undefined : byStem.get(made.stem);
+      const action = HARDWARE_ACTIONS.find((held) => held.id === made?.job);
+      if (made === null || part === undefined || action === undefined) continue;
+      const id = outputFolder(action.id, part.script);
+      const entry = found.get(id) ?? { of: part.id, action, files: [] };
+      entry.files.push(path);
+      found.set(id, entry);
+    }
+    for (const plan of planned) {
+      const action = HARDWARE_ACTIONS.find((held) => held.id === plan.action);
+      const part = parts.find((held) => held.id === plan.of);
+      if (action === undefined || part === undefined || CHECK_ACTIONS.includes(action)) continue;
+      const id = outputFolder(action.id, part.script);
+      if (!found.has(id)) found.set(id, { of: part.id, action, files: [] });
+    }
+    return [...found].map(([id, entry]): JobNode => ({
+      id,
+      of: entry.of,
+      name: entry.action.label,
+      action: entry.action,
+      files: entry.files.toSorted(),
+    }));
+  }, [paths, parts, planned]);
+  const jobById = useMemo(() => new Map(jobs.map((job) => [job.id, job])), [jobs]);
+  // The settings saved with what a job made (a slicer's presets), read from its folder.
+  const presetKey = jobs
+    .flatMap((job) =>
+      job.files.filter((file) => PRESET_FILES.some((name) => file === `${job.id}/${name}`)),
+    )
+    .join("\n");
+  const [settings, setSettings] = useState<ReadonlyMap<string, ReadonlyArray<Figure>>>(new Map());
+  useEffect(() => {
+    let live = true;
+    const presets = presetKey === "" ? [] : presetKey.split("\n");
+    void Promise.all(
+      presets.map(async (relativePath) => {
+        const result = await read({ environmentId, input: { cwd: root, relativePath } });
+        return [relativePath, result._tag === "Success" ? result.value.contents : null] as const;
+      }),
+    ).then((pairs) => {
+      if (!live) return;
+      const byFolder = new Map<string, Map<string, string>>();
+      for (const [path, contents] of pairs) {
+        if (contents === null) continue;
+        const folder = path.slice(0, path.lastIndexOf("/"));
+        const held = byFolder.get(folder) ?? new Map<string, string>();
+        held.set(path.slice(folder.length + 1), contents);
+        byFolder.set(folder, held);
+      }
+      setSettings(new Map([...byFolder].map(([folder, held]) => [folder, printSettings(held)])));
+    });
+    return () => {
+      live = false;
+    };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Settings saved again (`mutationId`) are read again.
+  }, [environmentId, read, root, presetKey, props.mutationId]);
+  // Each variant and the part it copies, from the line its script starts with.
+  const families = useMemo(() => {
+    const byScript = new Map(parts.map((part) => [part.script, part]));
+    const found = new Map<string, Array<{ id: string; change: string }>>();
+    for (const [script, source] of sources) {
+      const variant = variantOf(source);
+      const original = variant === null ? undefined : byScript.get(variant.of);
+      const copy = byScript.get(script);
+      if (variant === null || original === undefined || copy === undefined) continue;
+      found.set(original.id, [
+        ...(found.get(original.id) ?? []),
+        { id: copy.id, change: variant.change },
+      ]);
+    }
+    return found;
+  }, [parts, sources]);
+  /** The part a card's part is a variant of, or the card's own part when it has variants. */
+  const familyOf = (id: string): string | null => {
+    if (families.has(id)) return id;
+    for (const [original, variants] of families) {
+      if (variants.some((variant) => variant.id === id)) return original;
+    }
+    return null;
+  };
   // Parts added on the canvas before they exist, until the agent's script or STEP takes each's place.
   const [drafts, setDrafts] = useState<ReadonlyArray<Draft>>([]);
   const draftCount = useRef(0);
@@ -282,12 +427,16 @@ export function ProjectNodes(props: {
     () => new Map(shownDrafts.map((draft) => [draft.id, draft])),
     [shownDrafts],
   );
+  const blocks = useMemo(
+    () => [...checks, ...jobs].filter((block) => !hidden.has(block.id)),
+    [checks, jobs, hidden],
+  );
   const graph = useMemo(() => {
-    const base = buildNodeGraph(parts, sources);
-    if (shownDrafts.length === 0) return addChecks(base, checks);
+    const base = buildNodeGraph(shownParts, sources);
+    if (shownDrafts.length === 0) return addChecks(base, blocks);
     const nodes = new Map(base.nodes.map((node) => [node.id, node]));
     const drafted = buildNodeGraph(
-      [...parts, ...shownDrafts.map(draftPart)],
+      [...shownParts, ...shownDrafts.map(draftPart)],
       new Map([
         ...sources,
         ...shownDrafts.map(
@@ -295,8 +444,8 @@ export function ProjectNodes(props: {
         ),
       ]),
     );
-    return addChecks(drafted, checks);
-  }, [parts, sources, checks, shownDrafts]);
+    return addChecks(drafted, blocks);
+  }, [shownParts, sources, blocks, shownDrafts]);
   // A study's numbers, read from its result, and its picture (the stress map beside it).
   const studies = checks.flatMap((check) =>
     check.review || check.result === null ? [] : [check.result],
@@ -362,7 +511,9 @@ export function ProjectNodes(props: {
   }, [graph, heights]);
   const spotOf = (id: string): Spot => moved[id] ?? laidOut.get(id) ?? { x: PAD, y: PAD };
 
-  const [selected, setSelected] = useState<string | null>(null);
+  // The cards picked (click, Shift-click, a box dragged with Shift); one alone is followed.
+  const [picked, setPicked] = useState<Picked>(new Set());
+  const selected = picked.size === 1 ? ([...picked][0] ?? null) : null;
   // When each node was asked to change (seconds), and which change each following node waits on.
   const [asked, setAsked] = useState<Record<string, { at: number; by: string }>>({});
 
@@ -484,11 +635,102 @@ export function ProjectNodes(props: {
     handToChat(composerRef, withToolLine(check.action.label, check.action.prompt(linkOf(part))));
     setRan((before) => ({ ...before, [check.id]: Date.now() / 1000 }));
   };
-  const addDraft = (kind: DraftKind) => {
+  const addDraft = (kind: DraftKind, at?: Spot) => {
     draftCount.current += 1;
     const id = `draft-${draftCount.current}`;
     setDrafts((before) => [...before, { id, kind, name: "", inputs: [], sent: null }]);
-    setSelected(id);
+    if (at !== undefined) setMoved((before) => ({ ...before, [id]: at }));
+    setPicked(new Set([id]));
+  };
+  // A variant of a part: a copy of its script with one change, taking what the part takes, below it.
+  const addVariant = (id: string) => {
+    const part = byId.get(id);
+    if (part === undefined) return;
+    draftCount.current += 1;
+    const draftId = `draft-${draftCount.current}`;
+    const taken = new Set([...parts, ...drafts].map((held) => slugOf(held.name)));
+    const letter = [..."BCDEFGHJKLMNPQRSTUVWXYZ"].find(
+      (held) => !taken.has(slugOf(`${part.name} ${held}`)),
+    );
+    setDrafts((before) => [
+      ...before,
+      {
+        id: draftId,
+        kind: "Variant",
+        name: `${part.name} ${letter ?? "B"}`,
+        inputs: (sockets.get(id)?.inputs ?? []).map((input) => ({
+          from: input.from,
+          socket: input.fromSocket,
+        })),
+        sent: null,
+        variantOf: { id: part.id, script: part.script },
+      },
+    ]);
+    const spot = spotOf(id);
+    setMoved((before) => ({
+      ...before,
+      [draftId]: { x: spot.x, y: spot.y + (heights[id] ?? GUESS_H) + ROW_GAP },
+    }));
+    setPicked(new Set([draftId]));
+  };
+  // A job or check after a part, added as a block to run.
+  const addAfter = (of: string, action: string) =>
+    setPlanned((before) =>
+      before.some((plan) => plan.of === of && plan.action === action)
+        ? before
+        : [...before, { of, action }],
+    );
+  // When each job was asked for from its block (seconds).
+  const [jobAsked, setJobAsked] = useState<ReadonlySet<string>>(new Set());
+  const runJob = (job: JobNode) => {
+    const part = byId.get(job.of);
+    const composerRef = props.composerRef;
+    if (part === undefined || composerRef === null) return;
+    // The job's ask says where it saves, and to use the settings already saved there.
+    handToChat(composerRef, withToolLine(job.action.label, job.action.prompt(linkOf(part))));
+    setJobAsked((before) => new Set([...before, job.id]));
+  };
+
+  // Deleting cards: a draft or a block not yet run goes; a part or a block with results is taken
+  // off the canvas (its files stay), and "Show" brings it back. ⌘Z undoes the last.
+  const [undo, setUndo] = useState<ReadonlyArray<Snapshot>>([]);
+  const remember = () => setUndo((before) => [...before.slice(-19), { drafts, planned, hidden }]);
+  const remove = (ids: ReadonlyArray<string>) => {
+    if (ids.length === 0) return;
+    remember();
+    const unplanned = new Set<string>();
+    const hide = new Set(hidden);
+    for (const id of ids) {
+      const check = checkById.get(id);
+      const job = jobById.get(id);
+      if (draftById.has(id)) continue;
+      if (check !== undefined && check.result === null) {
+        unplanned.add(`${check.of}>${check.action?.id ?? ""}`);
+      } else if (job !== undefined && job.files.length === 0) {
+        unplanned.add(`${job.of}>${job.action.id}`);
+      } else {
+        hide.add(id);
+      }
+    }
+    setDrafts((before) => before.filter((draft) => !ids.includes(draft.id)));
+    setPlanned((before) => before.filter((plan) => !unplanned.has(`${plan.of}>${plan.action}`)));
+    setHidden(hide);
+    setPicked(new Set());
+  };
+  /** Whether deleting a card removes it (a draft, a block not run) rather than taking it off. */
+  const goes = (id: string) =>
+    draftById.has(id) || checkById.get(id)?.result === null || jobById.get(id)?.files.length === 0;
+  const undoRemove = () => {
+    const last = undo.at(-1);
+    if (last === undefined) return;
+    setUndo(undo.slice(0, -1));
+    setDrafts(last.drafts);
+    setPlanned(last.planned);
+    setHidden(last.hidden);
+  };
+  const showHidden = () => {
+    remember();
+    setHidden(new Set());
   };
   const updateDraft = (id: string, change: (draft: Draft) => Draft) =>
     setDrafts((before) => before.map((draft) => (draft.id === id ? change(draft) : draft)));
@@ -513,6 +755,24 @@ export function ProjectNodes(props: {
       sent: { at, before: parts.map((part) => part.id) },
     }));
   };
+  const sendVariant = (draft: Draft, ask: string) => {
+    const composerRef = props.composerRef;
+    const part = byId.get(draft.variantOf?.id ?? "");
+    if (composerRef === null || part === undefined) return;
+    // The checks the part has been through, asked of the variant as the Toolbox asks them.
+    const copy = `[${draft.name.trim()}](${draftFile(draft)})`;
+    const asks = checks.flatMap((check) =>
+      check.of === part.id && check.result !== null && check.action !== null
+        ? [check.action.prompt(copy)]
+        : [],
+    );
+    handToChat(composerRef, variantPrompt(draft, linkOf(part), ask, [...new Set(asks)]));
+    const at = Date.now() / 1000;
+    updateDraft(draft.id, (held) => ({
+      ...held,
+      sent: { at, before: parts.map((known) => known.id) },
+    }));
+  };
 
   const proposeFix = (check: CheckNode, issue: CheckIssue) => {
     const part = byId.get(check.of);
@@ -527,6 +787,8 @@ export function ProjectNodes(props: {
   const viewport = useRef<HTMLDivElement>(null);
   // Whether the canvas was moved or zoomed by hand, after which it no longer fits itself.
   const touched = useRef(false);
+  // Bumped by "Tidy up", to lay the cards out and fit them again.
+  const [tidy, setTidy] = useState(0);
   const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
   const toCanvas = (clientX: number, clientY: number): Spot => {
     const box = viewport.current?.getBoundingClientRect();
@@ -596,7 +858,7 @@ export function ProjectNodes(props: {
   const layoutKey = measured
     ? graph.nodes
         .map((node) => `${node.id}@${node.column}:${Math.round((heights[node.id] ?? 0) / 40)}`)
-        .join("|") + `#${graph.edges.length}`
+        .join("|") + `#${graph.edges.length}#${tidy}`
     : null;
   useLayoutEffect(() => {
     if (layoutKey === null || touched.current) return;
@@ -604,26 +866,63 @@ export function ProjectNodes(props: {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Fits again only when the layout changes.
   }, [layoutKey]);
 
-  // What a press on the canvas is doing: panning it, dragging a node, or drawing a wire.
+  // What a press on the canvas is doing: panning it, dragging cards, boxing cards to pick, or
+  // drawing a wire.
   const press = useRef<
-    | { kind: "pan"; x: number; y: number; from: View }
-    | { kind: "node"; id: string; dx: number; dy: number; moved: boolean }
+    | { kind: "pan"; x: number; y: number; from: View; moved: boolean }
+    | {
+        kind: "node";
+        id: string;
+        shift: boolean;
+        grip: ReadonlyArray<{ id: string; dx: number; dy: number }>;
+        moved: boolean;
+      }
+    | { kind: "box"; from: Spot; add: Picked }
     | { kind: "wire"; from: string; socket: OutputSocket }
     | null
   >(null);
   const [drawing, setDrawing] = useState<{ from: string; socket: OutputSocket; to: Spot } | null>(
     null,
   );
-  const startPan = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return;
+  const [box, setBox] = useState<{ from: Spot; to: Spot } | null>(null);
+  // Space held, to pan from anywhere, as in most canvases.
+  const space = useRef(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const panFrom = (event: PointerEvent<HTMLDivElement>) => {
     touched.current = true;
-    press.current = { kind: "pan", x: event.clientX, y: event.clientY, from: view };
+    press.current = { kind: "pan", x: event.clientX, y: event.clientY, from: view, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
+  const startPan = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || event.button !== 0) return;
+    viewport.current?.focus({ preventScroll: true });
+    if (event.shiftKey) {
+      const from = toCanvas(event.clientX, event.clientY);
+      press.current = { kind: "box", from, add: picked };
+      setBox({ from, to: from });
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+    panFrom(event);
+  };
+  // The middle button, or Space held, pans wherever it is pressed, over a card or not.
+  const panAnywhere = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 1 && !(space.current && event.button === 0)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    panFrom(event);
+  };
   const startNode = (id: string, event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    viewport.current?.focus({ preventScroll: true });
     const at = toCanvas(event.clientX, event.clientY);
-    const spot = spotOf(id);
-    press.current = { kind: "node", id, dx: at.x - spot.x, dy: at.y - spot.y, moved: false };
+    // Dragging a picked card drags every picked card with it.
+    const ids = picked.has(id) && !event.shiftKey ? [...picked] : [id];
+    const grip = ids.map((held) => {
+      const spot = spotOf(held);
+      return { id: held, dx: at.x - spot.x, dy: at.y - spot.y };
+    });
+    press.current = { kind: "node", id, shift: event.shiftKey, grip, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const startWire = (from: string, socket: OutputSocket, event: PointerEvent<HTMLElement>) => {
@@ -638,6 +937,7 @@ export function ProjectNodes(props: {
     const held = press.current;
     if (held === null) return;
     if (held.kind === "pan") {
+      held.moved = held.moved || held.x !== event.clientX || held.y !== event.clientY;
       setView({
         ...held.from,
         x: held.from.x + event.clientX - held.x,
@@ -646,7 +946,14 @@ export function ProjectNodes(props: {
     } else if (held.kind === "node") {
       held.moved = true;
       const at = toCanvas(event.clientX, event.clientY);
-      setMoved((before) => ({ ...before, [held.id]: { x: at.x - held.dx, y: at.y - held.dy } }));
+      setMoved((before) => ({
+        ...before,
+        ...Object.fromEntries(
+          held.grip.map((grip) => [grip.id, { x: at.x - grip.dx, y: at.y - grip.dy }]),
+        ),
+      }));
+    } else if (held.kind === "box") {
+      setBox({ from: held.from, to: toCanvas(event.clientX, event.clientY) });
     } else {
       setDrawing({
         from: held.from,
@@ -658,11 +965,35 @@ export function ProjectNodes(props: {
   const end = (event: PointerEvent<HTMLElement>) => {
     const held = press.current;
     press.current = null;
-    if (held?.kind === "pan" && held.x === event.clientX && held.y === event.clientY) {
-      setSelected(null);
+    if (held?.kind === "pan" && !held.moved && event.button === 0 && !space.current) {
+      setPicked(new Set());
     }
     if (held?.kind === "node" && !held.moved) {
-      setSelected((before) => (before === held.id ? null : held.id));
+      setPicked((before) => {
+        if (held.shift) {
+          const next = new Set(before);
+          if (next.has(held.id)) next.delete(held.id);
+          else next.add(held.id);
+          return next;
+        }
+        return before.size === 1 && before.has(held.id) ? new Set() : new Set([held.id]);
+      });
+    }
+    if (held?.kind === "box") {
+      setBox(null);
+      const to = toCanvas(event.clientX, event.clientY);
+      const left = Math.min(held.from.x, to.x);
+      const right = Math.max(held.from.x, to.x);
+      const top = Math.min(held.from.y, to.y);
+      const bottom = Math.max(held.from.y, to.y);
+      const inside = graph.nodes.flatMap((node) => {
+        const spot = spotOf(node.id);
+        const height = heights[node.id] ?? GUESS_H;
+        return spot.x < right && spot.x + NODE_W > left && spot.y < bottom && spot.y + height > top
+          ? [node.id]
+          : [];
+      });
+      setPicked(new Set([...held.add, ...inside]));
     }
     if (held?.kind === "wire") {
       setDrawing(null);
@@ -675,7 +1006,14 @@ export function ProjectNodes(props: {
       // Into a part not made yet, a wire is something it will use, said when it is asked for.
       const draft = draftById.get(to.id);
       if (draft !== undefined) {
-        if (draft.kind === "Stock" || draft.sent !== null || draftById.has(from.id)) return;
+        if (
+          draft.kind === "Stock" ||
+          draft.kind === "Variant" ||
+          draft.sent !== null ||
+          draftById.has(from.id)
+        ) {
+          return;
+        }
         const socket = held.socket.id;
         // It stays where it was dropped on, not moved to the column its new input puts it in.
         const spot = spotOf(draft.id);
@@ -700,6 +1038,216 @@ export function ProjectNodes(props: {
         }),
       );
     }
+  };
+
+  // The canvas's keys, while it (or nothing else) has focus: Delete takes the picked cards off,
+  // ⌘Z puts them back, ⌘A picks every card, F fits the view, Escape lets go, the arrows nudge, and
+  // Space held pans.
+  const [menu, setMenu] = useState<MenuAt | null>(null);
+  useEffect(() => {
+    const ours = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return false;
+      if (target.closest("input, textarea, select, [contenteditable='true']") !== null)
+        return false;
+      return target === document.body || viewport.current?.contains(target) === true;
+    };
+    const down = (event: KeyboardEvent) => {
+      if (!ours(event)) return;
+      const command = event.metaKey || event.ctrlKey;
+      if (event.key === " ") {
+        // A focused button keeps Space for pressing it.
+        if (event.target instanceof HTMLButtonElement) return;
+        event.preventDefault();
+        space.current = true;
+        setSpaceHeld(true);
+      } else if ((event.key === "Delete" || event.key === "Backspace") && !command) {
+        event.preventDefault();
+        remove([...picked]);
+      } else if (command && event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undoRemove();
+      } else if (command && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setPicked(new Set(graph.nodes.map((node) => node.id)));
+      } else if (event.key === "Escape") {
+        setMenu(null);
+        setPicked(new Set());
+      } else if (event.key.toLowerCase() === "f" && !command && !event.altKey) {
+        fit();
+      } else if (event.key.startsWith("Arrow") && picked.size > 0) {
+        event.preventDefault();
+        const step = event.shiftKey ? 40 : 8;
+        const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+        const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+        setMoved((before) => ({
+          ...before,
+          ...Object.fromEntries(
+            [...picked].map((id) => {
+              const spot = before[id] ?? spotOf(id);
+              return [id, { x: spot.x + dx, y: spot.y + dy }];
+            }),
+          ),
+        }));
+      }
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.key !== " ") return;
+      space.current = false;
+      setSpaceHeld(false);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  });
+  // Puts the cards back where the layout puts them, and fits the view to them.
+  const tidyUp = () => {
+    setMoved({});
+    touched.current = false;
+    setTidy((before) => before + 1);
+  };
+  // Opens the menu where the pointer is: on a card, what can be done to it (it is picked first);
+  // on the empty canvas, what can be added there.
+  const openMenu = (clientX: number, clientY: number, on: string | null) => {
+    const bounds = viewport.current?.getBoundingClientRect();
+    if (bounds === undefined) return;
+    if (on !== null && !picked.has(on)) setPicked(new Set([on]));
+    setMenu({
+      x: Math.max(8, Math.min(clientX - bounds.left, bounds.width - 264)),
+      y: Math.max(8, Math.min(clientY - bounds.top, bounds.height - 392)),
+      at: toCanvas(clientX, clientY),
+      on,
+    });
+  };
+  // The jobs a part's kind can be followed by, as the Toolbox's menus list them, by menu.
+  const jobItems = (id: string): CanvasMenuItem[] => {
+    const node = byId.get(id);
+    if (node === undefined || (node.kind !== "Part" && node.kind !== "Assembly")) return [];
+    return hardwareActions(node.kind, skills).flatMap((group) =>
+      [...group.sections, ...group.others].flatMap((section) =>
+        section.actions
+          .filter((action) => !ABOUT_RESULTS.has(action.id))
+          .map((action) => ({
+            id: `${group.group}:${action.id}`,
+            label: action.label,
+            group: group.group,
+            icon: toolIcon(action),
+            onPick: () => addAfter(id, action.id),
+          })),
+      ),
+    );
+  };
+  const menuItems = (at: MenuAt): CanvasMenuItem[] => {
+    const many = picked.size > 1;
+    const targets = at.on !== null && !picked.has(at.on) ? [at.on] : [...picked];
+    // A part, or a block with results, is only taken off the canvas: its files stay.
+    const kept = targets.some((id) => !goes(id));
+    const removeItem: CanvasMenuItem = {
+      id: "remove",
+      label: `${kept ? "Take off the canvas" : "Delete"}${many ? ` (${picked.size})` : ""}`,
+      group: "Card",
+      icon: kept ? EyeOffIcon : Trash2Icon,
+      keys: "⌫",
+      onPick: () => remove(targets),
+    };
+    if (at.on === null) {
+      return [
+        ...(["Part", "Assembly", "Stock"] as const).map((kind) => ({
+          id: kind,
+          label: DRAFT_TITLES[kind],
+          group: "Add here",
+          icon: DRAFT_ICONS[kind],
+          onPick: () => addDraft(kind, at.at),
+        })),
+        ...(picked.size > 0 ? [removeItem] : []),
+        {
+          id: "fit",
+          label: "Fit to view",
+          group: "Canvas",
+          icon: MaximizeIcon,
+          keys: "F",
+          onPick: fit,
+        },
+        { id: "tidy", label: "Tidy up", group: "Canvas", icon: SquareDashedIcon, onPick: tidyUp },
+        ...(hidden.size === 0
+          ? []
+          : [
+              {
+                id: "show",
+                label: `Show ${hidden.size} taken off`,
+                group: "Canvas",
+                icon: EyeOffIcon,
+                onPick: showHidden,
+              },
+            ]),
+      ];
+    }
+    const node = byId.get(at.on);
+    if (node === undefined) return [];
+    const part = node.kind === "Part" || node.kind === "Assembly";
+    const family = familyOf(at.on);
+    return [
+      ...(part && !many
+        ? [
+            {
+              id: "variant",
+              label: "Make a variant",
+              group: "Card",
+              icon: CopyPlusIcon,
+              onPick: () => addVariant(node.id),
+            },
+            ...(family === null
+              ? []
+              : [
+                  {
+                    id: "compare",
+                    label: "Compare variants",
+                    group: "Card",
+                    icon: CopyPlusIcon,
+                    onPick: () => setComparing(family),
+                  },
+                ]),
+          ]
+        : []),
+      removeItem,
+      ...(part && !many ? jobItems(node.id) : []),
+    ];
+  };
+  const [comparing, setComparing] = useState<string | null>(null);
+  const compareColumns = (original: string): CompareColumn[] => {
+    const members = [
+      { id: original, change: null },
+      ...(families.get(original) ?? []).map((variant) => ({
+        id: variant.id,
+        change: variant.change,
+      })),
+    ];
+    return members.flatMap(({ id, change }) => {
+      const part = parts.find((held) => held.id === id);
+      if (part === undefined) return [];
+      const found = new Map(
+        checks.flatMap((check) =>
+          check.of === id && check.result !== null
+            ? [
+                [
+                  check.name,
+                  {
+                    result: check.result,
+                    figures: figures.get(check.result.path) ?? [],
+                    outOfDate:
+                      part.updated !== null &&
+                      checkOutOfDate(check.result, { version: part.updated }),
+                  },
+                ] as const,
+              ]
+            : [],
+        ),
+      );
+      return [{ id, name: part.name, change, picture: pictures.get(id), checks: found }];
+    });
   };
 
   if (paths === null) {
@@ -747,16 +1295,30 @@ export function ProjectNodes(props: {
       ref={viewport}
       role="application"
       aria-label="Nodes"
-      className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
+      tabIndex={-1}
+      className={cn(
+        "relative min-h-0 flex-1 touch-none overflow-hidden outline-none select-none",
+        spaceHeld ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+      )}
       style={{
         backgroundImage: "radial-gradient(var(--color-border) 1px, transparent 1px)",
         backgroundSize: `${20 * view.k}px ${20 * view.k}px`,
         backgroundPosition: `${view.x}px ${view.y}px`,
       }}
+      onPointerDownCapture={panAnywhere}
       onPointerDown={startPan}
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
+      onDoubleClick={(event) => {
+        if (event.target === event.currentTarget) openMenu(event.clientX, event.clientY, null);
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        const target = event.target instanceof Element ? event.target : null;
+        const on = target?.closest<HTMLElement>("[data-node]")?.dataset.node ?? null;
+        openMenu(event.clientX, event.clientY, on);
+      }}
     >
       <div
         className="pointer-events-none absolute top-0 left-0 origin-top-left"
@@ -793,6 +1355,18 @@ export function ProjectNodes(props: {
             />
           ) : null}
         </svg>
+        {box === null ? null : (
+          <div
+            aria-hidden
+            className="absolute rounded-sm border border-primary bg-primary/10"
+            style={{
+              left: Math.min(box.from.x, box.to.x),
+              top: Math.min(box.from.y, box.to.y),
+              width: Math.abs(box.to.x - box.from.x),
+              height: Math.abs(box.to.y - box.from.y),
+            }}
+          />
+        )}
         {graph.nodes.map((node) => {
           const check = checkById.get(node.id);
           const measure = {
@@ -820,7 +1394,14 @@ export function ProjectNodes(props: {
                 litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
                   tracing(input, node.id) ? [input.id] : [],
                 )}
-                dropTarget={drawing !== null && draft.kind !== "Stock" && draft.sent === null}
+                picked={picked.has(node.id)}
+                variantOfName={byId.get(draft.variantOf?.id ?? "")?.name ?? null}
+                dropTarget={
+                  drawing !== null &&
+                  draft.kind !== "Stock" &&
+                  draft.kind !== "Variant" &&
+                  draft.sent === null
+                }
                 canSend={props.composerRef !== null}
                 {...measure}
                 onTrace={(next) => setHovered(next)}
@@ -834,10 +1415,41 @@ export function ProjectNodes(props: {
                     ),
                   }))
                 }
-                onSend={(ask) => sendDraft(draft, ask)}
+                onSend={(ask) =>
+                  draft.kind === "Variant" ? sendVariant(draft, ask) : sendDraft(draft, ask)
+                }
                 onRemove={() =>
                   setDrafts((before) => before.filter((held) => held.id !== draft.id))
                 }
+              />
+            );
+          }
+          const job = jobById.get(node.id);
+          if (job !== undefined) {
+            const part = byId.get(job.of);
+            return (
+              <JobCard
+                key={node.id}
+                node={node}
+                job={job}
+                partName={part?.name ?? "the part"}
+                settings={settings.get(job.id) ?? []}
+                picked={picked.has(node.id)}
+                spot={spotOf(node.id)}
+                inputs={sockets.get(node.id)?.inputs ?? []}
+                role={roleOf(node.id)}
+                litIn={(sockets.get(node.id)?.inputs ?? []).flatMap((input) =>
+                  tracing(input, node.id) ? [input.id] : [],
+                )}
+                icon={toolIcon(job.action)}
+                asked={jobAsked.has(node.id)}
+                canRun={props.composerRef !== null}
+                {...measure}
+                onTrace={(next) => setHovered(next)}
+                onNodePress={(event) => startNode(node.id, event)}
+                onOpenFile={(path) => props.onOpen(root, path)}
+                onRun={() => runJob(job)}
+                onRemove={() => remove([node.id])}
               />
             );
           }
@@ -850,6 +1462,7 @@ export function ProjectNodes(props: {
                 node={node}
                 check={check}
                 partName={part?.name ?? "The part"}
+                picked={picked.has(node.id)}
                 figures={result === null ? [] : (figures.get(result.path) ?? [])}
                 picture={result === null || check.review ? undefined : pictures.get(result.model)}
                 spot={spotOf(node.id)}
@@ -897,7 +1510,19 @@ export function ProjectNodes(props: {
               sizes={sizeGroups.get(node.script) ?? null}
               picture={pictures.get(node.id)}
               context={context[node.script] ?? []}
-              selected={selected === node.id}
+              selected={picked.has(node.id)}
+              family={(() => {
+                const original = familyOf(node.id);
+                if (original === null) return null;
+                const variant = families.get(original)?.find((held) => held.id === node.id);
+                return variant === undefined
+                  ? `${families.get(original)?.length ?? 0} variants`
+                  : `Variant of ${byId.get(original)?.name ?? "a part"}: ${variant.change}`;
+              })()}
+              onCompare={() => {
+                const original = familyOf(node.id);
+                if (original !== null) setComparing(original);
+              }}
               follows={following.has(node.id)}
               role={roleOf(node.id)}
               litOut={trace?.from === node.id ? trace.socket : null}
@@ -918,20 +1543,8 @@ export function ProjectNodes(props: {
               }}
               onTyped={(text) => setTyped(text === null ? null : Number(text))}
               onDots={measure.onDots}
-              checkActions={
-                node.kind === "Part" || node.kind === "Assembly"
-                  ? CHECK_ACTIONS.filter(
-                      (action) => action.kinds === null || action.kinds.includes(node.kind),
-                    )
-                  : []
-              }
-              onAddCheck={(action) =>
-                setPlanned((before) =>
-                  before.some((plan) => plan.of === node.id && plan.action === action)
-                    ? before
-                    : [...before, { of: node.id, action }],
-                )
-              }
+              canAdd={node.kind === "Part" || node.kind === "Assembly"}
+              onMenu={(x, y) => openMenu(x, y, node.id)}
               dropTarget={drawing !== null && drawing.from !== node.id}
               asked={asked[node.id]}
               askedBy={byId.get(asked[node.id]?.by ?? "")?.name}
@@ -982,13 +1595,54 @@ export function ProjectNodes(props: {
         >
           <PlusIcon />
         </Button>
-        <Button variant="ghost" size="icon-xs" aria-label="Fit to view" onClick={fit}>
+        <Button variant="ghost" size="icon-xs" aria-label="Fit to view (F)" onClick={fit}>
           <MaximizeIcon />
         </Button>
+        <Button variant="ghost" size="icon-xs" aria-label="Tidy up" onClick={tidyUp}>
+          <SquareDashedIcon />
+        </Button>
+        {undo.length === 0 ? null : (
+          <Button variant="ghost" size="icon-xs" aria-label="Undo delete (⌘Z)" onClick={undoRemove}>
+            <Undo2Icon />
+          </Button>
+        )}
       </div>
+      {hidden.size === 0 ? null : (
+        <div className="absolute top-3 right-3 flex items-center gap-2 rounded-lg border border-border bg-popover py-1 pr-1 pl-3 text-xs text-muted-foreground shadow-xs">
+          <EyeOffIcon aria-hidden className="size-3.5" />
+          {hidden.size} taken off the canvas
+          <Button variant="ghost" size="xs" onClick={showHidden}>
+            Show
+          </Button>
+        </div>
+      )}
+      {menu === null ? null : (
+        <CanvasMenu
+          x={menu.x}
+          y={menu.y}
+          title={
+            menu.on === null
+              ? "Add here"
+              : picked.size > 1
+                ? `${picked.size} cards`
+                : `After ${byId.get(menu.on)?.name ?? "this"}`
+          }
+          items={menuItems(menu)}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      <CompareDialog
+        open={comparing !== null}
+        columns={comparing === null ? [] : compareColumns(comparing)}
+        onOpenChange={(open) => {
+          if (!open) setComparing(null);
+        }}
+        onOpenResult={(path) => props.onOpen(root, path)}
+      />
       {traceLine === null ? (
         <p className="pointer-events-none absolute right-3 bottom-3 text-xs text-muted-foreground">
           Point at a size to see where it goes. Drag a dot onto another node to use it there.
+          Double-click to add, right-click a card for more.
         </p>
       ) : (
         <p
@@ -1068,9 +1722,12 @@ function NodeCard(props: {
   readonly asked: { at: number; by: string } | undefined;
   readonly askedBy: string | undefined;
   readonly canChange: boolean;
-  /** The checks that can follow this part, to add as nodes. */
-  readonly checkActions: ReadonlyArray<HardwareAction>;
-  readonly onAddCheck: (action: string) => void;
+  /** Whether jobs can follow it ("Add after"), which opens the canvas's menu on it. */
+  readonly canAdd: boolean;
+  readonly onMenu: (clientX: number, clientY: number) => void;
+  /** Its variants ("2 variants") or what it changes as one, to compare them; null for neither. */
+  readonly family: string | null;
+  readonly onCompare: () => void;
   readonly onHeight: (height: number) => void;
   readonly onDots: (dots: Dots) => void;
   readonly onTrace: (pointed: Pointed | null, pin: boolean) => void;
@@ -1087,28 +1744,8 @@ function NodeCard(props: {
   const [addingLine, setAddingLine] = useState(false);
   const [ask, setAsk] = useState("");
   const [allSizes, setAllSizes] = useState(false);
-  const card = useRef<HTMLElement>(null);
-  const onHeight = props.onHeight;
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    return observeResize(element, () => onHeight(element.offsetHeight));
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
-  }, []);
-  // Where each dot sits, read after every layout: the size rows move as sizes load and open out.
-  // The card is drawn scaled, so the offsets are divided by the scale it shows at.
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    const box = element.getBoundingClientRect();
-    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
-    const found: Record<string, number> = {};
-    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
-      const at = dot.getBoundingClientRect();
-      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
-    }
-    props.onDots(found);
-  });
+  // Measured after every layout: the size rows move as sizes load and open out.
+  const card = useCardMeasure(props.onHeight, props.onDots);
 
   const built = node.updated === null ? null : Number(node.updated);
   const state =
@@ -1185,6 +1822,16 @@ function NodeCard(props: {
           {node.kind === "Shared" ? "Sizes" : node.kind}
         </span>
       </header>
+      {props.family === null ? null : (
+        <div className="flex items-center gap-1 border-b border-border py-0.5 pr-1 pl-3">
+          <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
+            {props.family}
+          </span>
+          <Button variant="ghost" size="xs" onClick={props.onCompare}>
+            Compare
+          </Button>
+        </div>
+      )}
       {rows === 0 ? null : (
         <div
           className="relative grid grid-cols-2 gap-x-2"
@@ -1376,35 +2023,19 @@ function NodeCard(props: {
             <PlusIcon />
           </Button>
         )}
-        {props.checkActions.length === 0 ? null : (
-          <Menu>
-            <MenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`Add a check after ${node.name}`}
-                />
-              }
-            >
-              <ClipboardCheckIcon />
-            </MenuTrigger>
-            <MenuPopup align="end" side="bottom" sideOffset={6}>
-              <MenuGroup>
-                <MenuGroupLabel>Add a check after {node.name}</MenuGroupLabel>
-                {props.checkActions.map((action) => {
-                  const Icon = toolIcon(action);
-                  return (
-                    <MenuItem key={action.id} onClick={() => props.onAddCheck(action.id)}>
-                      <Icon />
-                      {action.label}
-                    </MenuItem>
-                  );
-                })}
-              </MenuGroup>
-            </MenuPopup>
-          </Menu>
-        )}
+        {props.canAdd ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Add after ${node.name}`}
+            onClick={(event) => {
+              const at = event.currentTarget.getBoundingClientRect();
+              props.onMenu(at.left, at.bottom + 4);
+            }}
+          >
+            <ListPlusIcon />
+          </Button>
+        ) : null}
         <Button
           size="icon-xs"
           aria-label={`Send the change to ${node.name}`}
@@ -1436,6 +2067,7 @@ const DRAFT_ICONS = {
   Part: BoxIcon,
   Assembly: BoxesIcon,
   Stock: STOCK_ACTION === undefined ? BoxIcon : toolIcon(STOCK_ACTION),
+  Variant: CopyPlusIcon,
 } as const;
 
 /** Adds a part, an assembly or an off-the-shelf part to the canvas, to wire up and ask for. */
@@ -1474,6 +2106,9 @@ function DraftCard(props: {
   readonly role: TraceRole | null;
   readonly litIn: ReadonlyArray<string>;
   readonly dropTarget: boolean;
+  readonly picked: boolean;
+  /** For a variant, the part it copies. */
+  readonly variantOfName: string | null;
   readonly canSend: boolean;
   readonly onHeight: (height: number) => void;
   readonly onDots: (dots: Dots) => void;
@@ -1486,27 +2121,9 @@ function DraftCard(props: {
 }) {
   const { node, draft } = props;
   const [ask, setAsk] = useState("");
-  const card = useRef<HTMLElement>(null);
-  const onHeight = props.onHeight;
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    return observeResize(element, () => onHeight(element.offsetHeight));
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
-  }, []);
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    const box = element.getBoundingClientRect();
-    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
-    const found: Record<string, number> = {};
-    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
-      const at = dot.getBoundingClientRect();
-      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
-    }
-    props.onDots(found);
-  });
+  const card = useCardMeasure(props.onHeight, props.onDots);
   const stock = draft.kind === "Stock";
+  const variant = draft.kind === "Variant";
   const sent = draft.sent !== null;
   const ready = props.canSend && !sent && ask.trim() !== "" && (stock || slugOf(draft.name) !== "");
   const send = () => {
@@ -1524,9 +2141,11 @@ function DraftCard(props: {
         "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border border-dashed bg-card shadow-md",
         props.role === "apart"
           ? "border-border opacity-50"
-          : props.dropTarget || props.role !== null
-            ? "border-primary/60"
-            : "border-border",
+          : props.picked
+            ? "border-primary ring-2 ring-primary/40"
+            : props.dropTarget || props.role !== null
+              ? "border-primary/60"
+              : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
     >
@@ -1571,7 +2190,7 @@ function DraftCard(props: {
                 <span className="min-w-0 flex-1 truncate text-2xs text-foreground">
                   {socket.type === "Size" ? humanName(socket.name) : socket.name}
                 </span>
-                {sent ? null : (
+                {sent || variant ? null : (
                   <Button
                     variant="ghost"
                     size="icon-tiny"
@@ -1586,9 +2205,11 @@ function DraftCard(props: {
           })}
           {sent ? null : (
             <p className="px-3 py-1 text-2xs text-muted-foreground">
-              {draft.kind === "Assembly"
-                ? "Drag each part's dot here to put it in."
-                : "Drag a size's or a part's dot here to use it."}
+              {variant
+                ? `A copy of ${props.variantOfName ?? "the part"} with one change, checked as it is.`
+                : draft.kind === "Assembly"
+                  ? "Drag each part's dot here to put it in."
+                  : "Drag a size's or a part's dot here to use it."}
             </p>
           )}
         </div>
@@ -1616,9 +2237,11 @@ function DraftCard(props: {
             placeholder={
               stock
                 ? "What to find, as an M3 x 10 socket head screw"
-                : draft.kind === "Assembly"
-                  ? "How they go together"
-                  : "What it is and what it must do"
+                : variant
+                  ? "What changes, as 6 mm thick, not 8"
+                  : draft.kind === "Assembly"
+                    ? "How they go together"
+                    : "What it is and what it must do"
             }
             aria-label={`What ${node.name} is`}
           />
@@ -1641,6 +2264,183 @@ function DraftCard(props: {
   );
 }
 
+/** What each Toolbox menu's jobs are drawn in, as the Toolbox colours kinds. */
+const GROUP_HUES = {
+  Evaluate: "var(--kind-analysis)",
+  Manufacture: "var(--kind-manufacturing)",
+  Document: "var(--kind-document)",
+} as const;
+/** A job's block lists this many of the files it made; the rest open from its folder. */
+const FILES_SHOWN = 5;
+
+/**
+ * Any Toolbox job after a part, fed by its shape: what it made for the part (kept in
+ * `outputs/<job>/<part>/`), the settings saved with it (a slicer's presets), and the job to run
+ * again, as the Toolbox runs it, with those settings. Before it has run it says what it makes.
+ */
+function JobCard(props: {
+  readonly node: GraphNode;
+  readonly job: JobNode;
+  readonly partName: string;
+  /** The job's icon, as its Toolbox tile draws it. */
+  readonly icon: LucideIcon;
+  readonly settings: ReadonlyArray<Figure>;
+  readonly picked: boolean;
+  readonly spot: Spot;
+  readonly inputs: ReadonlyArray<InputSocket>;
+  readonly role: TraceRole | null;
+  readonly litIn: ReadonlyArray<string>;
+  /** Whether it was asked for from this block, to say its files show once saved. */
+  readonly asked: boolean;
+  readonly canRun: boolean;
+  readonly onHeight: (height: number) => void;
+  readonly onDots: (dots: Dots) => void;
+  readonly onTrace: (pointed: Trace | null) => void;
+  readonly onNodePress: (event: PointerEvent<HTMLElement>) => void;
+  readonly onOpenFile: (path: string) => void;
+  readonly onRun: () => void;
+  readonly onRemove: () => void;
+}) {
+  const { node, job } = props;
+  const card = useCardMeasure(props.onHeight, props.onDots);
+  const Icon = props.icon;
+  // The presets show as its settings, not as files.
+  const made = job.files.filter(
+    (file) =>
+      props.settings.length === 0 || !PRESET_FILES.some((name) => file === `${job.id}/${name}`),
+  );
+  const shown = made.slice(0, FILES_SHOWN);
+
+  return (
+    <section
+      ref={card}
+      data-node={node.id}
+      aria-label={job.name}
+      className={cn(
+        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
+        props.role === "user"
+          ? "border-primary ring-1 ring-primary/30"
+          : props.role === "apart"
+            ? "border-border opacity-50"
+            : props.picked
+              ? "border-primary ring-2 ring-primary/40"
+              : "border-border",
+      )}
+      style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+    >
+      <header
+        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        style={{ height: HEADER_H }}
+        onPointerDown={props.onNodePress}
+      >
+        <Icon
+          aria-hidden
+          className="size-3.5 shrink-0"
+          style={{ color: GROUP_HUES[job.action.group] }}
+        />
+        <span className="truncate text-xs font-medium text-foreground">{job.name}</span>
+        <span className="ml-auto shrink-0 text-2xs text-muted-foreground">{job.action.group}</span>
+        <Button
+          variant="ghost"
+          size="icon-tiny"
+          aria-label={`Delete ${job.name}`}
+          onClick={props.onRemove}
+        >
+          <XIcon />
+        </Button>
+      </header>
+      <div
+        className="flex flex-col"
+        style={{ paddingTop: SOCKETS_TOP, paddingBottom: SOCKETS_TOP }}
+      >
+        {props.inputs.map((socket) => {
+          const lit = props.litIn.includes(socket.id);
+          return (
+            <div
+              key={socket.id}
+              className={cn(
+                "relative flex items-center rounded-r-md pl-3",
+                lit ? "bg-primary/10" : null,
+              )}
+              style={{ height: SOCKET_ROW }}
+              onPointerEnter={() =>
+                props.onTrace({ from: socket.from, socket: socket.fromSocket, to: node.id })
+              }
+              onPointerLeave={() => props.onTrace(null)}
+            >
+              <SocketDot type={socket.type} side="in" dot={`in:${socket.id}`} lit={lit} />
+              <span
+                className={cn(
+                  "truncate text-2xs",
+                  lit ? "font-medium text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {socket.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-col gap-1.5 border-t border-border px-3 py-2">
+        {job.files.length === 0 ? (
+          <>
+            <p className="text-xs text-muted-foreground">{job.action.gets}</p>
+            <p className="text-2xs text-muted-foreground">Not run yet</p>
+          </>
+        ) : (
+          <>
+            {shown.map((file) => (
+              <button
+                key={file}
+                type="button"
+                onClick={() => props.onOpenFile(file)}
+                className="flex min-w-0 items-center gap-1.5 rounded-sm text-left text-xs text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              >
+                <FileIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{file.split("/").pop()}</span>
+              </button>
+            ))}
+            {made.length > shown.length ? (
+              <span className="text-2xs text-muted-foreground">
+                {made.length - shown.length} more in {job.id}
+              </span>
+            ) : null}
+            {props.settings.length === 0 ? null : (
+              <>
+                <span className="pt-1 text-2xs text-muted-foreground">Settings saved with it</span>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-2xs">
+                  {props.settings.map((item) => (
+                    <div key={item.label} className="contents">
+                      <dt className="text-muted-foreground">{item.label}</dt>
+                      <dd className="min-w-0 truncate text-foreground tabular-nums">
+                        {item.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
+          </>
+        )}
+        {props.asked ? (
+          <p className="text-2xs text-muted-foreground">
+            Asked the agent. What it makes for {props.partName} shows here once it is saved.
+          </p>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-1 rounded-b-lg border-t border-border px-2 py-2">
+        <Button variant="outline" size="xs" disabled={!props.canRun} onClick={props.onRun}>
+          {job.files.length === 0
+            ? "Run"
+            : props.settings.length === 0
+              ? "Run again"
+              : "Run again with these settings"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 /** A check node shows this many of its findings; the rest are in its result. */
 const FINDINGS_SHOWN = 3;
 
@@ -1653,6 +2453,7 @@ function CheckCard(props: {
   readonly node: GraphNode;
   readonly check: CheckNode;
   readonly partName: string;
+  readonly picked: boolean;
   /** A study's numbers as its result gives them, and its picture. */
   readonly figures: ReadonlyArray<Figure>;
   readonly picture: string | undefined;
@@ -1675,26 +2476,7 @@ function CheckCard(props: {
 }) {
   const { node, check } = props;
   const result = check.result;
-  const card = useRef<HTMLElement>(null);
-  const onHeight = props.onHeight;
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    return observeResize(element, () => onHeight(element.offsetHeight));
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Observed once; the callback reads the latest node.
-  }, []);
-  useLayoutEffect(() => {
-    const element = card.current;
-    if (element === null) return;
-    const box = element.getBoundingClientRect();
-    const scale = element.offsetHeight > 0 ? box.height / element.offsetHeight : 1;
-    const found: Record<string, number> = {};
-    for (const dot of element.querySelectorAll<HTMLElement>("[data-socket]")) {
-      const at = dot.getBoundingClientRect();
-      found[dot.dataset.socket ?? ""] = (at.top + at.height / 2 - box.top) / scale;
-    }
-    props.onDots(found);
-  });
+  const card = useCardMeasure(props.onHeight, props.onDots);
   const shown = result?.issues.slice(0, FINDINGS_SHOWN) ?? [];
   const more = (result?.issues.length ?? 0) - shown.length;
 
@@ -1709,7 +2491,9 @@ function CheckCard(props: {
           ? "border-primary ring-1 ring-primary/30"
           : props.role === "apart"
             ? "border-border opacity-50"
-            : "border-border",
+            : props.picked
+              ? "border-primary ring-2 ring-primary/40"
+              : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
     >

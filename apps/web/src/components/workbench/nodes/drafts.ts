@@ -8,7 +8,7 @@
 
 import { SHAPE, type GraphPart } from "./nodeGraph";
 
-export type DraftKind = "Part" | "Assembly" | "Stock";
+export type DraftKind = "Part" | "Assembly" | "Stock" | "Variant";
 
 export interface Draft {
   readonly id: string;
@@ -18,6 +18,8 @@ export interface Draft {
   readonly inputs: ReadonlyArray<{ readonly from: string; readonly socket: string }>;
   /** When it was asked for (seconds) and the parts there were then; null before. */
   readonly sent: { readonly at: number; readonly before: ReadonlyArray<string> } | null;
+  /** A variant's part: its id and script, which the variant is a changed copy of. */
+  readonly variantOf?: { readonly id: string; readonly script: string };
 }
 
 /** What each kind is called on the canvas, in the words Studio already uses. */
@@ -25,6 +27,7 @@ export const DRAFT_TITLES: Record<DraftKind, string> = {
   Part: "New part",
   Assembly: "New assembly",
   Stock: "Off-the-shelf part",
+  Variant: "Variant",
 };
 
 const fileStem = (path: string) =>
@@ -40,16 +43,27 @@ export function slugOf(name: string): string {
   return /^[0-9]/.test(slug) ? `part_${slug}` : slug;
 }
 
-/** Where the agent is asked to write it. */
-export const draftFile = (draft: Draft) =>
-  `${draft.kind === "Assembly" ? "assemblies" : "parts"}/${slugOf(draft.name)}.py`;
+/** Where the agent is asked to write it: a variant beside its part, else in parts/ or assemblies/. */
+export function draftFile(draft: Draft): string {
+  const script = draft.variantOf?.script;
+  const folder =
+    script === undefined
+      ? draft.kind === "Assembly"
+        ? "assemblies"
+        : "parts"
+      : script.split("/").slice(0, -1).join("/");
+  return `${folder === "" ? "" : `${folder}/`}${slugOf(draft.name)}.py`;
+}
 
 /** Its place in the graph: a script no other can import (its name has a dash). */
 export const draftPart = (draft: Draft): GraphPart => ({
   id: draft.id,
   name: draft.name.trim() || DRAFT_TITLES[draft.kind],
   script: `drafts/${draft.id}.py`,
-  kind: draft.kind === "Assembly" ? "Assembly" : "Part",
+  kind:
+    draft.kind === "Assembly" || draft.variantOf?.script.startsWith("assemblies/")
+      ? "Assembly"
+      : "Part",
   updated: null,
 });
 
@@ -115,4 +129,40 @@ export function draftMade(draft: Draft, parts: ReadonlyArray<GraphPart>): boolea
   }
   const slug = slugOf(draft.name);
   return fresh.some((part) => fileStem(part.script) === slug);
+}
+
+/** The line a variant's script starts with, naming the script it is a changed copy of and how. */
+const VARIANT_LINE = /^#\s*Variant of\s+(\S+\.py)\s*:\s*(.+?)\s*$/m;
+
+/** Which script a script is a variant of, and what it changes, from its first lines; else null. */
+export function variantOf(source: string): { readonly of: string; readonly change: string } | null {
+  const head = source.split("\n", 5).join("\n");
+  const match = VARIANT_LINE.exec(head);
+  return match === null ? null : { of: match[1] ?? "", change: match[2] ?? "" };
+}
+
+/**
+ * The ask that makes a variant: `part` links the part it copies; `checks` are the jobs that part
+ * has been through, each as the Toolbox asks for it of the variant, so the two compare.
+ */
+export function variantPrompt(
+  draft: Draft,
+  part: string,
+  ask: string,
+  checks: ReadonlyArray<string>,
+): string {
+  const script = draft.variantOf?.script ?? "";
+  const change = ask.trim().replace(/[.\s]+$/, "");
+  const file = draftFile(draft);
+  const name = draft.name.trim();
+  const lines = [
+    `Make a variant of ${part}, named ${name}: ${change}.`,
+    "",
+    `Copy ${script} to ${file} and change only that in the copy; leave ${script} as it is. Start the copy with the line \`# Variant of ${script}: ${change}\`, so the two can be set side by side, then build it.`,
+  ];
+  if (checks.length > 0) {
+    lines.push("", `Then run the checks the original has been through on ${name}:`);
+    lines.push(...checks.map((check) => `- ${check}`));
+  }
+  return lines.join("\n");
 }

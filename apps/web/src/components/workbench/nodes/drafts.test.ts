@@ -7,6 +7,8 @@ import {
   draftPrompt,
   draftSource,
   slugOf,
+  variantOf,
+  variantPrompt,
   type Draft,
 } from "./drafts";
 import { buildNodeGraph, nodeSockets, type GraphPart } from "./nodeGraph";
@@ -93,5 +95,37 @@ describe("drafts", () => {
     const stock: Draft = { ...sent, kind: "Stock" };
     expect(draftMade(stock, [PLATE, clamp])).toBe(false);
     expect(draftMade(stock, [PLATE, SCREW])).toBe(true);
+  });
+
+  it("asks for a variant beside its part, with the checks it has been through", () => {
+    const variant: Draft = {
+      id: "draft-2",
+      kind: "Variant",
+      name: "Motor plate B",
+      inputs: [],
+      sent: null,
+      variantOf: { id: PLATE.id, script: PLATE.script },
+    };
+    expect(draftFile(variant)).toBe("parts/motor_plate_b.py");
+    expect(draftPart(variant).kind).toBe("Part");
+    expect(
+      variantPrompt(variant, "[Motor plate](parts/motor_plate.step)", "6 mm thick, not 8.", [
+        "Check [Motor plate B](parts/motor_plate_b.py) for strength under its working load.",
+      ]),
+    ).toBe(
+      "Make a variant of [Motor plate](parts/motor_plate.step), named Motor plate B: 6 mm thick, not 8.\n\n" +
+        "Copy parts/motor_plate.py to parts/motor_plate_b.py and change only that in the copy; leave parts/motor_plate.py as it is. " +
+        "Start the copy with the line `# Variant of parts/motor_plate.py: 6 mm thick, not 8`, so the two can be set side by side, then build it.\n\n" +
+        "Then run the checks the original has been through on Motor plate B:\n" +
+        "- Check [Motor plate B](parts/motor_plate_b.py) for strength under its working load.",
+    );
+  });
+
+  it("reads which part a script is a variant of from its first lines", () => {
+    expect(
+      variantOf('# Variant of parts/motor_plate.py: 6 mm thick, not 8\n"""Motor plate B."""\n'),
+    ).toEqual({ of: "parts/motor_plate.py", change: "6 mm thick, not 8" });
+    expect(variantOf("from sizes import MOTOR_BOLT_PATTERN\n")).toBeNull();
+    expect(variantOf("\n\n\n\n\n\n# Variant of parts/a.py: later\n")).toBeNull();
   });
 });
