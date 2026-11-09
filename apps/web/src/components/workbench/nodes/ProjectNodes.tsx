@@ -6,7 +6,11 @@ import {
   CopyPlusIcon,
   EyeOffIcon,
   FileIcon,
+  GripVerticalIcon,
+  HandIcon,
+  CircleHelpIcon,
   ListPlusIcon,
+  MousePointer2Icon,
   MaximizeIcon,
   MinusIcon,
   PlusIcon,
@@ -148,6 +152,18 @@ const checkName = (action: HardwareAction) => {
 
 /** The Toolbox's job that finds an off-the-shelf part, which an off-the-shelf draft runs. */
 const STOCK_ACTION = HARDWARE_ACTIONS.find((action) => action.id === "standard-parts");
+
+/** What on a card is its own control; a press anywhere else on the card drags it. */
+const CARD_CONTROLS = "button, input, textarea, select, a, label, [role='option']";
+
+/** A press on a card's own surface (not a field, a button or a dot) drags it, as in any node editor. */
+function pressCard(
+  event: PointerEvent<HTMLElement>,
+  onPress: (event: PointerEvent<HTMLElement>) => void,
+) {
+  if (event.target instanceof Element && event.target.closest(CARD_CONTROLS) !== null) return;
+  onPress(event);
+}
 
 /** The Toolbox's jobs that are about a result, not a part, so never follow one on the canvas. */
 const ABOUT_RESULTS = new Set(["fea-results", "cam-results"]);
@@ -720,6 +736,12 @@ export function ProjectNodes(props: {
   /** Whether deleting a card removes it (a draft, a block not run) rather than taking it off. */
   const goes = (id: string) =>
     draftById.has(id) || checkById.get(id)?.result === null || jobById.get(id)?.files.length === 0;
+  /**
+   * What removing these cards is called: Delete when they all go (drafts, blocks not run), Hide
+   * when they all stay in the project (parts, blocks with results), Remove for a mix.
+   */
+  const removeWord = (ids: ReadonlyArray<string>) =>
+    ids.every(goes) ? "Delete" : ids.some(goes) ? "Remove" : "Hide";
   const undoRemove = () => {
     const last = undo.at(-1);
     if (last === undefined) return;
@@ -885,6 +907,9 @@ export function ProjectNodes(props: {
     null,
   );
   const [box, setBox] = useState<{ from: Spot; to: Spot } | null>(null);
+  // What dragging the empty canvas does: draw a box to pick cards, or move the view.
+  const [tool, setTool] = useState<"select" | "pan">("select");
+  const [helping, setHelping] = useState(false);
   // Space held, to pan from anywhere, as in most canvases.
   const space = useRef(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -896,9 +921,9 @@ export function ProjectNodes(props: {
   const startPan = (event: PointerEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || event.button !== 0) return;
     viewport.current?.focus({ preventScroll: true });
-    if (event.shiftKey) {
+    if (tool === "select" || event.shiftKey) {
       const from = toCanvas(event.clientX, event.clientY);
-      press.current = { kind: "box", from, add: picked };
+      press.current = { kind: "box", from, add: event.shiftKey ? picked : new Set() };
       setBox({ from, to: from });
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
@@ -976,7 +1001,7 @@ export function ProjectNodes(props: {
           else next.add(held.id);
           return next;
         }
-        return before.size === 1 && before.has(held.id) ? new Set() : new Set([held.id]);
+        return new Set([held.id]);
       });
     }
     if (held?.kind === "box") {
@@ -1111,14 +1136,15 @@ export function ProjectNodes(props: {
   };
   // Opens the menu where the pointer is: on a card, what can be done to it (it is picked first);
   // on the empty canvas, what can be added there.
-  const openMenu = (clientX: number, clientY: number, on: string | null) => {
+  const openMenu = (clientX: number, clientY: number, on: string | null, at?: Spot) => {
     const bounds = viewport.current?.getBoundingClientRect();
     if (bounds === undefined) return;
     if (on !== null && !picked.has(on)) setPicked(new Set([on]));
+    setHelping(false);
     setMenu({
       x: Math.max(8, Math.min(clientX - bounds.left, bounds.width - 264)),
       y: Math.max(8, Math.min(clientY - bounds.top, bounds.height - 392)),
-      at: toCanvas(clientX, clientY),
+      at: at ?? toCanvas(clientX, clientY),
       on,
     });
   };
@@ -1144,12 +1170,12 @@ export function ProjectNodes(props: {
     const many = picked.size > 1;
     const targets = at.on !== null && !picked.has(at.on) ? [at.on] : [...picked];
     // A part, or a block with results, is only taken off the canvas: its files stay.
-    const kept = targets.some((id) => !goes(id));
+    const word = removeWord(targets);
     const removeItem: CanvasMenuItem = {
       id: "remove",
-      label: `${kept ? "Take off the canvas" : "Delete"}${many ? ` (${picked.size})` : ""}`,
+      label: `${word}${many ? ` ${picked.size} cards` : ""}`,
       group: "Card",
-      icon: kept ? EyeOffIcon : Trash2Icon,
+      icon: word === "Hide" ? EyeOffIcon : Trash2Icon,
       keys: "⌫",
       onPick: () => remove(targets),
     };
@@ -1418,9 +1444,7 @@ export function ProjectNodes(props: {
                 onSend={(ask) =>
                   draft.kind === "Variant" ? sendVariant(draft, ask) : sendDraft(draft, ask)
                 }
-                onRemove={() =>
-                  setDrafts((before) => before.filter((held) => held.id !== draft.id))
-                }
+                onRemove={() => remove([node.id])}
               />
             );
           }
@@ -1487,16 +1511,7 @@ export function ProjectNodes(props: {
                 }}
                 onRun={() => runCheck(check)}
                 onFix={(issue) => proposeFix(check, issue)}
-                onRemove={
-                  result === null
-                    ? () =>
-                        setPlanned((before) =>
-                          before.filter(
-                            (plan) => plan.of !== check.of || plan.action !== check.action?.id,
-                          ),
-                        )
-                    : null
-                }
+                onRemove={() => remove([node.id])}
               />
             );
           }
@@ -1543,8 +1558,7 @@ export function ProjectNodes(props: {
               }}
               onTyped={(text) => setTyped(text === null ? null : Number(text))}
               onDots={measure.onDots}
-              canAdd={node.kind === "Part" || node.kind === "Assembly"}
-              onMenu={(x, y) => openMenu(x, y, node.id)}
+              onRemove={() => remove([node.id])}
               dropTarget={drawing !== null && drawing.from !== node.id}
               asked={asked[node.id]}
               askedBy={byId.get(asked[node.id]?.by ?? "")?.name}
@@ -1560,9 +1574,111 @@ export function ProjectNodes(props: {
           );
         })}
       </div>
-      <div className="absolute top-3 left-3">
-        <AddMenu onAdd={addDraft} />
+      <div
+        role="toolbar"
+        aria-label="Canvas"
+        className="absolute top-3 left-3 flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-xs"
+      >
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={(event) => {
+            const at = event.currentTarget.getBoundingClientRect();
+            const bounds = viewport.current?.getBoundingClientRect();
+            openMenu(
+              at.left,
+              at.bottom + 4,
+              null,
+              bounds === undefined
+                ? undefined
+                : toCanvas(bounds.left + bounds.width / 2, bounds.top + bounds.height / 3),
+            );
+          }}
+        >
+          <PlusIcon />
+          Add
+        </Button>
+        <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+        <Button
+          variant={tool === "select" ? "secondary" : "ghost"}
+          size="icon-xs"
+          aria-label="Select: drag the canvas to pick cards"
+          aria-pressed={tool === "select"}
+          title="Select: drag the canvas to pick cards"
+          onClick={() => setTool("select")}
+        >
+          <MousePointer2Icon />
+        </Button>
+        <Button
+          variant={tool === "pan" ? "secondary" : "ghost"}
+          size="icon-xs"
+          aria-label="Hand: drag the canvas to move around"
+          aria-pressed={tool === "pan"}
+          title="Hand: drag the canvas to move around"
+          onClick={() => setTool("pan")}
+        >
+          <HandIcon />
+        </Button>
+        <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Undo (⌘Z)"
+          title="Undo (⌘Z)"
+          disabled={undo.length === 0}
+          onClick={undoRemove}
+        >
+          <Undo2Icon />
+        </Button>
+        <Button
+          variant={helping ? "secondary" : "ghost"}
+          size="icon-xs"
+          aria-label="How to use the canvas"
+          aria-expanded={helping}
+          title="How to use the canvas"
+          onClick={() => setHelping((before) => !before)}
+        >
+          <CircleHelpIcon />
+        </Button>
       </div>
+      {helping ? (
+        <div
+          role="note"
+          aria-label="How to use the canvas"
+          className="absolute top-14 left-3 z-10 w-72 rounded-lg border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <dl className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5">
+            {CANVAS_HELP.map(([what, how]) => (
+              <div key={what} className="contents">
+                <dt className="font-medium text-foreground">{what}</dt>
+                <dd className="text-muted-foreground">{how}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+      {picked.size === 0 ? null : (
+        <SelectionBar
+          ids={[...picked]}
+          name={(id) => byId.get(id)?.name ?? "Card"}
+          isPart={(id) => {
+            const node = byId.get(id);
+            return (node?.kind === "Part" || node?.kind === "Assembly") && !draftById.has(id);
+          }}
+          family={selected === null ? null : familyOf(selected)}
+          removeWord={removeWord([...picked])}
+          onAddAfter={(x, y) => {
+            if (selected !== null) openMenu(x, y, selected);
+          }}
+          onVariant={() => {
+            if (selected !== null) addVariant(selected);
+          }}
+          onCompare={(original) => setComparing(original)}
+          onRemove={() => remove([...picked])}
+          onClear={() => setPicked(new Set())}
+        />
+      )}
       <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg border border-border bg-popover p-1 shadow-xs">
         <Button
           variant="ghost"
@@ -1641,8 +1757,9 @@ export function ProjectNodes(props: {
       />
       {traceLine === null ? (
         <p className="pointer-events-none absolute right-3 bottom-3 text-xs text-muted-foreground">
-          Point at a size to see where it goes. Drag a dot onto another node to use it there.
-          Double-click to add, right-click a card for more.
+          {tool === "select"
+            ? "Drag a card to move it. Drag the canvas to pick cards. Scroll to move around."
+            : "Drag a card to move it. Drag the canvas to move around."}
         </p>
       ) : (
         <p
@@ -1722,9 +1839,8 @@ function NodeCard(props: {
   readonly asked: { at: number; by: string } | undefined;
   readonly askedBy: string | undefined;
   readonly canChange: boolean;
-  /** Whether jobs can follow it ("Add after"), which opens the canvas's menu on it. */
-  readonly canAdd: boolean;
-  readonly onMenu: (clientX: number, clientY: number) => void;
+  /** Hides it from the canvas; its files stay. */
+  readonly onRemove: () => void;
   /** Its variants ("2 variants") or what it changes as one, to compare them; null for neither. */
   readonly family: string | null;
   readonly onCompare: () => void;
@@ -1788,7 +1904,7 @@ function NodeCard(props: {
       data-node={node.id}
       aria-label={node.name}
       className={cn(
-        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
+        "pointer-events-auto absolute flex cursor-grab flex-col rounded-lg border bg-card shadow-md",
         props.role === "source"
           ? "border-primary ring-2 ring-primary/40"
           : props.role === "user"
@@ -1806,12 +1922,13 @@ function NodeCard(props: {
                       : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+      onPointerDown={(event) => pressCard(event, props.onNodePress)}
     >
       <header
-        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        className="flex items-center gap-1.5 rounded-t-lg border-b border-border bg-muted/60 pr-1 pl-1.5"
         style={{ height: HEADER_H }}
-        onPointerDown={props.onNodePress}
       >
+        <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground/60" />
         <span
           aria-hidden
           className="size-2 shrink-0 rounded-xs"
@@ -1821,6 +1938,7 @@ function NodeCard(props: {
         <span className="ml-auto shrink-0 text-2xs text-muted-foreground">
           {node.kind === "Shared" ? "Sizes" : node.kind}
         </span>
+        <CardRemove name={node.name} removeWord="Hide" onRemove={props.onRemove} />
       </header>
       {props.family === null ? null : (
         <div className="flex items-center gap-1 border-b border-border py-0.5 pr-1 pl-3">
@@ -2023,19 +2141,6 @@ function NodeCard(props: {
             <PlusIcon />
           </Button>
         )}
-        {props.canAdd ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={`Add after ${node.name}`}
-            onClick={(event) => {
-              const at = event.currentTarget.getBoundingClientRect();
-              props.onMenu(at.left, at.bottom + 4);
-            }}
-          >
-            <ListPlusIcon />
-          </Button>
-        ) : null}
         <Button
           size="icon-xs"
           aria-label={`Send the change to ${node.name}`}
@@ -2059,6 +2164,109 @@ function NodeCard(props: {
         </p>
       )}
     </section>
+  );
+}
+
+/** The canvas's controls, as its "?" lists them. */
+const CANVAS_HELP: ReadonlyArray<readonly [string, string]> = [
+  ["Move a card", "Drag it by anywhere that isn't a field or a button."],
+  ["Pick cards", "Click one. Drag a box on the empty canvas, or Shift-click, for several."],
+  ["Delete", "Pick, then the bin in the bar at the top, or Delete. ⌘Z undoes."],
+  ["Hide", "A part or a result is hidden, not deleted: its files stay. Show brings it back."],
+  ["Add", "Add, top left, or double-click the canvas."],
+  ["A job after", "Click a part, then Add after in the bar at the top."],
+  ["Move around", "Scroll, or the hand, or hold Space and drag."],
+  ["Zoom", "Pinch, or ⌘ and scroll. F fits everything in view."],
+  ["More", "Right-click a card or the canvas."],
+];
+
+/**
+ * What can be done to the picked cards, at the top of the canvas, so nothing is only on a key or
+ * a right-click: a job after a part, a variant, comparing a part with its variants, deleting or
+ * hiding, and letting go.
+ */
+function SelectionBar(props: {
+  readonly ids: ReadonlyArray<string>;
+  readonly name: (id: string) => string;
+  readonly isPart: (id: string) => boolean;
+  /** The part whose variants the one picked card belongs with, to compare; null for none. */
+  readonly family: string | null;
+  readonly removeWord: string;
+  readonly onAddAfter: (clientX: number, clientY: number) => void;
+  readonly onVariant: () => void;
+  readonly onCompare: (original: string) => void;
+  readonly onRemove: () => void;
+  readonly onClear: () => void;
+}) {
+  const one = props.ids.length === 1 ? props.ids[0] : undefined;
+  const part = one !== undefined && props.isPart(one);
+  return (
+    <div
+      role="toolbar"
+      aria-label="Picked cards"
+      className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-border bg-popover p-1 pl-3 shadow-xs"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <span className="max-w-48 truncate pr-1 text-xs font-medium text-foreground">
+        {one === undefined ? `${props.ids.length} cards` : props.name(one)}
+      </span>
+      {part ? (
+        <>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(event) => {
+              const at = event.currentTarget.getBoundingClientRect();
+              props.onAddAfter(at.left, at.bottom + 4);
+            }}
+          >
+            <ListPlusIcon />
+            Add after
+          </Button>
+          <Button variant="ghost" size="xs" onClick={props.onVariant}>
+            <CopyPlusIcon />
+            Make a variant
+          </Button>
+        </>
+      ) : null}
+      {props.family === null ? null : (
+        <Button variant="ghost" size="xs" onClick={() => props.onCompare(props.family ?? "")}>
+          Compare variants
+        </Button>
+      )}
+      <Button variant="ghost" size="xs" onClick={props.onRemove}>
+        {props.removeWord === "Hide" ? <EyeOffIcon /> : <Trash2Icon />}
+        {props.removeWord}
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Let go"
+        title="Let go (Esc)"
+        onClick={props.onClear}
+      >
+        <XIcon />
+      </Button>
+    </div>
+  );
+}
+
+/** A card's delete button, on its title bar; hide for a part or a result, whose files stay. */
+function CardRemove(props: {
+  readonly name: string;
+  readonly removeWord: string;
+  readonly onRemove: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-tiny"
+      aria-label={`${props.removeWord} ${props.name}`}
+      title={props.removeWord === "Hide" ? "Hide from the canvas (its files stay)" : "Delete"}
+      onClick={props.onRemove}
+    >
+      {props.removeWord === "Hide" ? <EyeOffIcon /> : <Trash2Icon />}
+    </Button>
   );
 }
 
@@ -2138,7 +2346,7 @@ function DraftCard(props: {
       data-node={node.id}
       aria-label={node.name}
       className={cn(
-        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border border-dashed bg-card shadow-md",
+        "pointer-events-auto absolute flex cursor-grab flex-col rounded-lg border border-dashed bg-card shadow-md",
         props.role === "apart"
           ? "border-border opacity-50"
           : props.picked
@@ -2148,23 +2356,17 @@ function DraftCard(props: {
               : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+      onPointerDown={(event) => pressCard(event, props.onNodePress)}
     >
       <header
-        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        className="flex items-center gap-1.5 rounded-t-lg border-b border-border bg-muted/60 pr-1 pl-1.5"
         style={{ height: HEADER_H }}
-        onPointerDown={props.onNodePress}
       >
+        <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground/60" />
         <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate text-xs font-medium text-foreground">{node.name}</span>
         <span className="ml-auto shrink-0 text-2xs text-muted-foreground">Not made yet</span>
-        <Button
-          variant="ghost"
-          size="icon-tiny"
-          aria-label={`Remove ${node.name}`}
-          onClick={props.onRemove}
-        >
-          <XIcon />
-        </Button>
+        <CardRemove name={node.name} removeWord="Delete" onRemove={props.onRemove} />
       </header>
       {stock ? null : (
         <div
@@ -2317,7 +2519,7 @@ function JobCard(props: {
       data-node={node.id}
       aria-label={job.name}
       className={cn(
-        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
+        "pointer-events-auto absolute flex cursor-grab flex-col rounded-lg border bg-card shadow-md",
         props.role === "user"
           ? "border-primary ring-1 ring-primary/30"
           : props.role === "apart"
@@ -2327,12 +2529,13 @@ function JobCard(props: {
               : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+      onPointerDown={(event) => pressCard(event, props.onNodePress)}
     >
       <header
-        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        className="flex items-center gap-1.5 rounded-t-lg border-b border-border bg-muted/60 pr-1 pl-1.5"
         style={{ height: HEADER_H }}
-        onPointerDown={props.onNodePress}
       >
+        <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground/60" />
         <Icon
           aria-hidden
           className="size-3.5 shrink-0"
@@ -2340,14 +2543,11 @@ function JobCard(props: {
         />
         <span className="truncate text-xs font-medium text-foreground">{job.name}</span>
         <span className="ml-auto shrink-0 text-2xs text-muted-foreground">{job.action.group}</span>
-        <Button
-          variant="ghost"
-          size="icon-tiny"
-          aria-label={`Delete ${job.name}`}
-          onClick={props.onRemove}
-        >
-          <XIcon />
-        </Button>
+        <CardRemove
+          name={job.name}
+          removeWord={job.files.length === 0 ? "Delete" : "Hide"}
+          onRemove={props.onRemove}
+        />
       </header>
       <div
         className="flex flex-col"
@@ -2471,8 +2671,8 @@ function CheckCard(props: {
   readonly onOpen: () => void;
   readonly onRun: () => void;
   readonly onFix: (issue: CheckIssue) => void;
-  /** Takes a check not yet run off the canvas; null once it has a result. */
-  readonly onRemove: (() => void) | null;
+  /** Deletes a check not yet run, or hides one with a result (its files stay). */
+  readonly onRemove: () => void;
 }) {
   const { node, check } = props;
   const result = check.result;
@@ -2486,7 +2686,7 @@ function CheckCard(props: {
       data-node={node.id}
       aria-label={`${check.name} check`}
       className={cn(
-        "pointer-events-auto absolute flex cursor-default flex-col rounded-lg border bg-card shadow-md",
+        "pointer-events-auto absolute flex cursor-grab flex-col rounded-lg border bg-card shadow-md",
         props.role === "user"
           ? "border-primary ring-1 ring-primary/30"
           : props.role === "apart"
@@ -2496,12 +2696,13 @@ function CheckCard(props: {
               : "border-border",
       )}
       style={{ left: props.spot.x, top: props.spot.y, width: NODE_W }}
+      onPointerDown={(event) => pressCard(event, props.onNodePress)}
     >
       <header
-        className="flex cursor-grab items-center gap-2 rounded-t-lg border-b border-border bg-muted/60 px-3 active:cursor-grabbing"
+        className="flex items-center gap-1.5 rounded-t-lg border-b border-border bg-muted/60 pr-1 pl-1.5"
         style={{ height: HEADER_H }}
-        onPointerDown={props.onNodePress}
       >
+        <GripVerticalIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground/60" />
         <span
           aria-hidden
           className="size-2 shrink-0 rounded-xs"
@@ -2512,16 +2713,11 @@ function CheckCard(props: {
         />
         <span className="truncate text-xs font-medium text-foreground">{check.name}</span>
         <span className="ml-auto shrink-0 text-2xs text-muted-foreground">Check</span>
-        {props.onRemove === null ? null : (
-          <Button
-            variant="ghost"
-            size="icon-tiny"
-            aria-label={`Remove the ${check.name} check`}
-            onClick={props.onRemove}
-          >
-            <XIcon />
-          </Button>
-        )}
+        <CardRemove
+          name={`the ${check.name} check`}
+          removeWord={result === null ? "Delete" : "Hide"}
+          onRemove={props.onRemove}
+        />
       </header>
       <div
         className="flex flex-col"
