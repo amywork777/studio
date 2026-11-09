@@ -115,6 +115,22 @@ describe("hardware actions", () => {
     );
   });
 
+  it("has every manufacturing check save its review where its part's check reads it", () => {
+    const job = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id);
+    expect(job("cnc")?.prompt("parts/bracket.step")).toMatch(
+      / Save the review in docs\/ as the part's file name followed by _cnc_dfm\.md, /,
+    );
+    expect(job("sendcutsend")?.prompt("parts/bracket.step")).toMatch(/_sendcutsend\.md, /);
+    expect(job("strength")?.prompt("parts/bracket.step")).not.toMatch(/Save the review/);
+    expect(job("dxf")?.prompt("parts/bracket.step")).not.toMatch(/Save the review/);
+    // Any other job saves what it makes beside the part, with the settings it used.
+    expect(job("slice")?.prompt("parts/bracket.step")).toMatch(
+      / Save what it makes in outputs\/slice\/<part>\/, where <part> is the part's file name /,
+    );
+    expect(job("strength")?.prompt("parts/bracket.step")).not.toMatch(/outputs\//);
+    expect(job("cnc")?.prompt("parts/bracket.step")).not.toMatch(/outputs\//);
+  });
+
   it("says what every job makes", () => {
     // Its tile's tooltip: a sentence, at most 100 characters (3D PMI's, which names model-based
     // definition and AP242, is the longest).
