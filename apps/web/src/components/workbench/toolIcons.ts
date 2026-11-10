@@ -1,5 +1,6 @@
 import {
   AnvilIcon,
+  ApertureIcon,
   Axis3dIcon,
   BoxIcon,
   CameraIcon,
@@ -83,6 +84,7 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   exploded: ExpandIcon,
   pictures: CameraIcon,
   "play-motion": PlayIcon,
+  render: ApertureIcon,
   "test-plan": FlaskConicalIcon,
   "write-up": NotebookPenIcon,
   "robot-files": DISCIPLINE_ICONS.Robotics,

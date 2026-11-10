@@ -85,3 +85,22 @@ NodeTest.test("names the settings a host lacks", () => {
     "SUPABASE_SERVICE_ROLE_KEY",
   ]);
 });
+
+NodeTest.test(
+  "reads the numbers page's two daily views from a day on, and nothing else",
+  async () => {
+    const { calls, fetch } = recorder((url) =>
+      Response.json(url.includes("installs") ? [{ day: "2026-11-10", installs: 1 }] : []),
+    );
+    const { installs, events } = await databaseStore(SETTINGS, { fetch }).numbers("2026-11-04");
+    NodeAssert.deepEqual(
+      calls.map((call) => call.url),
+      [
+        "https://abc.supabase.co/rest/v1/usage_daily_installs?day=gte.2026-11-04&order=day.desc",
+        "https://abc.supabase.co/rest/v1/usage_daily_events?day=gte.2026-11-04&order=day.desc,times.desc",
+      ],
+    );
+    NodeAssert.deepEqual(installs, [{ day: "2026-11-10", installs: 1 }]);
+    NodeAssert.deepEqual(events, []);
+  },
+);

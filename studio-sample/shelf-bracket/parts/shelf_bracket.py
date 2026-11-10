@@ -8,6 +8,7 @@ meets the wall, on the web's outside face; +Y out from the wall, +Z up, +X the w
 
 import build123d as bd
 from cad import model
+from cad.build123d import materials
 from cad.sketch import Sketch
 
 THICKNESS = 1.8796  # G90-074: 0.074 in, SendCutSend's stock thickness, so the STEP uploads as drawn
@@ -97,6 +98,7 @@ def shelf_bracket():
     bracket = bd.fillet(bracket.edges().filter_by(bd.Axis.Z).group_by(bd.Axis.X)[-1].group_by(bd.Axis.Z)[-1], radius=CORNER)  # Shelf flange corners
     bracket = bd.fillet(bracket.edges().filter_by(bd.Axis.Y).group_by(bd.Axis.X)[-1].group_by(bd.Axis.Y)[0], radius=CORNER)  # Wall flange corners
 
+    bracket.material = materials.zinc_plated()  # G90: mild steel under clear zinc, the sheet's strength and weight
     bracket.color = "#A9B0B6"
     bracket.label = "shelf_bracket"
     return bracket

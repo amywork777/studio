@@ -10,11 +10,47 @@
  *                              the limit per address and per install id (limit.mjs)
  *   GET    /v1/health          -> 200, or 503 naming a missing setting (store.mjs: SETTINGS)
  *                              or the database's status when it will not answer
+ *   GET    /?days=30           the numbers page (page.mjs), behind the NUMBERS_PASSWORD password the
+ *                              browser asks for (HTTP Basic, any user name) -> 200, 401, 429 past the
+ *                              limit on wrong passwords per address, or 503 when no password is set
  *
  * It keeps no IP address and passes on nothing the batch does not name. The one thing it adds is the
  * country the host places the request in, on each of the batch's events.
  */
+import * as NodeCrypto from "node:crypto";
+
 import { Invalid, isUuid, MAX_BYTES, rowsOf } from "./events.mjs";
+import { pageOf, sinceOf, spanOf } from "./page.mjs";
+
+// The page's own headers: never kept by a cache, never indexed, never framed.
+const PAGE_HEADERS = {
+  "cache-control": "no-store",
+  "x-robots-tag": "noindex, nofollow",
+  "x-frame-options": "DENY",
+  "referrer-policy": "no-referrer",
+};
+const page = (status, body, headers = {}) =>
+  new Response(body, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8", ...PAGE_HEADERS, ...headers },
+  });
+const ASK = { "www-authenticate": 'Basic realm="Studio usage", charset="UTF-8"' };
+const digest = (text) => NodeCrypto.createHash("sha256").update(text).digest();
+
+/** The password a Basic `authorization` header carries (any user name), or null when it carries none. */
+export function passwordOf(header) {
+  const match = /^Basic\s+([A-Za-z0-9+/=]+)\s*$/i.exec(header ?? "");
+  if (!match) return null;
+  const decoded = Buffer.from(match[1], "base64").toString("utf8");
+  const at = decoded.indexOf(":");
+  return at < 0 ? null : decoded.slice(at + 1);
+}
+
+/** Whether `given` is `password`, compared in constant time. An empty password matches nothing. */
+export const passwordMatches = (given, password) =>
+  Boolean(password) &&
+  typeof given === "string" &&
+  NodeCrypto.timingSafeEqual(digest(given), digest(password));
 
 const COUNTRY = /^[A-Z]{2}$/; // ISO 3166-1 alpha-2, as the host gives it; anything else is no country
 const JSON_TYPE = /^application\/json\s*(?:;|$)/i;
@@ -69,15 +105,25 @@ async function json(request) {
  *   forget(id: string): Promise<void>, ready(): Promise<void> }} store
  * @typedef {{ take(key: string): { ok: boolean, retryAfter?: number } }} Limiter
  * @param {{ missing?: string[], country?: string | null, limiter?: Limiter, eventsLimiter?: Limiter,
- *   client?: string | null }} [options] `missing`: settings the host lacks, by name. `country`: where the
- *   host places the request. `limiter`: how often one caller may ask to forget, by `client`, the address
- *   the host says the request came from, and by install id. `eventsLimiter`: how often one `client` may
- *   send a batch.
+ *   client?: string | null, password?: string, passwordLimiter?: Limiter, now?: number }} [options]
+ *   `missing`: settings the host lacks, by name. `country`: where the host places the request. `limiter`:
+ *   how often one caller may ask to forget, by `client`, the address the host says the request came from,
+ *   and by install id. `eventsLimiter`: how often one `client` may send a batch. `password`: the numbers
+ *   page's, and `passwordLimiter` how many wrong ones one `client` may try.
  */
 export async function handle(
   request,
   store,
-  { missing = [], country, limiter, eventsLimiter, client } = {},
+  {
+    missing = [],
+    country,
+    limiter,
+    eventsLimiter,
+    client,
+    password = "",
+    passwordLimiter,
+    now = Date.now(),
+  } = {},
 ) {
   const path = new URL(request.url).pathname.replace(/\/+$/, "");
   // Past a limit, a refusal and the seconds to wait. Nothing the request carried is read or kept.
@@ -89,6 +135,28 @@ export async function handle(
     return refused;
   };
   try {
+    // The numbers page. A browser asks first with no password, so only a wrong one counts against the limit.
+    if (path === "" && request.method === "GET") {
+      if (!password) return page(503, "<p>The numbers page has no password set yet.</p>");
+      const given = passwordOf(request.headers.get("authorization"));
+      if (!passwordMatches(given, password)) {
+        if (
+          given !== null &&
+          passwordLimiter &&
+          client &&
+          !passwordLimiter.take(`page ${client}`).ok
+        ) {
+          console.warn("usage page refused 429: too many wrong passwords");
+          return page(429, "<p>Too many wrong passwords. Try again in a few minutes.</p>", {
+            "retry-after": "600",
+          });
+        }
+        return page(401, "<p>This page needs its password.</p>", ASK);
+      }
+      const days = spanOf(new URL(request.url).searchParams.get("days"));
+      const { installs, events } = await store.numbers(sinceOf(days, now));
+      return page(200, pageOf({ days, installs, events, now }));
+    }
     if (path === "/v1/health" && request.method === "GET") {
       if (missing.length) return reply(503, { ok: false, missing });
       try {

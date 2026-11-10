@@ -86,6 +86,18 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
         headers: { prefer: "return=minimal" },
       });
     },
+    // The numbers page's rows (page.mjs): the two daily views from `since` (`YYYY-MM-DD`) on, nothing finer.
+    async numbers(since) {
+      const view = (name, order) =>
+        call(`${url}/rest/v1/${name}?day=gte.${since}&order=${order}`).then((answer) =>
+          answer.json(),
+        );
+      const [installs, events] = await Promise.all([
+        view("usage_daily_installs", "day.desc"),
+        view("usage_daily_events", "day.desc,times.desc"),
+      ]);
+      return { installs, events };
+    },
     // Health's question: the table is there and answers to the key. Kept, failure or not, for READY_TTL_MS.
     ready() {
       const at = now();

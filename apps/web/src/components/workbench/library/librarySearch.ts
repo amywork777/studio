@@ -91,6 +91,7 @@ const SKILL_GROUPS: Readonly<Record<string, LibraryGroup>> = {
   sendcutsend: "Manufacture",
   "engineering-drawing": "Document",
   "work-instructions": "Document",
+  render: "Document",
 };
 
 /**

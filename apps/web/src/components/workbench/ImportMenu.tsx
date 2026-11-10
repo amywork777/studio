@@ -1,4 +1,4 @@
-import { DownloadIcon } from "lucide-react";
+import { FileInputIcon } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { Button } from "../ui/button";
@@ -54,7 +54,7 @@ export function ImportMenu(props: {
   return props.trigger === undefined ? (
     <Menu>
       <MenuTrigger render={<Button variant="outline" size="sm" aria-label={label} title={label} />}>
-        <DownloadIcon aria-hidden="true" />
+        <FileInputIcon aria-hidden="true" />
         <span className="@max-[40rem]/toolbar:hidden">Import</span>
       </MenuTrigger>
       {items}

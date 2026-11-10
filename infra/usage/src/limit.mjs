@@ -22,6 +22,9 @@ export const FORGET_LIMIT = { limit: 5, windowMs: 10 * 60_000, size: 1000 };
  */
 export const EVENTS_LIMIT = { limit: 120, windowMs: 60_000, size: 1000 };
 
+/** Wrong passwords for the numbers page (`/`): ten per address every ten minutes. */
+export const PASSWORD_LIMIT = { limit: 10, windowMs: 10 * 60_000, size: 1000 };
+
 /**
  * @param {{ limit?: number, windowMs?: number, size?: number, now?: () => number }} [options]
  * @returns {{ take(key: string): { ok: true } | { ok: false, retryAfter: number }, readonly size: number }}

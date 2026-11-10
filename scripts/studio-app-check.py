@@ -152,12 +152,18 @@ def rebuilt_as_shipped(project: Path, shipped: Path, compared: Path, cad_command
     if not delivered:
         print(f"FAIL {project.name}: the example delivers no STEP", file=sys.stderr)
         return 1
-    if cad_command("cad_server.cli", "run", "exports.py", cwd=project, timeout=1200).returncode != 0:
+    done = cad_command("cad_server.cli", "run", "exports.py", cwd=project, timeout=1200)
+    if done.returncode != 0:
         return 1
+    # text-to-cad 0.11.6 leaves a file that already holds the bytes an export makes as it is, and says so:
+    # `unchanged <path> (<size>): it holds these bytes already`. That file was rebuilt, to the same bytes.
+    unchanged = [line.removeprefix("unchanged ") for line in f"{done.stdout}\n{done.stderr}".splitlines()
+                 if line.startswith("unchanged ")]
     failed = 0
     for rebuilt, written in delivered.items():
         relative = rebuilt.relative_to(project)
-        if rebuilt.stat().st_mtime_ns == written:
+        kept = any(line.startswith((f"{rebuilt} (", f"{rebuilt.resolve()} (", f"{relative.as_posix()} (")) for line in unchanged)
+        if rebuilt.stat().st_mtime_ns == written and not kept:
             print(f"FAIL {project.name}: exports.py did not rebuild {relative.as_posix()}", file=sys.stderr)
             failed += 1
             continue

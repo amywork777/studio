@@ -4,5 +4,14 @@
     "deploymentEnabled": false
   },
   "framework": null,
-  "rewrites": [{ "source": "/v1/(.*)", "destination": "/api/v1" }]
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/v1"
+    },
+    {
+      "source": "/v1/(.*)",
+      "destination": "/api/v1"
+    }
+  ]
 }

@@ -13,7 +13,7 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
-import { ChevronDownIcon, DownloadIcon, PlusIcon, SettingsIcon, WrenchIcon } from "lucide-react";
+import { ChevronDownIcon, FileInputIcon, PlusIcon, SettingsIcon, WrenchIcon } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 
 import { commandForProjectScript, primaryProjectScript } from "~/projectScripts";
@@ -181,7 +181,7 @@ export default function ProjectScriptsControl({
             <ScriptIcon icon={fileScript.icon ?? "play"} className="size-4" />
             <MenuItemLabel>{fileScript.name}</MenuItemLabel>
             <MenuShortcut>
-              <DownloadIcon className="size-3.5" aria-label="Import" />
+              <FileInputIcon className="size-3.5" aria-label="Import" />
             </MenuShortcut>
           </MenuItem>
         ))}

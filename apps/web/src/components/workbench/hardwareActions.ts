@@ -487,6 +487,20 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Motion of ${name} to play`,
   },
   {
+    id: "render",
+    group: "Document",
+    section: "pictures",
+    label: "Photoreal render",
+    gets: "A photoreal still or turntable from Blender, a quick draft first, then the final.",
+    needs: "Downloads Blender on first use, about 330 MB on a Mac and 420 MB on Windows.",
+    skill: "render",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Render ${file} as a photoreal hero shot with Blender: a quick draft first for me to look at, then the final.`,
+    short: (name) => `Render ${name}`,
+  },
+  {
     id: "test-plan",
     group: "Document",
     section: "reports",

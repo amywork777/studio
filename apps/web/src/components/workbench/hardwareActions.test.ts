@@ -131,10 +131,14 @@ describe("hardware actions", () => {
 
   it("says what a job needs that Studio does not bring", () => {
     // text-to-cad's own files say it: cam plans with the person's FreeCAD, print3d slices with
-    // their OrcaSlicer, and a board's checks and exports download kicode the first time.
+    // their OrcaSlicer, a board's checks and exports download kicode the first time, and a render
+    // downloads bpy and the Python 3.13 it is built for (262 or 356 MB, and 65 MB).
     const needs = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)?.needs;
     expect(needs("toolpaths")).toBe("Needs FreeCAD 1.1 or newer installed.");
     expect(needs("slice")).toBe("Needs OrcaSlicer installed.");
+    expect(needs("render")).toBe(
+      "Downloads Blender on first use, about 330 MB on a Mac and 420 MB on Windows.",
+    );
     const board = HARDWARE_ACTIONS.filter((action) => action.skill === "pcb");
     expect(board.map((action) => action.needs)).toEqual(
       board.map(() => "Downloads its board tools on first use, about 100 MB."),
@@ -143,7 +147,8 @@ describe("hardware actions", () => {
     expect(
       HARDWARE_ACTIONS.filter(
         (action) =>
-          action.needs !== undefined && !["cam", "print3d", "pcb"].includes(action.skill!),
+          action.needs !== undefined &&
+          !["cam", "print3d", "pcb", "render"].includes(action.skill!),
       ),
     ).toEqual([]);
     const slice = HARDWARE_ACTIONS.find((action) => action.id === "slice")!;

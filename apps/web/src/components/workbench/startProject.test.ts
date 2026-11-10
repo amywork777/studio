@@ -2,6 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   canStart,
+  firstChatName,
+  nameFirstChatAfterProject,
   nameFromAttachment,
   provisionalProjectName,
   referencePaths,
@@ -213,5 +215,34 @@ describe("canStart", () => {
     expect(canStart("   ", [], false)).toBe(false);
     expect(canStart("A phone stand", [], true)).toBe(false);
     expect(canStart("", [file], true)).toBe(false);
+  });
+});
+
+describe("firstChatName", () => {
+  const folder = "/projects/wall-hook-for-a-2-kg-bag";
+
+  it("names a new project's first chat after the project, and again when the agent names it", () => {
+    nameFirstChatAfterProject(folder, "Wall hook for a 2 kg bag");
+    // Sent: T3's title from the message gives way to the project's name.
+    expect(firstChatName(folder, "t1", "Wall hook for a 2 kg bag", "Wall Hook for 2 kg Bag")).toBe(
+      "Wall hook for a 2 kg bag",
+    );
+    // Asked again with nothing changed (a re-render): nothing to do.
+    expect(
+      firstChatName(folder, "t1", "Wall hook for a 2 kg bag", "Wall hook for a 2 kg bag"),
+    ).toBeNull();
+    // Another chat in the project keeps its own name.
+    expect(firstChatName(folder, "t2", "Wall hook for a 2 kg bag", "Hook strength")).toBeNull();
+    // The agent names the project in its first turn: the chat follows once, then is left alone.
+    expect(firstChatName(folder, "t1", "Bag wall hook", "Wall hook for a 2 kg bag")).toBe(
+      "Bag wall hook",
+    );
+    expect(firstChatName(folder, "t1", "Wall bracket", "Bag wall hook")).toBeNull();
+  });
+
+  it("names no chat in a project Home did not start", () => {
+    expect(
+      firstChatName("/projects/servo-bracket", "t9", "Servo bracket", "Fix the holes"),
+    ).toBeNull();
   });
 });

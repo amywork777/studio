@@ -29,7 +29,7 @@ export function useStudioProjects(
 
 /** The project a folder belongs to, with its id; null when it is in none. */
 export function useStudioProjectAt(
-  environmentId: EnvironmentId,
+  environmentId: EnvironmentId | null,
   folder: string | null,
 ): { readonly id: string; readonly project: StudioProject } | null {
   const projects = useStudioProjects(environmentId);

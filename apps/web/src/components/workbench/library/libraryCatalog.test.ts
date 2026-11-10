@@ -55,7 +55,12 @@ const ownWords = (skill: string) =>
   );
 
 /** The sample's outputs that could not be made, so their entries show no example. */
-const NOT_MADE = ["doc:print", "skill:text-to-cad/print3d"];
+const NOT_MADE = [
+  "doc:print",
+  "doc:render",
+  "skill:text-to-cad/print3d",
+  "skill:text-to-cad/render",
+];
 
 const EXAMPLES: Readonly<Record<string, { sample?: string; example: string } | null>> =
   libraryExamples;
@@ -304,7 +309,7 @@ describe("library catalog", () => {
 
   it("asks something of the sample for each of text-to-cad's skills", () => {
     const skills = librarySkills([textToCad(true, "Use this skill.")]);
-    expect(skills).toHaveLength(9);
+    expect(skills).toHaveLength(10);
     expect(
       skills.filter((skill) => skill.tryAsking === null || skill.tryAsking === "Use this skill."),
     ).toEqual([]);
@@ -355,7 +360,7 @@ describe("library catalog", () => {
   });
 
   it("has a real example for every entry", () => {
-    expect(TEXT_TO_CAD_SKILLS).toHaveLength(9);
+    expect(TEXT_TO_CAD_SKILLS).toHaveLength(10);
     const entries = [...LIBRARY_DOCUMENTS, ...librarySkills([textToCad(true)])];
     expect(Object.keys(EXAMPLES).toSorted()).toEqual(entries.map((entry) => entry.id).toSorted());
     expect(entries.filter((entry) => entry.example === null).map((entry) => entry.id)).toEqual(

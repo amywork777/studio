@@ -10,6 +10,7 @@ import type { NewJob } from "./NewDialog";
 import { humanName } from "./partNames";
 import type { ListedProject } from "./projectList";
 import {
+  nameFirstChatAfterProject,
   nameFromAttachment,
   provisionalProjectName,
   setPendingStart,
@@ -136,13 +137,14 @@ export function useStartProject(environmentId: EnvironmentId) {
           }
           return draft !== null;
         }
+        // Started from files alone, it is named after the first until the agent names it.
+        const name =
+          description === ""
+            ? nameFromAttachment(attachments[0]!.name)
+            : provisionalProjectName(description);
         return create({
           environmentId,
-          // Started from files alone, it is named after the first until the agent names it.
-          name:
-            description === ""
-              ? nameFromAttachment(attachments[0]!.name)
-              : provisionalProjectName(description),
+          name,
           kind: kindOf("part"),
           units,
           material: "",
@@ -150,20 +152,27 @@ export function useStartProject(environmentId: EnvironmentId) {
           // purpose: written to run a chat, it reads badly as "What it is", and the agent writes one.
           purpose: "",
           folders: [],
-          onFolder: (folder) => prepare(folder, true),
+          onFolder: async (folder) => {
+            await prepare(folder, true);
+            nameFirstChatAfterProject(folder, name);
+          },
           show: showOverviewBeside,
         });
       }
       const { job } = start;
+      const name = newProjectName(job);
       return create({
         environmentId,
-        name: newProjectName(job),
+        name,
         kind: projectKindFor(job.template.id),
         units: job.units,
         material: "",
         purpose: "",
         folders: [],
-        onFolder: (folder) => setPendingStart(folder, { prompt: job.prompt, files: [] }),
+        onFolder: (folder) => {
+          setPendingStart(folder, { prompt: job.prompt, files: [] });
+          nameFirstChatAfterProject(folder, name);
+        },
         show: showOverviewBeside,
       });
     },

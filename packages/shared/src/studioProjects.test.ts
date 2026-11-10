@@ -73,6 +73,8 @@ describe("studio projects", () => {
     expect(context).toContain("as `name` in `/studio/rover/project.json`");
     // What the Overview's "What it is" shows until the README says: a sentence, not the request.
     expect(context).toContain("as `brief.purpose`, never the description's own words");
+    // The first part takes the project's name, so its tab and the switcher read one name.
+    expect(context).toContain("Name the first part after the project");
     expect(context).toContain("make the first draft in the same turn, without asking first");
     expect(context).toContain("list what you assumed");
     expect(context).not.toContain("before the first draft");

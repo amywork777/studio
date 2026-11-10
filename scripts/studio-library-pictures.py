@@ -1263,6 +1263,24 @@ def cover_motion_video():
     return model(parts, camera, hook)
 
 
+def cover_render():
+    """The mount framed for a photo: the camera's corner marks round it and a lamp above, as a render sets up."""
+    camera = Camera().fit(mount_points(), SAFE * 0.74)
+
+    def hook(picture, marks):
+        left, top, right, bottom, arm = 150, 62, 490, 338, 34
+        for x, y, dx, dy in ((left, top, 1, 1), (right, top, -1, 1), (left, bottom, 1, -1), (right, bottom, -1, -1)):
+            marks.line([(x, y + dy * arm), (x, y), (x + dx * arm, y)], "hue", width=3.0)
+        x, y = 548, 70
+        marks.add(circle_path(x, y, 11), "hue")
+        for index in range(8):
+            angle = index * math.pi / 4
+            marks.line([(x + 18 * math.cos(angle), y + 18 * math.sin(angle)),
+                        (x + 26 * math.cos(angle), y + 26 * math.sin(angle))], "hue", width=2.5)
+
+    return model(mount_parts(), camera, hook)
+
+
 def cover_fea():
     """The study's setup on the bracket: its weight pressing down where the servo sits, and the
     flange it is held by. Where they go is an illustration; the study names the real faces."""
@@ -1851,6 +1869,7 @@ COVERS = {
     "design-review": cover_design_review,
     "clearance": cover_clearance,
     "motion-video": cover_motion_video,
+    "render": cover_render,
     "fea": cover_fea,
     "cam": cover_cam,
     "cnc": cover_cnc,

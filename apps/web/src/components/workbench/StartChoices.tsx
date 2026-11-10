@@ -1,6 +1,6 @@
 import type { StudioSample } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { DownloadIcon, type LucideIcon } from "lucide-react";
+import { FileInputIcon, type LucideIcon } from "lucide-react";
 import { Children, type ComponentProps, type ReactNode, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -69,7 +69,7 @@ export function StartChoices(props: {
 }) {
   const importCard = (
     <StartChoice
-      icon={DownloadIcon}
+      icon={FileInputIcon}
       label="Import a STEP"
       note={props.importActions === null ? NEEDS_DESKTOP_APP : "Or drop files here."}
       disabled={props.importActions === null}

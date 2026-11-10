@@ -1,11 +1,15 @@
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useEffect } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { primaryServerConfigAtom } from "~/state/server";
+import { threadEnvironment } from "~/state/threads";
+import { useOrchestrationCommand } from "~/state/use-orchestration-command";
 import { toastManager } from "../ui/toast";
 import { NO_AGENT, OPEN_AGENTS } from "./agentWords";
-import { takePendingStart } from "./startProject";
+import { firstChatName, takePendingStart } from "./startProject";
+import { useStudioProjectAt } from "./useStudioProjects";
 
 /** About two seconds of frames to wait for the composer to mount. */
 const FRAMES = 120;
@@ -44,6 +48,39 @@ export function usePendingStart(
     begin();
     return () => cancelAnimationFrame(frame);
   }, [composerRef, folder, notStarted]);
+}
+
+/** The chat a new project's first message goes to: what `useFirstChatName` renames. */
+export interface FirstChat {
+  readonly environmentId: EnvironmentId;
+  readonly id: ThreadId;
+  readonly title: string;
+}
+
+/**
+ * A new project's first chat, once sent, takes the project's name, and the agent's name for the
+ * project when it gives one (`firstChatName`), with T3 Code's own rename (`updateMetadata`, as the
+ * sidebar's Rename): a title set so ends T3's making one from the message.
+ */
+export function useFirstChatName(
+  thread: FirstChat | null,
+  folder: string | null,
+  draft: boolean,
+): void {
+  const environmentId = thread?.environmentId ?? null;
+  const projectName = useStudioProjectAt(environmentId, folder)?.project.name ?? null;
+  const updateMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
+    reportFailure: false,
+  });
+  const id = thread?.id ?? null;
+  const title = thread?.title ?? "";
+  useEffect(() => {
+    if (draft || environmentId === null || id === null || folder === null || projectName === null)
+      return;
+    const named = firstChatName(folder, id, projectName, title);
+    if (named === null) return;
+    void updateMetadata({ environmentId, input: { threadId: id, title: named } });
+  }, [draft, environmentId, folder, id, projectName, title, updateMetadata]);
 }
 
 /**

@@ -145,3 +145,38 @@ NodeTest.test("health names what is missing, or says the database will not answe
   NodeAssert.deepEqual(await down.json(), { ok: false, error: "database_503" });
   NodeAssert.equal((await handle(health, memoryStore())).status, 200);
 });
+
+NodeTest.test("shows the numbers page only with its password, and limits wrong ones", async () => {
+  const store = {
+    ...memoryStore(),
+    asked: [],
+    async numbers(since) {
+      store.asked.push(since);
+      return { installs: [{ day: "2026-11-10", installs: 1 }], events: [] };
+    },
+  };
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const open = (password, days = "7") =>
+    new Request(`https://usage.example/?days=${days}`, {
+      headers: password === undefined ? {} : { authorization: `Basic ${btoa(`amy:${password}`)}` },
+    });
+  const shut = await handle(open("right"), store);
+  NodeAssert.equal(shut.status, 503);
+  const options = {
+    password: "right",
+    passwordLimiter: rateLimiter({ limit: 1 }),
+    client: "1.2.3.4",
+    now,
+  };
+  const asked = await handle(open(undefined), store, options);
+  NodeAssert.equal(asked.status, 401);
+  NodeAssert.match(asked.headers.get("www-authenticate"), /^Basic /);
+  NodeAssert.equal((await handle(open(undefined), store, options)).status, 401);
+  const shown = await handle(open("right"), store, options);
+  NodeAssert.equal(shown.status, 200);
+  NodeAssert.equal(shown.headers.get("cache-control"), "no-store");
+  NodeAssert.match(await shown.text(), /Studio usage/);
+  NodeAssert.deepEqual(store.asked, ["2026-11-04"]);
+  NodeAssert.equal((await handle(open("wrong"), store, options)).status, 401);
+  NodeAssert.equal((await handle(open("wrong"), store, options)).status, 429);
+});

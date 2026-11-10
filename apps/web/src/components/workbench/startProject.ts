@@ -213,6 +213,43 @@ export function takePendingStart(folder: string): PendingStart | null {
 }
 
 /**
+ * By a new project's folder: the name Home's Start gave the project, the chat that takes it (the
+ * first one sent there) and the name last given that chat. Session only, as the pending start is.
+ */
+const firstChats = new Map<
+  string,
+  { readonly startedAs: string; threadId: string | null; given: string | null }
+>();
+
+/** The project Home just started names its first chat (`firstChatName`). */
+export function nameFirstChatAfterProject(folder: string, name: string): void {
+  firstChats.set(studioFolderKey(folder), { startedAs: name.trim(), threadId: null, given: null });
+}
+
+/**
+ * What a new project's first chat is renamed to now, so the sidebar, the top bar and the switcher
+ * say one name: the project's name once the chat is sent (T3's title from the message gives way),
+ * and once more when the agent names the project in its first turn. After that, and for any other
+ * chat or project, null: the chat keeps whatever it is called.
+ */
+export function firstChatName(
+  folder: string,
+  threadId: string,
+  projectName: string,
+  chatTitle: string,
+): string | null {
+  const key = studioFolderKey(folder);
+  const chat = firstChats.get(key);
+  const name = projectName.trim();
+  if (chat === undefined || name === "" || (chat.threadId ?? threadId) !== threadId) return null;
+  chat.threadId = threadId;
+  if (name !== chat.startedAs) firstChats.delete(key);
+  if (name === chat.given) return null;
+  chat.given = name;
+  return chatTitle.trim() === name ? null : name;
+}
+
+/**
  * Whether Home's Start box can start: words or files make a start (files alone set a project up
  * from them), and not while another start is under way.
  */

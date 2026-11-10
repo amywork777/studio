@@ -11687,7 +11687,11 @@ export default function ChatView(props: ChatViewProps) {
           />
         </header>
         {engineeringInterface ? (
-          <PendingStart project={activeProject ?? null} draft={!isServerThread} />
+          <PendingStart
+            project={activeProject ?? null}
+            draft={!isServerThread}
+            thread={activeThread ?? null}
+          />
         ) : null}
 
         {/* Main content area with optional plan sidebar */}

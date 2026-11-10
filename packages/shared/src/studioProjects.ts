@@ -195,6 +195,7 @@ function startingAProject(record: string | null): string {
       ? [readme]
       : [
           `- Give it a short name of two or three words (for example "Lanyard clip") as \`name\` in \`${record}\`, and one plain sentence on what it is (for example "A clip that holds a badge on a lanyard") as \`brief.purpose\`, never the description's own words.`,
+          '- Name the first part after the project: its script and its `@model` function take the project\'s name in snake_case (`parts/lanyard_clip.py` and `def lanyard_clip()` for "Lanyard clip"), so the part and the project read one name.',
           "- In that file, set the setup the description says or clearly implies (a printer named means 3D printing), and commit the file in its folder with git.",
           readme,
         ]),
