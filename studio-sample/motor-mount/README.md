@@ -1,8 +1,8 @@
-# Motor mount plate (sample)
+# Motor mount plate (example)
 
 ## What it is
 
-A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a frame: a sample project to learn Studio with. The motor sits under the plate, its 22 mm pilot in the plate's bore and its shaft up through it to a belt pulley, held by four M3 screws on its 31 mm square whose heads sit flush in a pocket on top. Two M5 screws through slots at the plate's ends fix it to the frame, and the slots give 10 mm of travel to tension the belt. It is 110 x 56 x 6 mm and weighs 76.3 g. It holds 50 N of belt tension with a safety factor of 521, and it is machined on a 3-axis mill in one setup, in 5 minutes by its CAM program. Its requirements are on the model itself, as 3D PMI (a model-based definition): datums on its underside and two sides, the bore, the M3 holes and the slots sized and positioned, the underside's flatness, the thickness and the pocket's depth, and a general profile for every other face, exported in its AP242 STEP.
+A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a frame: an example project to learn Studio with. The motor sits under the plate, its 22 mm pilot in the plate's bore and its shaft up through it to a belt pulley, held by four M3 screws on its 31 mm square whose heads sit flush in a pocket on top. Two M5 screws through slots at the plate's ends fix it to the frame, and the slots give 10 mm of travel to tension the belt. It is 110 x 56 x 6 mm and weighs 76.3 g. It holds 50 N of belt tension with a safety factor of 521, and it is machined on a 3-axis mill in one setup, in 5 minutes by its CAM program. Its requirements are on the model itself, as 3D PMI (a model-based definition): datums on its underside and two sides, the bore, the M3 holes and the slots sized and positioned, the underside's flatness, the thickness and the pocket's depth, and a general profile for every other face, exported in its AP242 STEP.
 
 ## Decisions
 

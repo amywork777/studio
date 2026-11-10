@@ -36,7 +36,7 @@ export const CHECK_STATUS: Record<
 export const OutOfDateIcon = HistoryIcon;
 
 /** What a check of a part since changed says, in place of its verdict. */
-const OUT_OF_DATE = "Part changed since this check";
+export const OUT_OF_DATE = "Part changed since this check";
 
 /**
  * One check of a part: its name and how it went, cut to the width it sits in, its whole name and

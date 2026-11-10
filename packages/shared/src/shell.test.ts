@@ -24,6 +24,7 @@ import {
   readPathFromLaunchctl,
   readPathFromLoginShell,
   resolveCommandPath,
+  resolveKnownPosixCliDirs,
   resolveKnownWindowsCliDirs,
   resolveSpawnCommand,
   resolveWindowsEnvironment,
@@ -350,6 +351,19 @@ describe("resolveKnownWindowsCliDirs", () => {
       "C:\\Users\\testuser\\.bun\\bin",
       "C:\\Users\\testuser\\scoop\\shims",
     ]);
+  });
+});
+
+describe("resolveKnownPosixCliDirs", () => {
+  it("returns the folder the official Claude and Codex installers use", () => {
+    expect(resolveKnownPosixCliDirs({ HOME: "/Users/testuser" })).toEqual([
+      "/Users/testuser/.local/bin",
+    ]);
+  });
+
+  it("returns nothing when HOME is missing or blank", () => {
+    expect(resolveKnownPosixCliDirs({})).toEqual([]);
+    expect(resolveKnownPosixCliDirs({ HOME: " " })).toEqual([]);
   });
 });
 

@@ -242,12 +242,12 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
   doc({
     id: "doc:circuit-board",
     name: "Circuit board",
-    templates: [],
+    templates: ["board"],
     actions: jobsRunBy("pcb"),
-    what: "Checks of a KiCad board and its schematic, and the files a fab and an enclosure need.",
-    give: "The board or its schematic.",
+    what: "A KiCad board and its schematic, its checks, and the files a fab and an enclosure need.",
+    give: "The circuit in words, or a board or schematic you already have.",
     asks: "Which fab it is for, and the current its tracks carry.",
-    gets: "Each check's findings with where they are and the fix, the fabrication files, and the board as STEP.",
+    gets: "The board and schematic as KiCad files, each check's findings with where they are and the fix, the fabrication files, and the board as STEP.",
   }),
   doc({
     id: "doc:export",
@@ -301,13 +301,13 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
   }),
   doc({
     id: "doc:motion-video",
-    name: "Motion video",
+    name: "Motion to play",
     templates: [],
-    actions: ["motion-video"],
-    what: "A video of an assembly moving through its range of motion.",
+    actions: ["play-motion"],
+    what: "An assembly moving through its range of motion, played in the viewer.",
     give: "The assembly, with the joints that move.",
     asks: null,
-    gets: "A short MP4 video, in pictures/.",
+    gets: "A motion in the assembly's model script, which the viewer's Motion plays.",
   }),
   doc({
     id: "doc:test-plan",
@@ -447,6 +447,24 @@ const templatesBehind = (entry: LibraryDocument) =>
 /** The part menus' jobs behind an entry. */
 const jobsBehind = (entry: LibraryDocument) =>
   entry.actions.flatMap((id) => HARDWARE_ACTIONS.filter((job) => job.id === id));
+
+/** The jobs behind an entry: a document type's, a job skill's one, or all a text-to-cad skill does. */
+function jobsOfEntry(entry: LibraryEntry): ReadonlyArray<HardwareAction> {
+  if (entry.kind === "document") return jobsBehind(entry);
+  if (entry.pluginId !== TEXT_TO_CAD) return [];
+  const job = jobOfSkill(entry.name);
+  return job === null ? HARDWARE_ACTIONS.filter((each) => each.skill === entry.name) : [job];
+}
+
+/**
+ * What an entry needs that Studio does not bring (`HardwareAction.needs`), for its tile to say
+ * before a press: said where every job behind it needs the same thing, in that job's own words.
+ */
+export function entryNeeds(entry: LibraryEntry): string | null {
+  const needs = new Set(jobsOfEntry(entry).map((job) => job.needs ?? null));
+  const [only] = needs;
+  return needs.size === 1 ? (only ?? null) : null;
+}
 
 /**
  * The skills that make a document type, by its templates and its jobs. A type with one lives inside

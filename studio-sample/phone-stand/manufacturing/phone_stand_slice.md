@@ -4,7 +4,7 @@
 
 ## The presets
 
-Written by the gcode skill's `scripts/orca_presets.py`, pointed at Bambu Studio's own profiles (OrcaSlicer is not installed here, and its presets are Bambu Studio's format):
+Written by the print3d skill's `scripts/orca_presets.py`, pointed at Bambu Studio's own profiles (OrcaSlicer is not installed here, and its presets are Bambu Studio's format):
 
 ```bash
 python scripts/orca_presets.py --profiles /Applications/BambuStudio.app/Contents/Resources/profiles \
@@ -22,7 +22,7 @@ Bambu Studio 02.05.00.66's command line crashes on this Mac before it slices any
 
 ## To slice it
 
-Either of these, then hand the `.gcode.3mf` to Bambu Connect with the bambu-labs skill:
+Either of these, then hand the `.gcode.3mf` to Bambu Connect with the print3d skill:
 
 - Open `parts/phone_stand_print.3mf` in Bambu Studio (`open -a BambuStudio parts/phone_stand_print.3mf`), pick the P1S, 0.20mm Standard and Bambu PLA Basic, check it lies on its side with nothing to support, slice it and export the plate's sliced file to `manufacturing/phone_stand.gcode.3mf`.
 - Or install OrcaSlicer (`brew install --cask orcaslicer`) and slice headless with these presets:

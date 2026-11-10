@@ -1,6 +1,8 @@
 import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
-import { clientOf, FORGET_LIMIT, rateLimiter } from "./limit.mjs";
+import * as NodeFS from "node:fs";
+
+import { clientOf, EVENTS_LIMIT, FORGET_LIMIT, rateLimiter } from "./limit.mjs";
 
 const clock = (at = 0) => {
   const now = () => at;
@@ -26,6 +28,31 @@ NodeTest.test(
     now.advance(595_000);
     NodeAssert.deepEqual(limiter.take("a"), { ok: true });
     NodeAssert.equal(limiter.take("a").ok, false);
+  },
+);
+
+NodeTest.test(
+  "an address may send 120 batches a minute, twice what one Studio sends; the next is refused",
+  () => {
+    NodeAssert.deepEqual(EVENTS_LIMIT, { limit: 120, windowMs: 60_000, size: 1000 });
+    // What the allowance is counted from: Studio sends once every `FLUSH_INTERVAL_MS`.
+    const sender = NodeFS.readFileSync(
+      new URL("../../../apps/server/src/telemetry/AnalyticsService.ts", import.meta.url),
+      "utf8",
+    );
+    const flushMs = Number(/\bFLUSH_INTERVAL_MS = ([\d_]+);/.exec(sender)?.[1].replaceAll("_", ""));
+    NodeAssert.equal(EVENTS_LIMIT.limit, 2 * (EVENTS_LIMIT.windowMs / flushMs));
+
+    const now = clock();
+    const limiter = rateLimiter({ ...EVENTS_LIMIT, now });
+    for (let i = 0; i < 120; i += 1) {
+      NodeAssert.deepEqual(limiter.take("a"), { ok: true });
+      now.advance(250);
+    }
+    NodeAssert.deepEqual(limiter.take("a"), { ok: false, retryAfter: 30 });
+    NodeAssert.deepEqual(limiter.take("b"), { ok: true });
+    now.advance(30_000);
+    NodeAssert.deepEqual(limiter.take("a"), { ok: true });
   },
 );
 

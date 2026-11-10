@@ -1,0 +1,4 @@
+interface:
+  display_name: "Motion to play"
+  short_description: "A motion of the assembly through its range of travel, which the viewer's Motion plays."
+  default_prompt: "Use $play-motion to add a motion to the assembly that takes it through its range of motion, for the viewer's Motion to play. If it has one already, tell me its name and how to play it."

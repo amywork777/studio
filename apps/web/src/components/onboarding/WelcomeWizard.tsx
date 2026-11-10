@@ -295,6 +295,7 @@ export function WelcomeWizard({
           ) : step === "agents" ? (
             <AgentsStep
               environmentIds={setupIds}
+              thisComputerId={studioHere ? primaryEnvironment?.environmentId : undefined}
               onContinue={() => (studio ? void finish() : setStep("import"))}
             />
           ) : (
@@ -687,9 +688,12 @@ interface AgentTerminalSession {
 /** Codex uses managed setup; existing CLI installs retain the terminal path. */
 function AgentsStep({
   environmentIds,
+  thisComputerId,
   onContinue,
 }: {
   readonly environmentIds: readonly EnvironmentId[];
+  /** The computer Studio runs on, headed "This computer": its own name can be a serial number. */
+  readonly thisComputerId: EnvironmentId | undefined;
   readonly onContinue: () => void;
 }) {
   const { environments } = useEnvironments();
@@ -710,8 +714,10 @@ function AgentsStep({
               key={environmentId}
               environmentId={environmentId}
               machineLabel={
-                environments.find((environment) => environment.environmentId === environmentId)
-                  ?.label ?? "Computer"
+                environmentId === thisComputerId
+                  ? "This computer"
+                  : (environments.find((environment) => environment.environmentId === environmentId)
+                      ?.label ?? "Computer")
               }
             />
           ))}

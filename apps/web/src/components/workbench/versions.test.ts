@@ -7,7 +7,9 @@ import {
   checkpointScopeOf,
   extentLine,
   isPartPath,
+  keepsNoVersions,
   plainRestoreError,
+  plainVersionsError,
   readCheckpointRef,
   restoreNote,
   scriptRows,
@@ -226,6 +228,34 @@ describe("restoring a version", () => {
     expect(plainRestoreError("fatal: unable to write new index file")).toBe(
       "Studio couldn't restore that version.",
     );
+  });
+});
+
+describe("a folder that keeps no versions", () => {
+  // The CAD service's reason, as `versions.py` words it.
+  const noHistory =
+    "/Users/sam/Documents/Client Bracket keeps no versions: it is not a git repository";
+
+  it("is told from every other reason the versions could not be read", () => {
+    expect(keepsNoVersions(noHistory)).toBe(true);
+    expect(
+      keepsNoVersions("C:\\Parts\\Bracket keeps no versions: it is not a git repository"),
+    ).toBe(true);
+    // No git on this computer, a CAD service that is not running, or nothing asked yet.
+    expect(keepsNoVersions("[Errno 2] No such file or directory: 'git'")).toBe(false);
+    expect(keepsNoVersions("Failed to fetch")).toBe(false);
+    expect(keepsNoVersions(null)).toBe(false);
+    expect(keepsNoVersions(undefined)).toBe(false);
+  });
+
+  it("says so in plain words, without the folder's path or git's words", () => {
+    expect(plainVersionsError(noHistory)).toBe(
+      "No versions are kept in this project's folder yet, so a change the agent makes can't be restored.",
+    );
+    expect(plainVersionsError("[Errno 2] No such file or directory: 'git'")).toBe(
+      "Studio couldn't read the versions.",
+    );
+    expect(plainVersionsError(null)).toBe("Studio couldn't read the versions.");
   });
 });
 

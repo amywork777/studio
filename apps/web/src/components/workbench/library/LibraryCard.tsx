@@ -7,9 +7,10 @@ const TAGS_SHOWN = 2;
 
 /**
  * A card, as Home's project tiles are: a picture over a name, and a note or tags under it. A press
- * opens what it shows; a disabled one says why in its note. The Library's entries, the Toolbox's
- * groups and the examples (`ExampleCard`, with what each shows as tags) are these. Tags are one
- * quiet line, so the name leads.
+ * opens what it shows; a disabled one says why in its note, and one that needs a program or a
+ * download first says which. The Library's entries, the Toolbox's groups and the examples
+ * (`ExampleCard`, with what each shows as tags) are these. Tags are one quiet line, so the name
+ * leads.
  */
 export function LibraryCard({
   ref,
@@ -53,7 +54,7 @@ export function LibraryCard({
           <span className="line-clamp-2 h-[2lh] text-xs text-muted-foreground">{props.blurb}</span>
         )}
         {props.note === null ? null : (
-          <span className="truncate text-xs text-muted-foreground">{props.note}</span>
+          <span className="line-clamp-2 text-xs text-muted-foreground">{props.note}</span>
         )}
         {tags.length === 0 ? null : (
           <span className="flex min-w-0 gap-1 text-xs text-muted-foreground">

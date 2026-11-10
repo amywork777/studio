@@ -1,4 +1,4 @@
 interface:
   display_name: "Fabrication files"
-  short_description: "Gerbers, drill files, the parts list and placement files, ready to upload to a fab."
+  short_description: "Gerbers, drill files, the parts list and placement files, ready to upload to a fab. Downloads its board tools on first use, about 100 MB."
   default_prompt: "Use $board-fab to export the fabrication files for the board: gerbers, drill files, the parts list and the placement file. Ask me which fab it is for."

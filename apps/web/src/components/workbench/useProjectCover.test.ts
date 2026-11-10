@@ -35,6 +35,17 @@ describe("a project's picture", () => {
     ).toBe("bracket");
   });
 
+  it("pictures the assembly though it is named after one of its parts", () => {
+    expect(
+      projectCover([
+        "assemblies/phone_stand_portrait.step",
+        "parts/phone_placeholder.step",
+        "parts/phone_stand.step",
+        "parts/phone_stand_print.step",
+      ]),
+    ).toBe("assemblies/phone_stand_portrait.step");
+  });
+
   it("pictures a board when there is no part, and nothing when there is only writing", () => {
     expect(projectCover(["docs/setup.md", "electronics/board/board.kicad_pcb"])).toBe(
       "electronics/board/board.kicad_pcb",

@@ -10,8 +10,9 @@ import { type CadGet, useEnvironmentCadGet } from "./useVersions";
  * Project folders' cadgen 0.8 models (`readFolderModels`), read through Studio's CAD service as the
  * environment's own CAD server asks it (`GET /api/v1/local/models?root=A&root=B...`), shared by every list
  * that shows a folder: the Overview, Home's tiles, the project switcher, ⌘K and a new chat's
- * starters. The revision moves when an agent changes a project's files, or Studio builds a part
- * (`modelsChanged`); then every folder on screen is read again, all of them in ONE request per
+ * starters. The revision moves when an agent changes a project's files, Studio builds a part
+ * (`modelsChanged`), or a view shows a model at a build not heard of yet (`modelShown`); then every
+ * folder on screen is read again, all of them in ONE request per
  * environment, and until it lands each keeps the models it had, so nothing blanks while it refreshes.
  */
 export function folderModelsStore(
@@ -41,6 +42,8 @@ export function folderModelsStore(
   const failed = new Map<string, number>();
   /** What the viewer calls a model no folder has listed (`noteModelTitle`), by its id. */
   const heard = new Map<string, string>();
+  /** The build each model was last on screen at (`shown`), by its id. */
+  const builds = new Map<string, string>();
   const keyOf = (environmentId: EnvironmentId, root: string) => `${environmentId}\n${root}`;
   const models = (environmentId: EnvironmentId, root: string): ReadonlyArray<ProjectModel> =>
     read.get(keyOf(environmentId, root))?.models ?? EMPTY;
@@ -103,6 +106,18 @@ export function folderModelsStore(
     revision: () => revision,
     /** A project's models may have changed (an agent's turn wrote its files, a part was built). */
     changed() {
+      revision += 1;
+      notify();
+    },
+    /**
+     * A view shows a model at `build`: its sync's revision, which moves each time the engine
+     * builds the model again. A build not heard of yet may be one no agent's turn made (a script
+     * edited outside Studio is built when its view opens), so every folder is read again. The same
+     * build again, and a view that names none, say nothing new.
+     */
+    shown(id: string, build: string) {
+      if (build === "" || builds.get(id) === build) return;
+      builds.set(id, build);
       revision += 1;
       notify();
     },
@@ -186,6 +201,9 @@ const store = folderModelsStore();
 
 /** A project's models may have changed (an agent's turn wrote its files, a part was built). */
 export const modelsChanged = () => store.changed();
+
+/** A view shows a model at a build (its sync's revision): a new one reads the folders again. */
+export const modelShown = (id: string, build: string) => store.shown(id, build);
 
 // Files added outside Studio (in Finder, by another app) may be models: every list reads its
 // folders again when the user comes back, once for all of them however many lists are mounted.

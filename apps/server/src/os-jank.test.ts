@@ -1,8 +1,15 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it as effectIt } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { CommandAvailability, WindowsShellEnvironment } from "@t3tools/shared/shell";
+import {
+  CommandAvailability,
+  resolveSpawnCommand,
+  WindowsShellEnvironment,
+} from "@t3tools/shared/shell";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Observe the existing synchronous shell probe without launching the user's login shell.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
@@ -67,7 +74,7 @@ effectIt.effect.each(["darwin", "linux"] as const)(
           );
 
           assert.equal(probe.mock.calls.length, 0);
-          assert.equal(env.PATH, "/prepared/bin:/usr/bin");
+          assert.equal(env.PATH, `/prepared/bin:/usr/bin:${NodeOS.userInfo().homedir}/.local/bin`);
           assert.equal(env.HOME, NodeOS.userInfo().homedir);
         }),
       (probe) => Effect.sync(() => probe.mockRestore()),
@@ -83,7 +90,11 @@ effectIt.effect("hydrates PATH when the desktop handoff is absent", () =>
     ),
     (probe) =>
       Effect.gen(function* () {
-        const env: NodeJS.ProcessEnv = { SHELL: "/bin/bash", PATH: "/usr/bin" };
+        const env: NodeJS.ProcessEnv = {
+          HOME: "/home/testuser",
+          SHELL: "/bin/bash",
+          PATH: "/usr/bin",
+        };
 
         yield* fixPath().pipe(
           Effect.provideService(HostProcess.Platform, "linux"),
@@ -92,10 +103,82 @@ effectIt.effect("hydrates PATH when the desktop handoff is absent", () =>
         );
 
         assert.equal(probe.mock.calls.length, 1);
-        assert.equal(env.PATH, "/opt/tools/bin:/usr/bin");
+        assert.equal(env.PATH, "/opt/tools/bin:/usr/bin:/home/testuser/.local/bin");
       }),
     (probe) => Effect.sync(() => probe.mockRestore()),
   ),
+);
+
+effectIt.effect.each(["darwin", "linux"] as const)(
+  "keeps the user's own place for the installer folder on %s",
+  (platform) =>
+    Effect.gen(function* () {
+      const env: NodeJS.ProcessEnv = {
+        HOME: "/home/testuser",
+        PATH: "/home/testuser/.local/bin:/usr/bin",
+      };
+
+      yield* fixPath({ shellEnvironmentPrepared: true }).pipe(
+        Effect.provideService(HostProcess.Platform, platform),
+        Effect.provideService(HostProcess.Environment, env),
+        Effect.provide(NodeServices.layer),
+      );
+
+      assert.equal(env.PATH, "/home/testuser/.local/bin:/usr/bin");
+    }),
+);
+
+effectIt.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+  "launches a CLI the installer adds to ~/.local/bin after startup",
+  () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const home = yield* fs.makeTempDirectoryScoped({ prefix: "t3-installer-home-" });
+      const env: NodeJS.ProcessEnv = { HOME: home, PATH: "/usr/bin:/bin" };
+      // The same bare-name launch the provider status check makes.
+      const launch = Effect.gen(function* () {
+        const spawnCommand = yield* resolveSpawnCommand("fake-provider-cli", ["--version"], {
+          env,
+        });
+        return yield* spawner.exitCode(
+          ChildProcess.make(spawnCommand.command, spawnCommand.args, {
+            env,
+            shell: spawnCommand.shell,
+          }),
+        );
+      }).pipe(Effect.result);
+
+      yield* fixPath({ shellEnvironmentPrepared: true }).pipe(
+        Effect.provideService(HostProcess.Environment, env),
+      );
+      assert.equal((yield* launch)._tag, "Failure");
+
+      const installDirectory = path.join(home, ".local", "bin");
+      yield* fs.makeDirectory(installDirectory, { recursive: true });
+      const installed = path.join(installDirectory, "fake-provider-cli");
+      yield* fs.writeFileString(installed, "#!/bin/sh\nexit 0\n");
+      yield* fs.chmod(installed, 0o755);
+
+      const afterInstall = yield* launch;
+      assert.equal(afterInstall._tag, "Success");
+      if (afterInstall._tag === "Success") assert.equal(Number(afterInstall.success), 0);
+    }).pipe(Effect.provide(NodeServices.layer)),
+);
+
+effectIt.effect("leaves PATH alone on platforms without a known installer folder", () =>
+  Effect.gen(function* () {
+    const env: NodeJS.ProcessEnv = { HOME: "/home/testuser", PATH: "/usr/bin" };
+
+    yield* fixPath().pipe(
+      Effect.provideService(HostProcess.Platform, "freebsd"),
+      Effect.provideService(HostProcess.Environment, env),
+      Effect.provide(NodeServices.layer),
+    );
+
+    assert.equal(env.PATH, "/usr/bin");
+  }),
 );
 
 effectIt.effect("repairs Windows PATH even when the desktop marks it prepared", () =>

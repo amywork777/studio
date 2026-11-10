@@ -12,7 +12,7 @@ import { type NewRequest, useNewDialogStore } from "./newDialogStore";
 import { templateOffers } from "./newTemplates";
 
 /**
- * New, as Google Drive's New is: a part, an assembly, a study, a robot or a document
+ * New, as Google Drive's New is: a part, an assembly, a circuit board, a robot or a document
  * (`NewDialog`). The same button and dialog in every place it is: first in a project's panel
  * toolbar, where Create hands the job to the open chat, and on Home and the Projects page, where
  * it starts a new project with the job as its first message. Its Part is New part, made at once

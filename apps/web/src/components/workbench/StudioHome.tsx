@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
+import { useNavigate } from "@tanstack/react-router";
 import { DraftingCompassIcon, PaperclipIcon, SearchIcon, XIcon } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
 
@@ -8,12 +9,13 @@ import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { usePrimaryEnvironmentId } from "~/state/environments";
-import { primaryServerKeybindingsAtom } from "~/state/server";
+import { primaryServerKeybindingsAtom, serverEnvironment } from "~/state/server";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import { SidebarInset } from "../ui/sidebar";
 import { Textarea } from "../ui/textarea";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
+import { NO_AGENT, OPEN_AGENTS } from "./agentWords";
 import type { ListedProject } from "./projectList";
 import { ENGINEERING_COMPOSER_PLACEHOLDER } from "./studioInterface";
 import { splitStarred, useStarredStore } from "./starredProjects";
@@ -27,6 +29,7 @@ import { waitingFirst } from "./ProjectChoices";
 import { ProjectPicker } from "./ProjectPicker";
 import { SketchDialog } from "./SketchDialog";
 import { GetStarted, StartChoices, StartExamples, TileGroup } from "./StartChoices";
+import { missingAgent } from "./startAgent";
 import { canStart, nameOfPath, type StartAttachment } from "./startProject";
 import { droppedPath, readStudioImport } from "./studioImportBridge";
 import { MODULE_HEADING, SECTION_STACK } from "./studioLayout";
@@ -222,7 +225,9 @@ function AttachedList(props: {
  * then reading as a project's chat box does. Files can come with the words or on their own (a PRD,
  * requirements, sketches, CAD, a whole folder: Attach, or dropped on the box), and Start makes a
  * new project from them. Files go into the project's References and the agent reads them first
- * (`startMessage`). There is no Ask here: a question goes in the box, or in a chat.
+ * (`startMessage`). There is no Ask here: a question goes in the box, or in a chat. With no AI
+ * agent to send to (`missingAgent`) it says so beside Start, in the chat box's words and with its
+ * way to Settings, and Start makes nothing.
  */
 function StartProject(props: {
   readonly environmentId: EnvironmentId;
@@ -255,8 +260,14 @@ function StartProject(props: {
     else void bridge.pick().then((paths) => attach(paths.map(fromPath)));
   };
   const run = props.start;
+  const navigate = useNavigate();
+  // No agent for the chat this would start: said here, before a project is made for nothing.
+  const missing = missingAgent(
+    useAtomValue(serverEnvironment.configValueAtom(environmentId)),
+    chosen?.folder ?? null,
+  );
   // Words or files make a start.
-  const ready = canStart(description, attachments, busy);
+  const ready = missing === null && canStart(description, attachments, busy);
   const startNow = () => {
     if (!ready) return;
     void run({
@@ -358,6 +369,26 @@ function StartProject(props: {
             />
           )}
           <div className="flex-1" />
+          {missing === null ? null : (
+            <>
+              <span className="text-xs text-muted-foreground">{NO_AGENT}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void navigate({
+                    to: "/settings/providers",
+                    search: {
+                      environmentId,
+                      ...(missing.setup === undefined ? {} : { instanceId: missing.setup }),
+                    },
+                  })
+                }
+              >
+                {OPEN_AGENTS}
+              </Button>
+            </>
+          )}
           {/* Grey until there is something to start: the page's one solid blue. The rail's count
               is solid blue too, but only while a chat waits on the person. */}
           <Button

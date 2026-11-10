@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - the IPC handlers check paths with node:path.
 import * as NodePath from "node:path";
 
-import { BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import * as Effect from "effect/Effect";
 
 import {
@@ -33,7 +33,8 @@ const isAbsolutePath = (value: unknown): value is string =>
 
 export const installStudioImport = Effect.fn("desktop.studioImport.install")(function* () {
   yield* Effect.sync(() => {
-    ipcMain.handle(STUDIO_IMPORT_ROOTS_CHANNEL, () => defaultRoots());
+    // Where the system says they are, not the home folder: OneDrive's backup moves them on Windows.
+    ipcMain.handle(STUDIO_IMPORT_ROOTS_CHANNEL, () => defaultRoots((name) => app.getPath(name)));
     ipcMain.handle(STUDIO_IMPORT_SCAN_CHANNEL, (_event, root: unknown) => {
       if (!isAbsolutePath(root)) throw new Error("A scan needs a folder's full path.");
       return scanFolder(root);

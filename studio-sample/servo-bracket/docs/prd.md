@@ -2,7 +2,7 @@
 
 ## Summary
 
-A mounting bracket for an MG996R servo, bent from 2 mm 5052-H32 aluminium sheet. The servo sits in the bracket horn up, held by four M3 screws, and the bracket fixes to a wall with two M4 screws. A machined 6061-T6 adapter on the servo's output takes the load, and a printed PETG clip holds the servo's lead. It must hold 20 N at the servo horn. It is a sample project to learn Studio with.
+A mounting bracket for an MG996R servo, bent from 2 mm 5052-H32 aluminium sheet. The servo sits in the bracket horn up, held by four M3 screws, and the bracket fixes to a wall with two M4 screws. A machined 6061-T6 adapter on the servo's output takes the load, and a printed PETG clip holds the servo's lead. It must hold 20 N at the servo horn. It is an example project to learn Studio with.
 
 ## The problem and who has it
 

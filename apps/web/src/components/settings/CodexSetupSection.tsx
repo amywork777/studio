@@ -590,8 +590,8 @@ function ManagedCodexSetup({
         : installation?.phase === "verifying"
           ? "Checking Codex."
           : installed
-            ? `${installation?.source === "local" ? "Using your installed Codex" : "Managed by T3 Code"}${installation?.installedVersion ? ` · v${installation.installedVersion}` : ""}.`
-            : (installation?.message ?? "T3 Code downloads and manages Codex for you.");
+            ? `${installation?.source === "local" ? "Using your installed Codex" : `Managed by ${APP_BASE_NAME}`}${installation?.installedVersion ? ` · v${installation.installedVersion}` : ""}.`
+            : (installation?.message ?? `${APP_BASE_NAME} downloads and manages Codex for you.`);
   const accountDescription = finishingSignIn ? (
     "Finishing sign-in..."
   ) : installActive ? (

@@ -31,7 +31,7 @@ export interface ActionSectionDef {
 
 /**
  * The sections, as text-to-cad's skills cover the work: `fea` for strength and its results; `cad`
- * for fit, motion, mass, pictures and video, exporting STEP, STL, 3MF and DXF, and checking each way
+ * for fit, motion, mass, pictures and a motion to play, exporting STEP, STL, 3MF and DXF, and checking each way
  * of making it (printing, machining, sheet metal, molding); `print3d` for slicing and printing; `cam`
  * for toolpaths and its jobs; `pcb` for circuit boards; and `robot-simulation` for robot files.
  */
@@ -66,7 +66,7 @@ export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
   { id: "board-files", group: "Manufacture", title: "Circuit board" },
   { id: "drawings", group: "Document", title: "Drawings" },
   { id: "building", group: "Document", title: "Building it" },
-  { id: "pictures", group: "Document", title: "Pictures and video" },
+  { id: "pictures", group: "Document", title: "Pictures and motion" },
   { id: "reports", group: "Document", title: "Reports" },
   { id: "robot", group: "Document", title: "Robot description", more: true },
 ];
@@ -84,6 +84,12 @@ export interface HardwareAction {
    * entry's "You get" (`libraryCatalog.ts`). A sentence of at most 100 characters.
    */
   readonly gets: string;
+  /**
+   * What it needs that Studio does not bring: a program the person installs, or a download on first
+   * use, as its skill's own files say (`text-to-cad/skills/<skill>/SKILL.md`). A sentence after
+   * `gets` on its tile's line (`jobLine`).
+   */
+  readonly needs?: string;
   /** The text-to-cad skill the job runs on; null for one any agent can do. */
   readonly skill: string | null;
   /** The part kinds it applies to, as the context strip names them (`describePart`); null for any. */
@@ -95,6 +101,16 @@ export interface HardwareAction {
   /** The job as a starter names it, short: "Check bike hook for FDM printing". */
   readonly short: (name: string) => string;
 }
+
+/** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
+export const jobLine = (job: HardwareAction): string =>
+  job.needs === undefined ? job.gets : `${job.gets} ${job.needs}`;
+
+/**
+ * The `pcb` skill's rule checks, exports and drawing of a board run KiCad's tools from kicode, which
+ * the `cad` command downloads the first time a board needs them (the size is its SKILL.md's).
+ */
+const BOARD_TOOLS = "Downloads its board tools on first use, about 100 MB.";
 
 const SOLID = ["Part", "Assembly"];
 const PRINTABLE = ["Part", "Assembly", "Mesh"];
@@ -183,6 +199,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "printing",
     label: "Slice and print",
     gets: "G-code from OrcaSlicer checked against your printer, or the print opened on your Bambu.",
+    needs: "Needs OrcaSlicer installed.",
     skill: "print3d",
     kinds: PRINTABLE,
     checks: false,
@@ -236,6 +253,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     process: "CNC machining",
     label: "G-code for CNC",
     gets: "G-code for each setup, and its toolpaths to look over before cutting.",
+    needs: "Needs FreeCAD 1.1 or newer installed.",
     skill: "cam",
     kinds: ["Part", "CAM job"],
     checks: false,
@@ -315,6 +333,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "board-checks",
     label: "Board checks",
     gets: "KiCad's rule checks, each finding with where it is on the board or schematic and the fix.",
+    needs: BOARD_TOOLS,
     skill: "pcb",
     kinds: ["Board", "Schematic"],
     checks: true,
@@ -328,6 +347,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "board-checks",
     label: "Review before ordering",
     gets: "A review against the fab's limits, decoupling, track widths for current and the parts list.",
+    needs: BOARD_TOOLS,
     skill: "pcb",
     kinds: ["Board"],
     checks: true,
@@ -341,6 +361,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "board-files",
     label: "Fabrication files",
     gets: "Gerbers, drill files, the parts list and placement files, ready to upload to a fab.",
+    needs: BOARD_TOOLS,
     skill: "pcb",
     kinds: ["Board"],
     checks: false,
@@ -354,6 +375,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "board-files",
     label: "Board STEP",
     gets: "The board with its parts as a STEP file, to design its enclosure around.",
+    needs: BOARD_TOOLS,
     skill: "pcb",
     kinds: ["Board"],
     checks: false,
@@ -451,16 +473,18 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Pictures of ${name}`,
   },
   {
-    id: "motion-video",
+    // text-to-cad records no video (0.8 and later): the model carries the motion and the viewer plays it.
+    id: "play-motion",
     group: "Document",
     section: "pictures",
-    label: "Motion video",
-    gets: "An MP4 video of the assembly moving through its range of motion.",
+    label: "Motion to play",
+    gets: "A motion of the assembly through its range of travel, which the viewer's Motion plays.",
     skill: "cad",
     kinds: ["Assembly"],
     checks: false,
-    prompt: (file) => `Make a video of ${file} moving through its range of motion.`,
-    short: (name) => `Video of ${name} moving`,
+    prompt: (file) =>
+      `Add a motion to ${file} that takes it through its range of motion, for the viewer's Motion to play. If it has one already, tell me its name and how to play it.`,
+    short: (name) => `Motion of ${name} to play`,
   },
   {
     id: "test-plan",
@@ -534,20 +558,26 @@ export const MORE_LABELS: Record<HardwareActionGroup, string> = {
   Document: "More documents",
 };
 
+/** Whether a job works on a file of this kind. */
+export function jobFits(action: HardwareAction, kind: string): boolean {
+  return action.kinds === null || action.kinds.includes(kind);
+}
+
 /**
- * The jobs for a part of this kind that the enabled plugins' skills can do, by menu, in order.
+ * The jobs for a part of this kind that the enabled plugins' skills can do, by menu, in order; with
+ * no kind, every job those skills can do, whatever it works on (the Toolbox, which shows them all).
  * Manufacture puts the project's own way of making it first, whole, and the other ways apart;
  * until the project has chosen one, every way waits apart.
  */
 export function hardwareActions(
-  kind: string,
+  kind: string | null,
   skills: ReadonlySet<string>,
   process: MakingProcess | string = "Not decided",
 ): HardwareActionMenu[] {
   const decided = process.trim() !== "" && process !== "Not decided";
   const offered = HARDWARE_ACTIONS.filter(
     (action) =>
-      (action.kinds === null || action.kinds.includes(kind)) &&
+      (kind === null || jobFits(action, kind)) &&
       (action.skill === null || skills.has(action.skill)),
   );
   const filled = (defs: ReadonlyArray<ActionSectionDef>) =>

@@ -1,5 +1,8 @@
 import { create } from "zustand";
 
+import { formatShortcutLabel } from "~/keybindings";
+import { getLocalFileManagerName } from "~/lib/utils";
+
 /**
  * Studio's tour, five steps the first time a workspace opens (`StudioTour`): the project, its
  * Overview, the tabs, the toolbar and the Toolbox, each pointed at where it is on screen.
@@ -11,11 +14,15 @@ export interface TourStep {
   readonly body: string;
 }
 
-export const TOUR_STEPS: ReadonlyArray<TourStep> = [
+/**
+ * The steps in this computer's own words (`platform`, the browser's `navigator.platform`): its file
+ * manager's name, and Cmd or Ctrl for a tab's number.
+ */
+export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
   {
     target: '[data-tour="project"]',
     title: "This is your project",
-    body: "Everything you make lives inside it. Every project is listed here, with its chats under it: click one to fold it, or its … to rename it, back it up or show it in Finder.",
+    body: `Everything you make lives inside it. Every project is listed here, with its chats under it: click one to fold it, or its … to rename it, back it up or show it in ${getLocalFileManagerName(platform)}.`,
   },
   {
     target: "[data-pinned-project-tab]",
@@ -25,7 +32,10 @@ export const TOUR_STEPS: ReadonlyArray<TourStep> = [
   {
     target: "[data-right-panel-tab-list]",
     title: "Your tabs",
-    body: "What you opened lately, like browser tabs. Ctrl+Tab goes round them, and Cmd+1 to 9 jumps to one.",
+    body: `What you opened lately, like browser tabs. Ctrl+Tab goes round them, and ${formatShortcutLabel(
+      { key: "1", modKey: true, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false },
+      platform,
+    )} to 9 jumps to one.`,
   },
   {
     target: "[data-studio-toolbar]",

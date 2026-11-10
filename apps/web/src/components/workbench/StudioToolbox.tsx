@@ -23,39 +23,44 @@ import { withToolLine } from "./toolUsed";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { partLink } from "./partLink";
 import { useSimpleView } from "./simpleView";
+import { useNewDialogStore } from "./newDialogStore";
+import type { NewTemplate } from "./newTemplates";
 import { usePartForJobs } from "./StudioPanelBar";
 import { SECTION_GRID, SectionJobs } from "./ToolboxJobs";
 import {
   pairLoneSections,
   readToolboxFolded,
   readToolboxTab,
-  jobCount,
   type ToolboxGroup,
   toolboxFolded,
   toolboxGroups,
   toolboxLeftOut,
   toolboxLibraryLink,
   toolboxNarrowRem,
-  toolboxShownGroup,
+  toolboxStart,
+  toolboxWorksOn,
   writeToolboxFolded,
   writeToolboxTab,
 } from "./toolbox";
-import { usePartJobs } from "./usePartJobs";
+import { useProjectKinds } from "./useLeadPart";
+import { useToolboxJobs } from "./useToolboxJobs";
 
 /**
- * The Toolbox, down the right of the workspace panel beside the part, the same in AI and CAD: the
- * jobs (`usePartJobs`) of the part in front, else the project's (`usePartForJobs`), as Analysis,
- * Manufacturing and Documents (`toolboxGroups`, `MENU_WORDS`), a tab each, like SolidWorks' CommandManager; the tab
- * left open is remembered on this device. A group with no job for the file in front can't be
- * chosen, says why on its tooltip, and the Toolbox opens on one that has jobs and says what to open
- * for the rest. Every job
- * in a group is a tile like every other, nothing folded: the group's purpose over one even grid of
- * tiles, each section's name over its first.
+ * The Toolbox, down the right of the workspace panel beside the part, the same in AI and CAD: every
+ * job the enabled skills can do (`useToolboxJobs`), as Analysis, Manufacturing and Documents
+ * (`toolboxGroups`, `MENU_WORDS`), a tab each, like SolidWorks' CommandManager; the tab left open is
+ * remembered on this device. Every job in a group is a tile like every other, nothing folded and
+ * none hidden: the group's purpose over one even grid of tiles, each section's name over its first.
+ * The jobs are for the part in front, else the project's (`usePartForJobs`). A job that does not
+ * fit that file (a board's on a part) keeps its tile, dimmed as NX greys a command out, and says
+ * what it works on (`toolboxWorksOn`); with no file yet, every tile does. Where the project holds
+ * nothing the job works on and New makes it (`toolboxStart`: a board job in a project with no
+ * board), the tile's press opens New on that start instead, the way to make what the job needs.
  * A tile press sends its job in the chat for that part, or adds it after a draft being written
  * there for the person to send (`handToChat`). It folds to an edge of the groups' icons, as chosen
  * on this device, and on a narrow panel (`toolboxNarrowRem`: in CAD, one beside a chat) starts
  * folded so the model keeps the room; a group's icon there, in its jobs' color, opens it on that
- * group's tab, and the group it would open on sits on a filled tile, as the sidebar's active row.
+ * group's tab, and the tab it would open on sits on a filled tile, as the sidebar's active row.
  */
 export function StudioToolbox(props: {
   readonly threadRef: ScopedThreadRef;
@@ -66,7 +71,12 @@ export function StudioToolbox(props: {
 }) {
   const { threadRef, composerRef } = props;
   const { part, process } = usePartForJobs(threadRef, props.folder, props.mutationId);
-  const jobs = usePartJobs(threadRef.environmentId, part?.kind ?? null, process);
+  const jobs = useToolboxJobs(threadRef.environmentId, process);
+  const projectKinds = useProjectKinds(threadRef.environmentId, props.folder, props.mutationId);
+  const startFor = (action: HardwareAction) =>
+    projectKinds === null ? null : toolboxStart(action, projectKinds);
+  const start = (template: NewTemplate) =>
+    useNewDialogStore.getState().ask(template.discipline, template.id);
   const groups = useMemo(() => toolboxGroups(jobs.menus), [jobs.menus]);
 
   const navigate = useNavigate();
@@ -86,12 +96,9 @@ export function StudioToolbox(props: {
     setTabState(group);
     writeToolboxTab(group);
   };
-  // Until the jobs are known, no group counts as empty and the tab left open holds.
-  const ready = part !== null && jobs.status === "ready";
-  const shown = ready
-    ? toolboxShownGroup(groups, tab)
-    : groups.find((group) => group.group === tab);
-  const leftOut = ready ? toolboxLeftOut(groups, part.kind) : null;
+  const shown = groups.find((group) => group.group === tab);
+  const kind = part?.kind ?? null;
+  const leftOut = shown === undefined || kind === null ? null : toolboxLeftOut(shown, kind);
 
   const run = (action: HardwareAction) => {
     if (composerRef === null || part === null) return;
@@ -170,39 +177,18 @@ export function StudioToolbox(props: {
         >
           {groups.map((group) => {
             const Icon = MENU_ICONS[group.group];
-            const off = ready && jobCount(group) === 0;
-            const item = (
-              <ToggleGroupItem
-                key={group.group}
-                value={group.group}
-                disabled={off}
-                className="flex-auto"
-              >
+            return (
+              <ToggleGroupItem key={group.group} value={group.group} className="flex-auto">
                 <Icon aria-hidden="true" className={MENU_TINTS[group.group]} />
                 {MENU_WORDS[group.group]}
               </ToggleGroupItem>
-            );
-            if (!off) return item;
-            // A disabled button takes no pointer, so the tooltip hangs on a box around it.
-            return (
-              <ToolboxTip
-                key={group.group}
-                text={toolboxLeftOut([group], part.kind) ?? MENU_WORDS[group.group]}
-                side="bottom"
-              >
-                <span className="flex min-w-0 flex-auto">{item}</span>
-              </ToolboxTip>
             );
           })}
         </ToggleGroup>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3 p-3">
-          {part === null ? (
-            <p className="text-xs text-muted-foreground">
-              The Toolbox works on a part you already have. Start one with New, or import one.
-            </p>
-          ) : jobs.status === "loading" ? (
+          {jobs.status === "loading" ? (
             <p className="text-xs text-muted-foreground">Loading jobs…</p>
           ) : jobs.status === "failed" ? (
             <div className="flex flex-col items-start gap-2">
@@ -213,7 +199,12 @@ export function StudioToolbox(props: {
             </div>
           ) : (
             <>
-              {composerRef === null ? (
+              {part === null ? (
+                <p className="text-xs text-muted-foreground">
+                  The Toolbox works on a part you already have. Press a tile to start what it works
+                  on, or import a part.
+                </p>
+              ) : composerRef === null ? (
                 <p className="text-xs text-muted-foreground">
                   Jobs start in a chat. Open one to use them.
                 </p>
@@ -223,7 +214,10 @@ export function StudioToolbox(props: {
                   group={shown}
                   leftOut={leftOut}
                   disabled={composerRef === null}
+                  worksOn={(action) => toolboxWorksOn(action, kind, startFor(action))}
+                  startFor={startFor}
                   onRun={run}
+                  onStart={start}
                   onBrowse={() => browse(shown.group)}
                 />
               ) : null}
@@ -294,11 +288,16 @@ function ToolboxTip(props: {
  */
 function GroupJobs(props: {
   readonly group: ToolboxGroup;
-  /** What the file in front has no jobs for, and what to open for them (`toolboxLeftOut`). */
+  /** That none of the group's jobs fit the file in front, and what to open (`toolboxLeftOut`). */
   readonly leftOut: string | null;
   /** No chat to write the job into. */
   readonly disabled: boolean;
+  /** Why a job can't run on the file in front (`toolboxWorksOn`); null for one that can. */
+  readonly worksOn: (action: HardwareAction) => string | null;
+  /** New's start for what a job works on, where the project has none of it (`toolboxStart`). */
+  readonly startFor: (action: HardwareAction) => NewTemplate | null;
   readonly onRun: (action: HardwareAction) => void;
+  readonly onStart: (template: NewTemplate) => void;
   readonly onBrowse: () => void;
 }) {
   const empty = props.group.sections.length === 0;
@@ -312,7 +311,10 @@ function GroupJobs(props: {
               key={section.title}
               section={section}
               disabled={props.disabled}
+              worksOn={props.worksOn}
+              startFor={props.startFor}
               onRun={props.onRun}
+              onStart={props.onStart}
             />
           ))}
         </div>

@@ -335,6 +335,12 @@ const make = Effect.gen(function* () {
     }
     const view = listed === null ? null : readToolUi(input.server, listed);
     if (view === null) {
+      // A server that did not start lists no views: say why it did not, not that the view is missing.
+      const listing = (yield* store.enabledPlugins).find((plugin) => plugin.id === input.pluginId)
+        ?.listings[input.server];
+      if (listed === null && listing?.state === "error" && listing.error !== null) {
+        return yield* fail("server_failed", listing.error);
+      }
       return yield* fail("not_found", `${input.pluginId} has no view called ${input.tool}`);
     }
     const toolResult = yield* call("tools/call", {

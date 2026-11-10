@@ -105,17 +105,35 @@ export async function scanFolder(
   return { root, files, truncated };
 }
 
-/** The folders a first scan offers: Documents, Desktop and Downloads, where they exist. */
+/** A folder a first scan offers, by the name Electron's `app.getPath` knows it by. */
+export type StudioImportRootName = "documents" | "desktop" | "downloads";
+
+const DEFAULT_ROOTS: ReadonlyArray<{
+  readonly label: string;
+  readonly name: StudioImportRootName;
+}> = [
+  { label: "Documents", name: "documents" },
+  { label: "Desktop", name: "desktop" },
+  { label: "Downloads", name: "downloads" },
+];
+
+/**
+ * The folders a first scan offers: Documents, Desktop and Downloads, where they exist. `pathOf`
+ * says where this computer keeps each one: the main process gives Electron's `app.getPath`, which
+ * follows a folder Windows has moved (OneDrive's backup puts Documents and Desktop under
+ * `OneDrive\`). Without it, each is looked for by its name in the home folder.
+ */
 export async function defaultRoots(
-  home = NodeOS.homedir(),
+  pathOf: (name: StudioImportRootName) => string = (name) =>
+    NodePath.join(NodeOS.homedir(), DEFAULT_ROOTS.find((root) => root.name === name)!.label),
 ): Promise<ReadonlyArray<{ readonly label: string; readonly path: string }>> {
   const roots: { label: string; path: string }[] = [];
-  for (const label of ["Documents", "Desktop", "Downloads"]) {
-    const path = NodePath.join(home, label);
+  for (const { label, name } of DEFAULT_ROOTS) {
     try {
+      const path = pathOf(name);
       if ((await NodeFSP.stat(path)).isDirectory()) roots.push({ label, path });
     } catch {
-      // Not on this computer.
+      // Not on this computer, or the system could not say where it is.
     }
   }
   return roots;

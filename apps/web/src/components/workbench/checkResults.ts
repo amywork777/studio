@@ -50,6 +50,12 @@ export interface CheckIssue {
   readonly summary: string;
   /** What the check says to change, when it names a fix. */
   readonly fix: string | null;
+  /**
+   * It is about the run, not the part (text-to-cad's `solver_note`: a slow solve, a finer solve
+   * skipped, pictures not drawn). Listed with its result, after the rest, and no part of the
+   * result's status, its headline or the project's open issues.
+   */
+  readonly note?: true;
 }
 
 export interface CheckResult {
@@ -64,7 +70,7 @@ export interface CheckResult {
   readonly status: CheckStatus;
   /** The verdict in a line: "1 to fix · shrinkage hot spot", "Ready to cast". */
   readonly headline: string;
-  /** Errors first, then warnings. */
+  /** Errors first, then warnings, then notes about the run (`CheckIssue.note`). */
   readonly issues: ReadonlyArray<CheckIssue>;
   /** When the result was written (seconds), when its file says. */
   readonly written?: number;
@@ -73,6 +79,13 @@ export interface CheckResult {
 }
 
 const STATUS_RANK: Record<CheckStatus, number> = { fix: 2, warnings: 1, ready: 0 };
+
+/** The `code` text-to-cad gives a finding about the run itself (its FEA skill's table of codes). */
+const RUN_NOTE = "solver_note";
+
+/** Errors first, then warnings, then notes about the run. */
+const issueRank = (issue: CheckIssue) =>
+  issue.severity === "error" ? 0 : issue.note === true ? 2 : 1;
 
 const baseName = (path: string) => path.replaceAll("\\", "/").split("/").at(-1) ?? path;
 
@@ -119,16 +132,19 @@ export function parseCheckResult(
       const summary = text(finding.summary) ?? text(finding.message);
       if ((severity !== "error" && severity !== "warning") || summary === null) return [];
       const fix = isRecord(finding.fix) ? text(finding.fix.summary) : text(finding.hint);
-      return [{ severity, summary, fix }];
+      const note = severity === "warning" && finding.code === RUN_NOTE;
+      return [note ? { severity, summary, fix, note } : { severity, summary, fix }];
     })
-    .toSorted((a, b) => (a.severity === b.severity ? 0 : a.severity === "error" ? -1 : 1));
+    .toSorted((a, b) => issueRank(a) - issueRank(b));
+  // What the check found on the part: a note about the run is neither a warning nor the verdict.
+  const found = issues.filter((issue) => issue.note !== true);
 
   const verdict = isRecord(data.verdict) ? data.verdict : null;
-  const errors = issues.filter((issue) => issue.severity === "error").length;
+  const errors = found.filter((issue) => issue.severity === "error").length;
   const status: CheckStatus =
     verdict?.status === "fix" || (verdict === null && errors > 0)
       ? "fix"
-      : issues.length > 0
+      : found.length > 0
         ? "warnings"
         : "ready";
 
@@ -181,7 +197,7 @@ export function parseCheckResult(
     status,
     headline:
       (verdict === null ? null : text(verdict.headline)) ??
-      issues[0]?.summary ??
+      found[0]?.summary ??
       (fea && safety !== null
         ? `Holds the load, safety factor ${safety.toFixed(safety < 10 ? 1 : 0)}`
         : "Passed every check"),

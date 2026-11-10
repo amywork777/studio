@@ -87,6 +87,22 @@ export function plainRestoreError(error: string): string {
   return "Studio couldn't restore that version.";
 }
 
+/**
+ * Whether there are no versions because the project's folder keeps no history: the CAD service
+ * says so with the folder's full path and git's words ("… keeps no versions: it is not a git
+ * repository"). An imported folder is like this until Keep versions starts its history.
+ */
+export function keepsNoVersions(error: string | null | undefined): boolean {
+  return typeof error === "string" && /not a git repository/i.test(error);
+}
+
+/** Why there are no versions, in plain words. */
+export function plainVersionsError(error: string | null | undefined): string {
+  return keepsNoVersions(error)
+    ? "No versions are kept in this project's folder yet, so a change the agent makes can't be restored."
+    : "Studio couldn't read the versions.";
+}
+
 /** A size in a part's script, as the CAD service reads it: `HOOK_DEPTH = 40`. */
 export interface NamedSize {
   readonly name: string;

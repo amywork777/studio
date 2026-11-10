@@ -2,7 +2,7 @@
 
 ## What it is
 
-A desk stand for a phone, printed in one piece in PLA on a Bambu Lab P1S: a sample project to learn Studio with. It holds a phone up to 80 mm wide and 12 mm thick in its case, leaning back at 65° from the desk, in portrait or landscape. The phone's back lies on the rest and its bottom edge on a ledge square to it, with an 8 mm lip in front. A charging cable's plug goes down through a slot in the ledge, and the cable runs along the base and out the back under the rest. It prints on its side with nothing to support, warps 0.317 mm off the plate, and stands a 1.05 N tap at the top of the screen with a 150 g phone in portrait before it tips.
+A desk stand for a phone, printed in one piece in PLA on a Bambu Lab P1S: an example project to learn Studio with. It holds a phone up to 80 mm wide and 12 mm thick in its case, leaning back at 65° from the desk, in portrait or landscape. The phone's back lies on the rest and its bottom edge on a ledge square to it, with an 8 mm lip in front. A charging cable's plug goes down through a slot in the ledge, and the cable runs along the base and out the back under the rest. It prints on its side with nothing to support, and stands a 1.05 N tap at the top of the screen with a 150 g phone in portrait before it tips.
 
 ## Decisions
 
@@ -28,7 +28,7 @@ A desk stand for a phone, printed in one piece in PLA on a Bambu Lab P1S: a samp
 
 - The models: [the phone stand](parts/phone_stand.py), [as it prints](parts/phone_stand_print.py) and [with a phone in it](assemblies/phone_stand_portrait.py), with [the models' catalog](parts/README.md).
 - Their files, from [`exports.py`](exports.py): [the stand's STEP](parts/phone_stand.step), [as it prints, STL](parts/phone_stand_print.stl) and [3MF](parts/phone_stand_print.3mf), and [the stand with a phone in it](assemblies/phone_stand_portrait.step).
-- The checks: [FDM printability](parts/phone_stand_fdm.md) and [mass, fit and tip-over](docs/phone_stand_mass_and_tip.md).
+- The checks: [FDM printability](parts/phone_stand_fdm.md), [powder printing (SLS or MJF)](parts/phone_stand_powder.md) and [mass, fit and tip-over](docs/phone_stand_mass_and_tip.md).
 - Making it: [the slicing notes and presets](manufacturing/phone_stand_slice.md) and [the drawing](drawings/phone_stand_drawing.pdf).
 - The documents: [PRD](docs/prd.md).
 - Pictures: [with a phone](pictures/phone_stand_portrait_angle.png), [from the side](pictures/phone_stand_portrait_side.png), [the stand](pictures/phone_stand_angle.png), [from the back](pictures/phone_stand_back.png) and [as it prints](pictures/phone_stand_as_printed.png).

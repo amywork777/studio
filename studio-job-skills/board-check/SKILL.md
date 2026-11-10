@@ -13,4 +13,4 @@ the `pcb` skill: read that skill first and follow it, then do what the person as
 The board is the one the person names, else the one open beside the chat.
 Ask which when neither says.
 
-What they get: KiCad's rule checks, each finding with where it is on the board or schematic and the fix.
+What they get: KiCad's rule checks, each finding with where it is on the board or schematic and the fix. Downloads its board tools on first use, about 100 MB.

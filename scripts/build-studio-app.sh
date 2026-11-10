@@ -16,7 +16,7 @@
 # Run it from a checkout set up with scripts/setup-studio.sh (on Windows, the steps in
 # .github/workflows/studio-windows.yml), with Rust's cargo installed for the desktop build. It
 # stages build/studio-bundle (the CAD tools' Python, the FEA solver, their plugin and page, the
-# sample project and studio.json), which the desktop build copies into the app's resources (scripts/lib/studio-app.ts)
+# sample project, the license notices and studio.json), which the desktop build copies into the app's resources (scripts/lib/studio-app.ts)
 # and which the app sets itself up from on each start (apps/desktop/src/studio/studioAppBundle.ts).
 #
 #   scripts/build-studio-app.sh [version]    (0.1.0 when left out)
@@ -66,6 +66,22 @@ rust="$(rustc --version 2>/dev/null | awk '{print $2}')"
 rust_minor="$(printf '%s' "$rust" | cut -d. -f2)"
 [ "${rust%%.*}" = 1 ] && [ "${rust_minor:-0}" -ge 95 ] ||
   stop "The desktop build needs Rust 1.95 or newer; this computer has ${rust:-none}. Run rustup update stable, or install 1.95 and set RUSTUP_TOOLCHAIN=1.95."
+# The app carries Electron's license and Chromium's as files (the bundle's licenses folder, below).
+# A Windows app has both beside Studio.exe already, where electron-builder leaves them; from a Mac
+# app it takes them out, so a Mac build copies them from the Electron this checkout installed, the
+# version the app is built on. Looked for now, so a build that lacks them stops in its first second.
+electron_notices=""
+if [ "$platform" = mac ]; then
+  electron="$(node -p 'require(process.argv[1]).dependencies.electron' "$ROOT/apps/desktop/package.json")"
+  for dist in "$ROOT"/node_modules/.pnpm/electron@"$electron"*/node_modules/electron/dist; do
+    if [ -f "$dist/LICENSE" ] && [ -f "$dist/LICENSES.chromium.html" ]; then
+      electron_notices="$dist"
+      break
+    fi
+  done
+  [ -n "$electron_notices" ] ||
+    stop "Electron $electron's license files are not in this checkout (node_modules/.pnpm/electron@$electron/node_modules/electron/dist). Run scripts/setup-studio.sh again."
+fi
 signed=false
 if [ "${STUDIO_SIGN:-}" = 1 ] && [ "$platform" = mac ]; then
   security find-identity -v -p codesigning | grep -q "Developer ID Application" ||
@@ -209,6 +225,19 @@ JSON
 # The finished sample projects (`T3CODE_SAMPLES_DIR` points here), which Examples copies into new projects.
 step "Copying the examples"
 cp -R "$ROOT/studio-sample" "$BUNDLE/sample"
+
+# The notices the app carries as files, in its resources' studio/licenses: T3 Code's, whose app
+# Studio is built on, and on a Mac Electron's and Chromium's (found above), under the names
+# electron-builder gives them on Windows. The CAD tools' Python and its packages keep theirs where
+# they are installed (the bundle's python folder), and Settings, About, View licenses shows notices
+# in the app itself.
+step "Copying the license notices"
+mkdir -p "$BUNDLE/licenses"
+cp "$ROOT/LICENSE" "$BUNDLE/licenses/LICENSE.t3code.txt"
+if [ -n "$electron_notices" ]; then
+  cp "$electron_notices/LICENSE" "$BUNDLE/licenses/LICENSE.electron.txt"
+  cp "$electron_notices/LICENSES.chromium.html" "$BUNDLE/licenses/LICENSES.chromium.html"
+fi
 
 step "Building the app"
 cd "$ROOT"

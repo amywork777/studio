@@ -26,6 +26,7 @@ import { jobOfSkill } from "../jobSkills";
 import { useEngineeringInterface } from "../studioInterface";
 import {
   availability,
+  entryNeeds,
   findItIn,
   LIBRARY_DOCUMENTS,
   type LibraryDocument,
@@ -253,7 +254,7 @@ function LibraryContent(props: {
       }
       name={entryName(entry, skillLabel)}
       {...(entry.kind === "skill" ? { blurb: entry.blurb } : {})}
-      note={offNote(entry)}
+      note={offNote(entry) ?? entryNeeds(entry)}
       onOpen={() => openEntry(entry.id)}
     />
   );

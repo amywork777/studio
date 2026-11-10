@@ -1,9 +1,11 @@
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useSyncExternalStore } from "react";
 
 import { onPluginViewCall, type PluginViewCall } from "../plugins/pluginViewCalls";
 import { readViewSync, type ShownView } from "./partContext";
+import { modelShown } from "./useFolderModels";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
 /**
@@ -30,6 +32,9 @@ export function noteViewCall(call: PluginViewCall) {
   // A sync a second mostly says nothing new: only a change wakes the strip.
   if (sameView(shownByThread.get(key), shown)) return;
   shownByThread.set(key, shown);
+  // A model at a new build: what each list holds of when it was built is read again, so a result
+  // of the build before says its part changed (`shownResultOutOfDate`).
+  if (isDocumentId(shown.path)) modelShown(shown.path, shown.revision);
   for (const listener of listeners) listener();
 }
 

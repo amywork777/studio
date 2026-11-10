@@ -9,6 +9,7 @@ import { HARDWARE_ACTIONS } from "../hardwareActions";
 import { DOCUMENT_TEMPLATES, NEW_TEMPLATES, type NewTemplate } from "../newTemplates";
 import {
   availability,
+  entryNeeds,
   entryOfAction,
   entryOfTemplate,
   findItIn,
@@ -54,13 +55,7 @@ const ownWords = (skill: string) =>
   );
 
 /** The sample's outputs that could not be made, so their entries show no example. */
-const NOT_MADE = [
-  "doc:print",
-  "doc:circuit-board",
-  "skill:text-to-cad/pcb",
-  "skill:text-to-cad/print3d",
-  "skill:text-to-cad/work-instructions",
-];
+const NOT_MADE = ["doc:print", "skill:text-to-cad/print3d"];
 
 const EXAMPLES: Readonly<Record<string, { sample?: string; example: string } | null>> =
   libraryExamples;
@@ -332,6 +327,7 @@ describe("library catalog", () => {
   it("shows each skill where New and the menus offer it", () => {
     expect(showsUpAs("print3d")).toEqual(["Manufacturing: Slice and print"]);
     expect(showsUpAs("pcb")).toEqual([
+      "New: Circuit board",
       "Analysis: Board checks, Review before ordering",
       "Manufacturing: Fabrication files, Board STEP",
     ]);
@@ -426,6 +422,22 @@ describe("Studio's job skills on the Toolbox page (jobSkills.ts)", () => {
       ...exampleOfEntry("doc:manufacturing-check"),
     });
     expect(tileOf("board-fab")?.blurb).toBe("With the PCB skill");
+  });
+
+  it("says what a tile needs first, where every job behind it needs the same thing", () => {
+    const all = [...librarySkills([textToCad(true)]), ...tiles];
+    const needs = (name: string) => {
+      const tile = all.find((each) => each.name === name);
+      return tile === undefined ? undefined : entryNeeds(tile);
+    };
+    const boardTools = "Downloads its board tools on first use, about 100 MB.";
+    expect(needs("board-fab")).toBe(boardTools);
+    expect(needs("pcb")).toBe(boardTools);
+    expect(needs("print3d")).toBe("Needs OrcaSlicer installed.");
+    expect(needs("cam")).toBe("Needs FreeCAD 1.1 or newer installed.");
+    expect(needs("cad")).toBeNull();
+    expect(needs("fdm")).toBeNull();
+    expect(entryNeeds({ ...tiles[0]!, pluginId: "harnesses" })).toBeNull();
   });
 
   it("says where its job shows up", () => {

@@ -9,7 +9,8 @@ import {
   TooltipRich,
   TooltipTrigger,
 } from "../ui/tooltip";
-import type { HardwareAction } from "./hardwareActions";
+import { jobLine, type HardwareAction } from "./hardwareActions";
+import type { NewTemplate } from "./newTemplates";
 import type { ToolboxSection } from "./toolbox";
 import { GROUP_LABEL } from "./studioLayout";
 import { MENU_TINTS } from "./kinds";
@@ -33,7 +34,18 @@ export function SectionJobs(props: {
   readonly section: ToolboxSection;
   /** No chat to write the job into. */
   readonly disabled: boolean;
+  /**
+   * Why a job can't run on the file in front, by what it works on (`toolboxWorksOn`); null for one
+   * that can. Its tile stays where it is, dimmed, and says so on a pause over it.
+   */
+  readonly worksOn: (action: HardwareAction) => string | null;
+  /**
+   * New's start for what a job works on, where the project has none of it (`toolboxStart`): its
+   * dimmed tile takes a press then, and opens New there (`onStart`).
+   */
+  readonly startFor: (action: HardwareAction) => NewTemplate | null;
   readonly onRun: (action: HardwareAction) => void;
+  readonly onStart: (template: NewTemplate) => void;
 }) {
   const lone = props.section.actions.length === 1;
   return (
@@ -49,7 +61,10 @@ export function SectionJobs(props: {
             action={action}
             icon={toolIcon(action)}
             disabled={props.disabled}
+            worksOn={props.worksOn(action)}
+            start={props.startFor(action)}
             onRun={() => props.onRun(action)}
+            onStart={props.onStart}
           />
         ))}
       </div>
@@ -57,32 +72,52 @@ export function SectionJobs(props: {
   );
 }
 
+/** A tile's box, and how one that can be pressed answers the pointer. */
+const TILE =
+  "flex aspect-square min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background p-2 text-center outline-none transition-[border-color,background-color,scale] duration-150 dark:bg-input/32 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64 motion-reduce:transition-none";
+const TILE_LIVE =
+  "enabled:hover:border-foreground/25 enabled:hover:bg-accent/50 dark:enabled:hover:bg-input/64 enabled:active:scale-97 enabled:active:bg-accent motion-reduce:enabled:active:scale-100";
+
 /**
  * A job as a tool to pick up: a square tile, its own picture (`toolIcon`) in its tab's hue over its
  * name in three lines' room, so a long name is read whole and names of any length sit level across a row. Its name and
  * what it makes show on a pause over it and is the tile's description for readers. A press sends
- * the job (`onRun`).
+ * the job (`onRun`). One whose job does not fit the file in front (`worksOn`) is dimmed in its
+ * place, as NX greys a command out, takes no press, and says what it works on instead; where the
+ * project has none of that and New makes it (`start`), a press opens New there.
  */
 function ToolTile(props: {
   readonly action: HardwareAction;
   /** Its picture (`toolIcon`). */
   readonly icon: LucideIcon;
   readonly disabled: boolean;
+  readonly worksOn: string | null;
+  readonly start: NewTemplate | null;
   readonly onRun: () => void;
+  readonly onStart: (template: NewTemplate) => void;
 }) {
-  const { action, icon: Icon } = props;
+  const { action, icon: Icon, worksOn, start } = props;
   const describedBy = useId();
+  const fits = worksOn === null;
+  // Dimmed either way; a start is still pressed, the way to make what the job works on.
+  const starts = !fits && start !== null;
   return (
     <Tooltip>
       <TooltipTrigger
         delay={RICH_TOOLTIP_DELAY}
         render={
+          // A disabled button takes no pointer, so one that does not fit is only marked disabled
+          // and its tooltip can still say why.
           <button
             type="button"
-            disabled={props.disabled}
-            onClick={props.onRun}
+            disabled={fits && props.disabled}
+            aria-disabled={fits || starts ? undefined : true}
+            onClick={fits ? props.onRun : starts ? () => props.onStart(start) : undefined}
             aria-describedby={describedBy}
-            className="flex aspect-square min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background p-2 text-center outline-none transition-[border-color,background-color,scale] duration-150 dark:bg-input/32 enabled:hover:border-foreground/25 enabled:hover:bg-accent/50 dark:enabled:hover:bg-input/64 enabled:active:scale-97 enabled:active:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64 motion-reduce:transition-none motion-reduce:enabled:active:scale-100"
+            className={cn(
+              TILE,
+              fits ? TILE_LIVE : starts ? cn(TILE_LIVE, "opacity-64") : "cursor-default opacity-64",
+            )}
           />
         }
       >
@@ -95,11 +130,15 @@ function ToolTile(props: {
           {action.label}
         </span>
         <span id={describedBy} hidden>
-          {action.gets}
+          {worksOn ?? jobLine(action)}
         </span>
       </TooltipTrigger>
       <TooltipPopup side="left">
-        <TooltipRich title={action.label} description={action.gets} />
+        <TooltipRich
+          title={action.label}
+          description={jobLine(action)}
+          {...(worksOn === null ? {} : { note: worksOn })}
+        />
       </TooltipPopup>
     </Tooltip>
   );

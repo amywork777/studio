@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { hardwareActions } from "./hardwareActions";
+import { HARDWARE_ACTIONS, hardwareActions } from "./hardwareActions";
 import {
   jobCount,
   pairLoneSections,
@@ -8,9 +8,10 @@ import {
   toolboxFolded,
   toolboxNarrowRem,
   toolboxGroups,
+  toolboxStart,
   toolboxLeftOut,
   toolboxLibraryLink,
-  toolboxShownGroup,
+  toolboxWorksOn,
   writeToolboxTab,
 } from "./toolbox";
 
@@ -130,37 +131,77 @@ describe("toolboxLibraryLink", () => {
   });
 });
 
-describe("the Toolbox on a file that is not a part", () => {
-  const SKILLS = new Set(["fea", "cad", "cam", "sendcutsend"]);
-  const groupsFor = (kind: string) => toolboxGroups(hardwareActions(kind, SKILLS));
-  const labels = (kind: string, tab: Parameters<typeof toolboxShownGroup>[1]) =>
-    toolboxShownGroup(groupsFor(kind), tab)?.sections.flatMap((section) =>
-      section.actions.map((action) => action.label),
-    );
+describe("the Toolbox, whatever file is in front", () => {
+  const SKILLS = new Set(["fea", "cad", "cam", "sendcutsend", "pcb"]);
+  const groups = toolboxGroups(hardwareActions(null, SKILLS));
+  const group = (name: (typeof groups)[number]["group"]) =>
+    groups.find((entry) => entry.group === name)!;
+  const job = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)!;
 
-  it("stays on the group left open where it has jobs", () => {
-    expect(toolboxShownGroup(groupsFor("Part"), "Manufacture")?.group).toBe("Manufacture");
-    expect(labels("CAM job", "Manufacture")).toEqual(["G-code for CNC"]);
+  it("holds every job the skills can do, a board's beside a part's", () => {
+    const labels = groups.flatMap((entry) =>
+      entry.sections.flatMap((section) => section.actions.map((action) => action.label)),
+    );
+    const offered = HARDWARE_ACTIONS.filter(
+      (action) => action.skill === null || SKILLS.has(action.skill),
+    ).map((action) => action.label);
+    expect(labels.toSorted()).toEqual(offered.toSorted());
+    expect(labels).toContain("Board checks");
+    expect(labels).toContain("Strength under load");
   });
 
-  it("opens on a group with jobs where the one left open has none for this kind", () => {
-    expect(toolboxShownGroup(groupsFor("CAM job"), "Evaluate")?.group).toBe("Manufacture");
-    // A study's result, however it is named: its jobs are the study's, not a mesh's to print.
-    expect(toolboxShownGroup(groupsFor("Result"), "Manufacture")?.group).toBe("Evaluate");
-    expect(labels("Drawing", "Evaluate")).toEqual(["Flat pattern DXF", "Check for SendCutSend"]);
-    expect(labels("Document", "Manufacture")).toEqual(["Write up the results"]);
+  it("lets a job run on a file it fits", () => {
+    expect(toolboxWorksOn(job("board-check"), "Schematic")).toBeNull();
+    expect(toolboxWorksOn(job("strength"), "Result")).toBeNull();
+    expect(toolboxWorksOn(job("write-up"), "Document")).toBeNull();
   });
 
-  it("says what is left out, and what to open for it", () => {
-    expect(toolboxLeftOut(groupsFor("Part"), "Part")).toBeNull();
-    expect(toolboxLeftOut(groupsFor("CAM job"), "CAM job")).toBe(
-      "No Analysis jobs for this CAM job. Open a part to see them.",
+  it("says what a job works on where it does not fit the file in front", () => {
+    expect(toolboxWorksOn(job("board-check"), "Part")).toBe(
+      "Works on a board or a schematic. Open one to use it.",
     );
-    expect(toolboxLeftOut(groupsFor("Drawing"), "Drawing")).toBe(
-      "No Analysis jobs for this drawing. Open a part to see them.",
+    expect(toolboxWorksOn(job("fit"), "Part")).toBe("Works on an assembly. Open one to use it.");
+    expect(toolboxWorksOn(job("toolpaths"), "Board")).toBe(
+      "Works on a part or a CAM job. Open one to use it.",
     );
-    expect(toolboxLeftOut(groupsFor("Document"), "Document")).toBe(
-      "No Analysis or Manufacturing jobs for this document. Open a part to see them.",
+    expect(toolboxWorksOn(job("strength"), "Board")).toBe(
+      "Works on a part, an assembly, an FEA study, or a result. Open one to use it.",
     );
+  });
+
+  it("says what every job works on with no file open yet", () => {
+    expect(toolboxWorksOn(job("board-fab"), null)).toBe("Works on a board. Open one to use it.");
+    expect(toolboxWorksOn(job("write-up"), null)).toBe("Works on any file. Open one to use it.");
+  });
+
+  it("starts what a job works on, with New, where the project has none of it", () => {
+    const kinds = (...names: ReadonlyArray<string>) => new Set(names);
+    expect(toolboxStart(job("board-check"), kinds("Part"))?.id).toBe("board");
+    expect(toolboxStart(job("fit"), kinds("Part"))?.id).toBe("assembly");
+    expect(toolboxStart(job("board-check"), kinds())?.id).toBe("board");
+    const board = toolboxStart(job("board-fab"), kinds("Part"));
+    expect(toolboxWorksOn(job("board-fab"), "Part", board)).toBe(
+      "Works on a board. This project has none yet: press to start one.",
+    );
+  });
+
+  it("leaves a job to the file it works on where the project has one, or New makes none", () => {
+    const kinds = (...names: ReadonlyArray<string>) => new Set(names);
+    expect(toolboxStart(job("board-check"), kinds("Part", "Schematic"))).toBeNull();
+    expect(toolboxStart(job("fit"), kinds("Assembly"))).toBeNull();
+    expect(toolboxStart(job("write-up"), kinds())).toBeNull();
+  });
+
+  it("says so under a group none of whose jobs fit the file", () => {
+    expect(toolboxLeftOut(group("Evaluate"), "Part")).toBeNull();
+    expect(toolboxLeftOut(group("Manufacture"), "CAM job")).toBeNull();
+    expect(toolboxLeftOut(group("Evaluate"), "CAM job")).toBe(
+      "None of these work on this CAM job. Pause on one to see what it works on.",
+    );
+    expect(toolboxLeftOut(group("Manufacture"), "Schematic")).toBe(
+      "None of these work on this schematic. Pause on one to see what it works on.",
+    );
+    // Write up the results works on any file.
+    expect(toolboxLeftOut(group("Document"), "Document")).toBeNull();
   });
 });

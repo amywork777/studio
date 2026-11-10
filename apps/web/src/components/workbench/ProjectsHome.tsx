@@ -13,6 +13,7 @@ import { Input } from "../ui/input";
 import { SidebarInset } from "../ui/sidebar";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { GitInstallSteps } from "./GitInstallSteps";
 import { ImportDialogHost } from "./ImportDialog";
 import { ImportDropZone } from "./ImportDropZone";
 import { ImportMenu } from "./ImportMenu";
@@ -161,7 +162,8 @@ function ProjectsHomeFor(props: { readonly environmentId: EnvironmentId }) {
                       {list.git
                         ? ", which keeps every change as a version you can go back to."
                         : // oxlint-disable-next-line t3code/studio-engineering-words -- Names the program the person must install.
-                          ". Install git to give each one its own history."}
+                          ". Install git to give each one its own history. "}
+                      {list.git ? null : <GitInstallSteps environmentId={environmentId} />}
                     </>
                   )
                 }

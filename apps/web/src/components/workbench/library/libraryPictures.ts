@@ -124,7 +124,7 @@ const SKILL_COVERS: Readonly<Record<string, string>> = {
   pmi: "pmi",
   exploded: "exploded",
   pictures: "views",
-  "motion-video": "motion-video",
+  "play-motion": "motion-video",
 };
 
 const skillCover = (entryId: string) => {

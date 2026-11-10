@@ -76,13 +76,38 @@ describe("scanFolder", () => {
 });
 
 describe("defaultRoots", () => {
+  const LABELS = { documents: "Documents", desktop: "Desktop", downloads: "Downloads" };
+
   it("offers Documents, Desktop and Downloads where they exist", async () => {
     await NodeFSP.mkdir(NodePath.join(home, "Documents"));
     await NodeFSP.mkdir(NodePath.join(home, "Downloads"));
-    expect((await defaultRoots(home)).map((root) => root.label)).toEqual([
-      "Documents",
-      "Downloads",
+    expect(
+      (await defaultRoots((name) => NodePath.join(home, LABELS[name]))).map((root) => root.label),
+    ).toEqual(["Documents", "Downloads"]);
+  });
+
+  it("looks where the system says each folder is, not in the home folder", async () => {
+    // As OneDrive's folder backup leaves a Windows PC: Documents and Desktop moved under OneDrive.
+    const moved = NodePath.join(home, "OneDrive");
+    await NodeFSP.mkdir(NodePath.join(moved, "Documents"), { recursive: true });
+    await NodeFSP.mkdir(NodePath.join(moved, "Desktop"));
+    await NodeFSP.mkdir(NodePath.join(home, "Downloads"));
+    const pathOf = (name: keyof typeof LABELS) =>
+      NodePath.join(name === "downloads" ? home : moved, LABELS[name]);
+    expect(await defaultRoots(pathOf)).toEqual([
+      { label: "Documents", path: NodePath.join(moved, "Documents") },
+      { label: "Desktop", path: NodePath.join(moved, "Desktop") },
+      { label: "Downloads", path: NodePath.join(home, "Downloads") },
     ]);
+  });
+
+  it("leaves out a folder the system cannot place", async () => {
+    await NodeFSP.mkdir(NodePath.join(home, "Documents"));
+    const pathOf = (name: keyof typeof LABELS) => {
+      if (name !== "documents") throw new Error(`Failed to get '${name}' path`);
+      return NodePath.join(home, LABELS[name]);
+    };
+    expect((await defaultRoots(pathOf)).map((root) => root.label)).toEqual(["Documents"]);
   });
 });
 

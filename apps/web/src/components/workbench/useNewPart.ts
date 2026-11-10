@@ -9,6 +9,8 @@ import { studioProjectsEnvironment } from "~/state/studioProjects";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { toastManager } from "../ui/toast";
+import { buildErrorLine } from "./buildErrorLine";
+import { cadToolsCause } from "./cadToolsCause";
 import { plainError } from "./importIntoProject";
 import {
   buildPart,
@@ -21,6 +23,7 @@ import {
   starterScript,
 } from "./newPart";
 import { showOverview } from "./overviewPanel";
+import { ADVANCED_SETTINGS_LABEL, isEngineeringInterface } from "./studioInterface";
 import { useCreateStudioProject } from "./useCreateStudioProject";
 import { useOneAtATime } from "./useOneAtATime";
 import { modelsChanged } from "./useFolderModels";
@@ -63,9 +66,18 @@ const TOOLS_POLL_MS = 500;
 const inside = (folder: string, path: string) => `${folder.replace(/[\\/]+$/, "")}/${path}`;
 
 /**
+ * Where Settings lists text-to-cad with its switch: the Plugins page, which the engineering
+ * interface keeps under Advanced (`ADVANCED_SETTINGS_SECTIONS`).
+ */
+const pluginsPlace = () =>
+  isEngineeringInterface() ? `Settings, ${ADVANCED_SETTINGS_LABEL}, Plugins` : "Settings, Plugins";
+
+/**
  * Builds a part's script (absolute) through Studio's CAD service (`buildPart`, the environment's
  * server: a new chat is still a draft), waiting first for the CAD service while it comes on with the
- * app; a built part is listed on Home, ⌘K and the Overview at once. New part's build, and a copied
+ * app; a built part is listed on Home, ⌘K and the Overview at once. A service that never came on
+ * says why when its start said one of the two causes a person can act on (`cadToolsCause`), and a
+ * build that failed says its error alone (`buildErrorLine`). New part's build, and a copied
  * example's.
  */
 export function useBuildPart(environmentId: EnvironmentId | null) {
@@ -73,23 +85,38 @@ export function useBuildPart(environmentId: EnvironmentId | null) {
   // The build reads the service as it is when it asks, so one started while the tools come on waits.
   const current = useRef(service);
   current.current = service;
-  return useCallback(async (script: string): Promise<BuiltPart> => {
-    const deadline = Date.now() + TOOLS_WAIT_MS;
-    while (current.current === null && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, TOOLS_POLL_MS));
-    }
-    const post = current.current;
-    if (post === null) {
-      return {
-        error:
-          "Studio's CAD service did not start. Turn text-to-cad on in Settings, Plugins, then press Build again.",
-      };
-    }
-    const built = await buildPart({ post, script });
-    // Home's tiles, ⌘K and the Overview list it now.
-    if ("id" in built) modelsChanged();
-    return built;
-  }, []);
+  const listPlugins = useAtomQueryRunner(pluginEnvironment.list, {
+    reportFailure: false,
+    refresh: true,
+  });
+  return useCallback(
+    async (script: string): Promise<BuiltPart> => {
+      const deadline = Date.now() + TOOLS_WAIT_MS;
+      while (current.current === null && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, TOOLS_POLL_MS));
+      }
+      const post = current.current;
+      if (post === null) {
+        // Why a plugin's server did not start, as the server says it now.
+        const listed =
+          environmentId === null ? null : await listPlugins({ environmentId, input: {} });
+        const cause = (listed?._tag === "Success" ? listed.value.plugins : [])
+          .filter((plugin) => plugin.enabled)
+          .flatMap((plugin) => plugin.servers.map((server) => cadToolsCause(server.error)))
+          .find((sentence) => sentence !== null);
+        return {
+          error:
+            cause ??
+            `Studio's CAD service did not start. Turn text-to-cad on in ${pluginsPlace()}, then press Build again.`,
+        };
+      }
+      const built = await buildPart({ post, script });
+      // Home's tiles, ⌘K and the Overview list it now.
+      if ("id" in built) modelsChanged();
+      return "error" in built ? { error: buildErrorLine(built.error) } : built;
+    },
+    [environmentId, listPlugins],
+  );
 }
 
 /**

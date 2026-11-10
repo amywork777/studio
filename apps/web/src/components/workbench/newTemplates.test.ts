@@ -96,9 +96,31 @@ describe("new templates", () => {
       "part",
       "assembly",
       "sheet-metal",
+      "board",
       "drawing",
-      "strength-study",
     ]);
+  });
+
+  it("starts a circuit board as KiCad's own files, on the board skill", () => {
+    expect(offerOf("board")?.availability).toEqual({
+      on: false,
+      skill: "pcb",
+      plugin: "text-to-cad",
+      installed: false,
+    });
+    expect(onWith(["pcb"]).map((entry) => entry.label)).toContain("Circuit board");
+    expect(
+      newWorkPrompt({
+        template: template("board"),
+        name: "Sensor board",
+        folder: "electronics",
+        units: "mm",
+        part: null,
+        description: "USB-C in, a 3.3 V regulator and one LED",
+      }),
+    ).toBe(
+      "Create a new KiCad circuit board, electronics/sensor_board.kicad_pcb, with its schematic beside it, its title block filled in (the board's name, date and revision). Give its sizes in millimeters. USB-C in, a 3.3 V regulator and one LED.",
+    );
   });
 
   it("works from the chosen part for a study, a CAM job or a drawing", () => {

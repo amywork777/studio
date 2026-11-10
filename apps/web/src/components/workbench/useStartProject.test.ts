@@ -21,10 +21,11 @@ describe("a project started from New on Home", () => {
 });
 
 describe("the kind of project New starts", () => {
-  it("reaches every kind New has work for: part, product and robot", () => {
+  it("reaches every kind New has work for: part, product, circuit board and robot", () => {
     expect(projectKindFor("part").id).toBe("part");
     expect(projectKindFor("sheet-metal").id).toBe("part");
     expect(projectKindFor("assembly").id).toBe("product");
+    expect(projectKindFor("board").id).toBe("board");
     expect(projectKindFor("robot").id).toBe("robot");
     expect(projectKindFor("prd").id).toBe("part");
   });

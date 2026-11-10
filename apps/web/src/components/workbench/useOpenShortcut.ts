@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import { formatShortcutLabel } from "~/keybindings";
 import { isMacPlatform } from "~/lib/utils";
 
 /**
@@ -8,6 +9,13 @@ import { isMacPlatform } from "~/lib/utils";
  * It takes the chord before T3 Code's own binding for it (open the folder in an editor), which is
  * a coding tool's.
  */
+/** The chord as this keyboard names it: \u2318O on a Mac, Ctrl+O on Windows. */
+export const openShortcutLabel = (platform: string = navigator.platform): string =>
+  formatShortcutLabel(
+    { key: "o", modKey: true, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false },
+    platform,
+  );
+
 export function useOpenShortcut(onOpen: () => void): void {
   useEffect(() => {
     const mac = isMacPlatform(navigator.platform);

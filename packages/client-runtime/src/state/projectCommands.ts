@@ -203,6 +203,16 @@ export function createProjectEnvironmentAtoms<R, E>(
       scheduler: projectScheduler,
       concurrency: { mode: "serial", key: ({ environmentId }) => environmentId },
     }),
+    // Starts a history in a project folder that keeps none, one folder at a time.
+    startHistory: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:projects:start-history",
+      tag: WS_METHODS.projectsStartHistory,
+      scheduler: projectScheduler,
+      concurrency: {
+        mode: "serial",
+        key: ({ environmentId, input }) => JSON.stringify([environmentId, input.cwd]),
+      },
+    }),
     writeFile: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:projects:write-file",
       tag: WS_METHODS.projectsWriteFile,

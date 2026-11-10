@@ -7,15 +7,14 @@ const OS_NAMES = { darwin: "macOS", windows: "Windows", linux: "Linux", unknown:
 
 /**
  * A new issue on Studio's tracker with what a fix needs already filled in: the version, the
- * text-to-cad it includes where it names one, the machine, and the usage id when this machine
- * sends counts, so its counts can be found.
+ * text-to-cad it includes where it names one, and the machine. Never the usage id: the tracker is
+ * public, and the id there would tie this machine's anonymous counts to a name.
  */
 export function reportProblemUrl(input: {
   readonly appName: string;
   readonly version: string;
   readonly textToCadVersion: string | null;
   readonly platform: Pick<ExecutionEnvironmentPlatform, "os" | "arch"> | null;
-  readonly usageId: string | null;
 }): string {
   const machine =
     input.platform === null
@@ -32,7 +31,6 @@ export function reportProblemUrl(input: {
     `${input.appName} ${input.version}`,
     ...(input.textToCadVersion === null ? [] : [`text-to-cad: ${input.textToCadVersion}`]),
     `Machine: ${machine}`,
-    ...(input.usageId === null ? [] : [`Usage ID: ${input.usageId}`]),
   ].join("\n");
   return `${STUDIO_NEW_ISSUE_URL}?${new URLSearchParams({ body }).toString()}`;
 }

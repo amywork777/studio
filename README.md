@@ -35,6 +35,18 @@ list differ):
 - `cad.model.opened`, `cad.hand_edit`, `cad.size.changed`, `cad.size.added`,
   `cad.versions.compared`, `cad.version.restored`
 
+With each batch go the app's version, the platform (Mac or Windows), the chip type and the mode
+(desktop app or browser), and each event has a random id of its own and the time it was counted.
+The receiver adds the country the request came from and keeps no address. What an event may carry
+beside its name is listed in [`infra/usage/src/events.mjs`](infra/usage/src/events.mjs).
+
+Apart from these counts and its check for a newer Studio (on GitHub), the app makes a few plain
+downloads, and no id goes with any of them: the list of AI models from
+[T3 Code](https://github.com/pingdotgg/t3code) on GitHub (at most once an hour),
+[LiteLLM](https://github.com/BerriAI/litellm)'s price table on GitHub (it prices the code tools'
+usage page), and from Google the icon of a public site that an answer links to or the preview
+opens, which tells Google that site's name and never the page.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change request. Changes to the CAD tools go

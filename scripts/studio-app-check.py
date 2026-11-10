@@ -85,6 +85,9 @@ def main() -> int:
             "CAD_ENGINE_DIR": str(cad / "engine"),
             "CAD_ENGINE_PORT": check_engine_port(),
             "CAD_LAUNCHER_DIR": str(home / "bin"),
+            # The app's channel: its engine is never told of a release, so it never updates itself to the
+            # index's text-to-cad mid-check, which speaks another worker contract than Studio's.
+            "CAD_INSTALL_CHANNEL": "dev",
             "CAD_UPDATE_FIND_LINKS": str(wheels),
             # A home with nothing in it: no tool this Mac or PC happens to have cached stands in for one the app
             # is missing.

@@ -34,7 +34,7 @@ describe("document templates", () => {
         templateLink: "[client_PRD_v2.docx](/Users/x/studio-projects/Templates/client_PRD_v2.docx)",
       }),
     ).toBe(
-      "Write Spatula PRD for this project as docs/spatula_prd.md, following the template [client_PRD_v2.docx](/Users/x/studio-projects/Templates/client_PRD_v2.docx) section by section: its order, its headings, and its tables with their columns and row numbers. It is a Word file: read its text first (on a Mac, `textutil -convert txt -stdout` on it). Fill each from the project's brief, its parts, their checks and the decisions in its README; write what is not known yet as an open question, not a guess.",
+      "Write Spatula PRD for this project as docs/spatula_prd.md, following the template [client_PRD_v2.docx](/Users/x/studio-projects/Templates/client_PRD_v2.docx) section by section: its order, its headings, and its tables with their columns and row numbers. It is a Word file: read its text first (on a Mac, `textutil -convert txt -stdout` on it; on Windows, a .docx is a zip with its text in word/document.xml). Fill each from the project's brief, its parts, their checks and the decisions in its README; write what is not known yet as an open question, not a guess.",
     );
   });
 

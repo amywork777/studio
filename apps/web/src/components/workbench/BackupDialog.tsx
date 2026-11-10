@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { toastManager } from "../ui/toast";
+import { folderLabel } from "./folderLabel";
 import { readStudioImport } from "./studioImportBridge";
 import {
   backupFolder,
@@ -149,7 +150,7 @@ export function BackupDialog(props: {
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
   const canReveal = serverConfig?.availableEditors.includes("file-manager") === true;
-  // The toast shows where the backup went: the repository on GitHub, or the folder in Finder.
+  // The toast shows where the backup went: the repository on GitHub, or the folder on disk.
   const see = (place: BackupPlace) =>
     place.kind === "github"
       ? {
@@ -163,7 +164,7 @@ export function BackupDialog(props: {
         }
       : canReveal
         ? {
-            children: "Show in Finder",
+            children: folderLabel(serverConfig?.environment.platform.os),
             onClick: () =>
               void openInEditor({
                 environmentId,

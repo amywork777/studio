@@ -1,3 +1,4 @@
+import { OPEN_AGENTS } from "../workbench/agentWords";
 import { isEngineeringInterface } from "../workbench/studioInterface";
 import { type ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
 import { memo } from "react";
@@ -147,7 +148,7 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
           </Tooltip>
           {onOpenProviderSetup && hasProviderSetup(status) ? (
             <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
-              {studio ? "Open AI agents" : "Open provider setup"}
+              {studio ? OPEN_AGENTS : "Open provider setup"}
             </InlineButton>
           ) : null}
         </AlertDescription>

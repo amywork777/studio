@@ -9,35 +9,42 @@ const bodyOf = (url: string) => {
 };
 
 describe("reportProblemUrl", () => {
-  it("fills in the version, the machine and the usage id", () => {
+  it("fills in the version and the machine", () => {
     const body = bodyOf(
       reportProblemUrl({
         appName: "Studio",
         version: "0.1.5",
         textToCadVersion: "0.10.3",
         platform: { os: "darwin", arch: "arm64" },
-        usageId: "abc123",
       }),
     );
-    expect(
-      body?.endsWith(
-        "---\nStudio 0.1.5\ntext-to-cad: 0.10.3\nMachine: macOS (arm64)\nUsage ID: abc123",
-      ),
-    ).toBe(true);
+    expect(body?.endsWith("---\nStudio 0.1.5\ntext-to-cad: 0.10.3\nMachine: macOS (arm64)")).toBe(
+      true,
+    );
   });
 
-  it("leaves the usage id and text-to-cad out when there are none to name", () => {
+  it("leaves text-to-cad out when there is none to name", () => {
     const body = bodyOf(
       reportProblemUrl({
         appName: "Studio",
         version: "0.1.5",
         textToCadVersion: null,
         platform: { os: "windows", arch: "other" },
-        usageId: null,
       }),
     );
     expect(body?.endsWith("Machine: Windows")).toBe(true);
-    expect(body).not.toContain("Usage ID");
     expect(body).not.toContain("text-to-cad");
+  });
+
+  it("never names the usage id: the issue is public", () => {
+    const body = bodyOf(
+      reportProblemUrl({
+        appName: "Studio",
+        version: "0.1.5",
+        textToCadVersion: "0.10.3",
+        platform: { os: "darwin", arch: "arm64" },
+      }),
+    );
+    expect(body).not.toMatch(/usage/i);
   });
 });

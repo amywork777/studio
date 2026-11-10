@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 import { HARDWARE_ACTIONS, type HardwareAction } from "./hardwareActions";
 import type { ToolboxSection } from "./toolbox";
+import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { SectionJobs } from "./ToolboxJobs";
 
 let root: Root;
@@ -59,9 +60,27 @@ function descriptionOf(element: Element): string {
     .trim();
 }
 
-async function renderSection(disabled: boolean, onRun: (action: HardwareAction) => void) {
+async function renderSection(
+  disabled: boolean,
+  onRun: (action: HardwareAction) => void,
+  worksOn: (action: HardwareAction) => string | null = () => null,
+  shown: ToolboxSection = section,
+  starts: {
+    readonly startFor: (action: HardwareAction) => NewTemplate | null;
+    readonly onStart: (template: NewTemplate) => void;
+  } = { startFor: () => null, onStart: () => {} },
+) {
   await act(async () => {
-    root.render(<SectionJobs section={section} disabled={disabled} onRun={onRun} />);
+    root.render(
+      <SectionJobs
+        section={shown}
+        disabled={disabled}
+        worksOn={worksOn}
+        startFor={starts.startFor}
+        onRun={onRun}
+        onStart={starts.onStart}
+      />,
+    );
   });
 }
 
@@ -90,6 +109,47 @@ describe("SectionJobs tool tiles", () => {
 
     await act(async () => tile(jobs[0]!.label).click());
 
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps a job that does not fit the file in front, says what it works on, and runs nothing", async () => {
+    const onRun = vi.fn<(action: HardwareAction) => void>();
+    const fitAndMass = HARDWARE_ACTIONS.filter((action) => action.section === "fit-mass");
+    const fit = fitAndMass.find((job) => job.id === "fit")!;
+    const mass = fitAndMass.find((job) => job.id === "mass")!;
+    const line = "Works on an assembly. Open one to use it.";
+    await renderSection(false, onRun, (action) => (action.id === "fit" ? line : null), {
+      title: "Fit and mass",
+      actions: fitAndMass,
+    });
+
+    expect(descriptionOf(tile(fit.label))).toBe(line);
+    expect(tile(fit.label).getAttribute("aria-disabled")).toBe("true");
+    await act(async () => tile(fit.label).click());
+    expect(onRun).not.toHaveBeenCalled();
+
+    // The ones that fit still run.
+    await act(async () => tile(mass.label).click());
+    expect(onRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens New on what a job works on where the project has none, and runs nothing", async () => {
+    const onRun = vi.fn<(action: HardwareAction) => void>();
+    const onStart = vi.fn<(template: NewTemplate) => void>();
+    const fitAndMass = HARDWARE_ACTIONS.filter((action) => action.section === "fit-mass");
+    const fit = fitAndMass.find((job) => job.id === "fit")!;
+    const assembly = NEW_TEMPLATES.find((template) => template.id === "assembly")!;
+    await renderSection(
+      false,
+      onRun,
+      (action) => (action.id === "fit" ? "Works on an assembly." : null),
+      { title: "Fit and mass", actions: fitAndMass },
+      { startFor: (action) => (action.id === "fit" ? assembly : null), onStart },
+    );
+
+    expect(tile(fit.label).getAttribute("aria-disabled")).toBeNull();
+    await act(async () => tile(fit.label).click());
+    expect(onStart).toHaveBeenCalledWith(assembly);
     expect(onRun).not.toHaveBeenCalled();
   });
 });

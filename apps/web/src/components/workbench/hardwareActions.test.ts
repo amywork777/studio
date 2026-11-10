@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { HARDWARE_ACTIONS, type HardwareActionMenu, hardwareActions } from "./hardwareActions";
+import {
+  HARDWARE_ACTIONS,
+  type HardwareActionMenu,
+  hardwareActions,
+  jobLine,
+} from "./hardwareActions";
 import { entryOfAction } from "./library/libraryCatalog";
 
 const titled = (sections: HardwareActionMenu["sections"]) =>
@@ -83,7 +88,7 @@ describe("hardware actions", () => {
     expect(titled(document!.sections)).toEqual([
       ["Drawings", ["Engineering drawing", "3D PMI"]],
       ["Building it", ["Parts list", "Assembly instructions", "Exploded view"]],
-      ["Pictures and video", ["Pictures from every side", "Motion video"]],
+      ["Pictures and motion", ["Pictures from every side", "Motion to play"]],
       ["Reports", ["Test plan", "Write up the results"]],
     ]);
     expect(titled(document!.others)).toEqual([["Robot description", ["Robot files"]]]);
@@ -122,6 +127,29 @@ describe("hardware actions", () => {
       (action) => !/^\S.*\.$/.test(action.gets) || action.gets.length > 100,
     );
     expect(unsaid.map((action) => `${action.id}: ${action.gets}`)).toEqual([]);
+  });
+
+  it("says what a job needs that Studio does not bring", () => {
+    // text-to-cad's own files say it: cam plans with the person's FreeCAD, print3d slices with
+    // their OrcaSlicer, and a board's checks and exports download kicode the first time.
+    const needs = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)?.needs;
+    expect(needs("toolpaths")).toBe("Needs FreeCAD 1.1 or newer installed.");
+    expect(needs("slice")).toBe("Needs OrcaSlicer installed.");
+    const board = HARDWARE_ACTIONS.filter((action) => action.skill === "pcb");
+    expect(board.map((action) => action.needs)).toEqual(
+      board.map(() => "Downloads its board tools on first use, about 100 MB."),
+    );
+    // Every other job runs on what Studio ships, and its line is what it makes alone.
+    expect(
+      HARDWARE_ACTIONS.filter(
+        (action) =>
+          action.needs !== undefined && !["cam", "print3d", "pcb"].includes(action.skill!),
+      ),
+    ).toEqual([]);
+    const slice = HARDWARE_ACTIONS.find((action) => action.id === "slice")!;
+    expect(jobLine(slice)).toBe(`${slice.gets} Needs OrcaSlicer installed.`);
+    const exportJob = HARDWARE_ACTIONS.find((action) => action.id === "export")!;
+    expect(jobLine(exportJob)).toBe(exportJob.gets);
   });
 
   it("says every outcome a check reports, in one shape", () => {

@@ -212,6 +212,18 @@ describe("plugins", () => {
         assert.strictEqual(failing.servers[0]?.state, "error");
         assert.isNotNull(failing.error);
         assert.strictEqual(failing.error, failing.servers[0]?.error);
+        // Its view says why the server did not start, not that the view is missing.
+        const unopened = yield* plugins
+          .openView({
+            threadId: null,
+            pluginId: "demo",
+            server: "main",
+            tool: "show",
+            arguments: {},
+          })
+          .pipe(Effect.flip);
+        assert.strictEqual(unopened.reason, "server_failed");
+        assert.include(unopened.message, "did not start");
         // Turned off, it is no longer failing: its last start's error is not reported.
         const off = yield* plugins.setEnabled("demo", false);
         assert.deepEqual([off.servers[0]?.state, off.error], ["idle", null]);

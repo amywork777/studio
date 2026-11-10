@@ -2710,6 +2710,13 @@ const layerWsRpc = (
                 (cause) => new OrchestrationDispatchCommandError({ message: cause.message, cause }),
               ),
             ),
+        [WS_METHODS.projectsStartHistory]: (input) =>
+          managedFolders.startHistory(input).pipe(
+            Effect.tap(() => refreshGitStatus(input.cwd)),
+            Effect.mapError(
+              (cause) => new OrchestrationDispatchCommandError({ message: cause.message, cause }),
+            ),
+          ),
         [WS_METHODS.projectCloneCancel]: (input) =>
           projectCloneTracker.cancel(input.projectId).pipe(Effect.map((applied) => ({ applied }))),
         [WS_METHODS.projectCloneRetry]: (input) =>

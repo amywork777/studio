@@ -4,7 +4,8 @@
  * to). A plain fetch handler over a `store` (Studio's own table, store.mjs), so what keeps the counts can
  * change without a release of Studio, and no build of Studio carries a key to it.
  *
- *   POST   /v1/events          a batch of counts (events.mjs) -> 204
+ *   POST   /v1/events          a batch of counts (events.mjs) -> 204, or 429 past the limit per address
+ *                              (limit.mjs)
  *   POST   /v1/forget          {install}: forget everything sent under an install id -> 204, or 429 past
  *                              the limit per address and per install id (limit.mjs)
  *   GET    /v1/health          -> 200, or 503 naming a missing setting (store.mjs: SETTINGS)
@@ -66,13 +67,27 @@ async function json(request) {
  * @param {Request} request
  * @param {{ insert(rows: object[], context: { country: string | null }): Promise<void>,
  *   forget(id: string): Promise<void>, ready(): Promise<void> }} store
- * @param {{ missing?: string[], country?: string | null, limiter?: { take(key: string): { ok: boolean,
- *   retryAfter?: number } }, client?: string | null }} [options] `missing`: settings the host lacks, by name.
- *   `country`: where the host places the request. `limiter`: how often one caller may ask to forget, by
- *   `client`, the address the host says the request came from, and by install id.
+ * @typedef {{ take(key: string): { ok: boolean, retryAfter?: number } }} Limiter
+ * @param {{ missing?: string[], country?: string | null, limiter?: Limiter, eventsLimiter?: Limiter,
+ *   client?: string | null }} [options] `missing`: settings the host lacks, by name. `country`: where the
+ *   host places the request. `limiter`: how often one caller may ask to forget, by `client`, the address
+ *   the host says the request came from, and by install id. `eventsLimiter`: how often one `client` may
+ *   send a batch.
  */
-export async function handle(request, store, { missing = [], country, limiter, client } = {}) {
+export async function handle(
+  request,
+  store,
+  { missing = [], country, limiter, eventsLimiter, client } = {},
+) {
   const path = new URL(request.url).pathname.replace(/\/+$/, "");
+  // Past a limit, a refusal and the seconds to wait. Nothing the request carried is read or kept.
+  const limited = (by, key) => {
+    const taken = by.take(key);
+    if (taken.ok) return null;
+    const refused = refuse(429, path, "too many requests");
+    refused.headers.set("retry-after", String(taken.retryAfter));
+    return refused;
+  };
   try {
     if (path === "/v1/health" && request.method === "GET") {
       if (missing.length) return reply(503, { ok: false, missing });
@@ -90,7 +105,12 @@ export async function handle(request, store, { missing = [], country, limiter, c
         return refuse(415, path, "the body must be application/json");
       }
     }
+    // Anyone can post a batch and each one adds rows, so an address may send only so many a minute.
     if (path === "/v1/events" && request.method === "POST") {
+      if (eventsLimiter && client) {
+        const refused = limited(eventsLimiter, `address ${client}`);
+        if (refused) return refused;
+      }
       const rows = rowsOf(await json(request));
       await store.insert(rows, { country: COUNTRY.test(country ?? "") ? country : null });
       return reply(204);
@@ -98,21 +118,14 @@ export async function handle(request, store, { missing = [], country, limiter, c
     // The id rides in the body, never the path: the host's request logs keep each path beside the
     // caller's IP address. Each deletion spends the personal key, so a caller may ask only so often.
     if (path === "/v1/forget" && request.method === "POST") {
-      const limited = (key) => {
-        const taken = limiter.take(key);
-        if (taken.ok) return null;
-        const refused = refuse(429, path, "too many requests");
-        refused.headers.set("retry-after", String(taken.retryAfter));
-        return refused;
-      };
       if (limiter && client) {
-        const refused = limited(`address ${client}`);
+        const refused = limited(limiter, `address ${client}`);
         if (refused) return refused;
       }
       const { install } = (await json(request)) ?? {};
       if (!isUuid(install)) return refuse(400, path, "not an install id");
       if (limiter) {
-        const refused = limited(`install ${install.toLowerCase()}`);
+        const refused = limited(limiter, `install ${install.toLowerCase()}`);
         if (refused) return refused;
       }
       await store.forget(install.toLowerCase());

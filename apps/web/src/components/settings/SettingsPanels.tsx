@@ -2,7 +2,6 @@ import { SettingsGroup } from "./SettingsGroup";
 import { useScopedSettingsWriteAllowed } from "./useScopedSettings";
 import { Spinner } from "~/components/ui/spinner";
 import { NotificationSettings } from "./NotificationSettings";
-import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { ArchiveIcon, ArchiveX, CheckIcon, ChevronRightIcon, SettingsIcon } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
@@ -181,6 +180,7 @@ import { searchableSetting } from "./settingsSearch";
 import { reportProblemUrl } from "./reportProblem";
 import {
   STUDIO_REPOSITORY,
+  STUDIO_USAGE_DATA,
   TEXT_TO_CAD_DISCORD,
   TEXT_TO_CAD_REPOSITORY,
   textToCadVersion,
@@ -3438,10 +3438,6 @@ export function GeneralSettingsPanel() {
                     version: APP_VERSION,
                     textToCadVersion: includedTextToCad,
                     platform: environment?.serverConfig?.environment.platform ?? null,
-                    usageId:
-                      settings.shareUsageData && settings.usageDataAnswered
-                        ? (environment?.serverConfig?.observability.usageId ?? null)
-                        : null,
                   })}
                   target="_blank"
                   rel="noreferrer noopener"
@@ -3456,18 +3452,8 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("privacy-policy")}
-          description="T3 Code's privacy policy. This build sends T3 Code no usage data."
-          control={
-            engineering ? null : (
-              <Button
-                render={<a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer noopener" />}
-                size="sm"
-                variant="outline"
-              >
-                View policy
-              </Button>
-            )
-          }
+          description={`Usage counts never carry your prompts, file names or designs, and nothing goes to T3 Code. ${APP_BASE_NAME}'s README lists every count it can send.`}
+          control={<OutsideLink href={STUDIO_USAGE_DATA}>What is sent</OutsideLink>}
         />
       </SettingsSection>
       <SettingsSection title="Diagnostics">

@@ -121,6 +121,8 @@ export function ImportDialogHost(props: { readonly environmentId: EnvironmentId 
  * ticked to import, with what it holds and where it is), and Sort for the files in no project
  * (where each goes) and the copies and older versions that need a look. Nothing is moved: a
  * project is its folder where it is; only loose files placed in a project are copied into it.
+ * Importing itself only reads, but an imported project's folder is where the agent then works, so
+ * the screen says so before Import is pressed and never promises that Studio only reads.
  */
 function ImportDialog(props: {
   readonly environmentId: EnvironmentId;
@@ -264,7 +266,8 @@ function ImportDialog(props: {
           ? {
               type: "success",
               title: `Imported ${plural(made, "project", "projects")}`,
-              description: "Your files stay where they are.",
+              description:
+                "Your files stay where they are. Changes the agent makes are made to them there.",
             }
           : {
               type: "error",
@@ -309,7 +312,8 @@ function ImportDialog(props: {
               <DialogDescription>
                 Studio scans the folders you pick for engineering files: CAD models, drawings, parts
                 lists, datasheets and photos of parts. It groups them into projects. Your files stay
-                where they are.
+                where they are. Studio works in each project's own folder: changes the agent makes
+                are made to your files there.
               </DialogDescription>
             </DialogHeader>
             <DialogPanel>
@@ -396,7 +400,7 @@ function ImportDialog(props: {
             </DialogPanel>
             <DialogFooter>
               <span className="me-auto self-center text-xs text-muted-foreground">
-                Studio only reads your files. Nothing is moved, renamed or deleted.
+                Scanning only reads your files. Nothing is moved, renamed or deleted.
               </span>
               <Button variant="ghost" size="sm" onClick={onClose}>
                 Skip for now
@@ -426,7 +430,8 @@ function ImportDialog(props: {
               </DialogTitle>
               <DialogDescription>
                 Each brings its models, drawings, parts lists and photos together. Uncheck any you
-                don't want.
+                don't want. Studio works in each project's own folder: changes the agent makes are
+                made to your files there.
               </DialogDescription>
             </DialogHeader>
             <DialogPanel>

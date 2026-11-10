@@ -137,14 +137,6 @@ const ENGINEERING_SETTINGS_COPY: ReadonlyMap<string, SettingCopy> = new Map<
         "The AI model new chats start on, with its Thinking and Speed. Applies to new chats and to the open chat's next turn, except a reset.",
     },
   ],
-  // T3's policy is T3's; the row keeps the fact, without its link (`SettingsPanels.tsx`).
-  [
-    "privacy-policy",
-    {
-      title: "Privacy",
-      description: `${APP_BASE_NAME} sends T3 Code nothing, and never sends your prompts, file names or designs.`,
-    },
-  ],
 ]);
 
 /** What Restore defaults lists, in the rows' own words: a setting a row hides is still listed. */

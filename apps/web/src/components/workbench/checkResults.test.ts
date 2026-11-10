@@ -1,3 +1,7 @@
+// @effect-diagnostics nodeBuiltinImport:off - reads the examples' own results in studio-sample/.
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -16,6 +20,9 @@ import {
   worstStatus,
 } from "./checkResults";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
+
+/** The examples Studio ships, each with the results of its own runs. */
+const SAMPLES = NodePath.join(import.meta.dirname, "..", "..", "..", "..", "..", "studio-sample");
 
 const casting = JSON.stringify({
   document: "/work/demo/bossbar.step",
@@ -377,6 +384,81 @@ describe("check results", () => {
     expect(
       parseCheckResult("studies/a/result.json", answer([], 3, "/w/studies/copy.step"))?.onStudyCopy,
     ).toBe(true);
+  });
+
+  it("keeps a note about the run out of the status and the headline, and in the result's list", () => {
+    // text-to-cad's `solver_note` is about the run (a slow solve, a finer solve skipped), not the
+    // part: the motor mount's plate, at a safety factor of 521, is a pass and reads as one.
+    const answer = (findings: unknown[], safety: number) =>
+      JSON.stringify({
+        ok: true,
+        path: "/work/motor-mount/parts/motor_plate.step",
+        findings,
+        measurements: {
+          safety_factor: safety,
+          checks: [{ kind: "stress", label: "Strength", status: "passes" }],
+        },
+      });
+    const slow = {
+      severity: "warning",
+      code: "solver_note",
+      message:
+        "199236 degrees of freedom: expect a slow solve; a larger mesh.size_mm is usually enough",
+      location: null,
+      hint: null,
+    };
+    const passed = parseCheckResult("studies/motor_plate/result.json", answer([slow], 521.397))!;
+    expect(passed.status).toBe("ready");
+    expect(passed.headline).toBe("Holds the load, safety factor 521");
+    expect(passed.issues).toEqual([
+      { severity: "warning", summary: slow.message, fix: null, note: true },
+    ]);
+
+    // A real warning beside it still makes the status and the headline, and is listed first.
+    const margin = {
+      severity: "warning",
+      code: "low_margin",
+      message: "It holds, but only 1.4× the load: under the 2× margin",
+      location: null,
+      hint: "safety factor 1.4, margin 2",
+    };
+    const thin = parseCheckResult("studies/shelf/result.json", answer([slow, margin], 1.472))!;
+    expect(thin.status).toBe("warnings");
+    expect(thin.headline).toBe(margin.message);
+    expect(thin.issues.map((issue) => issue.note ?? false)).toEqual([false, true]);
+
+    // An error is an error whatever its code, and a verdict's own headline still leads.
+    const failed = parseCheckResult(
+      "studies/a/result.json",
+      answer([slow, { ...slow, severity: "error", message: "The solve did not finish" }], 2),
+    )!;
+    expect(failed.status).toBe("fix");
+    expect(failed.headline).toBe("The solve did not finish");
+    expect(failed.issues.map((issue) => issue.note ?? false)).toEqual([false, true]);
+  });
+
+  it("reads the examples' strength checks as they ship: a note about the run alone is a pass", () => {
+    const shipped = (sample: string, study: string) =>
+      parseCheckResult(
+        `studies/${study}/result.json`,
+        NodeFS.readFileSync(
+          NodePath.join(SAMPLES, sample, "studies", study, "result.json"),
+          "utf8",
+        ),
+      )!;
+    expect(shipped("motor-mount", "motor_plate")).toMatchObject({
+      status: "ready",
+      headline: "Holds the load, safety factor 521",
+    });
+    expect(shipped("servo-bracket", "servo_bracket")).toMatchObject({
+      status: "ready",
+      headline: "Holds the load, safety factor 3.7",
+    });
+    // The shelf bracket's margin is thin: that is its warning, and its notes come after.
+    const shelf = shipped("shelf-bracket", "shelf_bracket");
+    expect(shelf.status).toBe("warnings");
+    expect(shelf.headline).toMatch(/^It holds, but only 1\.4× the load/);
+    expect(shelf.issues.map((issue) => issue.note ?? false)).toEqual([false, false, true, true]);
   });
 
   it("leaves a 0.11 CAM job's answer out of the part's checks, and files it with the part", () => {

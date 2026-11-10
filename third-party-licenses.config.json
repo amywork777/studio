@@ -147,6 +147,61 @@
       "name": "Expo text editor implementation",
       "noticeFile": "apps/mobile/modules/t3-composer-editor/LICENSE",
       "sourceUrl": "https://github.com/expo/expo"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "PSF-2.0",
+      "name": "Python",
+      "noticeFile": "studio-licenses/python/LICENSE.txt",
+      "sourceUrl": "https://www.python.org"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "MIT",
+      "name": "text-to-cad",
+      "noticeFile": "studio-licenses/text-to-cad/LICENSE",
+      "sourceUrl": "https://github.com/earthtojake/text-to-cad"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "Apache-2.0",
+      "name": "build123d",
+      "noticeFiles": ["studio-licenses/build123d/NOTICE", "studio-licenses/build123d/LICENSE"],
+      "sourceUrl": "https://github.com/gumyr/build123d"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "Apache-2.0",
+      "name": "OCP",
+      "noticeFile": "studio-licenses/ocp/LICENSE",
+      "sourceUrl": "https://github.com/CadQuery/OCP"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "LGPL-2.1-only WITH OCCT-exception-1.0",
+      "name": "Open CASCADE Technology",
+      "noticeFiles": [
+        "studio-licenses/opencascade/OCCT_LGPL_EXCEPTION.txt",
+        "studio-licenses/opencascade/LICENSE_LGPL_21.txt"
+      ],
+      "sourceUrl": "https://github.com/Open-Cascade-SAS/OCCT"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "LGPL-2.1-only",
+      "name": "Netgen",
+      "noticeFiles": ["studio-licenses/netgen/AUTHORS", "studio-licenses/netgen/LICENSE"],
+      "sourceUrl": "https://github.com/NGSolve/netgen"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "GPL-2.0-only",
+      "name": "CalculiX",
+      "noticeFiles": [
+        "studio-licenses/calculix/ABOUT.txt",
+        "studio-licenses/calculix/CalculiX.txt"
+      ],
+      "sourceUrl": "https://www.calculix.de"
     }
   ],
   "packageOverrides": [

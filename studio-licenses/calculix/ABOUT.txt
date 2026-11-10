@@ -1,0 +1,15 @@
+CalculiX
+
+Studio's strength checks run CalculiX's solver, ccx, as a program of its own. CalculiX is by
+Guido Dhondt and Klaus Wittig, and is free software under the GNU General Public License,
+version 2. Its text follows.
+
+The copy in this app is conda-forge's build of the CalculiX source, unmodified, as the cad-ccx
+package carries it.
+
+Source: https://www.calculix.de
+How it is packaged, with the address and checksum of every build it carries:
+https://github.com/earthtojake/ccx
+
+The libraries the solver loads keep their own notices in the app, in the licenses folder of the
+cad_ccx package among the CAD tools' Python packages.

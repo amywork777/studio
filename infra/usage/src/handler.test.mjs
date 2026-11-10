@@ -71,6 +71,52 @@ NodeTest.test("a store that fails is a 500, so Studio keeps its batch", async ()
   NodeAssert.equal(response.status, 500);
 });
 
+NodeTest.test(
+  "limits how many batches one address may send, and keeps nothing from a refused one",
+  async () => {
+    const store = memoryStore();
+    const eventsLimiter = rateLimiter({ limit: 2, windowMs: 60_000 });
+    const send = (client, body = batchOf([EVENT])) =>
+      handle(post("/v1/events", body), store, { eventsLimiter, client });
+    NodeAssert.equal((await send("1.2.3.4")).status, 204);
+    NodeAssert.equal((await send("1.2.3.4")).status, 204);
+    const third = await send("1.2.3.4");
+    NodeAssert.equal(third.status, 429);
+    NodeAssert.ok(Number(third.headers.get("retry-after")) > 0);
+    NodeAssert.deepEqual(await third.json(), { error: "too many requests" });
+    NodeAssert.equal(store.inserted.length, 2);
+    // Refused before the body is read: a batch outside the contract gets the same answer.
+    NodeAssert.equal((await send("1.2.3.4", "not json")).status, 429);
+    // Another address has its own allowance, and a batch that is refused as invalid still counts.
+    NodeAssert.equal((await send("5.6.7.8", batchOf([]))).status, 400);
+    NodeAssert.equal((await send("5.6.7.8")).status, 204);
+    NodeAssert.equal((await send("5.6.7.8")).status, 429);
+    NodeAssert.equal(store.inserted.length, 3);
+  },
+);
+
+NodeTest.test(
+  "a full allowance of batches leaves forgetting open, each with its own limit",
+  async () => {
+    const store = memoryStore();
+    const limits = { limiter: rateLimiter({ limit: 1 }), eventsLimiter: rateLimiter({ limit: 1 }) };
+    const options = { ...limits, client: "1.2.3.4" };
+    NodeAssert.equal(
+      (await handle(post("/v1/events", batchOf([EVENT])), store, options)).status,
+      204,
+    );
+    NodeAssert.equal(
+      (await handle(post("/v1/events", batchOf([EVENT])), store, options)).status,
+      429,
+    );
+    NodeAssert.equal(
+      (await handle(post("/v1/forget", { install: INSTALL }), store, options)).status,
+      204,
+    );
+    NodeAssert.deepEqual(store.forgotten, [INSTALL]);
+  },
+);
+
 NodeTest.test("forgets an install, and limits how often one caller may ask", async () => {
   const store = memoryStore();
   const limiter = rateLimiter({ limit: 1 });

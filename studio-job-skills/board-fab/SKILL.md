@@ -13,4 +13,4 @@ the `pcb` skill: read that skill first and follow it, then do what the person as
 The board is the one the person names, else the one open beside the chat.
 Ask which when neither says.
 
-What they get: Gerbers, drill files, the parts list and placement files, ready to upload to a fab.
+What they get: Gerbers, drill files, the parts list and placement files, ready to upload to a fab. Downloads its board tools on first use, about 100 MB.

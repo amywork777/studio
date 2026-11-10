@@ -19,16 +19,13 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { BackupDialog } from "./BackupDialog";
+import { folderLabel } from "./folderLabel";
 import type { ListedProject } from "./projectList";
 import { useStarredStore } from "./starredProjects";
 import { useTrash } from "./trash/useTrash";
 import { useLastBackup } from "./useBackup";
 import { useDuplicateProject } from "./useDuplicateProject";
 import { useSaveStudioProject } from "./useStudioProjects";
-
-/** The file manager's name where the project's folder opens: Finder on a Mac. */
-export const folderLabel = (os: string | undefined) =>
-  os === "darwin" ? "Show in Finder" : os === "win32" ? "Show in File Explorer" : "Show in Files";
 
 /** Rename, as Google Drive asks it: the name in a box, Enter or Rename to keep it. */
 function RenameDialog(props: {

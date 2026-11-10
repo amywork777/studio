@@ -2,7 +2,7 @@
   "sample": "servo-bracket",
   "version": 1,
   "name": "Servo bracket",
-  "purpose": "A mounting bracket for an MG996R servo, bent from 2 mm 5052-H32 aluminium sheet: a sample project to learn Studio with.",
+  "purpose": "A mounting bracket for an MG996R servo, bent from 2 mm 5052-H32 aluminium sheet: an example project to learn Studio with.",
   "process": "Sheet metal",
   "material": "5052-H32 aluminium, 2 mm sheet",
   "shows": [
@@ -11,7 +11,10 @@
     "CNC",
     "3D print",
     "Drawing",
-    "Robot"
+    "Robot",
+    "Resin print",
+    "Metal print",
+    "Circuit board"
   ],
   "picture": "pictures/servo_mount_angle.png",
   "open": "parts/servo_bracket.py"

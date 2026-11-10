@@ -19,7 +19,8 @@ export const isAssembly = (file: Pick<ProjectFile, "kind" | "folder">) =>
 
 /**
  * The parts not named after another of `parts`: `bracket_flat` and `bracket-v2` are made from
- * `bracket`, which stands for them, whichever a listing in name order puts first.
+ * `bracket`, which stands for them, whichever a listing in name order puts first. A file in the
+ * assemblies folder stays: `assemblies/stand_portrait` is the product `stand` goes into.
  */
 export function sourceParts(parts: ReadonlyArray<ProjectFile>): ProjectFile[] {
   const stems = parts.map(stem);
@@ -28,7 +29,7 @@ export function sourceParts(parts: ReadonlyArray<ProjectFile>): ProjectFile[] {
       (other) =>
         other !== name && name.startsWith(other) && /^[-_. ]/.test(name.slice(other.length)),
     );
-  return parts.filter((part) => !made(stem(part)));
+  return parts.filter((part) => IN_ASSEMBLIES.test(part.folder) || !made(stem(part)));
 }
 
 /**

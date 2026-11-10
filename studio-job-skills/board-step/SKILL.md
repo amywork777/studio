@@ -13,4 +13,4 @@ the `pcb` skill: read that skill first and follow it, then do what the person as
 The board is the one the person names, else the one open beside the chat.
 Ask which when neither says.
 
-What they get: The board with its parts as a STEP file, to design its enclosure around.
+What they get: The board with its parts as a STEP file, to design its enclosure around. Downloads its board tools on first use, about 100 MB.

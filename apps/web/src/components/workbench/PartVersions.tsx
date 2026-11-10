@@ -6,13 +6,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
+import { projectEnvironment } from "~/state/projects";
+import { useAtomCommand } from "~/state/use-atom-command";
 import { formatRelativeTimeLabel } from "~/timestampFormat";
 import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { toastManager } from "../ui/toast";
 import type { CheckResult } from "./checkResults";
+import { GitInstallSteps } from "./GitInstallSteps";
 import { OverviewModule } from "./OverviewModules";
 import type { ProjectFile } from "./projectFiles";
+import { useStudioProjectsList } from "./useStudioProjects";
 import {
   restoreVersion,
   useCadService,
@@ -23,7 +27,9 @@ import { type VersionChoice, WhatChanged } from "./WhatChanged";
 import {
   checkpointScopeOf,
   isPartPath,
+  keepsNoVersions,
   plainRestoreError,
+  plainVersionsError,
   readCheckpointRef,
   restoreNote,
   versionChoices,
@@ -32,18 +38,6 @@ import {
 import { chatLabel } from "./workspaceTitle";
 
 /** A part of the project, as the Overview lists it. */
-
-/**
- * Why there are no versions, in plain words: the CAD service says it with the folder's full path
- * and git's words ("… keeps no versions: it is not a git repository").
- */
-export function plainVersionsError(error: string | null | undefined): string {
-  if (error && /not a git repository/i.test(error)) {
-    return "No versions: this project's folder doesn't keep a history yet.";
-  }
-  return "Studio couldn't read the versions.";
-}
-
 export interface VersionedPart {
   readonly root: string;
   readonly file: ProjectFile;
@@ -126,6 +120,8 @@ export function PartVersions(props: {
     mutationId: `${props.mutationId ?? ""}\n${restores}`,
   });
   const versions = listed?.versions ?? null;
+  // With no git on the computer nothing keeps versions, whatever the read's own error says.
+  const needsGit = useStudioProjectsList(props.environmentId).data?.git === false;
   const byScope = useChatsByScope(props.chats);
 
   // Each new request, or the switcher's Version history, opens the module and brings it into view, once.
@@ -232,6 +228,34 @@ export function PartVersions(props: {
   };
   const restorable = versions !== null && newerIndex !== -1 && newerIndex < versions.length - 1;
 
+  // Keep versions, for a folder that keeps none (an imported one): its history starts as a new
+  // project's does, what is in it now kept first, and the versions are read again.
+  const startHistory = useAtomCommand(projectEnvironment.startHistory, { reportFailure: false });
+  const [starting, setStarting] = useState(false);
+  const keepVersions = async () => {
+    if (part === null || starting) return;
+    setStarting(true);
+    const result = await startHistory({
+      environmentId: props.environmentId,
+      input: { cwd: part.root },
+    });
+    setStarting(false);
+    if (result._tag === "Failure") {
+      toastManager.add({
+        type: "error",
+        title: "Couldn't start keeping versions",
+        description: "The files in the folder are as they were.",
+      });
+      return;
+    }
+    toastManager.add({
+      type: "success",
+      title: "Versions are kept from now on",
+      description: "Each time the agent changes a part, a version is kept.",
+    });
+    setRestores((count) => count + 1);
+  };
+
   const newestFirst = choices.toReversed();
   const shown = all ? newestFirst : newestFirst.slice(0, SHOWN);
 
@@ -272,8 +296,29 @@ export function PartVersions(props: {
             <p className="text-xs text-muted-foreground">No part yet, so no versions.</p>
           ) : listed === null ? (
             <p className="text-xs text-muted-foreground">Reading the versions.</p>
+          ) : versions === null && !needsGit && keepsNoVersions(listed.error) ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {plainVersionsError(listed.error)}
+              </p>
+              <Button size="sm" disabled={starting} onClick={() => void keepVersions()}>
+                {starting ? "Starting…" : "Keep versions"}
+              </Button>
+            </div>
           ) : versions === null ? (
-            <p className="text-xs text-muted-foreground">{plainVersionsError(listed.error)}</p>
+            <p className="text-xs text-muted-foreground">
+              {needsGit ? (
+                <>
+                  {
+                    // oxlint-disable-next-line t3code/studio-engineering-words -- Names the program the person must install.
+                    "Versions are off until git is installed. "
+                  }
+                  <GitInstallSteps environmentId={props.environmentId} />
+                </>
+              ) : (
+                plainVersionsError(listed.error)
+              )}
+            </p>
           ) : versions.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No versions yet. Each time the agent changes {part.file.title}, a version is kept.

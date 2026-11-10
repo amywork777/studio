@@ -569,7 +569,7 @@ it.effect("removes the folder when the create is cancelled before the project ex
   }),
 );
 
-it.effect("removes the folder when the repository cannot be made", () =>
+it.effect("keeps a named project and its starter files when git cannot run", () =>
   withScratch(
     ({ baseDir }) =>
       Effect.gen(function* () {
@@ -578,25 +578,189 @@ it.effect("removes the folder when the repository cannot be made", () =>
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
 
-        const failure = yield* Effect.flip(folders.createNamedProject({ name: "Broken" }));
+        const result = yield* folders.createNamedProject({ name: "No Git" });
 
-        assert.equal(failure._tag, "NamedProjectFolderError");
-        assert.equal(failure.message, "Failed to create the project folder.");
-        assert.deepEqual(yield* fileSystem.readDirectory(path.resolve(baseDir, "projects")), []);
-        assert.deepEqual((yield* projects.snapshot).projects, []);
+        assert.equal(result.workspaceRoot, path.resolve(baseDir, "projects", "no-git"));
+        assert.include(result.commitError ?? "", "git is not installed");
+        const project = Option.getOrThrow(yield* projects.getById(result.projectId));
+        assert.equal(project.workspaceRoot, result.workspaceRoot);
+        const readme = yield* fileSystem.readFileString(
+          path.join(result.workspaceRoot, "README.md"),
+        );
+        assert.include(readme, "# No Git");
+        assert.isTrue(
+          yield* fileSystem.exists(path.join(result.workspaceRoot, "assets", "icon.svg")),
+        );
+        // Only the history is skipped: the folder is a plain folder.
+        assert.isFalse(yield* fileSystem.exists(path.join(result.workspaceRoot, ".git")));
       }),
     {
-      // git init itself failing (a missing or broken git) is not something a
-      // real git can be made to do on demand.
+      // Every git step failing (a machine with no git, or a broken one) is
+      // not something a real git can be made to do on demand.
       git: Layer.mock(GitVcsDriver.GitVcsDriver)({
-        readConfigValue: () => Effect.succeed(null),
+        readConfigValue: (cwd) =>
+          Effect.fail(
+            new GitCommandError({
+              operation: "GitVcsDriver.readConfigValue",
+              command: "git",
+              cwd,
+              detail: "git is not installed",
+            }),
+          ),
         execute: (input) =>
           Effect.fail(
             new GitCommandError({
               operation: input.operation,
               command: "git",
               cwd: input.cwd,
-              detail: "git is broken",
+              detail: "git is not installed",
+            }),
+          ),
+      }),
+    },
+  ),
+);
+
+// A folder a person already had, as Import brings it in: files at the top, in
+// a folder below, and one with a space in its name.
+const IMPORTED_FILES = {
+  "bracket.step": "ISO-10303-21;\n",
+  "notes for shop.txt": "Deburr both faces.\n",
+  "drawings/bracket.dxf": "0\nSECTION\n",
+};
+
+const writeImportedFolder = (baseDir: string) =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const folder = path.join(baseDir, "Client Bracket");
+    yield* fileSystem.makeDirectory(path.join(folder, "drawings"), { recursive: true });
+    for (const [name, text] of Object.entries(IMPORTED_FILES)) {
+      yield* fileSystem.writeFileString(path.join(folder, ...name.split("/")), text);
+    }
+    return folder;
+  });
+
+/** Every file in `folder` with its text, Git's own `.git` aside, by `/` path. */
+const readImportedFolder = (folder: string) =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const entries = yield* fileSystem.readDirectory(folder, { recursive: true });
+    const files: Record<string, string> = {};
+    for (const entry of entries.toSorted()) {
+      const name = entry.split(path.sep).join("/");
+      if (name === ".git" || name.startsWith(".git/")) continue;
+      const info = yield* fileSystem.stat(path.join(folder, entry));
+      if (info.type === "File") {
+        files[name] = yield* fileSystem.readFileString(path.join(folder, entry));
+      }
+    }
+    return files;
+  });
+
+it.effect("starts a history in a folder that has files, keeping them as its first commit", () =>
+  withScratch(({ baseDir }) =>
+    withGitEnv(
+      TEST_IDENTITY,
+      Effect.gen(function* () {
+        const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+        const folder = yield* writeImportedFolder(baseDir);
+
+        const result = yield* folders.startHistory({ cwd: folder });
+
+        assert.isUndefined(result.commitError);
+        // Nothing is added, moved, renamed or removed, and no file's text changes.
+        assert.deepEqual(yield* readImportedFolder(folder), IMPORTED_FILES);
+        // What was there is the first commit, whole.
+        assert.equal(yield* gitOutput(folder, ["log", "--format=%s"]), "Initial commit");
+        assert.deepEqual(
+          (yield* gitOutput(folder, [
+            "-c",
+            "core.quotePath=false",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "HEAD",
+          ]))
+            .split("\n")
+            .toSorted(),
+          Object.keys(IMPORTED_FILES).toSorted(),
+        );
+        assert.equal(yield* gitOutput(folder, ["show", "HEAD:bracket.step"]), "ISO-10303-21;");
+        assert.equal(yield* gitOutput(folder, ["status", "--porcelain"]), "");
+
+        // Asked again, the folder keeps the history it has.
+        const head = yield* gitOutput(folder, ["rev-parse", "HEAD"]);
+        assert.deepEqual(yield* folders.startHistory({ cwd: folder }), {});
+        assert.equal(yield* gitOutput(folder, ["rev-parse", "HEAD"]), head);
+        assert.equal(yield* gitOutput(folder, ["rev-list", "--count", "HEAD"]), "1");
+        assert.deepEqual(yield* readImportedFolder(folder), IMPORTED_FILES);
+      }),
+    ),
+  ),
+);
+
+it.effect("keeps the history and the files, and reports why, when Git cannot commit", () =>
+  withScratch(({ baseDir }) =>
+    // No identity anywhere, and Git may not guess one from the host name.
+    withGitEnv(
+      {},
+      Effect.gen(function* () {
+        const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* fileSystem.writeFileString(
+          path.join(baseDir, "no-identity.gitconfig"),
+          "[user]\n\tuseConfigOnly = true\n",
+        );
+        process.env.GIT_CONFIG_GLOBAL = path.join(baseDir, "no-identity.gitconfig");
+        const folder = yield* writeImportedFolder(baseDir);
+
+        const result = yield* folders.startHistory({ cwd: folder });
+
+        assert.include(result.commitError ?? "", "no name or email");
+        assert.isTrue(yield* fileSystem.exists(path.join(folder, ".git")));
+        assert.deepEqual(yield* readImportedFolder(folder), IMPORTED_FILES);
+      }),
+    ),
+  ),
+);
+
+it.effect("fails and leaves the folder as it was when git cannot run", () =>
+  withScratch(
+    ({ baseDir }) =>
+      Effect.gen(function* () {
+        const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const folder = yield* writeImportedFolder(baseDir);
+
+        const error = yield* folders.startHistory({ cwd: folder }).pipe(Effect.flip);
+
+        assert.equal(error._tag, "StartHistoryError");
+        assert.equal(error.folder, folder);
+        assert.isFalse(yield* fileSystem.exists(path.join(folder, ".git")));
+        assert.deepEqual(yield* readImportedFolder(folder), IMPORTED_FILES);
+      }),
+    {
+      git: Layer.mock(GitVcsDriver.GitVcsDriver)({
+        readConfigValue: (cwd) =>
+          Effect.fail(
+            new GitCommandError({
+              operation: "GitVcsDriver.readConfigValue",
+              command: "git",
+              cwd,
+              detail: "git is not installed",
+            }),
+          ),
+        execute: (input) =>
+          Effect.fail(
+            new GitCommandError({
+              operation: input.operation,
+              command: "git",
+              cwd: input.cwd,
+              detail: "git is not installed",
             }),
           ),
       }),

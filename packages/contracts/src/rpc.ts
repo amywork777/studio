@@ -232,6 +232,8 @@ import {
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
+  ProjectStartHistoryInput,
+  ProjectStartHistoryResult,
   ProjectWriteFileError,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
@@ -423,6 +425,7 @@ export const WS_METHODS = {
   projectsMutate: "projects.mutate",
   projectsEnsureScratch: "projects.ensureScratch",
   projectsCreateNew: "projects.createNew",
+  projectsStartHistory: "projects.startHistory",
 
   // Shell methods
   shellOpenInEditor: "shell.openInEditor",
@@ -1455,6 +1458,13 @@ const WsProjectsCreateNewRpc = Rpc.make(WS_METHODS.projectsCreateNew, {
   error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
 });
 
+// Starts a history in a project folder that has none: what is there is its first commit.
+const WsProjectsStartHistoryRpc = Rpc.make(WS_METHODS.projectsStartHistory, {
+  payload: ProjectStartHistoryInput,
+  success: ProjectStartHistoryResult,
+  error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
+});
+
 const WsShellOpenInEditorRpc = Rpc.make(WS_METHODS.shellOpenInEditor, {
   payload: LaunchEditorInput,
   error: Schema.Union([ExternalLauncherError, EnvironmentAuthorizationError]),
@@ -2211,6 +2221,7 @@ export const WsWorkspaceRpcGroup = RpcGroup.make(
   WsProjectsSearchEntriesRpc,
   WsProjectsEnsureScratchRpc,
   WsProjectsCreateNewRpc,
+  WsProjectsStartHistoryRpc,
   WsProjectsWriteFileRpc,
   WsProjectsMutateRpc,
   WsShellOpenInEditorRpc,

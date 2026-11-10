@@ -1,6 +1,12 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { ChevronLeftIcon, ExternalLinkIcon, FolderOpenIcon, ScrollTextIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ExternalLinkIcon,
+  FolderOpenIcon,
+  InfoIcon,
+  ScrollTextIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
@@ -18,6 +24,7 @@ import { aboutFile, isPlainText, openLabel } from "./aboutFile";
 import { CHECK_STATUS } from "./CheckBadge";
 import { type CheckResult, parseCheckResult } from "./checkResults";
 import { FileKindIcon } from "./FileKindIcon";
+import { folderLabel } from "./folderLabel";
 import { partLabel } from "./partNames";
 import { readStudioImport } from "./studioImportBridge";
 import { openInPanel } from "./useOpenInWorkbench";
@@ -42,7 +49,11 @@ function CheckReport(props: { readonly result: CheckResult; readonly onOpenModel
       {result.issues.length === 0 ? null : (
         <ul className="flex flex-col gap-2 border-t border-border pt-3">
           {result.issues.map((issue) => {
-            const Mark = CHECK_STATUS[issue.severity === "error" ? "fix" : "warnings"].Icon;
+            // A note about the run is no warning: no amber, which means one (law 7).
+            const Mark =
+              issue.note === true
+                ? InfoIcon
+                : CHECK_STATUS[issue.severity === "error" ? "fix" : "warnings"].Icon;
             return (
               <li
                 key={`${issue.severity}:${issue.summary}:${issue.fix ?? ""}`}
@@ -53,7 +64,9 @@ function CheckReport(props: { readonly result: CheckResult; readonly onOpenModel
                   className={
                     issue.severity === "error"
                       ? "mt-0.5 size-4 shrink-0 text-destructive"
-                      : "mt-0.5 size-4 shrink-0 text-warning-foreground"
+                      : issue.note === true
+                        ? "mt-0.5 size-4 shrink-0 text-muted-foreground"
+                        : "mt-0.5 size-4 shrink-0 text-warning-foreground"
                   }
                 />
                 <span className="flex min-w-0 flex-col gap-1">
@@ -109,6 +122,7 @@ export function StudioFilePage(props: {
   const folder = relativePath.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
   const canReveal =
     props.absolutePath !== null && serverConfig?.availableEditors.includes("file-manager") === true;
+  const showInFolder = folderLabel(serverConfig?.environment.platform.os);
   // Opening in its own app happens on this Mac, so only for files on this Mac's own server.
   const bridge = readStudioImport();
   const local = usePrimaryEnvironmentId() === environmentId;
@@ -179,7 +193,7 @@ export function StudioFilePage(props: {
                   toastManager.add({
                     type: "error",
                     title: "Couldn't open it",
-                    description: error instanceof Error ? error.message : "Try Show in Finder.",
+                    description: error instanceof Error ? error.message : `Try ${showInFolder}.`,
                   }),
                 )
               }
@@ -200,7 +214,7 @@ export function StudioFilePage(props: {
               }
             >
               <FolderOpenIcon />
-              Show in Finder
+              {showInFolder}
             </Button>
           ) : null}
           {text !== null && !isPlainText(relativePath) ? (

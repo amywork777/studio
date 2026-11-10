@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "../ui/button";
 import { MODULE_HEADING } from "./studioLayout";
-import { cardPlace, TOUR_STEPS, tourDone, useTourStore } from "./tourSteps";
+import { cardPlace, tourDone, tourSteps, useTourStore } from "./tourSteps";
 
 interface Box {
   readonly top: number;
@@ -37,7 +37,8 @@ export function StudioTour(props: {
     readonly top: number;
     readonly left: number;
   } | null>(null);
-  const current = TOUR_STEPS[step] ?? null;
+  const steps = useMemo(() => tourSteps(navigator.platform), []);
+  const current = steps[step] ?? null;
 
   // The first workspace opened: the tour starts once it has settled and the chat is quiet.
   useEffect(() => {
@@ -83,7 +84,7 @@ export function StudioTour(props: {
   }, [current, finish, open, step]);
 
   if (!open || current === null) return null;
-  const last = step === TOUR_STEPS.length - 1;
+  const last = step === steps.length - 1;
   const here = placed !== null && placed.step === step ? placed : null;
 
   return createPortal(
@@ -112,7 +113,7 @@ export function StudioTour(props: {
         style={{ top: here?.top ?? -9999, left: here?.left ?? -9999 }}
       >
         <span className={MODULE_HEADING}>
-          {step + 1} of {TOUR_STEPS.length}
+          {step + 1} of {steps.length}
         </span>
         <h2 className="text-sm font-semibold text-foreground">{current.title}</h2>
         <p className="text-sm text-muted-foreground">{current.body}</p>

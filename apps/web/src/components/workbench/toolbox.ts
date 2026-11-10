@@ -2,9 +2,10 @@ import {
   type HardwareAction,
   type HardwareActionGroup,
   type HardwareActionMenu,
+  jobFits,
 } from "./hardwareActions";
-import { MENU_WORDS } from "./kinds";
 import { libraryHref } from "./library/librarySearch";
+import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { lowerName } from "./partNames";
 
 /** A run of jobs in a group, under its title. */
@@ -22,10 +23,10 @@ export interface ToolboxGroup {
 const GROUP_ORDER: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "Document"];
 
 /**
- * The part's jobs as the Toolbox shows them: always Evaluate, Manufacture and Document, in that
- * order, a tab each, every section open and every job a tile like the others. The menus' everyday sections
- * come first and the ones they keep under "More" after, nothing folded; a group none of the jobs
- * apply to has no sections.
+ * Jobs as the Toolbox shows them: always Evaluate, Manufacture and Document, in that order, a tab
+ * each, every section open and every job a tile like the others. The menus' everyday sections come
+ * first and the ones they keep under "More" after, nothing folded; a group with no job has no
+ * sections.
  */
 export function toolboxGroups(menus: ReadonlyArray<HardwareActionMenu>): ToolboxGroup[] {
   return GROUP_ORDER.map((group) => {
@@ -100,30 +101,61 @@ export function jobCount(group: ToolboxGroup): number {
 }
 
 /**
- * The group the Toolbox shows: the one left open, or where that has no job for this file (a CAM job
- * has nothing in Manufacture), the first that has one. The one left open stays remembered.
+ * Why a job's tile can't be pressed for the file in front (`kind`, null with none open), by what
+ * the job works on: "Works on a board or a schematic. Open one to use it." Null when the job fits
+ * the file, and its tile runs it.
  */
-export function toolboxShownGroup(
-  groups: ReadonlyArray<ToolboxGroup>,
-  tab: HardwareActionGroup,
-): ToolboxGroup | undefined {
-  const left = groups.find((group) => group.group === tab);
-  return left !== undefined && jobCount(left) > 0
-    ? left
-    : (groups.find((group) => jobCount(group) > 0) ?? left);
+export function toolboxWorksOn(
+  action: HardwareAction,
+  kind: string | null,
+  start: NewTemplate | null = null,
+): string | null {
+  if (kind !== null && jobFits(action, kind)) return null;
+  if (action.kinds === null) return "Works on any file. Open one to use it.";
+  const kinds = action.kinds.map((name) => {
+    const lower = lowerName(name);
+    // "an assembly", and "an FEA study" as it is said.
+    return `${/^([aeiou]|FEA\b)/.test(lower) ? "an" : "a"} ${lower}`;
+  });
+  const listed = new Intl.ListFormat("en", { type: "disjunction" }).format(kinds);
+  if (start !== null) return `Works on ${listed}. This project has none yet: press to start one.`;
+  return `Works on ${listed}. Open one to use it.`;
+}
+
+/** New's start for what a job works on, the first kind of its list that New makes. */
+const START_FOR_KIND: Readonly<Record<string, string>> = {
+  Part: "part",
+  Assembly: "assembly",
+  Board: "board",
+  Schematic: "board",
+};
+
+/**
+ * New's start (`NEW_TEMPLATES`) for a job whose project holds nothing it works on (`projectKinds`,
+ * its files' kinds): a board job in a project with no board starts a circuit board, an assembly
+ * job in one with only parts starts an assembly. Its tile then opens New there instead of running.
+ * Null while the project has something the job works on (the tile says to open it), and for a job
+ * on any file or on what only another job makes (a study, a drawing alone).
+ */
+export function toolboxStart(
+  action: HardwareAction,
+  projectKinds: ReadonlySet<string>,
+): NewTemplate | null {
+  if (action.kinds === null || action.kinds.some((kind) => projectKinds.has(kind))) return null;
+  const id = action.kinds.map((kind) => START_FOR_KIND[kind]).find((found) => found !== undefined);
+  return NEW_TEMPLATES.find((template) => template.id === id) ?? null;
 }
 
 /**
- * What the file in front leaves out, in plain words and with what to open for it; null when every
- * group has jobs for it.
+ * The line under a group none of whose jobs fit the file in front (a CAM job has nothing in
+ * Analysis), where every tile is dimmed; null when one fits.
  */
-export function toolboxLeftOut(groups: ReadonlyArray<ToolboxGroup>, kind: string): string | null {
-  const names = groups
-    .filter((group) => jobCount(group) === 0)
-    .map((group) => MENU_WORDS[group.group]);
-  if (names.length === 0) return null;
-  const listed = new Intl.ListFormat("en", { type: "disjunction" }).format(names);
-  return `No ${listed} jobs for this ${lowerName(kind)}. Open a part to see them.`;
+export function toolboxLeftOut(group: ToolboxGroup, kind: string): string | null {
+  const fits = group.sections.some((section) =>
+    section.actions.some((action) => jobFits(action, kind)),
+  );
+  if (fits) return null;
+  return `None of these work on this ${lowerName(kind)}. Pause on one to see what it works on.`;
 }
 
 /**

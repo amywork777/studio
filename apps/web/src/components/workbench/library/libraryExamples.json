@@ -37,7 +37,7 @@
   "doc:standard-parts": {
     "example": "parts/imported/iso4762_socket_head_cap_screw_m3x8.step"
   },
-  "doc:circuit-board": null,
+  "doc:circuit-board": { "example": "electronics/servo_power.kicad_pcb" },
   "doc:export": {
     "example": "parts/servo_bracket.3mf"
   },
@@ -55,7 +55,7 @@
     "example": "pictures/servo_mount_angle.png"
   },
   "doc:motion-video": {
-    "example": "pictures/servo_mount_motion.mp4"
+    "example": "assemblies/servo_mount.py"
   },
   "doc:test-plan": {
     "example": "docs/servo_mount_test_plan.md"
@@ -90,7 +90,7 @@
   "skill:text-to-cad/fea": {
     "example": "studies/servo_bracket/result.glb"
   },
-  "skill:text-to-cad/pcb": null,
+  "skill:text-to-cad/pcb": { "example": "electronics/servo_power.kicad_pcb" },
   "skill:text-to-cad/print3d": null,
   "skill:text-to-cad/robot-simulation": {
     "example": "robots/servo_mount.urdf"
@@ -98,5 +98,8 @@
   "skill:text-to-cad/sendcutsend": {
     "example": "cut/servo_bracket_sendcutsend.md"
   },
-  "skill:text-to-cad/work-instructions": null
+  "skill:text-to-cad/work-instructions": {
+    "sample": "desk-lamp",
+    "example": "docs/desk_lamp_work_instructions.pdf"
+  }
 }

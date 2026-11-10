@@ -6,6 +6,8 @@ import { TEXT_TO_CAD } from "../workbench/library/skillAvailability";
 export const TEXT_TO_CAD_REPOSITORY = "https://github.com/earthtojake/text-to-cad";
 export const TEXT_TO_CAD_DISCORD = "https://discord.gg/5FGB9DwJYU";
 export const STUDIO_REPOSITORY = "https://github.com/amywork777/studio";
+/** Where Studio lists everything it can send: its README's "Usage data" section. */
+export const STUDIO_USAGE_DATA = `${STUDIO_REPOSITORY}#usage-data`;
 
 /** The text-to-cad this Studio carries, as its plugin names it; null where it names none. */
 export function textToCadVersion(

@@ -809,6 +809,14 @@ export function resolveKnownWindowsCliDirs(env: NodeJS.ProcessEnv): ReadonlyArra
   ];
 }
 
+// The official Claude and Codex installers both put their command in
+// ~/.local/bin, which a clean macOS or Linux PATH does not include.
+export function resolveKnownPosixCliDirs(env: NodeJS.ProcessEnv): ReadonlyArray<string> {
+  const home = env.HOME?.trim();
+
+  return home ? [`${home}/.local/bin`] : [];
+}
+
 function readWindowsEnvironmentSafely(
   readEnvironment: WindowsShellEnvironmentReader,
   names: ReadonlyArray<string>,

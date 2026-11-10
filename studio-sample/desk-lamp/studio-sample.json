@@ -9,7 +9,8 @@
     "3D print",
     "Assembly",
     "Drawing",
-    "Work instructions"
+    "Work instructions",
+    "Injection molding"
   ],
   "picture": "pictures/desk-lamp.png",
   "open": "assemblies/desk_lamp.py"

@@ -17,7 +17,10 @@ receiver's address, and only the receiver holds the database key.
   and keeps nothing. Each event is one row of
   `usage_events` (schema.sql), keyed by its own id, so a batch sent again adds nothing. Beside
   the batch's context it keeps the country Vercel places the request in (`x-vercel-ip-country`),
-  never the address.
+  never the address. Each instance allows 120 batches a minute per client address
+  (`EVENTS_LIMIT` in `src/limit.mjs`): Studio sends at most one batch a second, so that is twice
+  what one Studio can send. Past that it answers `429` with `Retry-After` and keeps nothing, and
+  Studio keeps the batch and tries it again, five times in all.
 - `POST /v1/forget`: `{install}` → `204` once every row under that id is deleted. Studio calls
   this when Share usage data is turned off, and keeps asking until it gets a `2xx`. Each instance
   allows 5 calls per 10 minutes per client address and per install id (`src/limit.mjs`, copied

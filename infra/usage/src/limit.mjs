@@ -13,6 +13,16 @@ import * as NodeCrypto from "node:crypto";
 export const FORGET_LIMIT = { limit: 5, windowMs: 10 * 60_000, size: 1000 };
 
 /**
+ * /v1/events is open to anyone too, and each batch adds rows, so it is limited per client address. Studio
+ * sends what it counted once a second, up to 20 events a batch (`FLUSH_INTERVAL_MS` and `flushBatchSize` in
+ * the server's AnalyticsService.ts), so one Studio sends at most about 60 batches a minute and in real use a
+ * few. 120 a minute is twice that: room for several people behind one address, and for a Studio sending what
+ * it kept while offline. Studio treats a refusal as a send that failed: it keeps the batch and tries it again,
+ * five times in all, each wait longer than the last.
+ */
+export const EVENTS_LIMIT = { limit: 120, windowMs: 60_000, size: 1000 };
+
+/**
  * @param {{ limit?: number, windowMs?: number, size?: number, now?: () => number }} [options]
  * @returns {{ take(key: string): { ok: true } | { ok: false, retryAfter: number }, readonly size: number }}
  *   `take`: counts one request under `key`; refused, it counts nothing and says how many seconds to wait.

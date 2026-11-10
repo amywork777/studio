@@ -468,7 +468,10 @@ export function ProjectOverview(props: {
       .flatMap((folder) =>
         folder.results.flatMap((result) => {
           const part = folder.parts.find((entry) => entry.results.includes(result))?.file ?? null;
-          return result.issues.map((issue) => ({ root: folder.root, result, issue, part }));
+          // A note about the run (a slow solve) is nothing open on the part: its result lists it.
+          return result.issues
+            .filter((issue) => issue.note !== true)
+            .map((issue) => ({ root: folder.root, result, issue, part }));
         }),
       )
       .toSorted((a, b) =>

@@ -1149,6 +1149,7 @@ import {
   isEngineeringInterface,
   useEngineeringInterface,
 } from "../workbench/studioInterface";
+import { NO_AGENT, OPEN_AGENTS } from "../workbench/agentWords";
 import { partLabel } from "../workbench/partNames";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 import { ENGINEERING_RUNTIME_MODES } from "../workbench/engineeringTraits";
@@ -5576,10 +5577,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       <CircleAlertIcon className="size-4" />
       {providerSetupInstanceId
         ? engineeringInterface
-          ? "Open AI agents"
+          ? OPEN_AGENTS
           : "Open provider settings"
         : engineeringInterface
-          ? "No AI agent signed in"
+          ? NO_AGENT
           : "No provider available"}
     </ComposerControl>
   ) : (

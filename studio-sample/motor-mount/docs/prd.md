@@ -2,7 +2,7 @@
 
 ## Summary
 
-A plate milled from 6061-T6 aluminium that holds a NEMA 17 stepper motor to a frame and lets it slide to tension a belt. The motor sits under the plate, located by its pilot in the plate's bore and held by four M3 screws on its 31 mm square; two M5 screws through slots at the plate's ends fix it to the frame. A pocket in the top saves weight and sinks the screw heads flush. It is machined on a 3-axis mill in two setups. It is a sample project to learn Studio with.
+A plate milled from 6061-T6 aluminium that holds a NEMA 17 stepper motor to a frame and lets it slide to tension a belt. The motor sits under the plate, located by its pilot in the plate's bore and held by four M3 screws on its 31 mm square; two M5 screws through slots at the plate's ends fix it to the frame. A pocket in the top saves weight and sinks the screw heads flush. It is machined on a 3-axis mill in two setups. It is an example project to learn Studio with.
 
 ## The problem and who has it
 

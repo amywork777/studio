@@ -69,6 +69,14 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   - the plugin's page;
   - the examples, finished projects (`studio-sample/<id>/`), which the Library's Examples section
     shows and Make a copy to edit copies into a new project (`T3CODE_SAMPLES_DIR`);
+  - the license notices kept as files (`licenses/`): T3 Code's, and on a Mac Electron's and
+    Chromium's, which electron-builder takes out of a Mac app and leaves beside `Studio.exe` on
+    Windows. The CAD tools' Python and its packages keep theirs where they are installed. Settings,
+    About, View licenses shows the CAD tools' own (Python, text-to-cad, build123d, OCP, Open
+    CASCADE, Netgen, CalculiX) from `third-party-licenses.config.json`, whose texts are in
+    `studio-licenses/`: copies from those packages as installed, except OCP's license and Open
+    CASCADE's exception, which their wheels leave out and which come from the projects' own
+    repositories;
   - `studio.json`.
 - **The build.** T3 Code's desktop build takes the bundle through `T3CODE_DESKTOP_STUDIO_BUNDLE`
   (`scripts/lib/studio-app.ts`). That gives it Studio's name, id, icon and copyright, and a plain
@@ -257,7 +265,11 @@ Everything else is upstream T3 Code plus the fork's plugins (`FORK.md` on `main`
   viewer's routes, through `cad_http` once per revision, say the rest. Studio makes no call the
   plugin would count, and a fact the server does not hold is left out or said to be missing. A
   press brings the viewer back. The title block over the viewer also lists the part's checks, each
-  opening its result, and a result on screen names the part it checked, a click away. A model a
+  opening its result, and a result on screen names the part it checked, a click away. Once that part is
+  built again (by an agent's turn, or because a view showed it after its script was edited outside
+  Studio: the view's sync names the new build, and the project's models are read again), the result
+  says "Part changed since this check" there; the engineering interface, which keeps no title
+  block, shows only that notice and the checked part, and only while it is due. A model a
   chat link or file chip names opens in the viewer, not as text.
 - **Hardware starters.** A new thread offers hardware jobs from `brand.json` `starters` ("Route
   this board", "Post G-code for grbl"), each only while an enabled plugin has the skill it needs
@@ -349,7 +361,9 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   `<part>_drawing.pdf`. Each opens with a click.
 - **Import.** Studio scans the folders picked on this computer (Documents, Desktop and Downloads to
   start) for CAD models, drawings, parts lists, datasheets, photos and notes, and proposes a project
-  for each folder that holds models or drawings, imported where it is: Studio only reads them. Loose
+  for each folder that holds models or drawings, imported where it is: the scan only reads them, and
+  Studio then works in that folder, so changes the agent makes are made to the files there (the
+  scan's first step says so, `ImportDialog.tsx`). Loose
   files are placed in a project (copied into its folder) or left out; copies and older versions are
   listed and stay put. Import is on Home (files or a folder, or a scan), takes files dropped
   anywhere on Home, and offers the CAD files new in the scanned folders since the last scan; a
@@ -357,8 +371,10 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   dropped on its Overview, copy what is picked into the project's folder, never over a file there
   (`importIntoProject.ts`). The desktop app reads and copies (`apps/desktop/src/studio/`); what
   makes a project is decided in the web (`components/workbench/importPlan.ts`).
-- **No usage data.** T3 Code's analytics are off and keyless in this build
-  (`apps/server/src/telemetry/AnalyticsService.ts`), so nothing about its use goes to T3.
+- **Usage data.** Nothing about its use goes to T3:
+  `apps/server/src/telemetry/AnalyticsService.ts` sends only Studio's own anonymous counts, to
+  Studio's receiver (`infra/usage`), once the person chose Share. The README's "Usage data" section
+  lists every count, and the plain downloads the app makes.
 - **Design history.** A turn that changed files ends with one line of what it changed in the
   design, a chip per part and document (a part's script, model, drawing and studies are one
   entry); a part's chip opens what changed in it at that turn, anything else opens beside the
@@ -445,7 +461,7 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   to find one, the folders in no project), and New and Import beside them to add one (on the
   Projects page Import shows only in Engineering): New is the same New and dialog as a project's
   toolbar (`StudioNew.tsx`), where Create makes a new project and hands the job to its first chat,
-  the kind of project its work needs (an assembly a product, a board or harness a circuit board, a
+  the kind of project its work needs (an assembly a product, a circuit board a circuit board project, a
   robot description a robot, the rest a mechanical part: `projectKindFor`). There is one New: ⌘K's
   and the project switcher's New project open it, and Make a project on a folder in no project makes
   a mechanical part project of it at once, its brief filled in later. New's Part is New part, with
@@ -789,7 +805,14 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
   nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It
   folds to its icons, and starts folded in a narrow panel, in CAD any panel beside a chat, so the
-  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. The jobs the part's kind takes:
+  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. Every job the
+  enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
+  board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
+  and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.
+  Where the project holds nothing the job works on and New makes it (`toolboxStart`: a board's
+  jobs in a project with no board, an assembly's in one with only parts), the dimmed tile still
+  takes a press and opens New on that start (Amy, 11/09: New and the Toolbox linked where a job
+  has nothing to work on yet). The jobs:
   simulations, fit, motion and mass; each way of making it (the project's own first: printing,
   CNC with G-code, sheet metal, cutting, molding, boards), buying standard parts and the files to
   export (STEP, STL and 3MF); drawings, instructions, pictures, reports and robot descriptions.
@@ -806,7 +829,9 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   the chat (`$fdm`, `$export`, `$board-fab`) and has its own cover on the Toolbox page, on its menu's
   shelf with the cover of the document it makes (Amy, 11/09: more skills, each triggered on its
   own). Each only hands off: it asks for its job as the tile does and sends the agent to the
-  text-to-cad skill that does it. Its files, `studio-job-skills/`, are written from the jobs
+  text-to-cad skill that does it. A tile says what it needs before its first use, where every job
+  behind it needs the same thing (`entryNeeds`: "Needs OrcaSlicer installed.", "Downloads its board
+  tools on first use, about 100 MB."). Its files, `studio-job-skills/`, are written from the jobs
   (`components/workbench/jobSkills.ts`; `STUDIO_WRITE_JOB_SKILLS=1` on `jobSkills.test.ts` writes
   them again after a job changes) and join text-to-cad's skills where Studio lays out its plugin,
   in dev (`TEXT_TO_CAD_DEV=1`) and in the app (`scripts/studio_job_skills.py`), never inside

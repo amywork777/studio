@@ -1,3 +1,4 @@
+import { cadToolsCause } from "../workbench/cadToolsCause";
 import { partLabel } from "../workbench/partNames";
 import { hasEngineeringSurfaces, isEngineeringInterface } from "../workbench/studioInterface";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
@@ -61,12 +62,15 @@ import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 
 /** What opens one plugin view: the tool whose result is the view, and where it runs. */
 
-/** Why a view could not open, in plain words: the server says it with paths and view names. */
+/**
+ * Why a view could not open, in plain words: the server says it with paths and view names. The two
+ * causes a person can act on when the CAD tools did not start are said (`cadToolsCause`).
+ */
 function plainViewError(message: string): string {
   if (/outside the thread's workspace/i.test(message)) {
     return "The viewer can only open files in this chat's folder.";
   }
-  return "The viewer couldn't open this.";
+  return cadToolsCause(message) ?? "The viewer couldn't open this.";
 }
 
 export interface PluginViewTarget {

@@ -4,6 +4,7 @@ import {
   mergePathEntries,
   readPathFromLoginShell,
   readPathFromLaunchctl,
+  resolveKnownPosixCliDirs,
   resolveWindowsEnvironment,
 } from "@t3tools/shared/shell";
 import * as Effect from "effect/Effect";
@@ -80,6 +81,16 @@ export const fixPath = Effect.fn("fixPath")(function* (options?: {
       }),
     ),
   );
+  // Like the known Windows CLI dirs, these fill gaps after the user's own PATH,
+  // so a provider CLI installed while the server runs is found without a restart.
+  const knownCliPath = mergePathEntries(
+    env.PATH,
+    resolveKnownPosixCliDirs(env).join(":"),
+    platform,
+  );
+  if (knownCliPath) {
+    env.PATH = knownCliPath;
+  }
   if (options?.shellEnvironmentPrepared === true) return;
   yield* Effect.sync(() => hydratePosixPath(env, platform)).pipe(
     Effect.catchDefect((defect) =>

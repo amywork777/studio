@@ -97,6 +97,18 @@ export class NamedProjectCreateError extends Schema.TaggedError<NamedProjectCrea
 
 export type NamedProjectError = NamedProjectFolderError | NamedProjectCreateError;
 
+export class StartHistoryError extends Schema.TaggedError<StartHistoryError>()(
+  "StartHistoryError",
+  {
+    folder: Schema.String,
+    cause: Schema.Defect(),
+  },
+) {
+  override get message(): string {
+    return "Failed to start a history in the project folder.";
+  }
+}
+
 export class ManagedProjectFolders extends Context.Service<
   ManagedProjectFolders,
   {
@@ -118,9 +130,10 @@ export class ManagedProjectFolders extends Context.Service<
     /**
      * Starts a project from just a name: claims `<namedProjectsRoot>/<slug>`
      * (adding `-2`, `-3`, ... when taken), makes it a Git repository with a
-     * README, an icon, and a first commit, then creates the project. A failed
-     * commit (no Git identity, a signing prompt) keeps the project and returns
-     * why in `commitError`. The folder is removed when the create fails or is
+     * README, an icon, and a first commit, then creates the project. When Git
+     * is missing or fails (no Git installed, no identity, a signing prompt)
+     * the project and its files are kept, and `commitError` says why it has
+     * no first commit. The folder is removed when the create fails or is
      * cancelled before the project exists, never once another project owns it.
      */
     readonly createNamedProject: (input: { readonly name: string }) => Effect.Effect<
@@ -131,6 +144,18 @@ export class ManagedProjectFolders extends Context.Service<
       },
       NamedProjectError
     >;
+    /**
+     * Starts a history in a project folder that keeps none (one the user
+     * picked or imported), as a named project's folder gets it: `git init`
+     * and a first commit, here of everything already in the folder. Only
+     * Git's own `.git` is written: no file is added, moved, renamed or
+     * removed. A folder that already keeps a history is left as it is. A
+     * failed commit keeps the history and returns why in `commitError`; a
+     * folder Git could not make a repository fails.
+     */
+    readonly startHistory: (input: {
+      readonly cwd: string;
+    }) => Effect.Effect<{ readonly commitError?: string }, StartHistoryError>;
   }
 >()("t3/project/ManagedProjectFolders") {}
 
@@ -425,11 +450,12 @@ const make = Effect.gen(function* () {
     });
   });
 
-  // git init, the starter files, and the first commit. Only the commit may
-  // fail softly; everything before it fails the create.
-  const scaffoldRepository = Effect.fn("ManagedProjectFolders.scaffoldRepository")(function* (
+  // A folder's history: git init, then a first commit of what `add` names.
+  // Returns why the commit failed, when it did.
+  const initWithFirstCommit = Effect.fn("ManagedProjectFolders.initWithFirstCommit")(function* (
     cwd: string,
-    name: string,
+    add: ReadonlyArray<string>,
+    addTimeoutMs: number,
   ) {
     const branch =
       (yield* git
@@ -441,6 +467,29 @@ const make = Effect.gen(function* () {
       args: ["init", `--initial-branch=${branch}`],
       timeoutMs: 10_000,
     });
+    yield* git.execute({
+      operation: "ManagedProjectFolders.add",
+      cwd,
+      args: ["add", ...add],
+      timeoutMs: addTimeoutMs,
+    });
+    const result = yield* git.execute({
+      operation: "ManagedProjectFolders.commit",
+      cwd,
+      args: ["commit", "--message", "Initial commit"],
+      allowNonZeroExit: true,
+      timeoutMs: 30_000,
+    });
+    return result.exitCode === 0 ? undefined : describeCommitFailure(result.stderr);
+  });
+
+  // The starter files, then their history: git init and the first commit.
+  // Only the files fail the create. A machine with no git, or one whose git
+  // fails, still gets the project, and why it has no history comes back.
+  const scaffoldRepository = Effect.fn("ManagedProjectFolders.scaffoldRepository")(function* (
+    cwd: string,
+    name: string,
+  ) {
     yield* fileSystem.writeFileString(
       path.join(cwd, "README.md"),
       namedProjectReadme(name, creditT3),
@@ -451,26 +500,19 @@ const make = Effect.gen(function* () {
       namedProjectIconSvg(name),
     );
     // Named and forced so a global ignore rule (say `*.svg`) cannot drop one.
-    yield* git.execute({
-      operation: "ManagedProjectFolders.add",
+    return yield* initWithFirstCommit(
       cwd,
-      args: ["add", "--force", "--", "README.md", "assets/icon.svg"],
-      timeoutMs: 10_000,
-    });
-    return yield* git
-      .execute({
-        operation: "ManagedProjectFolders.commit",
-        cwd,
-        args: ["commit", "--message", "Initial commit"],
-        allowNonZeroExit: true,
-        timeoutMs: 30_000,
-      })
-      .pipe(
-        Effect.map((result) =>
-          result.exitCode === 0 ? undefined : describeCommitFailure(result.stderr),
-        ),
-        Effect.catch((error) => Effect.succeed(error.message)),
-      );
+      ["--force", "--", "README.md", "assets/icon.svg"],
+      10_000,
+    ).pipe(
+      Effect.catch((error) =>
+        Effect.logWarning("Made the project without its history.", {
+          folder: cwd,
+          operation: error.operation,
+          detail: error.detail,
+        }).pipe(Effect.as(error.message)),
+      ),
+    );
   });
 
   const createNamedProject: ManagedProjectFolders["Service"]["createNamedProject"] = Effect.fn(
@@ -519,12 +561,39 @@ const make = Effect.gen(function* () {
     };
   });
 
+  const startHistory: ManagedProjectFolders["Service"]["startHistory"] = Effect.fn(
+    "ManagedProjectFolders.startHistory",
+  )(function* (input) {
+    const keepsHistory = gitWorkflow
+      .isRepository(input.cwd)
+      .pipe(Effect.orElseSucceed(() => false));
+    // Inside a checkout already, its own or a parent folder's: nothing to start.
+    if (yield* keepsHistory) return {};
+    // Everything in the folder but what its ignore rules leave out. A real
+    // folder can hold large models, so the add gets longer than a new project's.
+    const commitError = yield* initWithFirstCommit(input.cwd, ["--all"], 120_000).pipe(
+      // Once the folder is a repository its versions are kept from the next
+      // turn on, so only a failed init fails this.
+      Effect.catch((cause) =>
+        keepsHistory.pipe(
+          Effect.flatMap((kept) =>
+            kept
+              ? Effect.succeed(cause.message)
+              : Effect.fail(new StartHistoryError({ folder: input.cwd, cause })),
+          ),
+        ),
+      ),
+    );
+    return commitError === undefined ? {} : { commitError };
+  });
+
   return ManagedProjectFolders.of({
     scratchRoot,
     ensureScratchProject,
     folderForThread,
     namedProjectsRoot,
     createNamedProject,
+    startHistory,
   });
 });
 

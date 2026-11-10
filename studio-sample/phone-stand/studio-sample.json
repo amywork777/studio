@@ -8,7 +8,8 @@
   "shows": [
     "3D print",
     "Drawing",
-    "Assembly"
+    "Assembly",
+    "Powder print"
   ],
   "picture": "pictures/phone-stand.png",
   "open": "parts/phone_stand.py"

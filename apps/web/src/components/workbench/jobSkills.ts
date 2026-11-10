@@ -8,7 +8,7 @@
  * itself holds only Jake's.
  */
 
-import { HARDWARE_ACTIONS, type HardwareAction } from "./hardwareActions";
+import { HARDWARE_ACTIONS, jobLine, type HardwareAction } from "./hardwareActions";
 
 /** A job that is a skill of its own: one of a text-to-cad skill's jobs, where it has more than one. */
 export interface JobSkillJob extends HardwareAction {
@@ -71,13 +71,13 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
     `${subject.charAt(0).toUpperCase()}${subject.slice(1)} is the one the person names, else the one open beside the chat.`,
     "Ask which when neither says.",
     "",
-    `What they get: ${job.gets}`,
+    `What they get: ${jobLine(job)}`,
     "",
   ].join("\n");
   const face = [
     "interface:",
     `  display_name: ${yamlString(job.label)}`,
-    `  short_description: ${yamlString(job.gets)}`,
+    `  short_description: ${yamlString(jobLine(job))}`,
     `  default_prompt: ${yamlString(`Use $${job.id} to ${lowerFirst(ask)}`)}`,
     "",
   ].join("\n");

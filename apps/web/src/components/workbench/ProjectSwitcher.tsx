@@ -36,11 +36,11 @@ import type { ListedProject } from "./projectList";
 import { StarButton } from "./StarButton";
 import { useAskNewProject } from "./StudioNew";
 import { BackupDialog } from "./BackupDialog";
-import { folderLabel } from "./ProjectMenu";
+import { folderLabel } from "./folderLabel";
 import { backupPlaceLabel, useLastBackup } from "./useBackup";
 import { useDuplicateProject } from "./useDuplicateProject";
 import { useOpenProject } from "./useOpenProject";
-import { useOpenShortcut } from "./useOpenShortcut";
+import { openShortcutLabel, useOpenShortcut } from "./useOpenShortcut";
 import { useProjectHasDesign } from "./useProjectCover";
 import { useProjectList } from "./useProjectList";
 import { useTrash } from "./trash/useTrash";
@@ -177,7 +177,10 @@ export function ProjectSwitcher(props: {
             />
           </TooltipTrigger>
           <TooltipPopup side="bottom">
-            <TooltipRich title={props.title} description="Switch project (Cmd+O)" />
+            <TooltipRich
+              title={props.title}
+              description={`Switch project (${openShortcutLabel()})`}
+            />
           </TooltipPopup>
         </Tooltip>
         <PopoverPopup width="md" padding="compact" align="start" initialFocus={input}>
