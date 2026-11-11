@@ -139,7 +139,10 @@ wheel_url() {
   wheel="$(ls "$work"/"$1"-*.whl)"
   if [ "$platform" = win ]; then echo "file:///$(cygpath -m "$wheel")"; else echo "file://$wheel"; fi
 }
+# setuptools packs whatever its build/lib holds, and keeps old files there: the viewer's renamed
+# bundles from every earlier build (392 files, not 64, by 0.1.11). Each build starts it empty.
 for package in cad cad-server cad-mcp; do
+  rm -rf "$CAD/packages/$package/build"
   uv build --wheel --out-dir "$(native "$work")" "$(native "$CAD/packages/$package")"
 done
 # The versions the checkout's CAD tools run on, so the app runs the same ones.
