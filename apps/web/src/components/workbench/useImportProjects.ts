@@ -46,13 +46,18 @@ export function useImportProjects(environmentId: EnvironmentId) {
         projectId: ProjectId | null,
         brief: StudioProjectBrief = EMPTY_STUDIO_BRIEF,
       ) => {
-        const id = await save(null, {
-          name,
-          template: "part",
-          brief,
-          folders: [folder],
-          createdAt: new Date().toISOString(),
-        });
+        const id = await save(
+          null,
+          {
+            name,
+            template: "part",
+            brief,
+            folders: [folder],
+            createdAt: new Date().toISOString(),
+          },
+          // Only a restored project comes with a brief of its own.
+          brief === EMPTY_STUDIO_BRIEF ? "imported" : "restored",
+        );
         if (id !== null) made += 1;
         if (id !== null && first === null) first = projectId;
         return id !== null;

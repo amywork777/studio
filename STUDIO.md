@@ -95,9 +95,12 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   and the CAD tools' Python loads libraries signed by others), and Apple
   notarizes it. It skips T3 Code's passkey sign-in setup, which needs T3's own Apple profile. It
   carries a zip and Studio's update feed, the releases of `amywork777/studio-download`: T3 Code's
-  updater checks 15 seconds after launch and every 4 minutes. It downloads nothing by itself and
-  installs nothing on quit (T3 turns both off, `DesktopUpdates.ts`): a found update shows as the
-  sidebar's update button, one click downloads it and the next restarts into it. The button is at
+  updater checks 15 seconds after launch and every 4 minutes. Studio downloads what those checks
+  find straight away and installs it when the app quits (`checkThenDownload` and
+  `setAutoInstallOnAppQuit` in `DesktopUpdates.ts`; T3 left both to a click), so nobody has to
+  press anything. The sidebar's update button then says "Restart to update", for installing it now;
+  a check someone asks for still offers the download as a button. Releases up to 0.1.9 download only
+  on a click, so reaching the first release with this takes the two clicks once. The button is at
   the foot of the list beside the rail, and on the rail above Settings while the list is folded and
   an update waits (`StudioRail.tsx`). Under the hardened runtime without those
   entitlements, the bundled Python can't load its own library; with them it runs (checked

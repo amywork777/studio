@@ -4,7 +4,7 @@ import * as NodePath from "node:path";
 
 import { assert, it } from "@effect/vitest";
 
-import { CAD_USAGE_EVENTS } from "../plugins/usageEvents.ts";
+import { CAD_ACTION_FAILED, CAD_USAGE_EVENTS } from "../plugins/usageEvents.ts";
 
 // Studio's law 9: the README names every usage event the app can send, so what a person is told
 // is what the code does. Adding, renaming or dropping an event means editing that list too.
@@ -13,7 +13,7 @@ const README = NodePath.join(import.meta.dirname, "../../../../README.md");
 
 /** Event names the server records, with a `${…}` part read as any one word. */
 function recordedEvents(): ReadonlyArray<string> {
-  const names = new Set<string>(Object.values(CAD_USAGE_EVENTS));
+  const names = new Set<string>([...Object.values(CAD_USAGE_EVENTS), CAD_ACTION_FAILED]);
   const files = NodeFS.readdirSync(SERVER_SOURCE, { recursive: true, encoding: "utf8" });
   for (const file of files) {
     if (!file.endsWith(".ts") || /\.test(?:Fixtures)?\.ts$|testkit|\.fixture\.ts$/u.test(file)) {

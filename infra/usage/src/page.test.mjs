@@ -1,7 +1,7 @@
 import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
 
-import { EVENT_NAMES, LABELS, pageOf, sinceOf, spanOf, summaryOf } from "./page.mjs";
+import { EVENT_NAMES, LABELS, pageOf, sinceOf, spanOf, summaryOf, versionsOf } from "./page.mjs";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
 
@@ -63,6 +63,45 @@ NodeTest.test("draws the counts, and says so when there are none", () => {
   NodeAssert.match(html, /aria-current="page">14 days/);
   NodeAssert.match(pageOf({ days: 7, installs: [], events: [], now: NOW }), /Nothing was counted/);
 });
+
+NodeTest.test(
+  "counts installs per version, newest first, an install that updated under both",
+  () => {
+    NodeAssert.deepEqual(
+      versionsOf([
+        { version: "0.1.9", install: "a" },
+        { version: "0.1.9", install: "a" },
+        { version: "0.1.10", install: "a" },
+        { version: "0.1.9", install: "b" },
+        { version: "0.1.8", install: "c" },
+      ]),
+      [
+        { version: "0.1.10", installs: 1 },
+        { version: "0.1.9", installs: 2 },
+        { version: "0.1.8", installs: 1 },
+      ],
+    );
+  },
+);
+
+NodeTest.test(
+  "shows failed turns, failed CAD actions and versions, and says when launches ran out",
+  () => {
+    const html = pageOf({
+      days: 7,
+      installs: [{ day: "2026-11-10", installs: 1 }],
+      events: [{ day: "2026-11-10", event: "cad.action.failed", times: 3, installs: 1 }],
+      failedTurns: 2,
+      launches: { rows: [{ version: "0.1.10", install: "a" }], complete: false },
+      now: NOW,
+    });
+    NodeAssert.match(html, /<b>2<\/b><span>AI turns failed/);
+    NodeAssert.match(html, /<b>3<\/b><span>CAD actions failed/);
+    NodeAssert.match(html, /<td>0\.1\.10<\/td><td class="n">1<\/td>/);
+    NodeAssert.match(html, /From the first 1 launches/);
+    NodeAssert.doesNotMatch(html, /"a"|>a</);
+  },
+);
 
 NodeTest.test("escapes what the database hands it", () => {
   const html = pageOf({

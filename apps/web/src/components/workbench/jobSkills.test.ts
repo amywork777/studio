@@ -11,6 +11,18 @@ const ROOT = NodePath.join(import.meta.dirname, "..", "..", "..", "..", "..");
 /** The job skills as Studio ships them. `STUDIO_WRITE_JOB_SKILLS=1` writes them from the jobs. */
 const FOLDER = NodePath.join(ROOT, "studio-job-skills");
 const JAKES = NodePath.join(ROOT, "text-to-cad", "skills");
+/**
+ * Every job by its id, label and skill, for the server's usage count of which skill or job ran
+ * (`apps/server/src/telemetry/SkillUse.ts`): the closed list a count is named from, so nothing a
+ * person typed or named is ever sent. `STUDIO_WRITE_JOB_SKILLS=1` writes it too.
+ */
+const SERVER_JOBS = NodePath.join(ROOT, "apps", "server", "src", "telemetry", "toolboxJobs.json");
+const serverJobs = () =>
+  `${JSON.stringify(
+    HARDWARE_ACTIONS.map(({ id, label, skill }) => ({ id, label, skill })),
+    null,
+    2,
+  )}\n`;
 
 const skillsIn = (folder: string) =>
   NodeFS.existsSync(folder)
@@ -20,6 +32,7 @@ const skillsIn = (folder: string) =>
     : [];
 
 if (process.env.STUDIO_WRITE_JOB_SKILLS === "1") {
+  NodeFS.writeFileSync(SERVER_JOBS, serverJobs());
   for (const name of skillsIn(FOLDER)) {
     NodeFS.rmSync(NodePath.join(FOLDER, name), { recursive: true });
   }
@@ -48,6 +61,10 @@ describe("each job of a skill with several as a skill of its own", () => {
     // A skill with one job is called by its own name: its job is no skill of its own.
     expect(jobOfSkill("slice")).toBeNull();
     expect(jobOfSkill("cad")).toBeNull();
+  });
+
+  it("gives the server's usage count every job (STUDIO_WRITE_JOB_SKILLS=1 writes them)", () => {
+    expect(NodeFS.readFileSync(SERVER_JOBS, "utf8")).toBe(serverJobs());
   });
 
   it("ships them as the jobs write them (STUDIO_WRITE_JOB_SKILLS=1 writes them)", () => {

@@ -11,10 +11,11 @@ import { toastManager } from "./ui/toast";
 let shown = false;
 
 /**
- * Asks once, in a build that sends usage counts, before any are sent: what it sends, and where to
- * turn it off later (Settings → About). Share lets the server send; Don't share says no. Closing it
- * answers nothing, so it asks again next launch, as Backplane's popup does. Builds without a usage
- * receiver never ask.
+ * Tells the person once, in a build that sends usage counts, before any are sent: what it sends, and
+ * where to turn it off (Settings → About), as text-to-cad's CAD tools tell theirs. Being told is the
+ * answer (`usageDataAnswered`): counts go from then on unless they press Turn off, and a no given
+ * before, under the old Share or Don't share notice, stays a no. Builds without a usage receiver
+ * never tell.
  */
 export function UsageDataNotice() {
   const config = useAtomValue(primaryServerConfigAtom);
@@ -33,25 +34,28 @@ export function UsageDataNotice() {
     if (!asking) shown = false;
     if (!asking || shown || environmentId === null) return;
     shown = true;
-    const answer = (share: boolean) => {
-      toastManager.close(id);
-      void updateSettings({
-        environmentId,
-        input: { patch: { usageDataAnswered: true, shareUsageData: share } },
-      });
-    };
+    const told = (patch: { readonly shareUsageData?: boolean }) =>
+      updateSettings({ environmentId, input: { patch: { usageDataAnswered: true, ...patch } } });
     const id = toastManager.add({
-      title: `Share anonymous usage counts with ${APP_BASE_NAME}?`,
+      title: `${APP_BASE_NAME} shares anonymous usage counts`,
       description:
-        "Which features get used and how often, to see what works. Never your prompts, file names or designs. Nothing is sent until you choose Share, and Settings → About turns it off and deletes what was sent.",
+        "Counts of which features get used and what fails, to decide what to fix and build next. Never your prompts, file names or designs. Turn it off here or in Settings → About, which also deletes what was sent.",
       timeout: 0,
-      actionProps: { children: "Share", onClick: () => answer(true) },
+      actionProps: { children: "OK", onClick: () => toastManager.close(id) },
       data: {
         actionLayout: "stacked-end",
-        secondaryActionProps: { children: "Don't share", onClick: () => answer(false) },
+        secondaryActionProps: {
+          children: "Turn off",
+          onClick: () => {
+            toastManager.close(id);
+            void told({ shareUsageData: false });
+          },
+        },
         secondaryActionVariant: "ghost",
       },
     });
+    // Shown is told: nothing counted before this is sent, everything after is, until a Turn off.
+    void told({});
   }, [asking, environmentId, updateSettings]);
   return null;
 }

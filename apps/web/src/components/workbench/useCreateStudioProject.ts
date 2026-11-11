@@ -1,6 +1,11 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId, ProjectId, ScopedThreadRef } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  ProjectId,
+  ScopedThreadRef,
+  StudioProjectOrigin,
+} from "@t3tools/contracts";
 import type { StudioProjectKind } from "@t3tools/shared/studioProjects";
 import { useCallback } from "react";
 
@@ -24,6 +29,8 @@ export interface NewStudioProject {
   readonly process?: string;
   /** Folders the project starts with; none makes a new folder named after it. */
   readonly folders: ReadonlyArray<string>;
+  /** How it came to be, for its usage count: unsaid is made in New. */
+  readonly origin?: StudioProjectOrigin;
   /**
    * Told the project's first folder once it is saved, and waited for before its new chat opens
    * (Home's Start, which copies what was attached into the folder first).
@@ -65,13 +72,17 @@ export function useCreateStudioProject(environmentId: EnvironmentId) {
         folders = [created.value.workspaceRoot];
         firstProjectId = created.value.projectId;
       }
-      const id = await save(null, {
-        name,
-        template: input.kind.id,
-        brief: newProjectBrief(input),
-        folders,
-        createdAt: new Date().toISOString(),
-      });
+      const id = await save(
+        null,
+        {
+          name,
+          template: input.kind.id,
+          brief: newProjectBrief(input),
+          folders,
+          createdAt: new Date().toISOString(),
+        },
+        input.origin,
+      );
       if (id === null) return false;
       if (folders[0] !== undefined) await input.onFolder?.(folders[0]);
       // The project opening is the news; where its folder is stays in Show in Finder.

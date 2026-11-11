@@ -73,7 +73,13 @@ export const StudioProjectsSaveInput = Schema.Struct({
   id: Schema.NullOr(TrimmedNonEmptyString),
   /** The project whole. A project is taken out through Trash (`StudioProjectsTrashInput`). */
   project: StudioProject,
+  /**
+   * How a new project came to be, for its usage count alone (never kept): made in New, folders
+   * imported, a backup restored, a copy of an example, or a copy of a project. Unsaid is `new`.
+   */
+  origin: Schema.optional(Schema.Literals(["new", "imported", "restored", "sample", "copy"])),
 });
+export type StudioProjectOrigin = NonNullable<StudioProjectsSaveInput["origin"]>;
 export type StudioProjectsSaveInput = typeof StudioProjectsSaveInput.Type;
 
 export const StudioProjectsSaveResult = Schema.Struct({

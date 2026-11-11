@@ -50,6 +50,7 @@ import {
 
 const AUTO_UPDATE_STARTUP_DELAY = "15 seconds";
 const AUTO_UPDATE_POLL_INTERVAL = "4 minutes";
+const CHECK_ANSWER_WAIT = Duration.seconds(30);
 const PREPARED_INSTALL_CHECK_WAIT = Duration.seconds(90);
 
 type UpdateAction = "check" | "download" | "install" | "install-recovery" | "channel";
@@ -765,9 +766,30 @@ export const make = Effect.gen(function* () {
     };
   });
 
+  // A background check that finds an update downloads it straight away, as VS Code and Slack do.
+  // electron-updater installs it when the app next quits (setAutoInstallOnAppQuit), and the
+  // sidebar offers a restart to install it now. A check the person asks for leaves the choice to
+  // them, as does a remote update, which drives its own download.
+  const checkThenDownload = (reason: string) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const changes = yield* PubSub.subscribe(stateChanges);
+        yield* checkForUpdates(reason);
+        // electron-updater answers a check with an event it does not wait for, so the state can
+        // still read "checking" here.
+        let state = yield* Ref.get(updateStateRef);
+        while (state.status === "checking") {
+          const next = yield* PubSub.take(changes).pipe(Effect.timeoutOption(CHECK_ANSWER_WAIT));
+          if (Option.isNone(next)) return;
+          state = next.value;
+        }
+        yield* downloadAvailableUpdate;
+      }),
+    );
+
   const startUpdatePollers: Effect.Effect<void, never, Scope.Scope> = Effect.gen(function* () {
     yield* Effect.sleep(AUTO_UPDATE_STARTUP_DELAY).pipe(
-      Effect.andThen(checkForUpdates("startup")),
+      Effect.andThen(checkThenDownload("startup")),
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {
           return Effect.void;
@@ -782,7 +804,7 @@ export const make = Effect.gen(function* () {
       Effect.forkScoped,
     );
     yield* Effect.sleep(AUTO_UPDATE_POLL_INTERVAL).pipe(
-      Effect.andThen(checkForUpdates("poll")),
+      Effect.andThen(checkThenDownload("poll")),
       Effect.forever,
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {
@@ -1005,8 +1027,10 @@ export const make = Effect.gen(function* () {
       }
       yield* Ref.set(updaterConfiguredRef, true);
 
+      // The download is ours to start (checkThenDownload), so it runs through the action lock;
+      // the install on quit is electron-updater's.
       yield* electronUpdater.setAutoDownload(false);
-      yield* electronUpdater.setAutoInstallOnAppQuit(false);
+      yield* electronUpdater.setAutoInstallOnAppQuit(true);
       yield* applyAutoUpdaterChannel(channel);
       yield* electronUpdater.setDisableDifferentialDownload(
         isArm64HostRunningIntelBuild(environment.runtimeInfo),

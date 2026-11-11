@@ -54,16 +54,22 @@ export function readViewContext(content: ReadonlyArray<unknown>): {
  * and the references they picked, a picture of the view) into the composer,
  * where it can be read and edited before it goes to the agent. A note of a hand
  * edit goes in quietly: the keyboard stays in the view, where the person is
- * still working, and a view filling the window stays as it is.
+ * still working, and a view filling the window stays as it is. Returns that
+ * note when one went in, so the chat can say what it is (`handEditNoteShown`).
  */
 export function addViewContextToComposer(
   composer: ChatComposerHandle | null,
   content: ReadonlyArray<unknown>,
-) {
-  if (composer === null) return;
+): string | null {
+  if (composer === null) return null;
   const { text, images, handEdit } = readViewContext(content);
+  let note: string | null = null;
   if (text !== "") {
-    composer.insertTextAtEnd(text, { ensureLeadingBoundary: true, stayHidden: handEdit });
+    const inserted = composer.insertTextAtEnd(text, {
+      ensureLeadingBoundary: true,
+      stayHidden: handEdit,
+    });
+    if (inserted && handEdit) note = text;
   }
   if (images.length > 0) {
     composer.addDroppedFiles(
@@ -76,4 +82,14 @@ export function addViewContextToComposer(
     );
   }
   if (!handEdit) composer.focusAtEnd();
+  return note;
+}
+
+/**
+ * Whether the message box still holds one of the hand-edit notes written into it: while it does,
+ * the chat says the notes go to the AI with the next message, so there is nothing to send or
+ * delete. Sending the message, or deleting the notes, ends it.
+ */
+export function handEditNoteShown(prompt: string, notes: ReadonlyArray<string>): boolean {
+  return notes.some((note) => prompt.includes(note));
 }

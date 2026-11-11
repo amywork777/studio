@@ -71,6 +71,12 @@ export function getArm64IntelBuildWarningDescription(state: DesktopUpdateState):
   return "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.";
 }
 
+// The desktop app downloads updates by itself and installs them when it quits
+// (DesktopUpdates.ts), so a downloaded update needs no click, only offers one.
+function downloadedTooltip(version: string | null): string {
+  return `Update ${version ?? "ready"} downloaded. It installs when you quit, or click to restart now.`;
+}
+
 export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string {
   if (state.status === "available") {
     return `Update ${state.availableVersion ?? "available"} ready to download`;
@@ -81,7 +87,7 @@ export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string
     return `Downloading update${progress}`;
   }
   if (state.status === "downloaded") {
-    return `Update ${state.downloadedVersion ?? state.availableVersion ?? "ready"} downloaded. Click to restart and install.`;
+    return downloadedTooltip(state.downloadedVersion ?? state.availableVersion);
   }
   if (state.status === "error") {
     if (state.errorContext === "download" && state.availableVersion) {
@@ -91,7 +97,7 @@ export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string
       return `Install failed for ${state.downloadedVersion}. Click to retry.`;
     }
     if (state.downloadedVersion) {
-      return `Update ${state.downloadedVersion} downloaded. Click to restart and install.`;
+      return downloadedTooltip(state.downloadedVersion);
     }
     return state.message ?? "Update failed";
   }

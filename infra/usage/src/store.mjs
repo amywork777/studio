@@ -17,6 +17,9 @@ const TABLE = "usage_events";
 const TIMEOUT_MS = 8000; // well inside a function's own limit: a database that hangs is a failure, and the batch waits
 // How long an instance keeps health's answer: /v1/health is open to anyone.
 export const READY_TTL_MS = 60_000;
+// The database answers at most this many rows a call; the page reads launches this many calls at most.
+const PAGE_ROWS = 1000;
+const LAUNCH_PAGES = 50;
 
 /** The settings a host lacks, by name: missing, or not what the store would take (health says so). */
 export function missingSettings(env) {
@@ -86,17 +89,37 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
         headers: { prefer: "return=minimal" },
       });
     },
-    // The numbers page's rows (page.mjs): the two daily views from `since` (`YYYY-MM-DD`) on, nothing finer.
+    // The numbers page's rows (page.mjs) from `since` (`YYYY-MM-DD`) on: the two daily views; how many AI
+    // turns failed, counted by the database; and which version each launch ran (`client.connected`), the
+    // version and install id alone, read a page at a time since the database answers 1000 rows a call.
     async numbers(since) {
       const view = (name, order) =>
         call(`${url}/rest/v1/${name}?day=gte.${since}&order=${order}`).then((answer) =>
           answer.json(),
         );
-      const [installs, events] = await Promise.all([
+      const failedTurns = call(
+        `${rest}?select=id&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.${since}`,
+        { method: "HEAD", headers: { prefer: "count=exact" } },
+      ).then((answer) => Number(answer.headers.get("content-range")?.split("/")[1] ?? 0));
+      const launches = async () => {
+        const rows = [];
+        for (let page = 0; page < LAUNCH_PAGES; page += 1) {
+          const answer = await call(
+            `${rest}?select=version,install&event=eq.client.connected&at=gte.${since}&order=id&limit=${PAGE_ROWS}&offset=${page * PAGE_ROWS}`,
+          );
+          const found = await answer.json();
+          rows.push(...found);
+          if (found.length < PAGE_ROWS) return { rows, complete: true };
+        }
+        return { rows, complete: false };
+      };
+      const [installs, events, failed, versions] = await Promise.all([
         view("usage_daily_installs", "day.desc"),
         view("usage_daily_events", "day.desc,times.desc"),
+        failedTurns,
+        launches(),
       ]);
-      return { installs, events };
+      return { installs, events, failedTurns: failed, launches: versions };
     },
     // Health's question: the table is there and answers to the key. Kept, failure or not, for READY_TTL_MS.
     ready() {

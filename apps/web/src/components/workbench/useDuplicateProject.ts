@@ -112,12 +112,16 @@ export function useDuplicateProject(environmentId: EnvironmentId) {
           });
         }
       }
-      const id = await save(null, {
-        ...project,
-        name,
-        folders: [target, ...project.folders.slice(1)],
-        createdAt: new Date().toISOString(),
-      });
+      const id = await save(
+        null,
+        {
+          ...project,
+          name,
+          folders: [target, ...project.folders.slice(1)],
+          createdAt: new Date().toISOString(),
+        },
+        "copy",
+      );
       // The save says itself what went wrong.
       if (id === null) {
         toastManager.close(toastId);

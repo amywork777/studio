@@ -177,6 +177,7 @@ export function useExample(environmentId: EnvironmentId, sampleId: string) {
                 name,
                 kind: PART_KIND,
                 units: "mm",
+                origin: "sample",
                 ...copyBrief(sample),
                 folders: [],
                 onFolder,

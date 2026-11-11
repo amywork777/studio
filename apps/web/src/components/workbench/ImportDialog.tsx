@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { cn } from "~/lib/utils";
 import { waitForProject } from "~/state/entities";
+import { pluginEnvironment } from "~/state/plugins";
+import { useEnvironmentQuery } from "~/state/query";
 import { Button } from "../ui/button";
 import { MODULE_HEADING } from "./studioLayout";
 import { Checkbox } from "../ui/checkbox";
@@ -37,7 +39,9 @@ import {
   suggestProject,
 } from "./importPlan";
 import { KIND_TINT } from "./kinds";
+import { importedToOpen } from "./importIntoProject";
 import { showProject } from "./overviewPanel";
+import { openFromOverview } from "./useOpenInWorkbench";
 import { RestoreDialogHost } from "./RestoreDialog";
 import { partLabel } from "./partNames";
 import { usePictures } from "./usePictures";
@@ -147,6 +151,8 @@ function ImportDialog(props: {
   );
   const runImport = useImportProjects(environmentId);
   const handleNewThread = useNewThreadHandler();
+  const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
+    ?.plugins;
   const [step, setStep] = useState<"scan" | "found" | "sort">(
     start.kind === "scan" ? "scan" : "found",
   );
@@ -252,6 +258,11 @@ function ImportDialog(props: {
   const newProjectName =
     typedName ?? (onlyNew === undefined ? "Imported files" : partLabel(onlyNew.path));
 
+  // What the import brings in when it makes one project: that project's files, or the loose ones.
+  const importedPaths = (chosen.length === 1 ? chosen[0]!.files : newFiles).map(
+    (file) => file.path,
+  );
+
   const finish = async () => {
     if (busy || total === 0) return;
     setBusy(true);
@@ -281,7 +292,13 @@ function ImportDialog(props: {
         const projectRef = scopeProjectRef(environmentId, first);
         const project = await waitForProject(projectRef).catch(() => null);
         const draft = project === null ? null : await handleNewThread(projectRef).catch(() => null);
-        if (draft !== null) showProject(scopeThreadRef(environmentId, draft.threadId));
+        if (draft !== null) {
+          const threadRef = scopeThreadRef(environmentId, draft.threadId);
+          showProject(threadRef);
+          // One part brought in opens on its own, as a CAD tool opens the STEP it imports.
+          const part = total === 1 ? importedToOpen(importedPaths) : null;
+          if (part !== null) openFromOverview(plugins, threadRef, part);
+        }
       }
     } finally {
       setBusy(false);

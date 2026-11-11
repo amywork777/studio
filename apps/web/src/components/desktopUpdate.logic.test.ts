@@ -82,7 +82,9 @@ describe("desktop update button state", () => {
       canRetry: true,
     };
     expect(resolveDesktopUpdateButtonAction(state)).toBe("install");
-    expect(getDesktopUpdateButtonTooltip(state)).toContain("Click to restart and install");
+    expect(getDesktopUpdateButtonTooltip(state)).toContain(
+      "installs when you quit, or click to restart now",
+    );
   });
 
   it("prefers a newly available release over a stale downloaded version", () => {

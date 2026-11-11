@@ -23,7 +23,7 @@ function recorder(answer = () => new Response(null, { status: 201 })) {
   const calls = [];
   const fetch = async (url, init) => {
     calls.push({ url, init, body: init?.body ? JSON.parse(init.body) : undefined });
-    return answer(url);
+    return answer(url, init);
   };
   return { calls, fetch };
 }
@@ -87,20 +87,30 @@ NodeTest.test("names the settings a host lacks", () => {
 });
 
 NodeTest.test(
-  "reads the numbers page's two daily views from a day on, and nothing else",
+  "reads the two daily views, counts failed turns and pages through launches, nothing else",
   async () => {
-    const { calls, fetch } = recorder((url) =>
-      Response.json(url.includes("installs") ? [{ day: "2026-11-10", installs: 1 }] : []),
-    );
-    const { installs, events } = await databaseStore(SETTINGS, { fetch }).numbers("2026-11-04");
-    NodeAssert.deepEqual(
-      calls.map((call) => call.url),
-      [
-        "https://abc.supabase.co/rest/v1/usage_daily_installs?day=gte.2026-11-04&order=day.desc",
-        "https://abc.supabase.co/rest/v1/usage_daily_events?day=gte.2026-11-04&order=day.desc,times.desc",
-      ],
-    );
-    NodeAssert.deepEqual(installs, [{ day: "2026-11-10", installs: 1 }]);
-    NodeAssert.deepEqual(events, []);
+    const launch = { version: "0.1.10", install: "a" };
+    const { calls, fetch } = recorder((url, init) => {
+      if (init?.method === "HEAD") {
+        return new Response(null, { status: 200, headers: { "content-range": "*/4" } });
+      }
+      if (url.includes("offset=0"))
+        return Response.json(Array.from({ length: 1000 }, () => launch));
+      if (url.includes("offset=1000")) return Response.json([launch]);
+      return Response.json(url.includes("installs") ? [{ day: "2026-11-10", installs: 1 }] : []);
+    });
+    const numbers = await databaseStore(SETTINGS, { fetch }).numbers("2026-11-04");
+    const rest = "https://abc.supabase.co/rest/v1/";
+    NodeAssert.deepEqual(calls.map((call) => call.url).sort(), [
+      `${rest}usage_daily_events?day=gte.2026-11-04&order=day.desc,times.desc`,
+      `${rest}usage_daily_installs?day=gte.2026-11-04&order=day.desc`,
+      `${rest}usage_events?select=id&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04`,
+      `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
+      `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=1000`,
+    ]);
+    NodeAssert.deepEqual(numbers.installs, [{ day: "2026-11-10", installs: 1 }]);
+    NodeAssert.equal(numbers.failedTurns, 4);
+    NodeAssert.equal(numbers.launches.rows.length, 1001);
+    NodeAssert.equal(numbers.launches.complete, true);
   },
 );

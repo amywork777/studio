@@ -301,6 +301,7 @@ import { resolveChatShortcutCommand, shortcutLabelForCommand } from "../keybindi
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import {
   AlarmClockIcon,
+  PencilRulerIcon,
   CheckCircle2Icon,
   MessageCircleIcon,
   PaperclipIcon,
@@ -632,7 +633,7 @@ import { useEngineeringInterface, useEngineeringSurfaces } from "./workbench/stu
 import { useDocumentFollow } from "./workbench/useDocumentFollow";
 import { useShowProjectPart } from "./workbench/useShowProjectPart";
 import { useWorkbenchViewer } from "./workbench/useWorkbenchViewer";
-import { addViewContextToComposer } from "./workbench/viewContext";
+import { addViewContextToComposer, handEditNoteShown } from "./workbench/viewContext";
 import { WORKBENCH_LAYOUT } from "./workbench/workbenchLayout";
 
 const EMPTY_PROVIDERS: ServerProvider[] = [];
@@ -1860,6 +1861,10 @@ export default function ChatView(props: ChatViewProps) {
     (store) => store.setLogicalProjectDraftThreadId,
   );
   const promptRef = useRef("");
+  const [handEditNotes, setHandEditNotes] = useState<{
+    readonly threadKey: string | null;
+    readonly notes: ReadonlyArray<string>;
+  }>({ threadKey: null, notes: [] });
   const composerImagesRef = useRef<ComposerImageAttachment[]>([]);
   const composerFilesRef = useRef<ComposerFileAttachment[]>([]);
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
@@ -7960,8 +7965,30 @@ export default function ChatView(props: ChatViewProps) {
           onUseAnotherModel: () => composerRef.current?.openModelPicker(),
         })
       : null;
+  // Studio: the notes of hand edits written into the message box (`addViewContextToComposer`).
+  // A tester read one as a prompt waiting to be sent, so while the box holds one the chat says
+  // what it is: the AI gets it with the next message, and nothing needs doing now.
+  const shownHandEditNotes = handEditNotes.threadKey === routeThreadKey ? handEditNotes.notes : [];
+  const handEditNoteInBox = useComposerDraftStore((store) =>
+    handEditNoteShown(
+      store.getComposerDraft(composerDraftTarget)?.prompt ?? "",
+      shownHandEditNotes,
+    ),
+  );
   const composerBannerItems = useMemo<ComposerBannerStackItem[]>(() => {
     const limitRecoveryItems = limitRecoveryBanner === null ? [] : [limitRecoveryBanner];
+    const handEditItems: ComposerBannerStackItem[] = handEditNoteInBox
+      ? [
+          {
+            id: "studio-hand-edit-note",
+            variant: "info",
+            icon: <PencilRulerIcon />,
+            title: "Your hand edits go to the AI with your next message",
+            description:
+              "Studio wrote what you changed into the message box, so the AI knows. There is no need to send it now; delete a line to leave it out.",
+          },
+        ]
+      : [];
     const backgroundWorkItems = [
       childInputBannerItem,
       goalBannerItem,
@@ -7977,6 +8004,7 @@ export default function ChatView(props: ChatViewProps) {
         ...usageLimitsItems,
         ...projectCloneItems,
         ...systemComposerBannerItems,
+        ...handEditItems,
         ...backgroundWorkItems,
       ];
     }
@@ -7986,6 +8014,7 @@ export default function ChatView(props: ChatViewProps) {
       ...usageLimitsItems,
       ...projectCloneItems,
       ...systemComposerBannerItems,
+      ...handEditItems,
       ...backgroundWorkItems,
       {
         id: `branch-mismatch:${activeBranchMismatchKey}`,
@@ -8043,6 +8072,7 @@ export default function ChatView(props: ChatViewProps) {
     projectCloneBannerItem,
     showBranchMismatchBanner,
     systemComposerBannerItems,
+    handEditNoteInBox,
     usageLimitsBanner,
   ]);
 
@@ -11401,7 +11431,15 @@ export default function ChatView(props: ChatViewProps) {
                 ? sendAppMessageThroughComposer
                 : undefined
           }
-          onAddContext={(content) => addViewContextToComposer(composerRef.current, content)}
+          onAddContext={(content) => {
+            const note = addViewContextToComposer(composerRef.current, content);
+            if (note !== null) {
+              setHandEditNotes((current) => ({
+                threadKey: routeThreadKey,
+                notes: current.threadKey === routeThreadKey ? [...current.notes, note] : [note],
+              }));
+            }
+          }}
           workspaceRoot={activeWorkspaceRoot ?? undefined}
           workspaceMutationId={workspaceMutationId}
         />

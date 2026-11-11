@@ -8,8 +8,10 @@ receiver can refuse an event, or the store change, without a release. Nothing be
 The server owns delivery, opt-out, and identity for every connected client. The identity
 is the install's random id ([`getInstallId`](../../apps/server/src/telemetry/Identify.ts)),
 never one derived from a provider account, because an opt-out deletes by it. It can span
-several clients; it does not identify a browser session. Nothing is sent until the
-person has answered the first-launch notice (`usageDataAnswered`; closing it answers nothing), and turning sharing off owes
+several clients; it does not identify a browser session. Counts are on by default, as
+text-to-cad's are, from the moment the first-launch notice has told the person (`usageDataAnswered`, set
+as it shows); nothing counted before that is sent, a no given under the old Share or Don't share notice
+stays a no, and turning sharing off owes
 the receiver a deletion of everything sent under the id, kept across restarts until taken;
 no batch goes out while one is owed. Clients send nothing themselves. Client-use events require an authenticated connection, so
 visiting the hosted app without connecting does not count as product use.

@@ -6,6 +6,7 @@ import { selectActiveRightPanelSurface, useRightPanelStore } from "~/rightPanelS
 import { ImportDialogHost } from "./ImportDialog";
 import { ImportMenu } from "./ImportMenu";
 import { useImportIntoProject } from "./importIntoProject";
+import { useOpenFromOverview } from "./useOpenInWorkbench";
 import { useImportActions } from "./useImportActions";
 import { ModeSwitch } from "./ModeSwitch";
 import { useOpenWorkspaceStore } from "./openWorkspace";
@@ -127,7 +128,12 @@ export function StudioPanelBar(props: {
   const studio = useStudioProjectAt(threadRef.environmentId, folder);
   const addPart = useAddPart(threadRef, folder);
   // Import beside New, as on Home: files brought into this project's folder.
-  const importer = useImportIntoProject(folder, studio?.project.name ?? "the project");
+  const openImported = useOpenFromOverview(threadRef);
+  const importer = useImportIntoProject(
+    folder,
+    studio?.project.name ?? "the project",
+    openImported,
+  );
   // The same Import menu as Home's: here Files or a folder copies into this project, and Scan this
   // computer opens the scan, which makes new projects.
   const scanner = useImportActions();

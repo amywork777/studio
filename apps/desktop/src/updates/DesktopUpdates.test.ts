@@ -87,6 +87,56 @@ describe("DesktopUpdates", () => {
     }).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
 
+  it.effect("downloads what a background check finds and installs it on quit", () => {
+    let found: ((version: string) => void) | null = null;
+    const harness = makeHarness({
+      checkForUpdates: Effect.sync(() => found?.("1.2.4")),
+    });
+    found = (version) => harness.emit("update-available", { version });
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        assert.equal(harness.autoDownload(), false);
+        assert.equal(harness.autoInstallOnAppQuit(), true);
+
+        yield* TestClock.adjust(Duration.millis(15_000));
+        yield* flushCallbacks;
+        assert.equal(harness.checkCount(), 1);
+        assert.equal(harness.downloadCount(), 1);
+        assert.equal((yield* updates.getState).status, "downloading");
+
+        harness.emit("update-downloaded", { version: "1.2.4" });
+        yield* flushCallbacks;
+        assert.equal((yield* updates.getState).status, "downloaded");
+
+        // The next poll finds the same version and leaves the download alone.
+        yield* TestClock.adjust(Duration.minutes(4));
+        yield* flushCallbacks;
+        assert.equal(harness.checkCount(), 2);
+        assert.equal(harness.downloadCount(), 1);
+        assert.equal((yield* updates.getState).status, "downloaded");
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
+  it.effect("leaves the download to the person after a check they ask for", () => {
+    const harness = makeHarness();
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        yield* updates.check("menu");
+        harness.emit("update-available", { version: "1.2.4" });
+        yield* flushCallbacks;
+        assert.equal((yield* updates.getState).status, "available");
+        assert.equal(harness.downloadCount(), 0);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
   it.effect("updates Linux .deb installs and leaves other non-AppImage installs off", () =>
     Effect.gen(function* () {
       const linuxState = (packageType: string | undefined) =>

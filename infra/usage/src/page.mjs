@@ -1,7 +1,8 @@
 /**
- * The numbers page, the receiver's root (`/`): Studio's usage counts for Amy, behind a password. It reads only
- * the two views schema.sql makes, so it shows what `numbers.mjs` prints and nothing finer: installs per day and
- * how often each event happened. No install id, property, version or country reaches the page.
+ * The numbers page, the receiver's root (`/`): Studio's usage counts for Amy, behind a password. It shows the
+ * two views schema.sql makes (installs per day, how often each event happened), how many AI turns failed, and
+ * how many installs opened each version, which says whether updates reach people. It counts install ids and
+ * never shows one; no other property and no country reaches the page.
  *
  * Plain HTML and CSS, no script: it is drawn once per request and kept by nobody (`no-store`).
  */
@@ -17,13 +18,23 @@ export const LABELS = {
   "chatgpt.auth.completed": "ChatGPT sign-in finished",
   "chatgpt.transfer.started": "ChatGPT transfer started",
   "chatgpt.transfer.completed": "ChatGPT transfer finished",
+  "claude.signed_in": "Signed in to Claude",
+  "studio.updated": "Updated to another version",
+  "studio.skill.used": "Skill or job asked for",
   "studio.project.created": "Project made",
+  "studio.project.trashed": "Project moved to Trash",
+  "studio.project.restored": "Project back from Trash",
+  "studio.project.deleted": "Project deleted for good",
+  "studio.sync.sent": "Sync",
+  "studio.sync.restored": "Backup brought back",
+  "studio.github.connected": "GitHub connected",
   "cad.model.opened": "Model opened",
   "cad.hand_edit": "Hand edit",
   "cad.size.changed": "Size changed",
   "cad.size.added": "Size added",
   "cad.versions.compared": "Versions compared",
   "cad.version.restored": "Version restored",
+  "cad.action.failed": "CAD action failed",
 };
 export const EVENT_NAMES = Object.keys(PROPERTIES);
 
@@ -40,6 +51,36 @@ export const spanOf = (value) => {
 /** The first day of a span ending today, as the views name days (UTC, `YYYY-MM-DD`). */
 export const sinceOf = (days, now = Date.now()) =>
   new Date(now - (days - 1) * DAY_MS).toISOString().slice(0, 10);
+
+// `0.1.10` after `0.1.9`: each dot-separated part compared as a number.
+const versionParts = (version) =>
+  String(version)
+    .split(/[.-]/)
+    .map((part) => Number(part) || 0);
+const newerFirst = (a, b) => {
+  const [pa, pb] = [versionParts(a), versionParts(b)];
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const diff = (pb[i] ?? 0) - (pa[i] ?? 0);
+    if (diff) return diff;
+  }
+  return 0;
+};
+
+/**
+ * How many installs opened each version, newest version first. An install that updated counts under both.
+ * @param {{ version: string, install: string }[]} launches rows of `client.connected`
+ */
+export function versionsOf(launches) {
+  const byVersion = new Map();
+  for (const { version, install } of launches) {
+    const installs = byVersion.get(version) ?? new Set();
+    installs.add(install);
+    byVersion.set(version, installs);
+  }
+  return [...byVersion]
+    .map(([version, installs]) => ({ version, installs: installs.size }))
+    .sort((a, b) => newerFirst(a.version, b.version));
+}
 
 const escape = (text) =>
   String(text).replace(
@@ -96,6 +137,7 @@ export function summaryOf(installs, events, days, now = Date.now()) {
     chats: timesOf("client.thread.started"),
     projects: timesOf("studio.project.created"),
     edits: timesOf("cad.hand_edit"),
+    cadFailures: timesOf("cad.action.failed"),
   };
 }
 
@@ -152,10 +194,31 @@ footer { margin-top: 32px; color: var(--ink-muted); font-size: var(--small); max
 
 /**
  * The page for one span.
- * @param {{ days: number, installs: object[], events: object[], now?: number }} input
+ * @param {{ days: number, installs: object[], events: object[], failedTurns?: number,
+ *   launches?: { rows: object[], complete: boolean }, now?: number }} input
  */
-export function pageOf({ days, installs, events, now = Date.now() }) {
+export function pageOf({
+  days,
+  installs,
+  events,
+  failedTurns = 0,
+  launches = { rows: [], complete: true },
+  now = Date.now(),
+}) {
   const summary = summaryOf(installs, events, days, now);
+  const versions = versionsOf(launches.rows);
+  const versionTable = versions.length
+    ? `<table><thead><tr><th>Version</th><th class="n">Installs that opened it</th></tr></thead><tbody>${versions
+        .map(
+          (row) =>
+            `<tr><td>${escape(row.version)}</td><td class="n">${count(row.installs)}</td></tr>`,
+        )
+        .join("")}</tbody></table>${
+        launches.complete
+          ? ""
+          : `<p class="sub">From the first ${count(launches.rows.length)} launches of these days.</p>`
+      }`
+    : `<p class="quiet">No launches were counted in these ${days} days.</p>`;
   const label = (event) => LABELS[event] ?? event;
   const nav = SPANS.map(
     (span) =>
@@ -213,6 +276,8 @@ ${figure(summary.busiest, "most installs in a day")}
 ${figure(summary.activeDays, `days with use, of ${days}`)}
 ${figure(summary.chats, "chats started")}
 ${figure(summary.turns, "AI turns finished")}
+${figure(failedTurns, "AI turns failed")}
+${figure(summary.cadFailures, "CAD actions failed")}
 ${figure(summary.edits, "hand edits")}
 ${figure(summary.projects, "projects made")}
 </section>
@@ -221,8 +286,10 @@ ${figure(summary.projects, "projects made")}
 <div class="axis"><span>${escape(dayName(summary.days.at(-1).day))}</span><span>Busiest: ${count(summary.busiest)}</span><span>Today</span></div></div>
 <h2>What got used</h2>
 ${features}
+<h2>Versions in use</h2>
+${versionTable}
 ${daysList ? `<h2>Day by day</h2>${daysList}` : ""}
-<footer>Only installs whose person pressed Share on the first-launch notice are counted, and Settings, About turns it off and deletes what was sent. Studio (Dev) and copies built without the receiver's address send nothing. An install is one copy of Studio on one computer, under a random id this page never shows.</footer>
+<footer>Counts are on once the first-launch notice has told the person, unless they turn them off there or in Settings, About, which deletes what was sent. Before Studio 0.1.10 only installs whose person pressed Share were counted. Studio (Dev) and copies built without the receiver's address send nothing. An install is one copy of Studio on one computer, under a random id this page never shows.</footer>
 </main>
 </body>
 </html>`;

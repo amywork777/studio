@@ -154,8 +154,8 @@ export async function handle(
         return page(401, "<p>This page needs its password.</p>", ASK);
       }
       const days = spanOf(new URL(request.url).searchParams.get("days"));
-      const { installs, events } = await store.numbers(sinceOf(days, now));
-      return page(200, pageOf({ days, installs, events, now }));
+      const numbers = await store.numbers(sinceOf(days, now));
+      return page(200, pageOf({ days, ...numbers, now }));
     }
     if (path === "/v1/health" && request.method === "GET") {
       if (missing.length) return reply(503, { ok: false, missing });

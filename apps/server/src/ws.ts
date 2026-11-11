@@ -234,6 +234,7 @@ import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
 import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
+import * as SkillUse from "./telemetry/SkillUse.ts";
 import * as PluginUsageEvents from "./plugins/usageEvents.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
@@ -1246,10 +1247,19 @@ const layerWsRpc = (
       // client starts is credited to its surface + app version. Best-effort:
       // attribution must never fail the user's command.
       const originProps = clientAnalyticsProps;
+      // Which of Studio's skills and jobs a message asked for, by names from a closed list only.
+      const recordSkillsUsed = (text: string) =>
+        Effect.forEach(
+          SkillUse.skillsUsed(text),
+          (use) => analytics.record("studio.skill.used", { ...use }).pipe(Effect.ignore),
+          { discard: true },
+        );
       const recordClientCommandAnalytics = (command: OrchestrationV2Command) => {
         switch (command.type) {
           case "message.dispatch":
-            return analytics.record("client.turn.requested", originProps).pipe(Effect.ignore);
+            return analytics
+              .record("client.turn.requested", originProps)
+              .pipe(Effect.ignore, Effect.andThen(recordSkillsUsed(command.text)));
           default:
             return Effect.void;
         }
@@ -2083,15 +2093,18 @@ const layerWsRpc = (
         [WS_METHODS.pluginsRequest]: (input) =>
           plugins.request(input).pipe(
             Effect.tap(({ result }) => {
-              const event = PluginUsageEvents.cadUsageEvent(input.method, input.params, result);
-              return event === null ? Effect.void : analytics.record(event).pipe(Effect.ignore);
+              const usage = PluginUsageEvents.cadUsageEvent(input.method, input.params, result);
+              return usage === null
+                ? Effect.void
+                : analytics.record(usage.event, usage.properties).pipe(Effect.ignore);
             }),
           ),
         [WS_METHODS.pluginsModelPictures]: (input) => plugins.modelPictures(input),
         [WS_METHODS.studioProjectsList]: () => studioProjects.list,
         [WS_METHODS.studioProjectsSave]: (input) =>
           studioProjects.save(input).pipe(
-            // A new project counts by its starter's id (blank, sheet metal, an example), no name.
+            // A new project counts by its starter's id (blank, sheet metal, an example) and how it
+            // came to be (made, imported, restored, copied), no name.
             Effect.tap(() => {
               if (input.id !== null) return Effect.void;
               const { template } = input.project;
@@ -2099,13 +2112,34 @@ const layerWsRpc = (
                 .record("studio.project.created", {
                   template:
                     template !== null && /^[a-z0-9-]{1,40}$/.test(template) ? template : "none",
+                  origin: input.origin ?? "new",
                 })
                 .pipe(Effect.ignore);
             }),
           ),
-        [WS_METHODS.studioProjectsTrash]: (input) => studioProjects[input.action](input.id),
+        [WS_METHODS.studioProjectsTrash]: (input) =>
+          studioProjects[input.action](input.id).pipe(
+            // Moving a project to Trash, back, or out for good counts by the action alone.
+            Effect.tap(() =>
+              (input.action === "trash"
+                ? analytics.record("studio.project.trashed")
+                : input.action === "restore"
+                  ? analytics.record("studio.project.restored")
+                  : analytics.record("studio.project.deleted")
+              ).pipe(Effect.ignore),
+            ),
+          ),
         [WS_METHODS.studioSyncSend]: (input) =>
           studioSync.send(input).pipe(
+            // A Sync counts by how it ended, never by the project or its online copy.
+            Effect.tap((result) =>
+              analytics
+                .record("studio.sync.sent", { outcome: result.sent ? "sent" : "unchanged" })
+                .pipe(Effect.ignore),
+            ),
+            Effect.tapError(() =>
+              analytics.record("studio.sync.sent", { outcome: "failed" }).pipe(Effect.ignore),
+            ),
             // A failed first send can still have linked the online copy, so both ways refresh.
             Effect.ensuring(
               repositoryIdentityResolver
@@ -2114,10 +2148,26 @@ const layerWsRpc = (
             ),
           ),
         [WS_METHODS.studioSyncRestore]: (input) =>
-          studioSync.restore({ ...input, root: managedFolders.namedProjectsRoot }),
+          studioSync.restore({ ...input, root: managedFolders.namedProjectsRoot }).pipe(
+            Effect.tap(() =>
+              analytics.record("studio.sync.restored", { outcome: "restored" }).pipe(Effect.ignore),
+            ),
+            Effect.tapError(() =>
+              analytics.record("studio.sync.restored", { outcome: "failed" }).pipe(Effect.ignore),
+            ),
+          ),
         [WS_METHODS.studioSyncStatus]: (input) => studioSync.status(input),
         [WS_METHODS.studioGitHubSignInStart]: () => studioGitHubSignIn.start,
-        [WS_METHODS.studioGitHubSignInCheck]: (input) => studioGitHubSignIn.check(input),
+        [WS_METHODS.studioGitHubSignInCheck]: (input) =>
+          studioGitHubSignIn
+            .check(input)
+            .pipe(
+              Effect.tap(({ state }) =>
+                state === "signed-in"
+                  ? analytics.record("studio.github.connected").pipe(Effect.ignore)
+                  : Effect.void,
+              ),
+            ),
         [WS_METHODS.serverUpdateProvider]: (input) =>
           providerMaintenanceRunner.updateProvider(input),
         [WS_METHODS.providerConsumeResetCredit]: (input) =>
@@ -2548,16 +2598,22 @@ const layerWsRpc = (
                 )
                 .pipe(
                   Effect.tap(() =>
-                    analytics
-                      .record("client.thread.started", originProps)
-                      .pipe(
-                        Effect.andThen(
-                          input.initialMessage === undefined
-                            ? Effect.void
-                            : analytics.record("client.turn.requested", originProps),
-                        ),
-                        Effect.ignore,
+                    // The AI a new chat starts with, by its kind (Claude, Codex and the rest).
+                    providerInstances.getInstance(input.modelSelection.instanceId).pipe(
+                      Effect.map((instance) => instance?.driverKind ?? "unknown"),
+                      Effect.orElseSucceed(() => "unknown"),
+                      Effect.flatMap((provider) =>
+                        analytics.record("client.thread.started", { ...originProps, provider }),
                       ),
+                      Effect.andThen(
+                        input.initialMessage === undefined
+                          ? Effect.void
+                          : analytics
+                              .record("client.turn.requested", originProps)
+                              .pipe(Effect.andThen(recordSkillsUsed(input.initialMessage.text))),
+                      ),
+                      Effect.ignore,
+                    ),
                   ),
                   Effect.map((result) => ({
                     ...result,

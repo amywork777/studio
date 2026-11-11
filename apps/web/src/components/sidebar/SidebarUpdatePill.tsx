@@ -420,7 +420,13 @@ function SidebarUpdateControl() {
         onCheckAnimationIteration={handleCheckAnimationIteration}
         status={iconStatus}
       />
-      <span>{isRunningEverything || isDownloading ? tooltip : "Update available"}</span>
+      <span>
+        {isRunningEverything || isDownloading
+          ? tooltip
+          : action === "install"
+            ? "Restart to update"
+            : "Update available"}
+      </span>
     </SidebarMenuButton>
   );
 

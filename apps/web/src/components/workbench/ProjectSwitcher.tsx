@@ -36,7 +36,7 @@ import type { ListedProject } from "./projectList";
 import { StarButton } from "./StarButton";
 import { useAskNewProject } from "./StudioNew";
 import { BackupDialog } from "./BackupDialog";
-import { folderLabel } from "./folderLabel";
+import { folderLabel, folderPlace } from "./folderLabel";
 import { backupPlaceLabel, useLastBackup } from "./useBackup";
 import { useDuplicateProject } from "./useDuplicateProject";
 import { useOpenProject } from "./useOpenProject";
@@ -275,6 +275,12 @@ export function ProjectSwitcher(props: {
                 </button>
               )}
             </div>
+            {/* Where it is saved, in view: a tester could not tell which folder a project was in. */}
+            {props.folder === null ? null : (
+              <p className="px-2 pt-1.5 text-xs break-all text-muted-foreground">
+                Saved in {folderPlace(props.folder)}
+              </p>
+            )}
             <p className="px-2 pt-1.5 text-xs text-muted-foreground">
               {backup.last === null
                 ? "Only on this computer. Back up keeps a copy on GitHub or in a folder that syncs."

@@ -1132,9 +1132,9 @@ export const ServerSettings = Schema.Struct({
    */
   shareUsageData: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   /**
-   * Whether the person has answered the first-launch notice about usage counts
-   * (OK, or Turn off). Nothing is sent before they have, as Backplane sends
-   * nothing before its popup is answered; closing it answers nothing.
+   * Whether the person has been told about usage counts: the first-launch
+   * notice was shown (OK, or Turn off). Nothing counted before is sent, as
+   * text-to-cad's CAD tools send nothing before their one-line notice.
    */
   usageDataAnswered: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   // Retain the update-era key. On by default so restarts resume the work they

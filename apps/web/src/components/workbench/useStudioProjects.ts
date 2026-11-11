@@ -1,4 +1,4 @@
-import type { EnvironmentId, StudioProject } from "@t3tools/contracts";
+import type { EnvironmentId, StudioProject, StudioProjectOrigin } from "@t3tools/contracts";
 import { studioProjectAt } from "@t3tools/shared/studioProjects";
 import { useCallback, useMemo } from "react";
 
@@ -49,8 +49,15 @@ export function useSaveStudioProject(environmentId: EnvironmentId) {
   const save = useAtomCommand(studioProjectsEnvironment.save, { reportFailure: true });
   const { refresh } = useStudioProjectsList(environmentId);
   return useCallback(
-    async (id: string | null, project: StudioProject): Promise<string | null> => {
-      const result = await save({ environmentId, input: { id, project } });
+    async (
+      id: string | null,
+      project: StudioProject,
+      origin?: StudioProjectOrigin,
+    ): Promise<string | null> => {
+      const result = await save({
+        environmentId,
+        input: { id, project, ...(origin === undefined ? {} : { origin }) },
+      });
       if (result._tag !== "Success") return null;
       refresh();
       return result.value.id;

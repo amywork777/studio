@@ -2,8 +2,8 @@
  * Product analytics: Studio's anonymous usage counts, sent the way text-to-cad and Backplane send theirs.
  *
  * Events go to Studio's usage receiver (`infra/usage`, which keeps them in Studio's own table) only when the app was
- * built with its address (`T3CODE_USAGE_URL`, which a Studio app bundle sets), the user answered the
- * first-launch notice (`usageDataAnswered`) and has left `shareUsageData` on, and neither
+ * built with its address (`T3CODE_USAGE_URL`, which a Studio app bundle sets), the person has been told
+ * by the first-launch notice (`usageDataAnswered`) and has left `shareUsageData` on, and neither
  * `DO_NOT_TRACK` nor `CI` is set. Otherwise `record` drops every event. They go under a random install id,
  * never one derived from an account, and carry counts, kinds and provider names, never prompts, file names
  * or geometry. Turning `shareUsageData` off asks the receiver to delete everything sent under the id, and
@@ -305,7 +305,7 @@ export const make = Effect.gen(function* () {
   const record: AnalyticsService["Service"]["record"] = Effect.fn("AnalyticsService.record")(
     function* (event, properties) {
       if (Option.isSome(settings)) {
-        // Nothing counted before the person answered the notice is sent, nor anything after their no.
+        // Nothing counted before the person was told is sent, nor anything after their no.
         const sharing = yield* settings.value.getSettings.pipe(
           Effect.map((current) => current.shareUsageData && current.usageDataAnswered),
           Effect.orElseSucceed(() => false),

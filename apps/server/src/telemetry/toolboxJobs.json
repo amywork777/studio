@@ -1,0 +1,162 @@
+[
+  {
+    "id": "strength",
+    "label": "Strength under load",
+    "skill": "fea"
+  },
+  {
+    "id": "fit",
+    "label": "Fit and clearance",
+    "skill": "cad"
+  },
+  {
+    "id": "motion",
+    "label": "Range of motion",
+    "skill": "cad"
+  },
+  {
+    "id": "mass",
+    "label": "Weight and center of mass",
+    "skill": "cad"
+  },
+  {
+    "id": "fdm",
+    "label": "Check for FDM printing",
+    "skill": "cad"
+  },
+  {
+    "id": "slice",
+    "label": "Slice and print",
+    "skill": "print3d"
+  },
+  {
+    "id": "resin",
+    "label": "Check for resin printing",
+    "skill": "cad"
+  },
+  {
+    "id": "powder",
+    "label": "Check for powder printing",
+    "skill": "cad"
+  },
+  {
+    "id": "metal-print",
+    "label": "Check for metal printing",
+    "skill": "cad"
+  },
+  {
+    "id": "cnc",
+    "label": "Check for CNC machining",
+    "skill": "cad"
+  },
+  {
+    "id": "toolpaths",
+    "label": "G-code for CNC",
+    "skill": "cam"
+  },
+  {
+    "id": "sheet-metal",
+    "label": "Check as sheet metal",
+    "skill": "cad"
+  },
+  {
+    "id": "dxf",
+    "label": "Flat pattern DXF",
+    "skill": "cad"
+  },
+  {
+    "id": "sendcutsend",
+    "label": "Check for SendCutSend",
+    "skill": "sendcutsend"
+  },
+  {
+    "id": "molding",
+    "label": "Check for injection molding",
+    "skill": "cad"
+  },
+  {
+    "id": "standard-parts",
+    "label": "Off-the-shelf parts",
+    "skill": null
+  },
+  {
+    "id": "board-check",
+    "label": "Board checks",
+    "skill": "pcb"
+  },
+  {
+    "id": "board-review",
+    "label": "Review before ordering",
+    "skill": "pcb"
+  },
+  {
+    "id": "board-fab",
+    "label": "Fabrication files",
+    "skill": "pcb"
+  },
+  {
+    "id": "board-step",
+    "label": "Board STEP",
+    "skill": "pcb"
+  },
+  {
+    "id": "export",
+    "label": "Export",
+    "skill": "cad"
+  },
+  {
+    "id": "drawing",
+    "label": "Engineering drawing",
+    "skill": "engineering-drawing"
+  },
+  {
+    "id": "pmi",
+    "label": "3D PMI",
+    "skill": "cad"
+  },
+  {
+    "id": "parts-list",
+    "label": "Parts list",
+    "skill": null
+  },
+  {
+    "id": "instructions",
+    "label": "Assembly instructions",
+    "skill": "work-instructions"
+  },
+  {
+    "id": "exploded",
+    "label": "Exploded view",
+    "skill": "cad"
+  },
+  {
+    "id": "pictures",
+    "label": "Pictures from every side",
+    "skill": "cad"
+  },
+  {
+    "id": "play-motion",
+    "label": "Motion to play",
+    "skill": "cad"
+  },
+  {
+    "id": "render",
+    "label": "Photoreal render",
+    "skill": "render"
+  },
+  {
+    "id": "test-plan",
+    "label": "Test plan",
+    "skill": null
+  },
+  {
+    "id": "write-up",
+    "label": "Write up the results",
+    "skill": null
+  },
+  {
+    "id": "robot-files",
+    "label": "Robot files",
+    "skill": "robot-simulation"
+  }
+]

@@ -25,9 +25,10 @@ receiver's address, and only the receiver holds the database key.
   this when Share usage data is turned off, and keeps asking until it gets a `2xx`. Each instance
   allows 5 calls per 10 minutes per client address and per install id (`src/limit.mjs`, copied
   from text-to-cad); past that it answers `429` with `Retry-After`.
-- `GET /` (the site's root, `?days=7`, `14`, `30` or `90`): the numbers page, a page of what the two
-  views below say (installs per day, and how often each event happened), with nothing finer: no install
-  id, property, version or country. The browser asks for its password (any user name), which is the
+- `GET /` (the site's root, `?days=7`, `14`, `30` or `90`): the numbers page: what the two views below
+  say (installs per day, and how often each event happened, failed CAD actions among them), how many
+  AI turns failed, and how many installs opened each version, which shows whether updates reach
+  people. It counts install ids and never shows one, and shows no other property and no country. The browser asks for its password (any user name), which is the
   sensitive variable `NUMBERS_PASSWORD` on the Vercel project; without it the page answers `503`. Each
   instance allows 10 wrong passwords per address every 10 minutes (`PASSWORD_LIMIT` in `src/limit.mjs`).
 - `GET /v1/health`: → `200`, or `503` naming a missing setting or the database's status when the

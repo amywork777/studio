@@ -57,7 +57,8 @@ const CHATGPT_DONE = [
 /** Every event Studio can send, as README.md lists them, and the only properties each may carry. */
 export const PROPERTIES = {
   "client.connected": CLIENT,
-  "client.thread.started": CLIENT,
+  // The AI a new chat starts with, by its kind (`claudeAgent`, `codex` and the rest).
+  "client.thread.started": [...CLIENT, "provider"],
   "client.turn.requested": CLIENT,
   "provider.turn.completed": [
     "provider",
@@ -81,13 +82,23 @@ export const PROPERTIES = {
   "chatgpt.auth.completed": CHATGPT_DONE,
   "chatgpt.transfer.started": CHATGPT,
   "chatgpt.transfer.completed": CHATGPT_DONE,
-  "studio.project.created": ["template"],
+  "claude.signed_in": [],
+  "studio.updated": ["from", "to"],
+  "studio.skill.used": ["skill", "job", "how"],
+  "studio.project.created": ["template", "origin"],
+  "studio.project.trashed": [],
+  "studio.project.restored": [],
+  "studio.project.deleted": [],
+  "studio.sync.sent": ["outcome"],
+  "studio.sync.restored": ["outcome"],
+  "studio.github.connected": [],
   "cad.model.opened": [],
   "cad.hand_edit": [],
   "cad.size.changed": [],
   "cad.size.added": [],
   "cad.versions.compared": [],
   "cad.version.restored": [],
+  "cad.action.failed": ["action"],
 };
 
 export const EVENTS = new Set(Object.keys(PROPERTIES));

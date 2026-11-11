@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { readViewContext, viewImageName } from "./viewContext";
+import { handEditNoteShown, readViewContext, viewImageName } from "./viewContext";
 
 describe("view context", () => {
   it("splits what the viewer adds into composer text and pictures", () => {
@@ -33,6 +33,14 @@ describe("view context", () => {
         },
       ]).handEdit,
     ).toBe(true);
+  });
+
+  it("says what a hand-edit note is while the message box holds it", () => {
+    const note = "In edit mode I added Boss-Extrude1, distance 10 mm (parts/tray.py, line 37).";
+    expect(handEditNoteShown(`${note} and make it taller`, [note])).toBe(true);
+    // Sent, or deleted by the person: nothing left to explain.
+    expect(handEditNoteShown("", [note])).toBe(false);
+    expect(handEditNoteShown("make it taller", [note])).toBe(false);
   });
 
   it("names an untitled picture by its place", () => {

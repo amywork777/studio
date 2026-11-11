@@ -43,6 +43,8 @@ import * as PullRequestReviewGuides from "./persistence/PullRequestReviewGuides.
 import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewGuideService.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
+import * as AppUpdated from "./telemetry/AppUpdated.ts";
+import * as ClaudeSignIn from "./telemetry/ClaudeSignIn.ts";
 import * as ProviderEventIngestor from "./orchestration-v2/ProviderEventIngestor.ts";
 import * as ModelManifest from "./provider/ModelManifest.ts";
 import * as ResetCreditCoordinator from "./provider/resetCreditCoordinator.ts";
@@ -593,6 +595,10 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   // One plugin host for the WebSocket views and the agents' MCP tools.
   PluginService.layer,
   layerProviderInstallationRefresh,
+  // Counts a Claude sign-in when an instance's auth status turns authenticated.
+  ClaudeSignIn.layer,
+  // Counts a launch of another release than the one that ran last.
+  AppUpdated.layer,
   ReplayMarkers.layer,
   // Catches overrides left behind by a project deleted before this cleanup
   // existed, or by a cleanup write that failed. See ProjectService.delete

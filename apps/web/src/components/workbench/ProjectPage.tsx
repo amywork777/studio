@@ -453,8 +453,9 @@ export function ProjectPage(props: {
   const isProject = props.projectId !== null;
   const folders = studio?.project.folders ?? [cwd];
   const name = studio?.project.name ?? props.projectName;
-  // Files dropped on the Overview go into the project, as onto a Drive folder.
-  const importer = useImportIntoProject(isProject && plainWords ? cwd : null, name);
+  const open = useOpenFromOverview(threadRef);
+  // Files dropped on the Overview go into the project, as onto a Drive folder; one part opens.
+  const importer = useImportIntoProject(isProject && plainWords ? cwd : null, name, open);
   // What it is, as the brief says it: the project's description under its name.
   const purpose = studio?.project.brief.purpose.trim().split("\n")[0]?.trim() ?? "";
   const byHand = !useSimpleView();
@@ -547,7 +548,6 @@ export function ProjectPage(props: {
     isDocumentId(relativePath) || studioFolderKey(root) === studioFolderKey(cwd)
       ? relativePath
       : `${studioFolderKey(root)}/${relativePath}`;
-  const open = useOpenFromOverview(threadRef);
   // Opening a thing from the Overview keeps the panel's width (`openFromOverview`).
   const openPath = (root: string, relativePath: string) =>
     void open(threadPath(root, relativePath));
