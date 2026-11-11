@@ -127,6 +127,8 @@ const SKILL_COVERS: Readonly<Record<string, string>> = {
   exploded: "exploded",
   pictures: "views",
   "play-motion": "motion-video",
+  "robot-files": "link-frames",
+  mujoco: "mujoco",
 };
 
 const skillCover = (entryId: string) => {

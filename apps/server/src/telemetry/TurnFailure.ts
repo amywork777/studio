@@ -33,12 +33,19 @@ const SERVICE_DOWN = new Set(["serverOverloaded", "internalServerError"]);
 
 /** Sorts a provider failure into one reason from {@link TURN_FAILURE_REASONS}. */
 export function turnFailureReason(
-  failure: Pick<OrchestrationV2ProviderFailure, "class" | "code"> | null | undefined,
+  failure:
+    | (Pick<OrchestrationV2ProviderFailure, "class" | "code"> & { readonly message?: string })
+    | null
+    | undefined,
 ): TurnFailureReason {
   if (!failure) return "other";
   const code = failure.code ?? "";
   if (failure.class === "usage_limit" || code === "api_error_429") return "usage_limit";
-  if (SIGN_IN.has(code)) return "sign_in";
+  // Claude's signed-out turn (`claudeSignedOutMessage`) often carries no 401; its message is read
+  // here, on the machine, and only the word `sign_in` leaves.
+  if (SIGN_IN.has(code) || failure.message?.startsWith("Claude could not authenticate")) {
+    return "sign_in";
+  }
   if (failure.class === "permission_error" || PERMISSION.has(code)) return "permission";
   if (SERVICE_DOWN.has(code) || /^api_error_5\d\d$/.test(code)) return "service_down";
   if (failure.class === "transport_error") return "connection";

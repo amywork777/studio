@@ -9,6 +9,7 @@ import type * as Electron from "electron";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
+import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as DesktopApplicationMenu from "./DesktopApplicationMenu.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -102,10 +103,21 @@ const layerElectronMenu = (
     showContextMenu: () => Effect.succeedNone,
   } satisfies ElectronMenu.ElectronMenu["Service"]);
 
+const layerElectronShell = (opened?: Deferred.Deferred<string>) =>
+  Layer.succeed(ElectronShell.ElectronShell, {
+    openExternal: (rawUrl) =>
+      (opened === undefined ? Effect.void : Deferred.succeed(opened, String(rawUrl))).pipe(
+        Effect.as(true),
+      ),
+    openSystemSettings: () => Effect.succeed(false),
+    copyText: () => Effect.void,
+  });
+
 const configureMenu = (
   selectedAction: Deferred.Deferred<string>,
   applicationMenuTemplate: Deferred.Deferred<readonly Electron.MenuItemConstructorOptions[]>,
   environment: Partial<DesktopEnvironment.MakeDesktopEnvironmentInput> = {},
+  opened?: Deferred.Deferred<string>,
 ) =>
   Effect.gen(function* () {
     const menu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
@@ -117,6 +129,7 @@ const configureMenu = (
         Layer.provideMerge(layerDesktopWindow(selectedAction)),
         Layer.provideMerge(layerDesktopUpdates),
         Layer.provideMerge(layerElectronDialog),
+        Layer.provideMerge(layerElectronShell(opened)),
         Layer.provideMerge(layerElectronApp),
         Layer.provideMerge(
           DesktopEnvironment.layer({ ...environmentInput, ...environment }).pipe(
@@ -184,6 +197,29 @@ describe("DesktopApplicationMenu", () => {
 
       settingsClick({} as Electron.MenuItem, {} as Electron.BrowserWindow, {} as KeyboardEvent);
       assert.equal(yield* Deferred.await(selectedAction), "open-settings");
+    }),
+  );
+
+  it.effect("opens Feedback, Studio's Discord, from the Help menu", () =>
+    Effect.gen(function* () {
+      const selectedAction = yield* Deferred.make<string>();
+      const applicationMenuTemplate =
+        yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+      const opened = yield* Deferred.make<string>();
+
+      yield* configureMenu(selectedAction, applicationMenuTemplate, {}, opened);
+
+      const template = yield* Deferred.await(applicationMenuTemplate);
+      const helpMenu = template.find((item) => item.role === "help");
+      if (!Array.isArray(helpMenu?.submenu)) {
+        throw new Error("Expected a Help menu with a submenu.");
+      }
+      const feedback = helpMenu.submenu.find((item) => item.label === "Feedback on Discord");
+      if (typeof feedback?.click !== "function") {
+        throw new Error("Expected Feedback on Discord to have a click handler.");
+      }
+      feedback.click({} as Electron.MenuItem, {} as Electron.BrowserWindow, {} as KeyboardEvent);
+      assert.equal(yield* Deferred.await(opened), DesktopApplicationMenu.FEEDBACK_URL);
     }),
   );
 

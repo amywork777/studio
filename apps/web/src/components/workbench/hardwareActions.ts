@@ -158,7 +158,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     kinds: ["Assembly"],
     checks: true,
     prompt: (file) =>
-      `Check the parts in ${file} for collisions and tight clearances, and tell me where they touch or rub and by how much.`,
+      `Check the parts in ${file} for collisions with an exact interference check, and for tight clearances, and tell me where they touch or rub and by how much.`,
     short: (name) => `Check the fit of ${name}`,
   },
   {
@@ -531,13 +531,27 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     group: "Document",
     section: "robot",
     label: "Robot files",
-    gets: "A validated URDF with its links, joints, limits and meshes, and an SDF or SRDF if you want.",
+    gets: "A validated URDF with its links, joints, limits and meshes, and a MoveIt SRDF if you want.",
     skill: "robot-simulation",
     kinds: ["Part", "Assembly"],
     checks: false,
     prompt: (file) =>
-      `Make a URDF for ${file} with its links, joints and limits. Ask me whether I also want an SDF for Gazebo or a MoveIt SRDF.`,
+      `Make a URDF for ${file} from its joints, limits and materials, and validate it. Ask me whether I also want a MoveIt SRDF.`,
     short: (name) => `Describe ${name} as a robot`,
+  },
+  {
+    id: "mujoco",
+    group: "Document",
+    section: "robot",
+    label: "MuJoCo model",
+    gets: "An MJCF for MuJoCo with collision shapes, joint dynamics and actuators, checked for model health.",
+    needs: "Downloads MuJoCo on first use, about 20 MB.",
+    skill: "robot-simulation",
+    kinds: ["Assembly"],
+    checks: true,
+    prompt: (file) =>
+      `Make a MuJoCo model of ${file} from its joints, limits and materials, with collision shapes, joint dynamics and actuators, and check it with cad mujoco check. Tell me what the check found and ask me what each actuator should drive.`,
+    short: (name) => `MuJoCo model of ${name}`,
   },
 ];
 

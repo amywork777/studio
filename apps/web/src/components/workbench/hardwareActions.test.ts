@@ -91,7 +91,9 @@ describe("hardware actions", () => {
       ["Pictures and motion", ["Pictures from every side", "Motion to play"]],
       ["Reports", ["Test plan", "Write up the results"]],
     ]);
-    expect(titled(document!.others)).toEqual([["Robot description", ["Robot files"]]]);
+    expect(titled(document!.others)).toEqual([
+      ["Robot description", ["Robot files", "MuJoCo model"]],
+    ]);
   });
 
   it("gives a mesh only the printing methods", () => {
@@ -132,10 +134,12 @@ describe("hardware actions", () => {
   it("says what a job needs that Studio does not bring", () => {
     // text-to-cad's own files say it: cam plans with the person's FreeCAD, print3d slices with
     // their OrcaSlicer, a board's checks and exports download kicode the first time, and a render
-    // downloads bpy and the Python 3.13 it is built for (262 or 356 MB, and 65 MB).
+    // downloads bpy and the Python 3.13 it is built for (262 or 356 MB, and 65 MB); a MuJoCo check
+    // fetches cad[mujoco] (about 20 MB).
     const needs = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)?.needs;
     expect(needs("toolpaths")).toBe("Needs FreeCAD 1.1 or newer installed.");
     expect(needs("slice")).toBe("Needs OrcaSlicer installed.");
+    expect(needs("mujoco")).toBe("Downloads MuJoCo on first use, about 20 MB.");
     expect(needs("render")).toBe(
       "Downloads Blender on first use, about 330 MB on a Mac and 420 MB on Windows.",
     );
@@ -148,7 +152,7 @@ describe("hardware actions", () => {
       HARDWARE_ACTIONS.filter(
         (action) =>
           action.needs !== undefined &&
-          !["cam", "print3d", "pcb", "render"].includes(action.skill!),
+          !["cam", "print3d", "pcb", "render", "robot-simulation"].includes(action.skill!),
       ),
     ).toEqual([]);
     const slice = HARDWARE_ACTIONS.find((action) => action.id === "slice")!;

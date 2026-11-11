@@ -343,11 +343,11 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:robot",
     name: "Robot description",
     templates: ["robot"],
-    actions: ["robot-files"],
-    what: "Links, joints and limits of an assembly, for simulation.",
+    actions: ["robot-files", "mujoco"],
+    what: "Links, joints and limits of an assembly, for ROS, MoveIt and MuJoCo.",
     give: "The assembly, and which parts move.",
     asks: null,
-    gets: "A URDF and its meshes in robots/, validated, and an SRDF for MoveIt and an SDF for Gazebo when you want them.",
+    gets: "A URDF and its meshes in robots/, validated, an SRDF for MoveIt when you want one, and a MuJoCo model checked for health.",
   }),
   doc({
     id: "doc:prd",
@@ -423,7 +423,7 @@ const SKILL_BLURBS: Readonly<Record<string, string>> = {
   pcb: "Edit and check KiCad circuit boards",
   print3d: "Slice and print on Bambu Lab printers",
   render: "Photoreal stills and films with Blender",
-  "robot-simulation": "URDF, SRDF and SDF robot descriptions",
+  "robot-simulation": "URDF, SRDF and MuJoCo robot descriptions",
   sendcutsend: "Review DXF/STEP against specs",
   "work-instructions": "Step-by-step assembly PDF",
 };

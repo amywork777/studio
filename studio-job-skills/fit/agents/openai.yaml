@@ -1,4 +1,4 @@
 interface:
   display_name: "Fit and clearance"
   short_description: "A report of any collision, where the parts touch and the tightest gaps."
-  default_prompt: "Use $fit to check the parts in the assembly for collisions and tight clearances, and tell me where they touch or rub and by how much."
+  default_prompt: "Use $fit to check the parts in the assembly for collisions with an exact interference check, and for tight clearances, and tell me where they touch or rub and by how much."

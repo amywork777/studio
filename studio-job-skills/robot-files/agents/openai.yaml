@@ -1,0 +1,4 @@
+interface:
+  display_name: "Robot files"
+  short_description: "A validated URDF with its links, joints, limits and meshes, and a MoveIt SRDF if you want."
+  default_prompt: "Use $robot-files to make a URDF for the part from its joints, limits and materials, and validate it. Ask me whether I also want a MoveIt SRDF."

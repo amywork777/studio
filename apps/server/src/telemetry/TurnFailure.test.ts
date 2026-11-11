@@ -23,6 +23,13 @@ describe("turnFailureReason", () => {
       expect(turnFailureReason(failure)).toBe(reason);
     }
     expect(turnFailureReason(null)).toBe("other");
+    expect(
+      turnFailureReason({
+        class: "provider_error",
+        code: "sdk_result_error",
+        message: "Claude could not authenticate. For subscription login, run `claude auth login`.",
+      }),
+    ).toBe("sign_in");
   });
 
   it("never sends the provider's own words", () => {

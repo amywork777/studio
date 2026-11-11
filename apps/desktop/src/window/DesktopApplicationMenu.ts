@@ -9,6 +9,7 @@ import type * as Electron from "electron";
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
+import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
@@ -35,7 +36,16 @@ export class DesktopApplicationMenu extends Context.Service<
 type DesktopApplicationMenuRuntimeServices =
   | DesktopUpdates.DesktopUpdates
   | DesktopWindow.DesktopWindow
-  | ElectronDialog.ElectronDialog;
+  | ElectronDialog.ElectronDialog
+  | ElectronShell.ElectronShell;
+
+/** The Discord Studio shares with text-to-cad, as the sidebar's Feedback opens it (`TEXT_TO_CAD_DISCORD`). */
+export const FEEDBACK_URL = "https://discord.gg/5FGB9DwJYU";
+
+const openFeedback = Effect.gen(function* () {
+  const shell = yield* ElectronShell.ElectronShell;
+  yield* shell.openExternal(FEEDBACK_URL);
+}).pipe(Effect.withSpan("desktop.menu.openFeedback"));
 
 const { logInfo: logUpdaterInfo } = makeComponentLogger("desktop-updater");
 
@@ -275,6 +285,11 @@ export const make = Effect.gen(function* () {
           {
             label: "Check for Updates...",
             click: checkForUpdatesClick,
+          },
+          { type: "separator" },
+          {
+            label: "Feedback on Discord",
+            click: () => runMenuEffect("open-feedback", openFeedback),
           },
         ],
       },

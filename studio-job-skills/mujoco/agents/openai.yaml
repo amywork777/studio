@@ -1,0 +1,4 @@
+interface:
+  display_name: "MuJoCo model"
+  short_description: "An MJCF for MuJoCo with collision shapes, joint dynamics and actuators, checked for model health. Downloads MuJoCo on first use, about 20 MB."
+  default_prompt: "Use $mujoco to make a MuJoCo model of the assembly from its joints, limits and materials, with collision shapes, joint dynamics and actuators, and check it with cad mujoco check. Tell me what the check found and ask me what each actuator should drive."

@@ -17,6 +17,7 @@ import {
   LayersIcon,
   ListOrderedIcon,
   NotebookPenIcon,
+  OrbitIcon,
   PencilRulerIcon,
   PlayIcon,
   Rotate3dIcon,
@@ -88,6 +89,7 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   "test-plan": FlaskConicalIcon,
   "write-up": NotebookPenIcon,
   "robot-files": DISCIPLINE_ICONS.Robotics,
+  mujoco: OrbitIcon,
 };
 
 /** The jobs with a picture of their own, by id: the test holds each to a real job. */
