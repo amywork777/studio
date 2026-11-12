@@ -624,6 +624,7 @@ import { handToChat, sendsAtOnce } from "./workbench/handToChat";
 import { chatTitleText } from "./workbench/toolUsed";
 import { plainFailure, TRY_AGAIN_PROMPT } from "./workbench/plainFailure";
 import { StudioToolbox } from "./workbench/StudioToolbox";
+import { selectToolboxFolded, useToolboxFold } from "./workbench/toolboxFold";
 import { ProjectPage } from "./workbench/ProjectPage";
 import { useChatPanelInlineSize } from "./workbench/useWorkbenchPanelSize";
 import { useProjectViewStore } from "./workbench/projectView";
@@ -6187,6 +6188,18 @@ export default function ChatView(props: ChatViewProps) {
     }
     useRightPanelStore.getState().toggleVisibility(activeThreadRef);
   }, [activeThreadRef, closePreviewPanel, rightPanelOpen]);
+  // Studio's right toggle is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox,
+  // with the panel when that is shut, and folds it again. The keybinding still shows or hides the panel.
+  const toolboxFolded = useToolboxFold(selectToolboxFolded);
+  const toggleToolbox = useCallback(() => {
+    if (!activeThreadRef) return;
+    if (!rightPanelOpen) {
+      useToolboxFold.getState().openWithPanel();
+      useRightPanelStore.getState().toggleVisibility(activeThreadRef);
+      return;
+    }
+    useToolboxFold.getState().setFolded(!toolboxFolded);
+  }, [activeThreadRef, rightPanelOpen, toolboxFolded]);
   const toggleThreadPanel = useCallback(() => {
     if (!activeThreadRef) return;
     useRightPanelStore.getState().toggleThreadPanel(activeThreadRef, threadPanelPresentation);
@@ -11582,11 +11595,20 @@ export default function ChatView(props: ChatViewProps) {
     threadPanelPopoverHandle,
     threadPanelShortcutLabel: shortcutLabelForCommand(keybindings, "threadPanel.toggle"),
     rightPanelAvailable: activeProject !== null,
-    rightPanelOpen,
-    rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
+    ...(engineeringSurfaces
+      ? {
+          rightPanelOpen: rightPanelOpen && !toolboxFolded,
+          rightPanelShortcutLabel: null,
+          rightPanelLabel:
+            rightPanelOpen && !toolboxFolded ? "Fold the Toolbox" : "Open the Toolbox",
+        }
+      : {
+          rightPanelOpen,
+          rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
+        }),
     onToggleTerminal: toggleTerminalVisibility,
     onToggleThreadPanel: toggleThreadPanel,
-    onToggleRightPanel: toggleRightPanel,
+    onToggleRightPanel: engineeringSurfaces ? toggleToolbox : toggleRightPanel,
   } satisfies PanelLayoutControlsProps;
   const panelToggleControls = (
     <PanelLayoutControls
