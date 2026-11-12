@@ -84,7 +84,7 @@ export function StartChoices(props: {
         note={
           props.newPartBusy
             ? "Making the part…"
-            : "Opens in CAD mode on a block to shape by its sizes."
+            : "Opens with the CAD tools, on a block to shape by its sizes."
         }
         busy={props.newPartBusy}
         onChoose={props.onNewPart}

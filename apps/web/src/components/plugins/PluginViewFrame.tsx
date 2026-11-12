@@ -442,13 +442,15 @@ export function PluginViewFrame(props: {
               // CAD mode built a part: Home, the Overview and Cmd+K list it as it now is.
               if (heardBuilds(editKey, state.builds)) modelsChanged();
             },
-            // A double-click in the view steps into CAD on a face, or back to AI on empty space
-            // (`text-to-cad/.../edit/editLayout.js`): the bar's switch, pressed from the view.
+            // A double-click on a face with the CAD tools hidden shows them, the feature that made
+            // the face selected (`text-to-cad/.../edit/editLayout.js`). One on empty space, which
+            // asks for the AI layout, hides nothing: only Hide CAD tools does.
             requestEditLayout: async (layout: "manual" | "ai") => {
+              if (layout === "ai") return;
               if (frontViewBusy(useViewerEditState.getState().byView, editKey)) {
                 throw new McpAppHostRefusal("Finish or cancel the command first");
               }
-              setSimpleView(layout === "ai");
+              setSimpleView(false);
             },
           }),
       ...(props.focusPlace == null

@@ -536,8 +536,8 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   tab you were on before it, as a browser does: a drawing opened from its part and closed returns
   to the part, one opened from the Overview to the Overview (`rightPanelStore.ts`). The menu's
   Close others, Close to the right and Close all count the tabs shown, never the pinned Overview. The toolbar ends the
-  tab row (`StudioPanelBar.tsx`, there is no row of its own): the AI | CAD switch, where the viewer
-  in front has two layouts (the one way between them: no Back to AI beside it), then Import and New,
+  tab row (`StudioPanelBar.tsx`, there is no row of its own): Hide CAD tools (Show CAD tools
+  once hidden), where the viewer in front has its CAD tools (the one way between them), then Import and New,
   always there, as Home has them (`StudioNew.tsx`, which hosts New's dialog in Engineering), with
   the tabs keeping their scroller and Import dropping to its icon beside chat; a narrow window's
   panel sheet keeps it. Whatever writes into the chat (the Toolbox, Cmd+K, the viewer's Add
@@ -732,11 +732,14 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   routes, and `commands.py`, which matches a selection to the part by its geometry and writes a
   command's line); the frame is `text-to-cad/packages/ui/src/renderers/xbf/edit/`. The CAD skill's
   `references/edit-mode.md` tells the agent how to write parts that edit well.
-- **The AI | CAD switch.** Studio's bar chooses it where the CAD viewer in front has two layouts. AI
-  is the viewer's ai layout, text-to-cad's view exactly as it ships, where a selection opens Quick
-  Edit; CAD is the full workspace (edit mode), where the pick bar's Quick Edit opens it. One choice for the person, across
-  projects, kept on this device (`studio:simple-view`), AI where none was stored
-  (`workbench/simpleView.ts`); New part and Start a part by hand turn it off. The workspace stands
+- **Hide CAD tools.** One view: a part opens with its CAD tools (the full workspace, edit mode),
+  where the pick bar's Quick Edit opens Quick Edit. Hide CAD tools on Studio's bar (Show CAD tools
+  once hidden; `workbench/CadToolsButton.tsx`) puts them away: the viewer's ai layout, text-to-cad's
+  view exactly as it ships, where a selection opens Quick Edit. Either way a selection goes to the
+  agent. One choice for the person, across projects, kept on this device (`studio:simple-view`,
+  "1" hidden), shown where none was stored (`workbench/simpleView.ts`); New part and Start a part by
+  hand show them. A double-click on a face with them hidden shows them; one on empty space hides
+  nothing. The workspace stands
   over the view, one 150 ms fade (none with reduced motion), and the design tree is a column docked
   at the view's left: the canvas starts at its hairline, so the switch is a plain resize of the canvas
   and the camera stays where it was. The viewer says what its part allows (`studio/notifications/edit-state`, to

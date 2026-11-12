@@ -337,8 +337,8 @@ export function NewDialog(props: {
             {starts.length === 0
               ? ""
               : `Start ${startLine}${props.newProject ? " in a new project" : ""}. `}
-            {isPart ? "Create opens it in CAD mode." : "Create hands it to the agent."} To work on a
-            part you already have, use the Toolbox.
+            {isPart ? "Create opens it with the CAD tools." : "Create hands it to the agent."} To
+            work on a part you already have, use the Toolbox.
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>

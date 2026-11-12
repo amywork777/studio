@@ -8,12 +8,12 @@ import { ImportMenu } from "./ImportMenu";
 import { useImportIntoProject } from "./importIntoProject";
 import { useOpenFromOverview } from "./useOpenInWorkbench";
 import { useImportActions } from "./useImportActions";
-import { ModeSwitch } from "./ModeSwitch";
+import { CadToolsButton } from "./CadToolsButton";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { usePanelTabShortcuts } from "./panelTabShortcuts";
 import { handToChat } from "./handToChat";
 import { surfaceFile } from "./sameFile";
-import { modeOf, setSimpleView, simpleOf, simpleViewToggle, useSimpleView } from "./simpleView";
+import { setSimpleView, simpleViewToggle, useSimpleView } from "./simpleView";
 import { StudioNew } from "./StudioNew";
 import { StudioTour } from "./StudioTour";
 import { studyMeshKind } from "./partContext";
@@ -96,7 +96,7 @@ export function usePartForJobs(
 
 /**
  * The workspace panel's toolbar, at the right end of its tab row (`RightPanelTabs`' `toolbar`), what
- * can be done: the AI | CAD switch where the viewer in front has two layouts (`ModeSwitch` over
+ * can be done: Hide CAD tools (or Show) where the viewer in front has its CAD tools (`CadToolsButton` over
  * `simpleView.ts`, the person's choice, which every CAD view takes from its host context), the one way between
  * them; and Import (`ImportMenu`, Studio's one Import) and New, always
  * there, last (`StudioNew`), where Home has them. A part's jobs are in the
@@ -113,8 +113,8 @@ export function StudioPanelBar(props: {
 }) {
   const { folder, threadRef } = props;
   usePanelTabShortcuts(threadRef);
-  // The AI | CAD switch, by what the CAD view in front says of its part (`viewerEditState.ts`): shown
-  // where it has two layouts, held while a command or sketch is open in it.
+  // Hide CAD tools, by what the CAD view in front says of its part (`viewerEditState.ts`): shown
+  // where it has CAD tools to hide, held while a command or sketch is open in it.
   const frontView = useRightPanelStore((store) => {
     const surface = selectActiveRightPanelSurface(store.byThreadKey, threadRef);
     return surface?.kind === "plugin-app" ? pluginViewKey(threadRef, surface.id) : null;
@@ -177,16 +177,16 @@ export function StudioPanelBar(props: {
   return (
     <div className="flex items-center gap-2" data-studio-toolbar="">
       <StudioTour chatBusy={props.chatBusy} />
-      {/* The AI | CAD switch, Import and New close the row; Home's Your projects ends in Import and New too. */}
+      {/* Hide CAD tools, Import and New close the row; Home's Your projects ends in Import and New too. */}
       {toggle === "hidden" ? null : (
         <>
-          <ModeSwitch
-            mode={modeOf(simpleView)}
+          <CadToolsButton
+            shown={!simpleView}
             held={toggle === "held"}
-            onChange={(mode) => {
+            onChange={(shown) => {
               // As the store has it at the press: a command opened since holds the layout.
               if (frontViewBusy(useViewerEditState.getState().byView, frontView)) return;
-              setSimpleView(simpleOf(mode));
+              setSimpleView(!shown);
             }}
           />
         </>
