@@ -2421,7 +2421,10 @@ export default function ChatView(props: ChatViewProps) {
     activePreviewMiniPlayer?.source ?? null,
     renderedRightPanelSurface,
   );
-  const canMaximizeRightPanel = rightPanelOpen && !shouldUsePlanSidebarSheet;
+  // Studio has no maximize: its title-bar button opens and folds the Toolbox, the one there.
+  const engineeringSurfaces = useEngineeringSurfaces();
+  const canMaximizeRightPanel =
+    rightPanelOpen && !shouldUsePlanSidebarSheet && !engineeringSurfaces;
   const rightPanelMaximized = canMaximizeRightPanel && rightPanelState.maximized === true;
   const inlineRightPanelOwnsTitleBar = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const [threadPanelPresentation, setThreadPanelPresentation] =
@@ -5954,7 +5957,6 @@ export default function ChatView(props: ChatViewProps) {
   );
   // Studio's tabs are the project folder's, the same beside each of its chats (`projectTabs.ts`).
   useProjectTabs(engineeringInterface ? activeThreadRef : null, activeWorkspaceRoot ?? null);
-  const engineeringSurfaces = useEngineeringSurfaces();
   // Engineering with code tools lets the pinned tab show the source files instead (`workbench/projectView.ts`).
   const projectView = useProjectViewStore((state) => state.view);
   usePluginFollow({
@@ -11639,7 +11641,7 @@ export default function ChatView(props: ChatViewProps) {
       )}
       data-workspace-titlebar-controls
     >
-      {!shouldUsePlanSidebarSheet ? (
+      {!shouldUsePlanSidebarSheet && !engineeringSurfaces ? (
         <span
           aria-hidden={!rightPanelOpen}
           className={cn(

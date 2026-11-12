@@ -96,9 +96,8 @@ export function usePartForJobs(
 
 /**
  * The workspace panel's toolbar, at the right end of its tab row (`RightPanelTabs`' `toolbar`), what
- * can be done: Hide CAD tools (or Show) where the viewer in front has its CAD tools (`CadToolsButton` over
- * `simpleView.ts`, the person's choice, which every CAD view takes from its host context), the one way between
- * them; and Import (`ImportMenu`, Studio's one Import) and New, always
+ * can be done: Hide CAD tools (or Show), always there (`CadToolsButton` over `simpleView.ts`, the
+ * person's choice, which every CAD view takes from its host context), the one way between them; and Import (`ImportMenu`, Studio's one Import) and New, always
  * there, last (`StudioNew`), where Home has them. A part's jobs are in the
  * Toolbox (`StudioToolbox`). ⌘K's and the Toolbox's jobs are for the same part (`usePartForJobs`).
  */
@@ -113,8 +112,8 @@ export function StudioPanelBar(props: {
 }) {
   const { folder, threadRef } = props;
   usePanelTabShortcuts(threadRef);
-  // Hide CAD tools, by what the CAD view in front says of its part (`viewerEditState.ts`): shown
-  // where it has CAD tools to hide, held while a command or sketch is open in it.
+  // Hide CAD tools, held while a command or sketch is open in the CAD view in front
+  // (`viewerEditState.ts`).
   const frontView = useRightPanelStore((store) => {
     const surface = selectActiveRightPanelSurface(store.byThreadKey, threadRef);
     return surface?.kind === "plugin-app" ? pluginViewKey(threadRef, surface.id) : null;
@@ -178,19 +177,15 @@ export function StudioPanelBar(props: {
     <div className="flex items-center gap-2" data-studio-toolbar="">
       <StudioTour chatBusy={props.chatBusy} />
       {/* Hide CAD tools, Import and New close the row; Home's Your projects ends in Import and New too. */}
-      {toggle === "hidden" ? null : (
-        <>
-          <CadToolsButton
-            shown={!simpleView}
-            held={toggle === "held"}
-            onChange={(shown) => {
-              // As the store has it at the press: a command opened since holds the layout.
-              if (frontViewBusy(useViewerEditState.getState().byView, frontView)) return;
-              setSimpleView(!shown);
-            }}
-          />
-        </>
-      )}
+      <CadToolsButton
+        shown={!simpleView}
+        held={toggle === "held"}
+        onChange={(shown) => {
+          // As the store has it at the press: a command opened since holds the layout.
+          if (frontViewBusy(useViewerEditState.getState().byView, frontView)) return;
+          setSimpleView(!shown);
+        }}
+      />
       {importMenu}
       {props.composerRef === null || folder === null || addPart === null ? null : (
         <StudioNew
