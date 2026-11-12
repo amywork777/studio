@@ -144,7 +144,7 @@ import {
   shouldToastDesktopUpdateActionResult,
 } from "./desktopUpdate.logic";
 import { restartConfirmation, restartForUpdateWhenIdle } from "./desktopUpdate.hold";
-import { showDesktopUpdateDownloadedToast } from "./desktopUpdate.toast";
+import { installDesktopUpdate, showDesktopUpdateDownloadedToast } from "./desktopUpdate.toast";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
 import {
@@ -3795,33 +3795,7 @@ export default function LegacySidebar() {
         return;
       }
       setDesktopUpdateActionPending(false);
-      restartForUpdateWhenIdle(
-        () =>
-          void bridge
-            .installUpdate()
-            .then((result) => {
-              if (!shouldToastDesktopUpdateActionResult(result)) return;
-              const actionError = getDesktopUpdateActionError(result);
-              if (!actionError) return;
-              toastManager.add(
-                stackedThreadToast({
-                  type: "error",
-                  title: "Could not install update",
-                  description: actionError,
-                }),
-              );
-            })
-            .catch((error) => {
-              toastManager.add(
-                stackedThreadToast({
-                  type: "error",
-                  title: "Could not install update",
-                  description:
-                    error instanceof Error ? error.message : "An unexpected error occurred.",
-                }),
-              );
-            }),
-      );
+      restartForUpdateWhenIdle(() => void installDesktopUpdate(bridge));
     }
   }, [
     desktopUpdateActionPending,

@@ -66,6 +66,7 @@ import {
   resolveDesktopUpdateButtonAction,
 } from "../../components/desktopUpdate.logic";
 import { restartConfirmation, restartForUpdateWhenIdle } from "../../components/desktopUpdate.hold";
+import { installDesktopUpdate } from "../../components/desktopUpdate.toast";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
 import {
@@ -410,18 +411,7 @@ function AboutVersionSection(props: { readonly textToCadVersion: string | null }
         return;
       }
       setIsUpdateActionPending(false);
-      restartForUpdateWhenIdle(
-        () =>
-          void bridge.installUpdate().catch((error: unknown) => {
-            toastManager.add(
-              stackedThreadToast({
-                type: "error",
-                title: "Could not install update",
-                description: error instanceof Error ? error.message : "Install failed.",
-              }),
-            );
-          }),
-      );
+      restartForUpdateWhenIdle(() => void installDesktopUpdate(bridge));
       return;
     }
 

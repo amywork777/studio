@@ -13,6 +13,7 @@ import {
   resolveDesktopUpdateButtonAction,
   shouldShowArm64IntelBuildWarning,
   shouldToastDesktopUpdateActionResult,
+  getDesktopUpdateRefusedInstallError,
 } from "./desktopUpdate.logic";
 
 const baseState: DesktopUpdateState = {
@@ -128,6 +129,42 @@ describe("desktop update button state", () => {
     };
     expect(isDesktopUpdateButtonDisabled(state)).toBe(true);
     expect(getDesktopUpdateButtonTooltip(state)).toContain("42%");
+  });
+});
+
+describe("getDesktopUpdateRefusedInstallError", () => {
+  it("says what to do when the download failed for lack of disk space", () => {
+    expect(
+      getDesktopUpdateRefusedInstallError({
+        ...baseState,
+        status: "error",
+        errorContext: "download",
+        downloadedVersion: "0.1.11",
+        message: "You can’t save the file “a.zip” because there isn’t enough space.",
+      }),
+    ).toBe(
+      "There isn't enough free disk space for the update. Free up about 2 GB, then click the update button again.",
+    );
+  });
+
+  it("gives another failed download's own words, and none for an install that is only early", () => {
+    expect(
+      getDesktopUpdateRefusedInstallError({
+        ...baseState,
+        status: "error",
+        errorContext: "download",
+        message: "net::ERR_INTERNET_DISCONNECTED",
+      }),
+    ).toBe("net::ERR_INTERNET_DISCONNECTED");
+    expect(getDesktopUpdateRefusedInstallError({ ...baseState, status: "downloading" })).toBeNull();
+    expect(
+      getDesktopUpdateRefusedInstallError({
+        ...baseState,
+        status: "error",
+        errorContext: "install",
+        message: "boom",
+      }),
+    ).toBeNull();
   });
 });
 

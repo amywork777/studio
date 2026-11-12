@@ -131,6 +131,22 @@ export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): 
   return message.length > 0 ? message : null;
 }
 
+/**
+ * Why an install was refused, when its download failed: the download's own words, or, for a disk
+ * with no room (the download's usual failure), what to do about it. Null for a refusal that is only
+ * early (the download not marked ready yet), which the downloaded toast answers.
+ */
+export function getDesktopUpdateRefusedInstallError(state: DesktopUpdateState): string | null {
+  if (state.status !== "error" || state.errorContext === "install") return null;
+  const message = state.message?.trim() ?? "";
+  if (/enough space|ENOSPC|no space left/i.test(message)) {
+    return "There isn't enough free disk space for the update. Free up about 2 GB, then click the update button again.";
+  }
+  return message.length > 0
+    ? message
+    : "The update did not finish downloading. Click the update button to try again.";
+}
+
 export function shouldToastDesktopUpdateActionResult(result: DesktopUpdateActionResult): boolean {
   return getDesktopUpdateActionError(result) !== null;
 }

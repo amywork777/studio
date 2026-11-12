@@ -19,7 +19,7 @@ import {
   shouldToastDesktopUpdateActionResult,
 } from "../desktopUpdate.logic";
 import { restartConfirmation, restartForUpdateWhenIdle } from "../desktopUpdate.hold";
-import { showDesktopUpdateDownloadedToast } from "../desktopUpdate.toast";
+import { installDesktopUpdate, showDesktopUpdateDownloadedToast } from "../desktopUpdate.toast";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Popover, PopoverCreateHandle, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
@@ -152,38 +152,6 @@ async function downloadLocalUpdate(
   }
 }
 
-/** Installs this app's downloaded update, which relaunches the app.
-    Failures toast. A refused install (the download is not marked ready yet)
-    leaves the restart to the user. */
-async function installLocalUpdate(bridge: DesktopBridge): Promise<void> {
-  try {
-    const result = await bridge.installUpdate();
-    if (!result.accepted) {
-      showDesktopUpdateDownloadedToast(bridge, result.state);
-      return;
-    }
-    const actionError = shouldToastDesktopUpdateActionResult(result)
-      ? getDesktopUpdateActionError(result)
-      : null;
-    if (!actionError) return;
-    toastManager.add(
-      stackedThreadToast({
-        type: "error",
-        title: "Could not install update",
-        description: actionError,
-      }),
-    );
-  } catch (error) {
-    toastManager.add(
-      stackedThreadToast({
-        type: "error",
-        title: "Could not install update",
-        description: error instanceof Error ? error.message : "An unexpected error occurred.",
-      }),
-    );
-  }
-}
-
 /**
  * The sidebar's update row, a footer row like those above it, there only while
  * an update exists (Settings keeps Check for updates). With only a local app
@@ -312,7 +280,7 @@ function SidebarUpdateControl() {
         return;
       }
       setIsActionPending(false);
-      restartForUpdateWhenIdle(() => void installLocalUpdate(bridge));
+      restartForUpdateWhenIdle(() => void installDesktopUpdate(bridge));
       return;
     }
 
@@ -358,7 +326,7 @@ function SidebarUpdateControl() {
         ...(bridge && action !== "none"
           ? {
               installLocal: async () =>
-                restartForUpdateWhenIdle(() => void installLocalUpdate(bridge)),
+                restartForUpdateWhenIdle(() => void installDesktopUpdate(bridge)),
             }
           : {}),
       });

@@ -2,10 +2,12 @@ import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
 import { ArrowRightIcon } from "lucide-react";
 
 import {
+  getDesktopUpdateActionError,
   getDesktopUpdateDownloadedVersion,
+  getDesktopUpdateRefusedInstallError,
   getDesktopUpdateReleaseUrl,
 } from "./desktopUpdate.logic";
-import { toastManager } from "./ui/toast";
+import { stackedThreadToast, toastManager } from "./ui/toast";
 
 type DesktopUpdateShell = Pick<DesktopBridge, "openExternal">;
 
@@ -61,4 +63,29 @@ export function showDesktopUpdateDownloadedToast(
       </>
     ),
   });
+}
+
+const installFailed = (description: string) =>
+  toastManager.add(
+    stackedThreadToast({ type: "error", title: "Could not install update", description }),
+  );
+
+/** Installs this app's downloaded update, which relaunches the app: the one way the sidebar,
+    Settings and the legacy sidebar install. A refused install says why when its download failed
+    (`getDesktopUpdateRefusedInstallError`), else leaves the restart to the update button; a failed
+    one says what failed. */
+export async function installDesktopUpdate(bridge: DesktopBridge): Promise<void> {
+  try {
+    const result = await bridge.installUpdate();
+    if (!result.accepted) {
+      const refused = getDesktopUpdateRefusedInstallError(result.state);
+      if (refused) installFailed(refused);
+      else showDesktopUpdateDownloadedToast(bridge, result.state);
+      return;
+    }
+    const actionError = getDesktopUpdateActionError(result);
+    if (actionError) installFailed(actionError);
+  } catch (error) {
+    installFailed(error instanceof Error ? error.message : "An unexpected error occurred.");
+  }
 }
