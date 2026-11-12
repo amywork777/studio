@@ -83,10 +83,11 @@ describe("Simple view", () => {
     expect(store.getState().on).toBe(false);
   });
 
-  it("shows the toggle whatever is on screen, so hidden tools always come back", () => {
-    // A view that has said nothing, or is gone, and one with a single layout: still there.
-    expect(simpleViewToggle(undefined)).toBe("shown");
-    expect(simpleViewToggle({ editable: false, busy: false })).toBe("shown");
+  it("shows the toggle only where there are two layouts", () => {
+    // A view that has said nothing, or is gone.
+    expect(simpleViewToggle(undefined)).toBe("hidden");
+    // An imported STEP, with no part script beside it: the viewer's one layout.
+    expect(simpleViewToggle({ editable: false, busy: false })).toBe("hidden");
     expect(simpleViewToggle({ editable: true, busy: false })).toBe("shown");
     // A command or sketch open holds it until it is finished or cancelled.
     expect(simpleViewToggle({ editable: true, busy: true })).toBe("held");

@@ -47,10 +47,11 @@ export function viewerEditLayout(simple: boolean): "ai" | "manual" {
 }
 
 /**
- * Hide CAD tools' state for the view in front: always there, Show or Hide, whichever is chosen and
- * whatever is on screen, so hidden tools can always be brought back; held while a command or
- * sketch is open in the view.
+ * Hide CAD tools' state for the view in front, by what it says of its part: hidden where the viewer
+ * has one layout (a STEP with no part script, a board, the home) or the view has said nothing, held
+ * while a command or sketch is open in it.
  */
-export function simpleViewToggle(state: ViewerEditState | undefined): "shown" | "held" {
-  return state?.busy === true ? "held" : "shown";
+export function simpleViewToggle(state: ViewerEditState | undefined): "hidden" | "shown" | "held" {
+  if (state === undefined || !state.editable) return "hidden";
+  return state.busy ? "held" : "shown";
 }
