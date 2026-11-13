@@ -6,7 +6,7 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_USAGE_URL,
-  CHATGPT_WORKSPACE_ADMIN_REQUEST,
+  chatGptWorkspaceAdminRequest,
   CHATGPT_WORKSPACE_USAGE_LIMIT_CODE,
 } from "@t3tools/shared/usageLimits";
 import * as Clipboard from "expo-clipboard";
@@ -105,7 +105,7 @@ export function UsageLimitRecoveryCard({
           setError(null);
           setCopied(false);
           setActionPending(true);
-          void Clipboard.setStringAsync(CHATGPT_WORKSPACE_ADMIN_REQUEST)
+          void Clipboard.setStringAsync(chatGptWorkspaceAdminRequest())
             .then(
               () => setCopied(true),
               () => setError("Could not copy the request. Try again."),

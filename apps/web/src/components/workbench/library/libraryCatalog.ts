@@ -564,9 +564,15 @@ export function ownTemplateEntries(files: ReadonlyArray<NewTemplate>): LibraryDo
   );
 }
 
-/** A skill's name as the chat shows it: its own display name, else its name title-cased. */
+/** A skill's own display name, else its name title-cased: T3's chat now shows the bare name. */
 const chatName = (name: string, displayName: string | null) =>
-  formatProviderSkillDisplayName(displayName === null ? { name } : { name, displayName });
+  displayName?.trim()
+    ? formatProviderSkillDisplayName({ name, displayName })
+    : name
+        .split(/[\s:_-]+/)
+        .filter((word) => word !== "")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 
 /**
  * A skill's one name wherever the library shows it (its card and detail, Made by, what an entry
