@@ -3652,6 +3652,10 @@ export const layer = Layer.unwrap(
           ),
         );
         const clientAnalyticsProps = readClientAnalyticsProps(request);
+        // Studio still counts connections (README's "Usage data"), reconnects included.
+        yield* AnalyticsService.AnalyticsService.pipe(
+          Effect.flatMap((analytics) => analytics.record("client.connected", clientAnalyticsProps)),
+        );
         const reportProfiles = yield* serverBrowser.profileReporter;
         const rpcWebSocketHttpEffect = yield* Effect.gen(function* () {
           const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;

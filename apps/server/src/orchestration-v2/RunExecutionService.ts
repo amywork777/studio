@@ -629,7 +629,6 @@ export const layer: Layer.Layer<
     const previewAgentActivity = yield* PreviewAgentActivity.PreviewAgentActivity;
     const turnItemPositions = yield* TurnItemPositionStore.TurnItemPositionStoreV2;
     const finalizationObserver = yield* RunFinalizationService.RunFinalizationObserver;
-    const turnAnalytics = yield* ProviderUsageAnalytics.ProviderTurnAnalytics;
     const threadCommands = yield* ThreadCommandExecutor.ThreadCommandExecutor;
 
     const writeFinalRunEvents = Effect.fn("RunExecutionService.writeFinalRunEvents")(
@@ -904,12 +903,6 @@ export const layer: Layer.Layer<
         } else {
           yield* eventSink.writeWithEffects(finalization);
         }
-        yield* turnAnalytics.runSettled({
-          runId: input.run.id,
-          status: input.terminal.status,
-          completedAt,
-          childrenRunning: hasOpenSubagentProjection && cascadedSubagentEvents.length === 0,
-        });
         yield* input.refreshAfterTurn;
         return true;
       },
@@ -1049,13 +1042,6 @@ export const layer: Layer.Layer<
             ? {}
             : { restartContinuation: true }),
         } satisfies ProviderUsageAnalytics.ProviderTurnAnalyticsContext;
-        if (input.attempt.reason === "initial") {
-          yield* turnAnalytics.runStarted({
-            runId: input.run.id,
-            driver: input.providerThread.driver,
-            context: { ...analyticsContext, segment: "initial" },
-          });
-        }
         const routeIdentity: ProviderEventRouteIdentity = {
           threadId: input.run.threadId,
           runId: input.run.id,

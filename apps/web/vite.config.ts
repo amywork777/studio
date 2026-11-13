@@ -49,10 +49,10 @@ const configuredAppBaseName = process.env.VITE_APP_BASE_NAME?.trim() || "";
 const configuredReleaseChannel =
   process.env.T3CODE_BUILT_DEV === "1" ? "dev" : process.env.VITE_RELEASE_CHANNEL?.trim() || "";
 const configuredAppVersion = process.env.APP_VERSION?.trim() || pkg.version;
+// Studio's releases (and their notes) live on its update feed, not on the repository a CI build
+// runs in, so GITHUB_REPOSITORY (amywork777/studio) is never the fallback.
 const configuredDesktopUpdateRepository =
-  process.env.T3CODE_DESKTOP_UPDATE_REPOSITORY?.trim() ||
-  process.env.GITHUB_REPOSITORY?.trim() ||
-  "";
+  process.env.T3CODE_DESKTOP_UPDATE_REPOSITORY?.trim() || "amywork777/studio-download";
 const configuredFeatureSecrets = process.env.T3CODE_FEATURE_SECRETS?.trim() || "";
 const configuredHostedAppUrl = (() => {
   const explicitHostedAppUrl = process.env.VITE_HOSTED_APP_URL?.trim();

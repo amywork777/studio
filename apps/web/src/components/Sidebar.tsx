@@ -113,7 +113,6 @@ import {
   type SidebarProjectSnapshot,
 } from "../sidebarProjectGrouping";
 import { StudioSidebar } from "./workbench/StudioSidebar";
-import { useStudioSidebarGroups } from "./workbench/studioSidebarGroups";
 import { isEngineeringInterface, useEngineeringInterface } from "./workbench/studioInterface";
 import { resolveProjectExpanded, useUiStateStore } from "../uiStateStore";
 import {
@@ -812,8 +811,7 @@ function useSidebarLookups() {
   const environments = useEnvironmentIdentities();
   const serverConfigs = useServerConfigs();
   const providerEntriesByEnvironment = useAtomValue(sidebarProviderEntriesAtom);
-  // Studio's engineering interface lists projects, each holding all its folders.
-  const projectGroups = useStudioSidebarGroups(useSidebarProjectGroups());
+  const projectGroups = useSidebarProjectGroups();
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
   );

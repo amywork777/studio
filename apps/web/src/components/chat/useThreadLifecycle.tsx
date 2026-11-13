@@ -78,6 +78,7 @@ import { Atom } from "effect/reactivity";
 import { environmentThreadDetails } from "../../state/threads";
 import { openSideChatTab } from "../../lib/sideChatPane";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
+import { useEngineeringInterface } from "../workbench/studioInterface";
 const RELATED_THREAD_SHELL_WAIT_MS = 1_000;
 const NO_RUN_STOP_ATOM = Atom.make<RunStopPresentation | null>(null).pipe(
   Atom.withLabel("web-thread-run-stop:empty"),
@@ -181,6 +182,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   } = input;
   const navigate = useNavigate();
   const router = useRouter();
+  const engineeringInterface = useEngineeringInterface();
   const { settleThread, pinThread, confirmAndUnpinThread } = useThreadActions();
   const canWriteSourceControl = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
   const switchGitRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
@@ -633,9 +635,24 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   ) : activeThreadSettled ? (
     <ThreadStatusLine
       icon={<CheckCircle2Icon />}
-      label={settledAt ? `Settled ${formatRelativeTimeLabel(settledAt)}` : "Settled"}
+      // The engineering interface calls a settled thread done.
+      label={
+        settledAt
+          ? `${engineeringInterface ? "Done" : "Settled"} ${formatRelativeTimeLabel(settledAt)}`
+          : engineeringInterface
+            ? "Done"
+            : "Settled"
+      }
       clockMinute={nowMinute}
-      actionLabel={isUnsettling ? "Un-settling..." : "Un-settle"}
+      actionLabel={
+        engineeringInterface
+          ? isUnsettling
+            ? "Reopening..."
+            : "Reopen"
+          : isUnsettling
+            ? "Un-settling..."
+            : "Un-settle"
+      }
       actionDisabled={!canOperateThread || isUnsettling}
       onAction={() => void handleUnsettleActiveThreadStable()}
     />

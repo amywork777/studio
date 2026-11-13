@@ -4,6 +4,7 @@ import {
   selectProjectGroupingSettings,
 } from "@t3tools/client-runtime/state/project-grouping";
 import { buildSidebarProjectSnapshots } from "../sidebarProjectGrouping";
+import { useStudioSidebarGroups } from "../components/workbench/studioSidebarGroups";
 import { useEnvironmentIdentities, usePrimaryEnvironmentId } from "../state/environments";
 import { useDelegatedUnderParent, useProjects, useQuietThreadShells } from "../state/entities";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
@@ -39,5 +40,8 @@ export function useSidebarProjectGroups() {
     primaryEnvironmentId,
     resolveEnvironmentLabel: (environmentId) => labels.get(environmentId) ?? null,
   });
-  return sortSidebarV2ProjectGroups(unsortedGroups, threads, sortOrder, delegatedUnderParent);
+  // Studio's engineering interface lists projects, each holding all its folders, and every
+  // interface leaves out the folders only projects in Trash hold, for every reader of the groups.
+  const studioGroups = useStudioSidebarGroups(unsortedGroups);
+  return sortSidebarV2ProjectGroups(studioGroups, threads, sortOrder, delegatedUnderParent);
 }

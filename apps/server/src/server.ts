@@ -148,6 +148,7 @@ import * as ReviewService from "./review/ReviewService.ts";
 import * as SourceControlProviderRegistry from "./sourceControl/SourceControlProviderRegistry.ts";
 import * as PullRequestReadCache from "./pullRequest/PullRequestReadCache.ts";
 import * as SourceControlRateLimit from "@t3tools/source-control-core/server/SourceControlRateLimit";
+import * as GitHubCredentials from "@t3tools/source-control-github/server/GitHubCredentials";
 import * as SourceControlRepositoryService from "./sourceControl/SourceControlRepositoryService.ts";
 import * as WorktreeSetupTracker from "./project/WorktreeSetupTracker.ts";
 import * as Observability from "./observability/Observability.ts";
@@ -464,8 +465,10 @@ const layerProjectCloneTracker = ProjectCloneTracker.layer.pipe(
   Layer.provide(layerSourceControlRepositoryService),
 );
 
+// The repository service carries the source control host that GitHub's credentials read.
 const layerStudioSync = StudioSync.layer.pipe(
   Layer.provide(ProcessRunner.layer),
+  Layer.provide(GitHubCredentials.layer),
   Layer.provide(layerSourceControlRepositoryService),
 );
 

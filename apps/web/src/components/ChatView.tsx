@@ -3038,7 +3038,11 @@ export default function ChatView(props: ChatViewProps) {
     if (embedded || !activeThread || providerStatuses.length === 0) return;
     const next = takePendingFollow(engineeringInterface, activeThreadKey);
     if (next === null) return;
-    onProviderModelSelectStable(next.instanceId, next.model, { focusComposer: false });
+    onProviderModelSelectStable(next.instanceId, next.model, {
+      focusComposer: false,
+      modelOptions: next.options ?? [],
+      announceBlockedProvider: true,
+    });
   }, [
     activeThread,
     activeThreadKey,

@@ -3,7 +3,7 @@ import * as NodeURL from "node:url";
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { STUDIO_BACKUP_BRIEF_FILE } from "@t3tools/contracts";
-import * as GitHubApi from "@t3tools/source-control-github/server/GitHubApi";
+import * as GitHubCredentials from "@t3tools/source-control-github/server/GitHubCredentials";
 import * as Effect from "effect/Effect";
 import * as Base64 from "effect/encoding/Base64";
 import * as FileSystem from "effect/FileSystem";
@@ -184,8 +184,9 @@ const withProject = <A, E>(
         );
       },
     });
-    const gitHub = Layer.mock(GitHubApi.GitHubApi)({
-      credential: () => Effect.succeed({ token: Redacted.make(TOKEN), fingerprint: "test" }),
+    const gitHub = Layer.mock(GitHubCredentials.GitHubCredentials)({
+      get: (host) =>
+        Effect.succeed({ host, token: Redacted.make(TOKEN), source: "env", fingerprint: "test" }),
     });
 
     return yield* body({ work, copy, root, git, write, version, refs, calls, made }).pipe(

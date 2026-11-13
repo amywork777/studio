@@ -36,7 +36,7 @@ import { appVersion } from "../appVersion.ts";
 import * as ServerConfig from "../config.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ServerSettings from "../serverSettings.ts";
-import { getInstallId, type TelemetryOwner } from "./Identify.ts";
+import { getInstallId } from "./Identify.ts";
 
 interface BufferedAnalyticsEvent {
   readonly uuid: string;
@@ -116,15 +116,6 @@ export class AnalyticsService extends Context.Service<
 
     /** Flush all currently queued telemetry events. */
     readonly flush: Effect.Effect<void>;
-
-    /**
-     * Studio records no owners: they are derived from accounts, and its counts go under a random
-     * install id only. Kept so T3's callers need no Studio branch.
-     */
-    readonly recordOwners: (
-      owners: ReadonlyArray<TelemetryOwner>,
-      observedBy: "server" | "client",
-    ) => Effect.Effect<void>;
   }
 >()("t3/telemetry/AnalyticsService") {
   /** No-op layer for callers that intentionally disable telemetry. */
@@ -133,7 +124,6 @@ export class AnalyticsService extends Context.Service<
     AnalyticsService.of({
       record: () => Effect.void,
       flush: Effect.void,
-      recordOwners: () => Effect.void,
     }),
   );
 }
@@ -150,7 +140,6 @@ export const make = Effect.gen(function* () {
     return AnalyticsService.of({
       record: () => Effect.void,
       flush: Effect.void,
-      recordOwners: () => Effect.void,
     });
   }
   const install = yield* getInstallId;
@@ -158,7 +147,6 @@ export const make = Effect.gen(function* () {
     return AnalyticsService.of({
       record: () => Effect.void,
       flush: Effect.void,
-      recordOwners: () => Effect.void,
     });
   }
   const httpClient = yield* HttpClient.HttpClient;
@@ -382,7 +370,7 @@ export const make = Effect.gen(function* () {
 
   yield* Effect.addFinalizer(() => forgetWhenOwed.pipe(Effect.andThen(flush)));
 
-  return AnalyticsService.of({ record, flush, recordOwners: () => Effect.void });
+  return AnalyticsService.of({ record, flush });
 });
 
 export const layer = Layer.effect(AnalyticsService, make);

@@ -334,7 +334,7 @@ function AboutVersionSection(props: { readonly textToCadVersion: string | null }
     <>
       <SettingsRow
         id={searchableSetting("app-version").id}
-        title={<AboutVersionTitle />}
+        title={<AboutVersionTitle version={updateState?.currentVersion} />}
         description={description}
         managed={updatesDenial}
         control={
@@ -2231,7 +2231,8 @@ export function MaintenanceSettingsPanel() {
         />
       </SettingsSection>
 
-      <StorageCleanupSections />
+      {/* Worktree and artifact cleanup is coding upkeep, left out of the engineering interface. */}
+      {engineering ? null : <StorageCleanupSections />}
 
       {/* Diagnostics is listed under Advanced in the engineering interface. */}
       {engineering ? null : (

@@ -5,6 +5,7 @@ import { useClientSettings } from "~/hooks/useSettings";
 import { FileSurfaceFailure, FileSurfaceLoading, FileSurfaceNotice } from "./fileSurfaceChrome";
 import { PREVIEW_PAGE_ROWS, type TextPreviewResult } from "./largeTextProtocol";
 import VirtualTablePreview from "./VirtualTablePreview";
+import { useEngineeringInterface } from "../workbench/studioInterface";
 
 const FIRST_SCREEN_BYTES = 16 * 1024;
 
@@ -43,6 +44,8 @@ export default function LargeTextViewer(props: {
   /** A preview's own wrap toggle; omitted follows the word wrap setting. */
   readonly wordWrap?: boolean;
 }) {
+  // The engineering interface has no source view or Save to point at, only the file itself.
+  const engineering = useEngineeringInterface();
   const [meta, setMeta] = useState<Extract<TextPreviewResult, { type: "meta" }> | null>(null);
   const [pages, setPages] = useState(new Map<number, string[][]>());
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +237,9 @@ export default function LargeTextViewer(props: {
       ) : null}
       {meta.columns === 1024 ? (
         <FileSurfaceNotice>
-          Showing the first 1,024 columns. Source and Save retain every column.
+          {engineering
+            ? "Showing the first 1,024 columns. The file keeps every column."
+            : "Showing the first 1,024 columns. Source and Save retain every column."}
         </FileSurfaceNotice>
       ) : null}
       {meta.count > 0 ? (

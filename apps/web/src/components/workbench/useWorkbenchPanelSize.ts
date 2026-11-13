@@ -43,7 +43,6 @@ const panelHost = (row: HTMLElement) =>
  * settles, the way a drag already avoids re-rendering it.
  */
 function useWorkbenchPanelSize(
-  _hostRef: unknown,
   options: {
     /** The row the chat column and the panel share. */
     readonly container?: HTMLElement | null | undefined;
@@ -123,7 +122,8 @@ function useWorkbenchPanelSize(
     };
   }, CHAT_DOCK_WIDTH_STORAGE_KEY);
 
-  return { width, handlers };
+  // The row is measured above, from `container`, so the panel host has nothing to observe.
+  return { width, handlers, observeRow: () => () => {} };
 }
 
 /**

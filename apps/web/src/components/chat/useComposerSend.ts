@@ -28,6 +28,7 @@ import {
   RuntimeMode,
 } from "@t3tools/contracts";
 import { deriveThreadTitleSeed } from "@t3tools/client-runtime/operations";
+import { chatTitleText } from "../workbench/toolUsed";
 import { wasBootstrapThreadDeleted } from "@t3tools/client-runtime/errors";
 import {
   declinePendingApprovals,
@@ -1181,7 +1182,8 @@ export function useComposerSend(input: ComposerSendInput) {
     composerRef.current?.resetCursorState();
 
     const title = deriveThreadTitleSeed({
-      text: messageTextForSend,
+      // A chat a tool opened is titled from the person's words, else the tool.
+      text: chatTitleText(messageTextForSend),
       attachments: composerAttachmentsSnapshot,
       fallbackLabels: sendTitleFallbackLabels(sendSnapshot),
     });

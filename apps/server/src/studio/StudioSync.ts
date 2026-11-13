@@ -22,7 +22,7 @@ import {
   type StudioSyncStatusInput,
   type StudioSyncStatusResult,
 } from "@t3tools/contracts";
-import * as GitHubApi from "@t3tools/source-control-github/server/GitHubApi";
+import * as GitHubCredentials from "@t3tools/source-control-github/server/GitHubCredentials";
 import { githubGitEnv } from "@t3tools/source-control-github/server/githubGitAuth";
 import { newProjectFolderName } from "@t3tools/shared/path";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
@@ -145,7 +145,7 @@ const make = (maxFileBytes: number) =>
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const processRunner = yield* ProcessRunner.ProcessRunner;
-    const github = yield* GitHubApi.GitHubApi;
+    const credentials = yield* GitHubCredentials.GitHubCredentials;
     const repositories = yield* SourceControlRepositoryService.SourceControlRepositoryService;
 
     const SENT_REFS = [`${CHECKPOINT_REFS_PREFIX}/*`, `${KEPT_REFS_PREFIX}/*`];
@@ -215,7 +215,7 @@ const make = (maxFileBytes: number) =>
     const remoteEnv = (remote: string, cwd: string) => {
       const host = httpsHost(remote);
       if (host === undefined) return Effect.succeed({ GIT_TERMINAL_PROMPT: "0" });
-      return github.credential(host).pipe(
+      return credentials.get(host).pipe(
         Effect.map(({ token }) => githubGitEnv(remote, token)),
         Effect.mapError((cause) => new StudioSyncError({ failure: "sign-in", cwd, cause })),
       );

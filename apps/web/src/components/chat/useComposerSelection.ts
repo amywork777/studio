@@ -121,9 +121,23 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const onProviderModelSelect = (
     instanceId: ProviderInstanceId,
     model: string,
-    options?: { focusComposer?: boolean },
+    options?: {
+      focusComposer?: boolean;
+      /** Thinking and Speed to put on the model, instead of the ones it last had. */
+      modelOptions?: ModelSelection["options"];
+      /** Say so when the chat's provider keeps the change out, as the picker's block does. */
+      announceBlockedProvider?: boolean;
+    },
   ) => {
     if (!activeThread) return;
+    const announceBlockedProvider = () => {
+      if (options?.announceBlockedProvider !== true) return;
+      toastManager.add({
+        type: "warning",
+        title: "Start a new chat to switch providers",
+        description: "This thread does not support switching providers after it has started.",
+      });
+    };
     const entry = providerStatuses.find((snapshot) => snapshot.instanceId === instanceId);
     const resolvedDriverKind = entry?.driver ?? null;
     if (
@@ -132,6 +146,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       resolvedDriverKind !== null &&
       resolvedDriverKind !== lockedProvider
     ) {
+      announceBlockedProvider();
       if (options?.focusComposer !== false) scheduleComposerFocus();
       return;
     }
@@ -148,6 +163,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
         entry?.continuation?.groupKey &&
         currentEntry.continuation.groupKey !== entry.continuation.groupKey
       ) {
+        announceBlockedProvider();
         if (options?.focusComposer !== false) scheduleComposerFocus();
         return;
       }
@@ -170,7 +186,9 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       draft?.modelSelectionByProvider[shownInstanceId] ?? activeThread.modelSelection;
     if (
       !resolvedModel ||
-      (instanceId === shownInstanceId &&
+      // Options handed in are put on the model even when it is the one shown.
+      (options?.modelOptions === undefined &&
+        instanceId === shownInstanceId &&
         shownSelection.instanceId === instanceId &&
         shownSelection.model === resolvedModel)
     ) {
@@ -182,9 +200,13 @@ export function useComposerSelection(input: ComposerSelectionInput) {
     const rememberedOptions =
       useComposerDraftStore.getState().stickyOptionsByModelByProvider[instanceId]?.[resolvedModel];
     const nextModelSelection: ModelSelection =
-      rememberedOptions !== undefined && rememberedOptions.length > 0
-        ? { instanceId, model: resolvedModel, options: [...rememberedOptions] }
-        : { instanceId, model: resolvedModel };
+      options?.modelOptions !== undefined && options.modelOptions.length > 0
+        ? { instanceId, model: resolvedModel, options: [...options.modelOptions] }
+        : options?.modelOptions === undefined &&
+            rememberedOptions !== undefined &&
+            rememberedOptions.length > 0
+          ? { instanceId, model: resolvedModel, options: [...rememberedOptions] }
+          : { instanceId, model: resolvedModel };
     const modelChangeBlockReason = getStartedThreadModelChangeBlockReason({
       hasStartedSession: activeRuntime !== null,
       supportsProviderSwitchingViaHandoff,

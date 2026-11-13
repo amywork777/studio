@@ -6,6 +6,7 @@ import {
 } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { deriveThreadTitleSeed } from "@t3tools/client-runtime/operations";
+import { chatTitleText } from "../workbench/toolUsed";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useNavigate } from "@tanstack/react-router";
@@ -130,7 +131,8 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
         boundAttachmentIds(attachments, attachmentsSnapshot),
       );
       const title = deriveThreadTitleSeed({
-        text: messageText,
+        // A chat a tool opened is titled from the person's words, else the tool.
+        text: chatTitleText(messageText),
         attachments: attachmentsSnapshot,
       });
       promptRef.current = "";

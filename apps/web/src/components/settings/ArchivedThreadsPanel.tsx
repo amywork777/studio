@@ -165,7 +165,7 @@ export function ArchivedThreadsPanel() {
       pending.delete(key);
       setPendingKeys(new Set(pending));
     });
-    reportFailure(result._tag === "Failure" ? result : result.value, `Failed to ${action} thread`);
+    reportFailure(result._tag === "Failure" ? result : result.value, `Failed to ${action} chat`);
   };
 
   const handleContextMenu = async (thread: ArchivedThread, position: { x: number; y: number }) => {
@@ -183,7 +183,7 @@ export function ArchivedThreadsPanel() {
       if (clicked === "unarchive" || clicked === "delete")
         await handleThreadAction(clicked, thread);
     });
-    reportFailure(result, "Archived thread action failed");
+    reportFailure(result, "Archived chat action failed");
   };
 
   return (
@@ -202,16 +202,16 @@ export function ArchivedThreadsPanel() {
                   <ArchiveIcon className="size-3.5 text-muted-foreground" />
                 )}
                 {isLoadingArchive
-                  ? "Loading archived threads"
+                  ? "Loading archived chats"
                   : archiveError
-                    ? "Could not load archived threads"
-                    : "No archived threads"}
+                    ? "Could not load archived chats"
+                    : "No archived chats"}
               </span>
             }
             description={
               isLoadingArchive
                 ? "Checking connected environments."
-                : (archiveError ?? "Archived threads will appear here.")
+                : (archiveError ?? "Archived chats will appear here.")
             }
           />
         </SettingsSection>

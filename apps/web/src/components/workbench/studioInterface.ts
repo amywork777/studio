@@ -60,13 +60,20 @@ export const ENGINEERING_FOLLOW_UP_PLACEHOLDER =
 export const CODE_SETTINGS_SECTIONS: ReadonlySet<string> = new Set([
   "/settings/keybindings",
   "/settings/snap-shot",
-  "/settings/integrations",
+  "/settings/diffs",
+  // Integrations, now Browser and Devices: the agent's browser and phone test hosts.
+  "/settings/browser",
+  "/settings/devices",
   "/settings/scheduled-tasks",
   "/settings/source-control",
-  "/settings/storage",
+  "/settings/worktrees",
   "/settings/connections",
+  "/settings/access",
+  // T3 Code's beta switches, all coding tools.
+  "/settings/labs",
   // No chat is archived in Studio (its sidebar lists a project's chats), so there is no archive.
   "/settings/archived",
+  // Maintenance stays: it holds the update checks. Its storage cleanup is left out of it here.
 ]);
 
 /**

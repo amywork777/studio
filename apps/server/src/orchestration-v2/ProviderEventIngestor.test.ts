@@ -329,12 +329,10 @@ it.effect("refreshes the failing instance snapshot after a committed usage_limit
 it.effect("records accepted billed turn usage once without billing the context window", () => {
   const recorded: Array<ProviderUsageAnalytics.ProviderTurnReport> = [];
   const layerAnalytics = Layer.succeed(ProviderUsageAnalytics.ProviderTurnAnalytics, {
-    runStarted: () => Effect.void,
     turnCompleted: (report) =>
       Effect.sync(() => {
         recorded.push(report);
       }),
-    runSettled: () => Effect.void,
   });
   return Effect.gen(function* () {
     const now = yield* DateTime.now;
@@ -426,8 +424,7 @@ it.effect("records accepted billed turn usage once without billing the context w
 
 it.effect("records one listed reason when a turn fails, never the provider's words", () => {
   const failures: Array<Readonly<Record<string, unknown>>> = [];
-  const layerAnalytics = Layer.succeed(ProviderEventIngestor.ProviderTurnAnalytics, {
-    record: () => Effect.void,
+  const layerAnalytics = Layer.succeed(ProviderEventIngestor.ProviderTurnFailureAnalytics, {
     recordFailure: (properties: Readonly<Record<string, unknown>>) =>
       Effect.sync(() => {
         failures.push(properties);

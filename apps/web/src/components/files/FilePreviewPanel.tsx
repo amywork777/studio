@@ -1650,6 +1650,7 @@ export default function FilePreviewPanel({
                 relativePath={relativePath}
                 threadRef={threadRef}
                 contents={file.data.contents}
+                workspaceMutationId={workspaceMutationId}
                 readOnly={isHostFile || !canWriteFiles}
                 onPendingChange={onPendingChange}
               />

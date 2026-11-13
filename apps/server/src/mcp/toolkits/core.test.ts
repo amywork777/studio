@@ -23,7 +23,6 @@ import {
   type OrchestrationV2ThreadShell,
 } from "@t3tools/contracts";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
-import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -412,9 +411,9 @@ it.effect("returns an HTML render reference that Codex and Claude tool rows both
   ),
 );
 
-it.effect("records only failed calls of tools that hand off no work", () => {
-  // Recording runs detached from the tool response, so the first event is awaited.
-  const recorded = Deferred.makeUnsafe<{ event: string; properties: object }>();
+// Studio's law 9: `mcp.tool.invoked` is not in README's "Usage data", so no tool call is counted.
+it.effect("records no usage event for a tool call, failed or not", () => {
+  const recorded: Array<string> = [];
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     const organize = (capabilities: McpInvocationContext.McpInvocationScope["capabilities"]) =>
@@ -429,11 +428,7 @@ it.effect("records only failed calls of tools that hand off no work", () => {
     expect(declaredFailure(yield* organize(new Set<never>()))).toMatchObject({
       code: "capability_denied",
     });
-    // The successful call ran first, so it would be the first event if it were recorded.
-    expect(yield* Deferred.await(recorded)).toMatchObject({
-      event: "mcp.tool.invoked",
-      properties: { tool: "t3_thread_organize", outcome: "error" },
-    });
+    expect(recorded).toEqual([]);
   }).pipe(
     Effect.provide(
       layerThreadToolkit.pipe(
@@ -453,12 +448,8 @@ it.effect("records only failed calls of tools that hand off no work", () => {
           Layer.succeed(
             AnalyticsService.AnalyticsService,
             AnalyticsService.AnalyticsService.of({
-              record: (event, properties) =>
-                Deferred.succeed(recorded, { event, properties: properties ?? {} }).pipe(
-                  Effect.asVoid,
-                ),
+              record: (event) => Effect.sync(() => void recorded.push(event)),
               flush: Effect.void,
-              recordOwners: () => Effect.void,
             }),
           ),
         ),

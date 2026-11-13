@@ -95,6 +95,7 @@ import {
   setFileDragActive,
 } from "../Sidebar.logic";
 import { resolveLocalCheckoutBranchMismatch } from "../BranchToolbar.logic";
+import { useEngineeringInterface } from "../workbench/studioInterface";
 import {
   ThreadPullRequestBadgeControl,
   ThreadPullRequestsMiniList,
@@ -207,10 +208,14 @@ function SidebarProviderStack(props: {
     />
   );
   if (stack.length === 1) {
-    return <span className="inline-flex shrink-0 items-center">{current}</span>;
+    return (
+      <span data-sidebar-provider-stack="" className="inline-flex shrink-0 items-center">
+        {current}
+      </span>
+    );
   }
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5">
+    <span data-sidebar-provider-stack="" className="inline-flex shrink-0 items-center gap-1.5">
       {stack.slice(0, -1).map((instanceId) => {
         const entry = props.providerEntryByInstanceId.get(instanceId);
         if (entry === undefined) return null;
@@ -665,6 +670,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   } = props;
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const threadKey = scopedThreadKey(threadRef);
+  // The engineering interface marks a chat done and reopens it, not settles it.
+  const engineering = useEngineeringInterface();
   const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
   const { leaseLiveStatus, rowRef: leaseRowRef } = useSidebarRowSubscriptionLease(props.isActive);
   const { revealRef } = props;
@@ -1169,7 +1176,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       {checkoutThread.branch ? (
         <>
           <ThreadWorktreeIndicator thread={checkoutThread} />
-          <span className="flex min-w-0 flex-1">
+          <span data-sidebar-branch="" className="flex min-w-0 flex-1">
             <MiddleTruncate value={checkoutThread.branch} showTitle={false} />
           </span>
         </>
@@ -1366,7 +1373,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         render={
                           <button
                             type="button"
-                            aria-label="Un-settle thread"
+                            aria-label={engineering ? "Reopen" : "Un-settle thread"}
                             onClick={handleUnsettleClick}
                             onPointerDown={handleActionPointerDown}
                             className={cn(
@@ -1378,7 +1385,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       >
                         <Undo2Icon className="mb-px size-3.5" />
                       </TooltipTrigger>
-                      <TooltipPopup side="top">Un-settle thread</TooltipPopup>
+                      <TooltipPopup side="top">
+                        {engineering ? "Reopen" : "Un-settle thread"}
+                      </TooltipPopup>
                     </Tooltip>
                   ) : (
                     <Tooltip>
@@ -1386,7 +1395,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         render={
                           <button
                             type="button"
-                            aria-label="Settle thread"
+                            aria-label={engineering ? "Mark done" : "Settle thread"}
                             onClick={handleSettleClick}
                             onPointerDown={handleActionPointerDown}
                             className={cn(
@@ -1398,7 +1407,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       >
                         <CheckIcon className="size-3" />
                       </TooltipTrigger>
-                      <TooltipPopup side="top">Settle thread</TooltipPopup>
+                      <TooltipPopup side="top">
+                        {engineering ? "Mark done" : "Settle thread"}
+                      </TooltipPopup>
                     </Tooltip>
                   )}
                   {jumpHintLabel ? <JumpHintBadge label={jumpHintLabel} /> : null}
@@ -1578,7 +1589,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             render={
                               <button
                                 type="button"
-                                aria-label="Settle thread"
+                                aria-label={engineering ? "Mark done" : "Settle thread"}
                                 onClick={handleSettleClick}
                                 onPointerDown={handleActionPointerDown}
                                 className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -1586,9 +1597,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             }
                           >
                             <CheckIcon className="size-3.5" />
-                            Settle
+                            {engineering ? "Mark done" : "Settle"}
                           </TooltipTrigger>
-                          <TooltipPopup>Settle thread</TooltipPopup>
+                          <TooltipPopup>{engineering ? "Mark done" : "Settle thread"}</TooltipPopup>
                         </Tooltip>
                       ) : null}
                     </span>

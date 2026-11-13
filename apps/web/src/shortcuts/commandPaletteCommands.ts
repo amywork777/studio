@@ -14,6 +14,7 @@ import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { type CommandHandler, type CommandScopeOptions, registerCommands } from "./dispatcher";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
+import { isEngineeringInterface } from "../components/workbench/studioInterface";
 
 function consume(event: KeyboardEvent): void {
   event.preventDefault();
@@ -88,6 +89,8 @@ export function installCommandPaletteCommands(
         toggleThemeEditorForTheme({ theme, themeHalves, initialAppearance: resolvedTheme });
       },
       "usage.open": (event) => {
+        // The engineering interface has no usage page, so its shortcut does nothing.
+        if (isEngineeringInterface()) return false;
         consume(event);
         dispatchCommandPalette({ _tag: "SetOpen", open: false });
         void router.navigate({ to: "/usage" });

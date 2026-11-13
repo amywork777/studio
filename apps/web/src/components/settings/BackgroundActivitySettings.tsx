@@ -124,7 +124,7 @@ function BackgroundActivityAdvancedDialog({
         <DialogPanel>
           <fieldset
             disabled={!canWriteSettings}
-            className="min-w-0 overflow-hidden rounded-xl border bg-card text-card-foreground"
+            className="min-w-0 overflow-hidden rounded-lg border bg-card text-card-foreground"
           >
             <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 space-y-1">
@@ -149,7 +149,7 @@ function BackgroundActivityAdvancedDialog({
               >
                 <SelectTrigger
                   size="sm"
-                  className="w-full sm:w-40"
+                  className="w-full sm:w-56"
                   aria-label="Shared background policy"
                 >
                   <SelectValue>{BACKGROUND_ACTIVITY_PROFILE_LABELS[activeProfile]}</SelectValue>
@@ -386,7 +386,7 @@ export function BackgroundActivitySettingsRow() {
           >
             <SelectTrigger
               size="sm"
-              className="w-full sm:w-40"
+              className="w-full sm:w-56"
               aria-label="Background activity profile"
             >
               <SelectValue>

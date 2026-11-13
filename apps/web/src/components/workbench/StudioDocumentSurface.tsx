@@ -7,7 +7,7 @@ import {
   getOptimisticProjectFileQueryData,
   setProjectFileQueryData,
 } from "../files/projectFilesQueryState";
-import { useFileSaveCoordinator } from "../files/useFileSaveCoordinator";
+import { changeFileSaveSession, useFileSaveSession } from "../files/fileSaveSessions";
 import { ScrollArea } from "../ui/scroll-area";
 import { type PieceKind, readPlace, withWords } from "./documentSource";
 
@@ -35,23 +35,20 @@ export function StudioDocumentSurface(props: {
   readonly relativePath: string;
   readonly threadRef: ScopedThreadRef;
   readonly contents: string;
+  readonly workspaceMutationId: string | null;
   readonly readOnly: boolean;
   readonly onPendingChange: (relativePath: string, pending: boolean) => void;
 }) {
   const { environmentId, cwd, relativePath } = props;
   const editing = useRef<Editing | null>(null);
-  const saveCoordinator = useFileSaveCoordinator({
-    environmentId,
-    cwd,
-    relativePath,
-    onPendingChange: props.onPendingChange,
-  });
+  const saveTarget = { environmentId, cwd, relativePath };
+  useFileSaveSession(saveTarget, props.onPendingChange);
   const current = () =>
     getOptimisticProjectFileQueryData(environmentId, cwd, relativePath)?.contents ?? props.contents;
   const write = (next: string) => {
     if (next === current()) return;
     setProjectFileQueryData(environmentId, cwd, relativePath, next);
-    saveCoordinator.change(next);
+    changeFileSaveSession(saveTarget, next);
   };
 
   const finish = (save: boolean) => {
@@ -119,6 +116,7 @@ export function StudioDocumentSurface(props: {
           cwd={cwd}
           relativePath={relativePath}
           threadRef={props.threadRef}
+          workspaceMutationId={props.workspaceMutationId}
           onTaskListChange={
             props.readOnly
               ? undefined

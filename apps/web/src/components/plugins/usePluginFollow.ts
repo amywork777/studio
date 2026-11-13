@@ -2,11 +2,8 @@ import {
   pluginFollowTarget,
   workspaceRelativePath,
 } from "@t3tools/client-runtime/state/pluginFollow";
-import type {
-  EnvironmentId,
-  OrchestrationV2ProjectedTurnItem,
-  ScopedThreadRef,
-} from "@t3tools/contracts";
+import type { ThreadStructureVisibleTurnItem } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { useEffect } from "react";
 
 import {
@@ -56,7 +53,7 @@ export function usePluginFollow(input: {
   readonly threadRef: ScopedThreadRef | null;
   readonly threadKey: string | null;
   readonly runningRunId: string | null;
-  readonly items: ReadonlyArray<OrchestrationV2ProjectedTurnItem>;
+  readonly items: ReadonlyArray<ThreadStructureVisibleTurnItem>;
   /** The thread's working directory, to make the agent's absolute paths workspace-relative. */
   readonly workspaceRoot: string | null;
   readonly followFiles: boolean;
@@ -87,6 +84,8 @@ export function usePluginFollow(input: {
       const runRevision = item.runId === null ? undefined : state.liveRuns.get(item.runId);
       if (runRevision === undefined) continue;
       if (item.status !== "completed" || state.followed.has(item.id)) continue;
+      // Replies and reasoning never open a view; the rest are whole turn items.
+      if (item.type === "assistant_message" || item.type === "reasoning") continue;
       state.followed.add(item.id);
       const target = pluginFollowTarget(plugins, item);
       if (target === null) continue;

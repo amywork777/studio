@@ -31,6 +31,7 @@ import { CodeFontPreview, PromptFontPreview, TerminalFontPreview } from "./Setti
 import { discoverInstalledFonts, FontFamilyPicker, useFontEnumeration } from "./FontFamilyPicker";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
+import { useEngineeringInterface } from "../workbench/studioInterface";
 import {
   SettingResetButton,
   SettingsRow,
@@ -341,16 +342,25 @@ export function TypographySection() {
   useEffect(() => {
     if (searchTargetId !== null) revealSettingsSearchTarget(searchTargetId);
   }, [searchTargetId]);
+  // The engineering interface offers the two-font view only: no separate-fonts switch, no
+  // per-surface rows (the stored per-surface fonts stay in effect).
+  const engineering = useEngineeringInterface();
   const showAdvanced =
-    advanced || (searchTargetId !== null && isAdvancedTypographyTarget(searchTargetId));
+    !engineering &&
+    (advanced || (searchTargetId !== null && isAdvancedTypographyTarget(searchTargetId)));
   return (
     <SettingsSection id="typography" title="Typography">
       {showAdvanced ? <FontSettingsGroup /> : <SimpleFontRows />}
       <WordWrapRow />
       <AdvancedSettings
-        targetIds={[searchableSetting("separate-fonts").id, searchableSetting("font-smoothing").id]}
+        targetIds={[
+          ...(engineering ? [] : [searchableSetting("separate-fonts").id]),
+          searchableSetting("font-smoothing").id,
+        ]}
       >
-        <SeparateFontsRow checked={showAdvanced} onCheckedChange={setAdvanced} />
+        {engineering ? null : (
+          <SeparateFontsRow checked={showAdvanced} onCheckedChange={setAdvanced} />
+        )}
         <FontSmoothingRow />
       </AdvancedSettings>
     </SettingsSection>

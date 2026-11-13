@@ -33,6 +33,7 @@ import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { rewindToMessage } from "./chatViewSend";
 import { makeThreadErrorSetter } from "../ChatView.logic";
+import { isEngineeringInterface } from "../workbench/studioInterface";
 interface TimelineRewindInput {
   readonly environmentId: EnvironmentId;
   readonly routeThreadRef: ScopedThreadRef;
@@ -184,7 +185,10 @@ export function useTimelineRewind(input: TimelineRewindInput) {
         sourceThreadId: input.sourceThreadId,
         targetThreadId,
         runId: input.runId,
-        title: `${activeThread.title} fork`,
+        // The engineering interface calls a fork another way from here.
+        title: isEngineeringInterface()
+          ? `${activeThread.title}, another way`
+          : `${activeThread.title} fork`,
       },
     });
     if (result._tag === "Failure") {

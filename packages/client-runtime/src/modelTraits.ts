@@ -111,6 +111,8 @@ export function buildTraitsTriggerDisplay(input: {
   ultrathinkPromptControlled: boolean;
   modelSelection?: ModelSelection | null;
   reportedModelSelection?: ModelSelection | null | undefined;
+  /** Says what the pick adjusts, in the menu's own word: "Thinking: Normal", "Speed: Fast". */
+  nameTrait?: boolean | undefined;
 }): {
   label: string;
   /** "Fast" or "Ultrafast" when a speed option is on. */
@@ -120,6 +122,7 @@ export function buildTraitsTriggerDisplay(input: {
   let fastModeFallbackLabel: string | null = null;
   let speedLabel: string | null = null;
   let reasoningLabelIndex = -1;
+  let reasoningName: string | null = null;
   let ultracodeLabelIndex = -1;
   const labels: Array<string> = [];
   for (const descriptor of input.descriptors) {
@@ -168,6 +171,7 @@ export function buildTraitsTriggerDisplay(input: {
     if (typeof label === "string" && label.length > 0) {
       if (reasoningLabelIndex === -1 && isReasoningSelect(descriptor)) {
         reasoningLabelIndex = labels.length;
+        reasoningName = descriptor.label;
       }
       labels.push(label);
     }
@@ -175,7 +179,14 @@ export function buildTraitsTriggerDisplay(input: {
 
   const ultracode = ultracodeLabelIndex >= 0;
   if (labels.length === 0 && fastModeFallbackLabel !== null) {
-    return { label: fastModeFallbackLabel, speedLabel, ultracode };
+    return {
+      label: input.nameTrait ? `Speed: ${fastModeFallbackLabel}` : fastModeFallbackLabel,
+      speedLabel,
+      ultracode,
+    };
+  }
+  if (input.nameTrait && reasoningName !== null) {
+    labels[reasoningLabelIndex] = `${reasoningName}: ${labels[reasoningLabelIndex]}`;
   }
   if (speedLabel) {
     if (reasoningLabelIndex >= 0) {

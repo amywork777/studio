@@ -24,6 +24,8 @@ import {
 } from "./MarkdownFileLink.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { WorkspaceEntryIcon, WorkspaceEntryTooltip } from "./WorkspaceEntryIcon";
+import { fileChipWords } from "../workbench/aboutFile";
+import { isEngineeringInterface } from "../workbench/studioInterface";
 
 interface MarkdownFileLinkProps {
   environmentId: EnvironmentId | null;
@@ -250,19 +252,31 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
 
     try {
       const copyItems = markdownFileCopyMenuItems({ targetPath, workspaceRelativePath });
+      // Studio's menu has the file page's words: Open (beside the chat) and Show in Finder.
       const clicked = await api.contextMenu.show(
-        [
-          ...(onOpenMedia ? ([{ id: "preview-media", label: "Preview media" }] as const) : []),
-          ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
-          ...(onOpenInBrowser
-            ? ([{ id: "open-in-browser", label: "Open in integrated browser" }] as const)
-            : []),
-          ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
-          ...copyItems.map(({ id, label }) => ({ id, label })),
-        ] as const,
+        isEngineeringInterface()
+          ? ([
+              { id: "open-here", label: "Open" },
+              ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
+            ] as const)
+          : ([
+              ...(onOpenMedia ? ([{ id: "preview-media", label: "Preview media" }] as const) : []),
+              ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
+              ...(onOpenInBrowser
+                ? ([{ id: "open-in-browser", label: "Open in integrated browser" }] as const)
+                : []),
+              ...(onReveal && revealLabel
+                ? ([{ id: "reveal", label: revealLabel }] as const)
+                : []),
+              ...copyItems.map(({ id, label }) => ({ id, label })),
+            ] as const),
         position,
       );
 
+      if (clicked === "open-here") {
+        handleOpenInFilePreview();
+        return;
+      }
       if (clicked === "preview-media") {
         onOpenMedia?.();
         return;
@@ -391,9 +405,14 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           )
         }
       />
-      <TooltipPopup side="top" variant="code">
-        <WorkspaceEntryTooltip path={iconPath} label={targetPath} environmentId={environmentId} />
-      </TooltipPopup>
+      {isEngineeringInterface() ? (
+        // What it is and where, in words ("Drawing, in drawings"), not its path and size.
+        <TooltipPopup side="top">{fileChipWords(workspaceRelativePath ?? targetPath)}</TooltipPopup>
+      ) : (
+        <TooltipPopup side="top" variant="code">
+          <WorkspaceEntryTooltip path={iconPath} label={targetPath} environmentId={environmentId} />
+        </TooltipPopup>
+      )}
     </Tooltip>
   );
 }, areMarkdownFileLinkPropsEqual);

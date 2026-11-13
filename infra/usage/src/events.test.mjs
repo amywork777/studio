@@ -85,10 +85,7 @@ const serverCode = (file, from) => {
 NodeTest.test("takes every property the server builds, and no other", () => {
   const client = namesIn(serverCode("ws.ts", "function readClientAnalyticsProps"));
   const turn = namesIn(
-    serverCode(
-      "orchestration-v2/ProviderEventIngestor.ts",
-      "function providerTurnAnalyticsProperties",
-    ),
+    serverCode("telemetry/ProviderUsageAnalytics.ts", "function providerTurnProperties"),
   );
   NodeAssert.deepEqual(client.toSorted(), PROPERTIES["client.connected"].toSorted());
   NodeAssert.deepEqual(turn.toSorted(), PROPERTIES["provider.turn.completed"].toSorted());

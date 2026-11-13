@@ -71,6 +71,8 @@ import {
   useEngineeringInterface,
 } from "../workbench/studioInterface";
 import { settingsNavGroups } from "../workbench/engineeringSettings";
+import { StudioFootLinks, StudioHomeLink } from "../workbench/StudioNavLinks";
+import { usePrimaryEnvironmentId } from "../../state/environments";
 
 const SnapShotIcon = createLucideIcon("snap-shot", [
   [
@@ -138,8 +140,8 @@ function scrollResultIntoView(row: HTMLElement | null) {
 
 /**
  * The sidebar's groups in each interface: the code interfaces list T3's groups; the engineering
- * interface leaves out the coding sections and gathers Plugins, Diagnostics and the Interface
- * switch under one Advanced group (`settingsNavGroups`).
+ * interface leaves out the coding sections, does not name T3's groups, and gathers Plugins,
+ * Diagnostics and the Interface switch under one Advanced group (`settingsNavGroups`).
  */
 function useSettingsNavGroups(): ReadonlyArray<{
   readonly heading: string;
@@ -152,7 +154,11 @@ function useSettingsNavGroups(): ReadonlyArray<{
       group.paths.map((to) => ({ to })),
       engineering,
     ).main.map((entry) => entry.to);
-    return paths.length === 0 ? [] : [{ ...group, paths }];
+    // Studio lists its sections as one column with Advanced the only named group, as before:
+    // T3 Code's group names ("Code", "Connections") would name what it leaves out.
+    return paths.length === 0
+      ? []
+      : [{ ...group, paths, ...(engineering ? { headingHidden: true as const } : {}) }];
   });
   const advanced = settingsNavGroups(
     (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).map((to) => ({ to })),
@@ -175,6 +181,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const engineering = useEngineeringInterface();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
   const navGroups = useSettingsNavGroups();
   // Diagnostics has its own entry under Advanced in the engineering interface.
   const activePath =
@@ -308,6 +315,12 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           "max-md:absolute max-md:inset-y-0 max-md:start-0 max-md:z-10 max-md:w-full",
       )}
     >
+      {/* Studio's places stand over its sections, as in its sidebar (`StudioSidebarFrame`). */}
+      {engineering && primaryEnvironmentId !== null ? (
+        <div className="px-2 pt-2 max-md:hidden">
+          <StudioHomeLink environmentId={primaryEnvironmentId} />
+        </div>
+      ) : null}
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
           <div className="flex flex-col gap-2">
@@ -489,6 +502,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         <Suspense fallback={null}>
           <T3ConnectSidebarAvatar />
         </Suspense>
+        {/* Feedback and Trash; its Settings row leaves itself out inside Settings. */}
+        {engineering ? <StudioFootLinks /> : null}
       </SidebarFooter>
     </nav>
   );

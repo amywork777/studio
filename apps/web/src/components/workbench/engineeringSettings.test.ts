@@ -10,14 +10,14 @@ import {
 } from "./engineeringSettings";
 import { settingsSearchSectionLabel } from "./studioInterface";
 
-/** Titles of the General page's results for `query` in the engineering interface. */
+/** Titles of the results for `query` in the engineering interface. */
 const search = (query: string) =>
-  searchSettings(query, engineeringSettingsSearchItems(SETTINGS_SEARCH_ITEMS))
-    .filter((item) => item.to === "/settings/general")
-    .map((item) => item.title);
+  searchSettings(query, engineeringSettingsSearchItems(SETTINGS_SEARCH_ITEMS)).map(
+    (item) => item.title,
+  );
 
 describe("engineering settings", () => {
-  it("leaves worktrees, git, diffs, pull requests and usage limits out of General's results", () => {
+  it("leaves worktrees, git, diffs, pull requests and usage limits out of its results", () => {
     expect(search("worktree")).toEqual([]);
     expect(search("submodules")).toEqual([]);
     expect(search("pull request")).toEqual([]);
@@ -46,7 +46,7 @@ describe("engineering settings", () => {
   });
 
   it("says chats and the chat box on General, its ids and the code interface unchanged", () => {
-    for (const id of ["in-app-notifications", "skills-in-slash-menu", "composer-collapse"]) {
+    for (const id of ["in-app-notifications", "skills-in-slash-menu"]) {
       const copy = engineeringSettingCopy(id, true);
       expect(`${copy?.title ?? ""} ${copy?.description}`).not.toMatch(
         /thread|composer|slash|settle/i,
@@ -56,16 +56,12 @@ describe("engineering settings", () => {
   });
 
   it("lists what Restore defaults resets in the rows' own words", () => {
-    expect(engineeringRestoreLabel("Collapse composer on scroll", true)).toBe(
-      "Collapse chat box on scroll",
-    );
+    expect(engineeringRestoreLabel("Rich text composer", true)).toBe("Rich text chat box");
     expect(engineeringRestoreLabel("Auto-settle merged threads", true)).toBe(
       "Mark merged chats done",
     );
     expect(engineeringRestoreLabel("Time format", true)).toBe("Time format");
-    expect(engineeringRestoreLabel("Collapse composer on scroll", false)).toBe(
-      "Collapse composer on scroll",
-    );
+    expect(engineeringRestoreLabel("Rich text composer", false)).toBe("Rich text composer");
   });
 
   it("leaves the programmer settings out of the engineering search and keeps them in the code one", () => {
@@ -129,7 +125,7 @@ describe("finding the Interface switch", () => {
 });
 
 describe("the model for new chats", () => {
-  it("is found under AI agents in the engineering interface, and under General elsewhere", () => {
+  it("is found under AI agents in the engineering interface, and under Threads elsewhere", () => {
     const [here] = searchSettings(
       "new thread provider",
       engineeringSettingsSearchItems(SETTINGS_SEARCH_ITEMS),
@@ -137,7 +133,7 @@ describe("the model for new chats", () => {
     expect(here?.id).toBe("default-model");
     expect(here?.to).toBe("/settings/providers");
     const [there] = searchSettings("new thread provider", SETTINGS_SEARCH_ITEMS);
-    expect(there?.to).toBe("/settings/general");
+    expect(there?.to).toBe("/settings/threads");
   });
 });
 

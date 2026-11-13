@@ -36,6 +36,7 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
 import { ThreadDetailsItemsRow } from "./ThreadDetailsItemsRow";
+import { StudioInterfaceSetting } from "../workbench/StudioInterfaceSetting";
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -163,6 +164,7 @@ export function AppearanceSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection id="appearance-interface" title="Interface">
+        <StudioInterfaceSetting />
         <SettingsRow
           {...searchableSetting("setting-appearance-contrast")}
           description="Adjust the contrast of colors and borders across the interface."
@@ -181,7 +183,7 @@ export function AppearanceSettingsPanel() {
           control={
             <div className="flex w-full items-center gap-3 sm:w-52">
               <output
-                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center text-xs font-medium tabular-nums text-foreground"
                 htmlFor="appearance-contrast"
               >
                 {settings.appearanceContrast}%
@@ -227,7 +229,7 @@ export function AppearanceSettingsPanel() {
           control={
             <div className="flex w-full items-center gap-3 sm:w-52">
               <output
-                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center text-xs font-medium tabular-nums text-foreground"
                 htmlFor="glass-opacity"
               >
                 {settings.glassOpacity}%
@@ -269,7 +271,7 @@ export function AppearanceSettingsPanel() {
             ) : null
           }
           control={
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-56">
               <Select
                 value={settings.chatWidth}
                 onValueChange={(value) => {
@@ -304,7 +306,7 @@ export function AppearanceSettingsPanel() {
             ) : null
           }
           control={
-            <div className="w-full sm:w-40">
+            <div className="w-full sm:w-56">
               <Select
                 value={settings.effortDisplay}
                 onValueChange={(value) => {
@@ -365,7 +367,7 @@ export function AppearanceSettingsPanel() {
                 <PanelAnimationsPreview durationMs={settings.panelAnimationDurationMs} />
                 <div className="flex w-full items-center gap-3">
                   <output
-                    className="min-w-16 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                    className="min-w-16 rounded-md bg-muted px-2 py-1 text-center text-xs font-medium tabular-nums text-foreground"
                     htmlFor="panel-animation-duration"
                   >
                     {settings.panelAnimationDurationMs} ms
@@ -435,7 +437,7 @@ export function AppearanceSettingsPanel() {
               >
                 <SelectTrigger
                   size="sm"
-                  className="w-full sm:w-40"
+                  className="w-full sm:w-56"
                   aria-label="Environment identification"
                 >
                   <SelectValue>{environmentIdentificationLabel}</SelectValue>

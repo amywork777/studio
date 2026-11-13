@@ -1,9 +1,12 @@
 import { workspaceRelativePath } from "@t3tools/client-runtime/state/pluginFollow";
+import type {
+  ThreadStructureTurnItem,
+  ThreadStructureVisibleTurnItem,
+} from "@t3tools/client-runtime/state/shell";
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
 import type {
   EnvironmentId,
   InstalledPlugin,
-  OrchestrationV2ProjectedTurnItem,
   OrchestrationV2TurnItem,
   ScopedThreadRef,
 } from "@t3tools/contracts";
@@ -55,7 +58,7 @@ export function writtenDocuments(item: OrchestrationV2TurnItem, root: string | n
   return writtenFiles(item, root).filter((path) => outputRank(path) > 0);
 }
 
-function writtenFiles(item: OrchestrationV2TurnItem, root: string | null): string[] {
+function writtenFiles(item: ThreadStructureTurnItem, root: string | null): string[] {
   if (item.type !== "file_change" || item.status !== "completed") return [];
   const changes = item.changes ?? [];
   const paths =
@@ -148,7 +151,7 @@ export function useDocumentFollow(input: {
   readonly threadRef: ScopedThreadRef | null;
   readonly threadKey: string | null;
   readonly runningRunId: string | null;
-  readonly items: ReadonlyArray<OrchestrationV2ProjectedTurnItem>;
+  readonly items: ReadonlyArray<ThreadStructureVisibleTurnItem>;
   readonly checkpoints: ReadonlyArray<TurnDiffSummary>;
   readonly workspaceRoot: string | null;
 }) {

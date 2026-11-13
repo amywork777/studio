@@ -1,4 +1,4 @@
-import { usePreviewPanelInlineSize } from "../../hooks/usePreviewPanelInlineSize";
+import { useChatPanelInlineSize } from "../workbench/useWorkbenchPanelSize";
 import { RightPanelSheet } from "../RightPanelSheet";
 import { RightPanelTabs, type RightPanelTabsProps } from "../RightPanelTabs";
 
@@ -27,7 +27,8 @@ export function ChatRightPanel(props: ChatRightPanelProps) {
     layoutControls,
     ...tabs
   } = props;
-  const inlineSize = usePreviewPanelInlineSize({
+  // A workbench brand (text-to-cad Studio) makes the panel the main surface and docks the chat.
+  const inlineSize = useChatPanelInlineSize({
     container: workspaceLayoutElement,
     widthStorageKey,
   });

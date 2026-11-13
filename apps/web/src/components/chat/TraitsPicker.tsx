@@ -495,17 +495,15 @@ const TraitsMenuContent = memo(function TraitsMenuContentImpl(props: TraitsSelec
 });
 
 /**
- * The trigger's descriptors, named as Studio shows them: in the engineering interface the
- * menu's own words ("Careful", not "High"), and with `nameTrait` the trait itself, so the
- * label says what the pick adjusts ("Thinking: Normal", "Speed: Fast").
+ * The trigger's descriptors in the engineering interface's words ("Careful", not "High"), as the
+ * menu names them.
  */
 function triggerDescriptors(input: {
   descriptors: ReadonlyArray<ProviderOptionDescriptor>;
   engineering: boolean;
-  nameTrait: boolean;
   selectValue: (descriptor: Extract<ProviderOptionDescriptor, { type: "select" }>) => string;
 }): ReadonlyArray<ProviderOptionDescriptor> {
-  const shown = input.engineering
+  return input.engineering
     ? input.descriptors.map((descriptor) =>
         engineeringTraitDescriptor(
           descriptor,
@@ -513,24 +511,7 @@ function triggerDescriptors(input: {
         ),
       )
     : input.descriptors;
-  if (!input.nameTrait) return shown;
-  const reasoning = shown.find(isReasoningSelect);
-  return shown.map((descriptor) =>
-    descriptor === reasoning && descriptor.type === "select"
-      ? {
-          ...descriptor,
-          options: descriptor.options.map((option) => ({
-            ...option,
-            label: `${descriptor.label}: ${option.label}`,
-          })),
-        }
-      : descriptor,
-  );
 }
-
-/** Whether a trigger shows speed alone, which `nameTrait` names as "Speed". */
-const isSpeedDescriptor = (descriptor: ProviderOptionDescriptor) =>
-  descriptor.id === "fastMode" || descriptor.id === "serviceTier";
 
 export const TraitsPicker = memo(function TraitsPicker({
   size = "sm",
@@ -551,14 +532,12 @@ export const TraitsPicker = memo(function TraitsPicker({
   if (!traits.hasAnyControls) {
     return null;
   }
-  const shownDescriptors = triggerDescriptors({
-    descriptors: traits.descriptors,
-    engineering,
-    nameTrait,
-    selectValue: traits.selectValue,
-  });
   const triggerDisplay = buildTraitsTriggerDisplay({
-    descriptors: shownDescriptors,
+    descriptors: triggerDescriptors({
+      descriptors: traits.descriptors,
+      engineering,
+      selectValue: traits.selectValue,
+    }),
     primarySelectDescriptorId: traits.primarySelectDescriptor?.id ?? null,
     ultrathinkPromptControlled: traits.ultrathinkPromptControlled,
     modelSelection:
@@ -566,11 +545,9 @@ export const TraitsPicker = memo(function TraitsPicker({
         ? { instanceId: props.instanceId, model: props.model, options: props.modelOptions ?? [] }
         : null,
     reportedModelSelection: props.reportedModelSelection,
+    nameTrait,
   });
-  const triggerLabel =
-    nameTrait && shownDescriptors.length > 0 && shownDescriptors.every(isSpeedDescriptor)
-      ? `Speed: ${triggerDisplay.label}`
-      : triggerDisplay.label;
+  const triggerLabel = triggerDisplay.label;
   const isCodexStyle = props.provider === "codex";
 
   return (
