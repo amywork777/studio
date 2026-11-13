@@ -1,11 +1,12 @@
+import type { ReactNode } from "react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { ContextChipLabel } from "../ContextChip";
 import { WorkspaceEntryIcon } from "./WorkspaceEntryIcon";
 import { FileKindIcon } from "../workbench/FileKindIcon";
 import { useEngineeringInterface, useFileChipLabel } from "../workbench/studioInterface";
 
-/** Icon and label for a file mention; render inside `<ContextChip kind="mention">`. */
 export function FileTagChipContent(props: {
+  icon?: ReactNode;
   path: string;
   label: string;
   theme: "light" | "dark";
@@ -18,16 +19,17 @@ export function FileTagChipContent(props: {
   const studio = useEngineeringInterface();
   return (
     <>
-      {studio ? (
-        <FileKindIcon path={props.path} className="size-3.5" />
-      ) : (
-        <WorkspaceEntryIcon
-          path={props.path}
-          environmentId={props.environmentId}
-          cwd={props.cwd}
-          theme={props.theme}
-        />
-      )}
+      {props.icon ??
+        (studio ? (
+          <FileKindIcon path={props.path} className="size-3.5" />
+        ) : (
+          <WorkspaceEntryIcon
+            path={props.path}
+            environmentId={props.environmentId}
+            cwd={props.cwd}
+            theme={props.theme}
+          />
+        ))}
       <ContextChipLabel>{label}</ContextChipLabel>
     </>
   );

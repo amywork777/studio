@@ -610,7 +610,7 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   already exist (Home's New is the toolbar's; Home is "Home" everywhere; the chat says "AI
   agent", as Settings does).
 - **Onboarding.** Setup speaks Studio's words and ends at signing in to Claude or Codex
-  (`WelcomeWizard.tsx`; Home brings in files). With no projects, Home asks Where would you like to
+  (`onboarding/WelcomePage.tsx`; Home brings in files). With no projects, Home asks Where would you like to
   start?, with two big buttons, New part and Import a STEP (which opens the one Import menu: Files
   or a folder, Scan this computer), the Start box right under them, then the examples' cards
   (`StartChoices.tsx`, `homeLayout` in `homeStart.ts`). With projects, the examples sit in a Get

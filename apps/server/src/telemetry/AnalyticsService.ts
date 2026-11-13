@@ -15,7 +15,7 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -34,8 +34,9 @@ import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import { appVersion } from "../appVersion.ts";
 import * as ServerConfig from "../config.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ServerSettings from "../serverSettings.ts";
-import { getInstallId } from "./Identify.ts";
+import { getInstallId, type TelemetryOwner } from "./Identify.ts";
 
 interface BufferedAnalyticsEvent {
   readonly uuid: string;
@@ -115,6 +116,15 @@ export class AnalyticsService extends Context.Service<
 
     /** Flush all currently queued telemetry events. */
     readonly flush: Effect.Effect<void>;
+
+    /**
+     * Studio records no owners: they are derived from accounts, and its counts go under a random
+     * install id only. Kept so T3's callers need no Studio branch.
+     */
+    readonly recordOwners: (
+      owners: ReadonlyArray<TelemetryOwner>,
+      observedBy: "server" | "client",
+    ) => Effect.Effect<void>;
   }
 >()("t3/telemetry/AnalyticsService") {
   /** No-op layer for callers that intentionally disable telemetry. */
@@ -123,6 +133,7 @@ export class AnalyticsService extends Context.Service<
     AnalyticsService.of({
       record: () => Effect.void,
       flush: Effect.void,
+      recordOwners: () => Effect.void,
     }),
   );
 }
@@ -131,12 +142,24 @@ export class AnalyticsService extends Context.Service<
 export const make = Effect.gen(function* () {
   const telemetryConfig = yield* TelemetryEnvConfig;
   const version = yield* appVersion;
-  if (!canSend(telemetryConfig)) {
-    return AnalyticsService.of({ record: () => Effect.void, flush: Effect.void });
+  // A managed policy can switch usage counts off, never on.
+  const policy = yield* Effect.serviceOption(ManagedPolicy.ManagedPolicy);
+  const policyDenies =
+    Option.isSome(policy) && ManagedPolicy.deniedBy(policy.value, "telemetry") !== undefined;
+  if (!canSend(telemetryConfig) || policyDenies) {
+    return AnalyticsService.of({
+      record: () => Effect.void,
+      flush: Effect.void,
+      recordOwners: () => Effect.void,
+    });
   }
   const install = yield* getInstallId;
   if (install === null) {
-    return AnalyticsService.of({ record: () => Effect.void, flush: Effect.void });
+    return AnalyticsService.of({
+      record: () => Effect.void,
+      flush: Effect.void,
+      recordOwners: () => Effect.void,
+    });
   }
   const httpClient = yield* HttpClient.HttpClient;
   const serverConfig = yield* ServerConfig.ServerConfig;
@@ -144,7 +167,7 @@ export const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   // Read on each event, so turning the setting off in Settings stops events at once.
   const settings = yield* Effect.serviceOption(ServerSettings.ServerSettingsService);
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* SecureRandom.SecureRandom;
   // A deletion the receiver has not taken yet, kept beside the install id so a restart still owes it.
   const forgetOwedPath = path.join(path.dirname(serverConfig.anonymousIdPath), "usage-forget-owed");
   const forgetOwed = yield* Ref.make(
@@ -315,7 +338,7 @@ export const make = Effect.gen(function* () {
 
       // Telemetry is best effort: an event without a uuid is not sent. The
       // Node implementation throws (a defect) rather than failing, so catch both.
-      const uuid = yield* Effect.exit(crypto.randomUUIDv7);
+      const uuid = yield* Effect.exit(crypto.uuidV7());
       if (Exit.isFailure(uuid)) return;
 
       const enqueueResult = yield* enqueueBufferedEvent(uuid.value, event, properties);
@@ -359,7 +382,7 @@ export const make = Effect.gen(function* () {
 
   yield* Effect.addFinalizer(() => forgetWhenOwed.pipe(Effect.andThen(flush)));
 
-  return AnalyticsService.of({ record, flush });
+  return AnalyticsService.of({ record, flush, recordOwners: () => Effect.void });
 });
 
 export const layer = Layer.effect(AnalyticsService, make);
