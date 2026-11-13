@@ -95,7 +95,13 @@ export function studioBuildConfig(
   delete extendInfo.CFBundleDocumentTypes;
   next.mac = {
     ...mac,
-    target: input.signed ? ["dmg", "zip"] : ["dmg"],
+    // A `--target dir` build is the bare app, to try without the room a DMG takes.
+    target:
+      Array.isArray(mac.target) && mac.target.includes("dir")
+        ? ["dir"]
+        : input.signed
+          ? ["dmg", "zip"]
+          : ["dmg"],
     category: "public.app-category.graphics-design",
     extendInfo: {
       ...extendInfo,
