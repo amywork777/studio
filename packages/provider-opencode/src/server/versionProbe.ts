@@ -181,15 +181,16 @@ export const probeOpenCodeRuntime = (
     : probeOpenCodeBinary(settings.binaryPath, environment);
 
 /**
- * One instance's runtime, remembered after the first successful probe. Settings changes rebuild
- * the driver; `refresh` re-probes (status checks use it, so an in-place upgrade re-routes). A
- * failed probe is never remembered. `lastSuccess` never probes, for calls too hot to wait on one.
+ * One instance's runtime. Only 2.x is remembered: 1.x can be upgraded in place while Studio runs,
+ * and 2.x converts the shared database, so going back is unsupported. `refresh` re-probes (status
+ * checks use it). A failed probe is never remembered. `lastSuccess` never probes, for hot calls.
  */
 export const makeOpenCodeRuntimeProbe = <E>(probe: Effect.Effect<ProbedOpenCode, E>) =>
   Effect.map(
     Cache.makeWith(() => probe, {
       capacity: 1,
-      timeToLive: (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
+      timeToLive: (exit) =>
+        Exit.isSuccess(exit) && exit.value.generation === "v2" ? Duration.infinity : Duration.zero,
     }),
     (cache) => ({
       get: Cache.get(cache, undefined),
