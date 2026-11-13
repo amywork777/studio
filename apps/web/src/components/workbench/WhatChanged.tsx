@@ -77,7 +77,7 @@ function Facts(props: { readonly title: string; readonly lines: ReadonlyArray<st
 
 /**
  * What changed in a part between two of its versions, as Fixture's What changed shows it: the
- * part as one model (unchanged see-through grey, added material green, removed red) or the two
+ * part as one model (unchanged see-through grey, added material blue, removed magenta) or the two
  * side by side, the named sizes of its script that changed, its volume and size, how its checks
  * went at each, and the script's own lines on request. The solids are compared by the CAD service
  * (`cadgen/edit/solid_diff.py`), a model's as each version builds it; Open in 3D shows the
@@ -253,11 +253,11 @@ export function WhatChanged(props: {
               aria-hidden="true"
             >
               <span className="flex items-center gap-2">
-                <span className="size-2.5 rounded-sm bg-success" />
+                <span className="size-2.5 rounded-sm bg-(--diff-added)" />
                 Added
               </span>
               <span className="flex items-center gap-2">
-                <span className="size-2.5 rounded-sm bg-destructive" />
+                <span className="size-2.5 rounded-sm bg-(--diff-removed)" />
                 Removed
               </span>
               <span className="flex items-center gap-2">
@@ -304,8 +304,8 @@ export function WhatChanged(props: {
                 key={row.key}
                 className={cn(
                   "px-3 whitespace-pre-wrap break-all",
-                  row.kind === "added" && "bg-success/10 text-success-foreground",
-                  row.kind === "removed" && "bg-destructive/10 text-destructive",
+                  row.kind === "added" && "bg-(--diff-added)/10 text-(--diff-added)",
+                  row.kind === "removed" && "bg-(--diff-removed)/10 text-(--diff-removed)",
                 )}
               >
                 <span aria-hidden="true">
