@@ -16,6 +16,7 @@ import * as DesktopConfig from "./DesktopConfig.ts";
 import { resolveLinuxDesktopEntryName } from "./DesktopEarlyElectronStartup.ts";
 import { resolveDesktopBaseDir, resolveDesktopStateDir } from "./DesktopStatePaths.ts";
 import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
+import { appName } from "@t3tools/shared/appName";
 import type { OtlpProtocol } from "@t3tools/shared/observability";
 
 export interface MakeDesktopEnvironmentInput {
@@ -88,7 +89,7 @@ export class DesktopEnvironment extends Context.Service<
 >()("@t3tools/desktop/app/DesktopEnvironment") {}
 
 // A fork names itself with VITE_APP_BASE_NAME, as its web build does (text-to-cad Studio).
-const APP_BASE_NAME = process.env.VITE_APP_BASE_NAME?.trim() || "T3 Code";
+const APP_BASE_NAME = appName();
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;

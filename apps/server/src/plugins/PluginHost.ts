@@ -4,6 +4,7 @@
  * Codex starts a plugin's servers in the plugin's folder (its launchers are relative); Claude Code
  * starts them in the project, and plugins find their files by `${CLAUDE_PLUGIN_ROOT}`.
  */
+import { appName } from "@t3tools/shared/appName";
 import { PluginOperationError, type PluginRequestInput } from "@t3tools/contracts";
 import {
   expandPluginRoot,
@@ -158,7 +159,7 @@ const make = Effect.gen(function* () {
     now: number,
   ): Promise<Connection> => {
     const client = new Client(
-      { name: "T3 Code", version: "1.0.0" },
+      { name: appName(), version: "1.0.0" },
       {
         capabilities: {
           roots: { listChanged: false },

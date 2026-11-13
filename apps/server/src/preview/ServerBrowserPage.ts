@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off globalDate:off globalTimers:off - Playwright callbacks run outside the Effect runtime.
 
+import { appName } from "@t3tools/shared/appName";
 import {
   type BrowserRecordingFrameRate,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
@@ -481,8 +482,7 @@ export const captureViewport = async (
         reject(
           new ServerBrowserOperationError({
             tag: "PreviewAutomationExecutionError",
-            message:
-              "The browser is not producing screenshot frames. For a desktop tab, show or restore the T3 Code window and try again.",
+            message: `The browser is not producing screenshot frames. For a desktop tab, show or restore the ${appName()} window and try again.`,
           }),
         ),
       SCREENSHOT_TIMEOUT_MS,

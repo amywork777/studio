@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import {
   CommandId,
   GitCommandError,
@@ -39,7 +40,7 @@ export class ScratchUnavailableError extends Schema.TaggedError<ScratchUnavailab
     if (this.repositoryRoot === undefined) {
       return "Threads without a project are not available on this environment.";
     }
-    return `Threads without a project are off because the T3 home ${this.baseDir} is inside the Git repository ${this.repositoryRoot}. If that repository was created by mistake, move ${this.repositoryRoot}/.git out of the way; otherwise point T3CODE_HOME (or --base-dir) at a folder outside it. Then restart T3 Code.`;
+    return `Threads without a project are off because the ${appName()} home ${this.baseDir} is inside the Git repository ${this.repositoryRoot}. If that repository was created by mistake, move ${this.repositoryRoot}/.git out of the way; otherwise point T3CODE_HOME (or --base-dir) at a folder outside it. Then restart ${appName()}.`;
   }
 }
 
@@ -214,13 +215,14 @@ function namedProjectIconSvg(name: string): string {
   ].join("\n");
 }
 
-function namedProjectReadme(name: string, creditT3: boolean): string {
+function namedProjectReadme(name: string, credit: string): string {
   return [
     `<img src="assets/icon.svg" width="64" height="64" alt="">`,
     "",
     `# ${name}`,
     "",
-    ...(creditT3 ? ["Created in [T3 Code](https://t3.codes).", ""] : []),
+    credit,
+    "",
   ].join("\n");
 }
 
@@ -256,7 +258,10 @@ const make = Effect.gen(function* () {
     Config.withDefault(""),
     Effect.orElseSucceed(() => ""),
   );
-  const creditT3 = forkName.trim() === "";
+  const credit =
+    forkName.trim() === ""
+      ? "Created in [T3 Code](https://t3.codes)."
+      : `Created in [${forkName.trim()}](https://texttocad.studio).`;
 
   // Non-recursive mkdir atomically claims a name; racers move on after AlreadyExists.
   const claimFreeFolder = Effect.fnUntraced(function* <E>(
@@ -490,7 +495,7 @@ const make = Effect.gen(function* () {
   ) {
     yield* fileSystem.writeFileString(
       path.join(cwd, "README.md"),
-      namedProjectReadme(name, creditT3),
+      namedProjectReadme(name, credit),
     );
     yield* fileSystem.makeDirectory(path.join(cwd, "assets"));
     yield* fileSystem.writeFileString(

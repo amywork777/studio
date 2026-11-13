@@ -132,8 +132,8 @@ export function compatibilityOf(
       "unknown",
       "Checked on install",
       host
-        ? `T3 Code reads this plugin from ${host} when you install it`
-        : "T3 Code reads this plugin when you install it",
+        ? `This app reads this plugin from ${host} when you install it`
+        : "This app reads this plugin when you install it",
     );
   }
   const manifest = manifestOf(folder, entry.inline) ?? {};
@@ -198,13 +198,13 @@ export function compatibilityOf(
       return compatibility(
         chatgpt ? "codex" : "partly",
         chatgpt ? "Needs ChatGPT" : "Partly",
-        `T3 Code does not run its ${skipped.join(", ")}`,
+        `This app does not run its ${skipped.join(", ")}`,
       );
     }
     return compatibility(
       "partly",
       "Partly",
-      `${parts} ${verb} here; T3 Code does not run its ${skipped.join(", ")}${claudeNote}`,
+      `${parts} ${verb} here; this app does not run its ${skipped.join(", ")}${claudeNote}`,
     );
   }
   if (remote.length > 0) {
@@ -221,7 +221,7 @@ export function compatibilityOf(
       `its ${claudeOnly.join(", ")} run with Claude only`,
     );
   if (usable === 0)
-    return compatibility("partly", "Partly", "it has no MCP servers or skills T3 Code can use");
+    return compatibility("partly", "Partly", "it has no MCP servers or skills this app can use");
   return compatibility("works", "Works", `${parts}${claudeNote}`);
 }
 

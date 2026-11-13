@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import { resolveProviderProbeTimeoutMs } from "@t3tools/provider-core/server/snapshotProbe";
 import {
   ANTIGRAVITY_DEFAULT_MODEL,
@@ -200,7 +201,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
         auth: { status: "unknown", ...(options.auth ? { type: options.auth.type } : {}) },
         message: settings.enabled
           ? "Checking Antigravity availability."
-          : "Antigravity is disabled in T3 Code settings.",
+          : `Antigravity is disabled in ${appName()} settings.`,
       },
     }),
     setup: { canAuthenticate: true, canInstall: true },

@@ -31,6 +31,8 @@ import { Input } from "../ui/input";
 import { RadioGroup } from "../ui/radio-group";
 import { Spinner } from "../ui/spinner";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
+import { APP_BASE_NAME } from "~/branding";
+import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 
 export const accessConfig: Record<
   AuthMcpClientAccess,
@@ -316,8 +318,9 @@ export function McpConsent({
               value={pairingCode}
             />
             <p className="text-xs text-muted-foreground">
-              Get one from Use T3 Code in another app (MCP), Settings → Sharing & access, or{" "}
-              <code>t3 auth pairing create</code> on this machine.
+              Get one from{" "}
+              {hasCloudPublicConfig() ? `Use ${APP_BASE_NAME} in another app (MCP), ` : null}
+              Settings → Sharing & access, or <code>t3 auth pairing create</code> on this machine.
             </p>
           </div>
         ) : null}

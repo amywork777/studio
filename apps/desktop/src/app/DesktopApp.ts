@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -147,7 +148,7 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
   const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
   if (!wasQuitting) {
     yield* electronDialog.showErrorBox(
-      "T3 Code failed to start",
+      `${appName()} failed to start`,
       `Stage: ${stage}\n${message}${detail}`,
     );
   }
@@ -238,7 +239,7 @@ const bootstrap = Effect.gen(function* () {
       owner: Option.getOrNull(owner),
     });
     yield* (yield* ElectronDialog.ElectronDialog).showErrorBox(
-      "This T3 home is unavailable",
+      `This ${appName()} home is unavailable`,
       DesktopHomeOwner.homeOwnedMessage(owner),
     );
     return yield* (yield* ElectronApp.ElectronApp).quit;

@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import type {
   OrchestrationV2ThreadLinkMetadata,
   GuestShareId,
@@ -724,8 +725,7 @@ function delegatedTasksStopEffect(command: {
 }
 
 const WORKSPACE_PREPARATION_INPUT = "Preparing workspace";
-const RUNTIME_REQUEST_DELIVERY_FAILED_MESSAGE =
-  "T3 Code could not confirm that your answer reached the agent. If the run stays stuck, stop it and try again.";
+const RUNTIME_REQUEST_DELIVERY_FAILED_MESSAGE = `${appName()} could not confirm that your answer reached the agent. If the run stays stuck, stop it and try again.`;
 
 function withoutPreparationResult(
   item: Extract<OrchestrationV2TurnItem, { readonly type: "command_execution" }>,

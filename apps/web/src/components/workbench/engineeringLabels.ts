@@ -279,7 +279,7 @@ export function engineeringToolLabel(tool: string | null | undefined): StepLabel
  */
 export function engineeringChatWords(label: string): string {
   return label
-    .replace(/\bT3 thread metadata\b/g, "chat details")
+    .replace(/\b(?:T3 )?thread metadata\b/g, "chat details")
     .replace(/\b(?:T3 )?thread(s?)\b/g, "chat$1");
 }
 

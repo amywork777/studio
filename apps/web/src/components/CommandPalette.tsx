@@ -275,9 +275,12 @@ import { ComposerHandleContext, useComposerHandleContext } from "../composerHand
 import {
   hasEngineeringSurfaces,
   isEngineeringInterface,
+  STUDIO_INTERFACE_AVAILABLE,
   settingsSectionLabel,
 } from "./workbench/studioInterface";
 import { StudioQuickFind } from "./workbench/StudioQuickFind";
+import { APP_BASE_NAME } from "../branding";
+import { hasCloudPublicConfig } from "../cloud/publicConfig";
 import type { ChatComposerHandle } from "./chat/ChatComposer";
 import { pickableProjectGroups } from "@t3tools/client-runtime/state/project-grouping";
 import { buildSidebarProjectPickerEntries } from "../sidebarProjectGrouping";
@@ -1362,13 +1365,14 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  if (triageEnvironmentId !== null && canTriage) {
+  // Triage files issues on T3 Code's repository; Studio's go to Report a problem in Settings.
+  if (!STUDIO_INTERFACE_AVAILABLE && triageEnvironmentId !== null && canTriage) {
     actionItems.push({
       kind: "action",
       value: "action:triage",
       searchTerms: ["triage", "bug", "issue", "report", "broken", "debug", "help", "support"],
       title: "Triage an issue",
-      description: "An agent investigates a T3 Code problem and helps file an issue",
+      description: `An agent investigates a ${APP_BASE_NAME} problem and helps file an issue`,
       icon: <BugIcon className={ITEM_ICON_CLASS} />,
       run: () => startTriage(triageEnvironmentId),
     });
@@ -1666,33 +1670,35 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  actionItems.push({
-    kind: "action",
-    value: "action:use-in-another-app",
-    searchTerms: [
-      "mcp",
-      "connector",
-      "another app",
-      "poke",
-      "claude",
-      "chatgpt",
-      "grok",
-      "muse",
-      "instinct",
-      "openclaw",
-      "hermes",
-    ],
-    title: "Use T3 Code in another app (MCP)",
-    icon: <PlugIcon className={ITEM_ICON_CLASS} />,
-    run: async () => {
-      openUseInAnotherApp(
-        currentProjectEnvironmentId ??
-          (paletteRouteTarget?.kind === "server"
-            ? paletteRouteTarget.threadRef.environmentId
-            : null),
-      );
-    },
-  });
+  if (hasCloudPublicConfig()) {
+    actionItems.push({
+      kind: "action",
+      value: "action:use-in-another-app",
+      searchTerms: [
+        "mcp",
+        "connector",
+        "another app",
+        "poke",
+        "claude",
+        "chatgpt",
+        "grok",
+        "muse",
+        "instinct",
+        "openclaw",
+        "hermes",
+      ],
+      title: `Use ${APP_BASE_NAME} in another app (MCP)`,
+      icon: <PlugIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        openUseInAnotherApp(
+          currentProjectEnvironmentId ??
+            (paletteRouteTarget?.kind === "server"
+              ? paletteRouteTarget.threadRef.environmentId
+              : null),
+        );
+      },
+    });
+  }
 
   actionItems.push({
     kind: "action",

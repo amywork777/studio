@@ -29,6 +29,7 @@ import {
   providerProbeEnvironment,
   spawnAndCollect,
 } from "@t3tools/provider-core/server/snapshotProbe";
+import { appName } from "@t3tools/shared/appName";
 
 const FX_PRESENTATION = {
   displayName: "fx",
@@ -103,7 +104,7 @@ export const buildInitialFxProviderSnapshot = (
       auth: { status: "unknown" },
       message: settings.enabled
         ? "Checking fx CLI availability..."
-        : "fx is disabled in T3 Code settings.",
+        : `fx is disabled in ${appName()} settings.`,
     }),
   );
 
@@ -161,7 +162,7 @@ export const checkFxProviderStatus = Effect.fn("checkFxProviderStatus")(function
       version: null,
       status: "warning",
       auth: { status: "unknown" },
-      message: "fx is disabled in T3 Code settings.",
+      message: `fx is disabled in ${appName()} settings.`,
     });
   }
 

@@ -5,6 +5,7 @@
  * A clone lands in a temporary sibling renamed when complete, and marketplace URLs, refs and commits
  * follow `--end-of-options` so git never reads one as a flag.
  */
+import { appName } from "@t3tools/shared/appName";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
@@ -101,7 +102,7 @@ function git(args: ReadonlyArray<string>, cwd?: string): Promise<string> {
             .join(" ");
           const why =
             (error as NodeJS.ErrnoException).code === "ENOENT"
-              ? "git is not installed (T3 Code uses your git to fetch plugins)"
+              ? `git is not installed (${appName()} uses your git to fetch plugins)`
               : error.killed
                 ? `git ${args[0]} took longer than ${GIT_TIMEOUT_MS / 1000} s`
                 : said || `git ${args[0]} failed`;

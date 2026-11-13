@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import type { ProjectionRecordField } from "../orchestration-v2/ProjectionStore.ts";
 import {
   CommandId,
@@ -164,7 +165,7 @@ export const resolveProjectId = (context: Caller, projectId: ProjectId | undefin
       : Effect.fail(
           new OrchestratorMcpFailure({
             code: "target_required",
-            message: "Pass projectId: this MCP client is not running inside a T3 thread.",
+            message: `Pass projectId: this MCP client is not running inside a ${appName()} thread.`,
           }),
         );
 
@@ -176,7 +177,7 @@ const resolveThreadId = (context: Caller, threadId: ThreadId | undefined) =>
       : Effect.fail(
           new OrchestratorMcpFailure({
             code: "target_required",
-            message: "Pass threadId: this MCP client is not running inside a T3 thread.",
+            message: `Pass threadId: this MCP client is not running inside a ${appName()} thread.`,
           }),
         );
 

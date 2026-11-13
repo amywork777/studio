@@ -49,6 +49,7 @@ import {
   withPiBuiltinSlashCommands,
   type PiDiscoveredCommands,
 } from "./commands.ts";
+import { appName } from "@t3tools/shared/appName";
 
 const PI_PRESENTATION = {
   displayName: "Pi",
@@ -373,7 +374,7 @@ export const buildInitialPiProviderSnapshot = Effect.fn(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Pi is disabled in T3 Code settings.",
+        message: `Pi is disabled in ${appName()} settings.`,
       },
     });
   }
@@ -411,7 +412,7 @@ export const checkPiProviderStatus = Effect.fn("checkPiProviderStatus")(function
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Pi is disabled in T3 Code settings.",
+        message: `Pi is disabled in ${appName()} settings.`,
       },
     });
   }
@@ -489,7 +490,7 @@ export const checkPiProviderStatus = Effect.fn("checkPiProviderStatus")(function
         version: null,
         status: "error",
         auth: { status: "unknown" },
-        message: `T3 Code could not determine the Pi version. Pi ${MINIMUM_PI_VERSION} or newer is required.`,
+        message: `${appName()} could not determine the Pi version. Pi ${MINIMUM_PI_VERSION} or newer is required.`,
       },
     });
   }
@@ -552,8 +553,7 @@ export const checkPiProviderStatus = Effect.fn("checkPiProviderStatus")(function
         version,
         status: "ready",
         auth: { status: "unknown" },
-        message:
-          "Pi is available, but T3 Code could not refresh its models and commands. The live session will retry startup.",
+        message: `Pi is available, but ${appName()} could not refresh its models and commands. The live session will retry startup.`,
       },
     });
   }

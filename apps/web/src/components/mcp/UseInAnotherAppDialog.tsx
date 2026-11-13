@@ -19,6 +19,7 @@ import { Atom } from "effect/reactivity";
 import * as Result from "effect/Result";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 
+import { APP_BASE_NAME } from "~/branding";
 import { checkReachability, readLinkState } from "~/cloud/linkEnvironmentAtoms";
 import { isManagedTunnelActive } from "~/cloud/t3ConnectState";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
@@ -76,7 +77,7 @@ export function UseInAnotherAppDialogHost() {
 
 function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentId | null }) {
   const { environment, label } = useAccessEnvironment(requested);
-  const title = `Use T3 Code in another app (MCP) · ${label ?? "T3 Code"}`;
+  const title = `Use ${APP_BASE_NAME} in another app (MCP) · ${label ?? APP_BASE_NAME}`;
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : close())}>
       <WizardPopup>
@@ -90,7 +91,7 @@ function UseInAnotherAppDialog({ requested }: { readonly requested: EnvironmentI
                 title={
                   environment === null
                     ? "Connect to an environment first."
-                    : "T3 Connect is not available in this build."
+                    : "Other apps cannot connect in this build."
                 }
               />
             </WizardPanel>

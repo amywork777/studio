@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - Effect has no incremental digest or free-space query.
+import { appName } from "@t3tools/shared/appName";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import * as ModelManifest from "./ModelManifest.ts";
 import { resolveProviderCompatibility } from "./providerCompatibility.ts";
@@ -397,7 +398,7 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
         if (yield* isWithdrawn(installed.version))
           return yield* installationError(
             "resolve",
-            `Antigravity ${installed.version} no longer works with this T3 Code release. Update it in Antigravity setup.`,
+            `Antigravity ${installed.version} no longer works with this ${appName()} release. Update it in Antigravity setup.`,
           );
         return installed;
       }

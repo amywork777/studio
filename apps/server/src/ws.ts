@@ -1659,7 +1659,7 @@ export const layerWsRpc = (
             if (importedThread !== null) {
               return yield* new AcpRegistryOperationError({
                 reason: "session_delete_failed",
-                message: "Delete the imported T3 thread before deleting its native ACP session.",
+                message: "Delete the imported thread before deleting its native ACP session.",
               });
             }
             yield* manager.deleteSession({
@@ -2200,7 +2200,9 @@ export const layerWsRpc = (
                               ? Effect.void
                               : analytics
                                   .record("client.turn.requested", originProps)
-                                  .pipe(Effect.andThen(recordSkillsUsed(input.initialMessage.text))),
+                                  .pipe(
+                                    Effect.andThen(recordSkillsUsed(input.initialMessage.text)),
+                                  ),
                           ),
                           Effect.ignore,
                         ),
@@ -3662,10 +3664,7 @@ export const layer = Layer.unwrap(
           yield* RpcServer.make(ServerWsRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
             Effect.provideService(RpcServer.Protocol, withOutputWindow(protocol)),
             Effect.provide(
-              Layer.merge(
-                RpcAuthorization.layer(session.scopes),
-                rpcInstrumentationLayer,
-              ),
+              Layer.merge(RpcAuthorization.layer(session.scopes), rpcInstrumentationLayer),
             ),
             Effect.forkScoped,
           );

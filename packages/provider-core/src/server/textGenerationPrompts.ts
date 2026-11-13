@@ -6,6 +6,7 @@ import type { BranchNamingOptions, ChatAttachment } from "@t3tools/contracts";
 import { limitSection } from "./textGenerationUtils.ts";
 import type { ReviewGuideStackLayer } from "./textGeneration.ts";
 import type { TextGenerationPolicy } from "@t3tools/provider-core/server/textGenerationPolicy";
+import { appName } from "@t3tools/shared/appName";
 
 const EARLIER_CONTENT_TRUNCATION_MARKER = "[Earlier content truncated]\n\n";
 
@@ -376,7 +377,7 @@ function avoidRule(projectTitle: string | undefined, others: string): string {
 
 // Keep shared editorial rules in these two prompts in sync.
 function initialThreadTitlePrompt(projectTitle: string | undefined): string {
-  return `Generate a title that will help the user recognize this T3 Code thread weeks later.
+  return `Generate a title that will help the user recognize this ${appName()} thread weeks later.
 Return JSON with keys title and needsRefinement.
 Set needsRefinement to true only if the subject is still unknown, such as an unresolved link, "fix this", or an unexplained attachment. Otherwise set it to false.
 
@@ -409,7 +410,7 @@ function regenerateThreadTitlePrompt(
   previousTitle: string,
   projectTitle: string | undefined,
 ): string {
-  return `Regenerate the title for an existing T3 Code thread so the user can recognize it weeks later.
+  return `Regenerate the title for an existing ${appName()} thread so the user can recognize it weeks later.
 The previous title was ${JSON.stringify(previousTitle)}.
 Return JSON with keys title and needsRefinement. Set needsRefinement to false.
 

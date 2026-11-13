@@ -3,6 +3,7 @@
  * thread's own plugin processes. App-only tools (`ui.visibility: ["app"]`) are not listed. Only
  * thread callers may call one: an outside MCP client has no thread for the processes to run in.
  */
+import { appName } from "@t3tools/shared/appName";
 import { McpSchema } from "effect/ai";
 import type { McpServer } from "effect/ai";
 import * as Context from "effect/Context";
@@ -42,7 +43,9 @@ export const register = Effect.fn("PluginTools.register")(function* (addTool: Ad
       const thread = Option.isSome(invocation) ? invocation.value.thread : undefined;
       if (thread === undefined) {
         return Effect.succeed(
-          errorResult("Plugin tools run inside a T3 Code thread; this MCP client has no thread."),
+          errorResult(
+            `Plugin tools run inside a ${appName()} thread; this MCP client has no thread.`,
+          ),
         );
       }
       return plugins.callAgentTool({ threadId: thread.threadId, name, arguments: payload }).pipe(
@@ -52,7 +55,7 @@ export const register = Effect.fn("PluginTools.register")(function* (addTool: Ad
             errorResult(
               error._tag === "PluginOperationError"
                 ? error.message
-                : `${name} returned a result T3 Code cannot read.`,
+                : `${name} returned a result ${appName()} cannot read.`,
             ),
           ),
         ),

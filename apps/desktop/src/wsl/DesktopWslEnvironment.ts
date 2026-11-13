@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -421,7 +422,7 @@ const NODE_PTY_BINARY_MISSING_EXIT_CODE = 4;
 
 const formatNodePtyProbeFailureReason = (exitCode: number): string | null =>
   exitCode === NODE_PTY_BINARY_MISSING_EXIT_CODE
-    ? "WSL support is missing from this T3 Code build: the packaged Linux node-pty binary was not included. Install a build that includes WSL support."
+    ? `WSL support is missing from this ${appName()} build: the packaged Linux node-pty binary was not included. Install a build that includes WSL support.`
     : null;
 
 // Capture login-shell PATH because the server launches provider CLIs by name.

@@ -303,7 +303,7 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
               onClick={handleSettingsClick}
             />
           )}
-          {pullRequestsSupported ? (
+          {pullRequestsSupported && !studioPlaces ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
               label="Pull requests"

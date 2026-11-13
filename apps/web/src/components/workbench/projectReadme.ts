@@ -35,7 +35,7 @@ export interface ReadmeSections {
  * What a new project's README starts with (`ManagedProjectFolders.namedProjectReadme` on the
  * server): the project's icon and a line saying where it was made, not what it is.
  */
-const STARTING_LINE = /^\s*(<[^>]+>|Created in \[T3 Code\]\([^)]*\)\.?)\s*$/;
+const STARTING_LINE = /^\s*(<[^>]+>|Created in \[[^\]]+\]\([^)]*\)\.?)\s*$/;
 const LIST_ITEM = /^\s*(?:[-*]|\d+[.)])\s+(.+)$/;
 const SUBHEADING = /^#{3,6}\s+(.+?)\s*#*\s*$/;
 /** Where one sentence ends and the next starts, past the abbreviations that end in a stop. */

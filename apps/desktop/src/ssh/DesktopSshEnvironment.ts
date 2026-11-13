@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import type {
   DesktopDiscoveredSshHost,
   DesktopSshEnvironmentBootstrap,
@@ -101,7 +102,7 @@ function toSshPasswordPromptError(
       break;
     case "DesktopSshPromptWindowUnavailableError":
     case "DesktopSshPromptPresentationError":
-      message = "T3 Code window is not available for SSH authentication.";
+      message = `${appName()} window is not available for SSH authentication.`;
       break;
     case "DesktopSshPromptTimedOutError":
       message = `SSH authentication timed out for ${cause.destination}.`;

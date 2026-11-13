@@ -1,4 +1,5 @@
 import type { DesktopAppBranding } from "@t3tools/contracts";
+import { nameApp } from "@t3tools/shared/appName";
 import {
   formatAppDisplayName,
   resolveHostedAppChannelLabel,
@@ -21,6 +22,8 @@ export const HOSTED_APP_CHANNEL =
 export const HOSTED_APP_CHANNEL_LABEL = resolveHostedAppChannelLabel(HOSTED_APP_CHANNEL);
 export const APP_BASE_NAME =
   injectedDesktopAppBranding?.baseName ?? (import.meta.env.VITE_APP_BASE_NAME || "T3 Code");
+// Shared client code (connection checks, update notices) words itself with this build's name.
+nameApp(APP_BASE_NAME);
 export const APP_STAGE_LABEL =
   injectedDesktopAppBranding?.stageLabel ??
   resolveWebAppStageLabel({

@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import type { DesktopSshPasswordPromptRequest } from "@t3tools/contracts";
 import { DesktopSshPasswordPromptResolutionInputSchema } from "@t3tools/contracts";
 import type { SshPasswordRequest } from "@t3tools/ssh/auth";
@@ -67,7 +68,7 @@ export class DesktopSshPromptWindowUnavailableError extends Schema.TaggedError<D
 ) {
   override get message(): string {
     const request = this.requestId === null ? "before a request id was assigned" : this.requestId;
-    return `T3 Code window is unavailable during ${this.stage} for SSH authentication to ${this.destination} (request: ${request}).`;
+    return `${appName()} window is unavailable during ${this.stage} for SSH authentication to ${this.destination} (request: ${request}).`;
   }
 }
 

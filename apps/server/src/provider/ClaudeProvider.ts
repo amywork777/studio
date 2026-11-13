@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import { resolveProviderProbeTimeoutMs } from "@t3tools/provider-core/server/snapshotProbe";
 import {
   type ClaudeSettings,
@@ -644,7 +645,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Claude is disabled in T3 Code settings.",
+        message: `Claude is disabled in ${appName()} settings.`,
       },
     });
   }
@@ -876,7 +877,7 @@ export const makePendingClaudeProvider = Effect.fn("ClaudeProvider.makePendingCl
           version: null,
           status: "warning",
           auth: { status: "unknown" },
-          message: "Claude is disabled in T3 Code settings.",
+          message: `Claude is disabled in ${appName()} settings.`,
         },
       });
     }

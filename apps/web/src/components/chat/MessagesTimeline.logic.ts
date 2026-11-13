@@ -227,7 +227,7 @@ export function threadReadTargetId(entry: Pick<WorkLogEntry, "structuredPayload"
   return typeof threadId === "string" && threadId.trim().length > 0 ? threadId.trim() : null;
 }
 
-const THREAD_READ_OBJECT = " a T3 thread";
+const THREAD_READ_OBJECT = " a thread";
 // The same step in the engineering interface ("Read a chat", `t3ToolName`).
 const CHAT_READ_OBJECT = " a chat";
 

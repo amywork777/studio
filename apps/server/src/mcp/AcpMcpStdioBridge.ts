@@ -1,5 +1,6 @@
 // Relay JSON-RPC verbatim; schema decoding would reject foreign payloads.
 // @effect-diagnostics globalJsonInEffect:off
+import { appName } from "@t3tools/shared/appName";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -109,7 +110,7 @@ export const mcpToolSession = (
     if (!response.ok) {
       yield* discardResponseBody(response);
       return yield* new AcpMcpBridgeError({
-        message: `T3 Code MCP endpoint responded with HTTP ${response.status}.`,
+        message: `${appName()} MCP endpoint responded with HTTP ${response.status}.`,
       });
     }
     const payloads = yield* Stream.runCollect(responsePayloads(response, bridgeError));
@@ -128,7 +129,7 @@ export const mcpToolSession = (
     const envelope = asEnvelope(responses.find((entry) => asEnvelope(entry)?.id === id));
     if (envelope === null || envelope.error !== undefined) {
       return yield* new AcpMcpBridgeError({
-        message: `T3 Code MCP ${method} failed${envelope?.error === undefined ? "." : `: ${JSON.stringify(envelope.error)}`}`,
+        message: `${appName()} MCP ${method} failed${envelope?.error === undefined ? "." : `: ${JSON.stringify(envelope.error)}`}`,
       });
     }
     return envelope;
@@ -237,7 +238,7 @@ export function runAcpMcpStdioBridge(options: AcpMcpStdioBridgeOptions): Effect.
           if (envelope.id !== undefined) {
             yield* respondWithError(
               envelope.id,
-              `T3 Code MCP endpoint responded with HTTP ${response.status}.`,
+              `${appName()} MCP endpoint responded with HTTP ${response.status}.`,
             );
           }
           return yield* discardResponseBody(response);
@@ -251,7 +252,7 @@ export function runAcpMcpStdioBridge(options: AcpMcpStdioBridgeOptions): Effect.
             const error = Cause.squash(cause);
             return respondWithError(
               envelope.id,
-              `T3 Code MCP bridge request failed: ${error instanceof Error ? error.message : String(error)}`,
+              `${appName()} MCP bridge request failed: ${error instanceof Error ? error.message : String(error)}`,
             );
           }),
         ),

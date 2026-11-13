@@ -2376,7 +2376,7 @@ export function AboutSettingsPanel() {
       <SettingsSection id="legal" title="Legal">
         <SettingsRow
           {...searchableSetting("privacy-policy")}
-          description={`Usage counts never carry your prompts, file names or designs, and nothing goes to T3 Code. ${APP_BASE_NAME}'s README lists every count it can send.${
+          description={`Usage counts never carry your prompts, file names or designs, and they go only to ${APP_BASE_NAME}. Its README lists every count it can send.${
             telemetryOff === undefined ? "" : ` ${telemetryOff}`
           }`}
           control={<OutsideLink href={STUDIO_USAGE_DATA}>What is sent</OutsideLink>}

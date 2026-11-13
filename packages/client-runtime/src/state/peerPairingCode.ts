@@ -10,6 +10,7 @@ import {
   type AuthPairingCredentialResult,
   mcpClientScopes,
 } from "@t3tools/contracts";
+import { appName } from "@t3tools/shared/appName";
 import * as Schema from "effect/Schema";
 import * as Effect from "effect/Effect";
 import type * as HttpClient from "effect/http/HttpClient";
@@ -26,7 +27,6 @@ import { executeAuthenticatedEnvironmentHttpRequest } from "./environmentHttpAut
 import { createEnvironmentCommand } from "./runtime.ts";
 
 const MINT_TIMEOUT_MS = 8_000;
-const PEER_PAIRING_CODE_LABEL = "T3 Code link";
 const MCP_APPROVAL_CODE_LABEL = "App sign-in";
 
 /** Minting failed; the user can still paste a code from the other environment. */
@@ -100,7 +100,7 @@ export function createPeerPairingCodeCommand<R, E>(
   return createEnvironmentCommand(runtime, {
     label: "environment-data:peer-pairing-code:mint",
     execute: (access: AuthMcpClientAccess) =>
-      mintOnEnvironment({ label: PEER_PAIRING_CODE_LABEL, scopes: mcpClientScopes(access) }).pipe(
+      mintOnEnvironment({ label: `${appName()} link`, scopes: mcpClientScopes(access) }).pipe(
         Effect.map((minted) => minted.credential),
       ),
   });

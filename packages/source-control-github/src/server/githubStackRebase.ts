@@ -5,6 +5,7 @@ import * as Schema from "effect/Schema";
 import * as GitHubAppAccess from "./GitHubAppAccess.ts";
 import { githubGitEnv } from "./githubGitAuth.ts";
 import * as SourceControlHost from "@t3tools/source-control-core/server/SourceControlHost";
+import { appName } from "@t3tools/shared/appName";
 
 export interface CascadeLayer {
   readonly number: number;
@@ -64,7 +65,7 @@ export const cascadeRebaseStack = Effect.fn("cascadeRebaseStack")(function* (inp
   // Keep the token in this process's header, outside URLs, argv and git config.
   const remote = input.remote ?? remoteUrl(input.host, input.repository);
   const env = githubGitEnv(remote, token, {
-    "user.name": "T3 Code",
+    "user.name": appName(),
     "user.email": "noreply@t3.codes",
   });
   const git = (args: ReadonlyArray<string>, allowNonZeroExit = false) =>

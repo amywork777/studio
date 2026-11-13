@@ -5,6 +5,7 @@ import {
   SETTINGS_SECRET_REFERENCES_CAPABILITY,
   type ExecutionEnvironmentDescriptor,
 } from "@t3tools/contracts";
+import { appName } from "@t3tools/shared/appName";
 
 import { ConnectionBlockedError } from "./model.ts";
 
@@ -23,7 +24,7 @@ export function orchestrationProtocolCompatibilityError(
       })
     : new ConnectionBlockedError({
         reason: "unsupported",
-        detail: `This client requires a newer server. Update T3 Code on ${descriptor.label} to connect.`,
+        detail: `This client requires a newer server. Update ${appName()} on ${descriptor.label} to connect.`,
         ...(canSelfUpdate(descriptor) ? { serverUpdateRequired: true } : {}),
       });
 }

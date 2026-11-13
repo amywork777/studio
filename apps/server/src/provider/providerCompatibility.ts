@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import {
   TrimmedNonEmptyString,
   ServerProviderCompatibilityStatus,
@@ -81,11 +82,11 @@ export function resolveProviderCompatibility(
       : "unknown";
   const message =
     status === "broken"
-      ? "This provider version is known to be incompatible with this T3 Code release."
+      ? `This provider version is known to be incompatible with this ${appName()} release.`
       : status === "unsupported"
-        ? "This provider version is outside the supported range for this T3 Code release."
+        ? `This provider version is outside the supported range for this ${appName()} release.`
         : status === "graceful"
-          ? "This provider version has limited compatibility with this T3 Code release."
+          ? `This provider version has limited compatibility with this ${appName()} release.`
           : null;
   const recommendedVersion = policy.recommendedVersion ?? null;
   const recommendedRange = policy.recommendedRange ?? null;

@@ -171,6 +171,10 @@
       "types": "./src/String.ts",
       "import": "./src/String.ts"
     },
+    "./appName": {
+      "types": "./src/appName.ts",
+      "import": "./src/appName.ts"
+    },
     "./projectScripts": {
       "types": "./src/projectScripts.ts",
       "import": "./src/projectScripts.ts"
