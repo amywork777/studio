@@ -1,5 +1,4 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { PanelRightCloseIcon } from "lucide-react";
 import { type ReactElement, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
@@ -125,18 +124,9 @@ export function StudioToolbox(props: {
       ) : (
         <div className="flex h-full w-64 flex-col">
           {/* As tall as the ribbon's tab row beside it, so their hairlines run on as one. */}
-          <div className="flex h-7 shrink-0 items-center justify-between gap-2 border-b border-border ps-3 pe-1">
+          {/* The title bar's right toggle folds the Toolbox, so the panel has no button of its own. */}
+          <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border ps-3 pe-1">
             <h2 className="text-sm font-medium text-foreground">Toolbox</h2>
-            <ToolboxTip text="Fold the Toolbox" side="bottom">
-              <Button
-                variant="ghost-muted"
-                size="icon-xs"
-                aria-label="Fold the Toolbox"
-                onClick={() => setFolded(true)}
-              >
-                <PanelRightCloseIcon aria-hidden="true" />
-              </Button>
-            </ToolboxTip>
           </div>
           <div className="shrink-0 border-b border-border p-3">
             {/* Each its group's icon (the folded edge's, in its jobs' color) over its name, the one in

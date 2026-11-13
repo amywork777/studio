@@ -814,7 +814,7 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. The title bar's right
   button is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox, with the panel
   if that is shut, and folds it again (`toolboxFold.ts`), and the Toolbox slides open and shut at
-  the sidebar's pace (Amy, 11/11). Every job the
+  the sidebar's pace (Amy, 11/11); the Toolbox has no fold button of its own (Amy, 11/12). Every job the
   enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
   board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
   and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.
