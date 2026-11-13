@@ -1,6 +1,5 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, StudioTrashedProject } from "@t3tools/contracts";
-import { useCallback, useMemo } from "react";
 
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { releaseProjectDraftUploads } from "~/lib/composerDraftUploads";
@@ -34,16 +33,10 @@ export function useTrashHiddenFolderKeys(): ReadonlySet<string> {
   const readEnvironmentId = STUDIO_INTERFACE_AVAILABLE ? environmentId : null;
   const projects = useStudioProjects(readEnvironmentId);
   const trashed = useTrashedProjects(readEnvironmentId);
-  return useMemo(() => trashOnlyFolders(trashed, projects), [trashed, projects]);
+  return trashOnlyFolders(trashed, projects);
 }
 
-/**
- * Trash on an environment: `trashProject` moves a project there (a project's menus' Move to
- * Trash) with a toast whose Undo restores it, `restoreProject` brings it back under the same id,
- * and `deleteForever` deletes its folders' records and chats from Studio, then its record in
- * Trash (`deleteForever` in `trash.ts`); the files on disk stay. Each resolves to whether it
- * happened, and reports its own failure.
- */
+/** Each action resolves to whether it happened and reports its own failure. */
 export function useTrash(environmentId: EnvironmentId) {
   const run = useAtomCommand(studioProjectsEnvironment.trash, { reportFailure: true });
   const deleteProject = useOrchestrationCommand(projectEnvironment.delete, {
@@ -52,68 +45,56 @@ export function useTrash(environmentId: EnvironmentId) {
   const { data, refresh } = useStudioProjectsList(environmentId);
   const knownFolders = useEnvironmentFolders(environmentId);
 
-  const step = useCallback(
-    async (id: string, action: "trash" | "restore" | "purge") => {
-      const result = await run({ environmentId, input: { id, action } });
-      if (result._tag !== "Success") return false;
-      refresh();
-      return true;
-    },
-    [environmentId, refresh, run],
-  );
-  const restoreProject = useCallback((id: string) => step(id, "restore"), [step]);
-  const trashProject = useCallback(
-    (id: string, name: string) =>
-      trashWithUndo({
-        id,
-        name,
-        trash: (each) => step(each, "trash"),
-        restore: restoreProject,
-        say: ({ title, undo }) => {
-          const toastId = toastManager.add({
-            type: "success",
-            title,
-            description: "Its chats that are running keep going.",
-            actionProps: {
-              children: "Undo",
-              onClick: () => {
-                toastManager.close(toastId);
-                void undo();
-              },
+  const step = async (id: string, action: "trash" | "restore" | "purge") => {
+    const result = await run({ environmentId, input: { id, action } });
+    if (result._tag !== "Success") return false;
+    refresh();
+    return true;
+  };
+  const restoreProject = (id: string) => step(id, "restore");
+  const trashProject = (id: string, name: string) =>
+    trashWithUndo({
+      id,
+      name,
+      trash: (each) => step(each, "trash"),
+      restore: restoreProject,
+      say: ({ title, undo }) => {
+        const toastId = toastManager.add({
+          type: "success",
+          title,
+          description: "Its chats that are running keep going.",
+          actionProps: {
+            children: "Undo",
+            onClick: () => {
+              toastManager.close(toastId);
+              void undo();
             },
-          });
-        },
-      }),
-    [restoreProject, step],
-  );
-  const deleteProjectForever = useCallback(
-    (id: string) =>
-      deleteForever({
-        id,
-        projects: data?.projects ?? {},
-        trashed: data?.trashed ?? NONE,
-        knownFolders,
-        deleteFolder: async (folder) => {
-          const result = await deleteProject({
-            environmentId,
-            // Forced: its chats go with it, as Delete forever says.
-            input: { projectId: folder.id, force: true },
-          });
-          if (result._tag !== "Success") return false;
-          const projectRef = scopeProjectRef(environmentId, folder.id);
-          releaseProjectDraftUploads(projectRef);
-          const drafts = useComposerDraftStore.getState();
-          const draft = drafts.getDraftThreadByProjectRef(projectRef);
-          if (draft) drafts.clearDraftThread(draft.draftId);
-          drafts.clearProjectDraftThreadId(projectRef);
-          return true;
-        },
-        purge: (each) => step(each, "purge"),
-      }),
-    [data, deleteProject, environmentId, knownFolders, step],
-  );
-  return useMemo(
-    () => ({ trashProject, restoreProject, deleteForever: deleteProjectForever }),
-    [deleteProjectForever, restoreProject, trashProject],
-  );
+          },
+        });
+      },
+    });
+  const deleteProjectForever = (id: string) =>
+    deleteForever({
+      id,
+      projects: data?.projects ?? {},
+      trashed: data?.trashed ?? NONE,
+      knownFolders,
+      deleteFolder: async (folder) => {
+        const result = await deleteProject({
+          environmentId,
+          // Forced: its chats go with it, as Delete forever says.
+          input: { projectId: folder.id, force: true },
+        });
+        if (result._tag !== "Success") return false;
+        const projectRef = scopeProjectRef(environmentId, folder.id);
+        releaseProjectDraftUploads(projectRef);
+        const drafts = useComposerDraftStore.getState();
+        const draft = drafts.getDraftThreadByProjectRef(projectRef);
+        if (draft) drafts.clearDraftThread(draft.draftId);
+        drafts.clearProjectDraftThreadId(projectRef);
+        return true;
+      },
+      purge: (each) => step(each, "purge"),
+    });
+  return { trashProject, restoreProject, deleteForever: deleteProjectForever };
 }

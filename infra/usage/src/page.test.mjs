@@ -103,6 +103,40 @@ NodeTest.test(
   },
 );
 
+NodeTest.test("lists failed turns by AI and model, and by why, counting installs", () => {
+  const html = pageOf({
+    days: 7,
+    installs: [{ day: "2026-11-10", installs: 2 }],
+    events: [],
+    failedTurns: 3,
+    failures: {
+      turns: [
+        { install: "a", provider: "claudeAgent", model: "claude-opus-5-5" },
+        { install: "b", provider: "claudeAgent", model: "claude-opus-5-5" },
+        { install: "a", provider: "codex", model: "gpt-5.5" },
+      ],
+      reasons: [{ install: "a", provider: "claudeAgent", reason: "sign_in" }],
+    },
+    now: NOW,
+  });
+  NodeAssert.match(
+    html,
+    /<td>Claude<\/td><td>claude-opus-5-5<\/td><td class="n">2<\/td><td class="n">2<\/td>/,
+  );
+  NodeAssert.match(html, /<td>Codex<\/td><td>gpt-5\.5<\/td><td class="n">1<\/td>/);
+  NodeAssert.match(html, /Not signed in, or the key was refused<\/td><td class="n">1<\/td>/);
+  NodeAssert.doesNotMatch(html, />b</);
+  const before = pageOf({
+    days: 7,
+    installs: [],
+    events: [],
+    failedTurns: 1,
+    failures: { turns: [{ install: "a", provider: "claudeAgent", model: "x" }], reasons: [] },
+    now: NOW,
+  });
+  NodeAssert.match(before, /sent from Studio 0\.1\.11 on/);
+});
+
 NodeTest.test("escapes what the database hands it", () => {
   const html = pageOf({
     days: 7,

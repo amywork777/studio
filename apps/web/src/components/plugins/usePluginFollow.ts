@@ -2,11 +2,8 @@ import {
   pluginFollowTarget,
   workspaceRelativePath,
 } from "@t3tools/client-runtime/state/pluginFollow";
-import type {
-  EnvironmentId,
-  OrchestrationV2ProjectedTurnItem,
-  ScopedThreadRef,
-} from "@t3tools/contracts";
+import type { ThreadStructureVisibleTurnItem } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { useEffect } from "react";
 
 import {
@@ -42,21 +39,16 @@ function followState(threadKey: string): ThreadFollowState {
 }
 
 /**
- * Shows plugin views beside a thread as its agent works, the way Backplane
- * redraws the board as the agent saves:
- * - an agent's call to a view's tool (text-to-cad's `cad_open`) opens that
- *   view with the call's arguments, as Codex opens the tab it asked for;
- * - with `followFiles`, when a run's file edit writes a file a view claims (a
- *   `.step`) and none of that plugin's views is open yet, the file opens in one. An
- *   open view refreshes itself and the agent switches it (`cad_show`), and a
- *   panel choice made during the run wins.
+ * An agent's call to a view's tool opens that view with the call's arguments. With `followFiles`,
+ * a file a view claims opens in one only while none of that plugin's views is open: an open view
+ * refreshes itself, and a panel choice made during the run wins.
  */
 export function usePluginFollow(input: {
   readonly environmentId: EnvironmentId;
   readonly threadRef: ScopedThreadRef | null;
   readonly threadKey: string | null;
   readonly runningRunId: string | null;
-  readonly items: ReadonlyArray<OrchestrationV2ProjectedTurnItem>;
+  readonly items: ReadonlyArray<ThreadStructureVisibleTurnItem>;
   /** The thread's working directory, to make the agent's absolute paths workspace-relative. */
   readonly workspaceRoot: string | null;
   readonly followFiles: boolean;
@@ -68,6 +60,7 @@ export function usePluginFollow(input: {
   );
   const plugins = list.data?.plugins;
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records each run seen live in the session's follow registry, with the panel store's revision at that moment
   useEffect(() => {
     if (threadRef === null || threadKey === null || runningRunId === null) return;
     const { liveRuns } = followState(threadKey);
@@ -76,6 +69,7 @@ export function usePluginFollow(input: {
     }
   }, [threadRef, threadKey, runningRunId]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens plugin views in the right panel store as a live run's completed items stream in, each item once per session
   useEffect(() => {
     if (threadRef === null || threadKey === null || plugins === undefined) return;
     const state = followState(threadKey);
@@ -87,6 +81,8 @@ export function usePluginFollow(input: {
       const runRevision = item.runId === null ? undefined : state.liveRuns.get(item.runId);
       if (runRevision === undefined) continue;
       if (item.status !== "completed" || state.followed.has(item.id)) continue;
+      // Replies and reasoning never open a view; the rest are whole turn items.
+      if (item.type === "assistant_message" || item.type === "reasoning") continue;
       state.followed.add(item.id);
       const target = pluginFollowTarget(plugins, item);
       if (target === null) continue;

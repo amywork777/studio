@@ -1,6 +1,5 @@
 import type { EnvironmentId, StudioProject } from "@t3tools/contracts";
 import { studioFolderKey, studioProjectAt } from "@t3tools/shared/studioProjects";
-import { useMemo } from "react";
 
 import type { SidebarProjectSnapshot } from "~/sidebarProjectGrouping";
 import { usePrimaryEnvironmentId } from "~/state/environments";
@@ -11,13 +10,9 @@ import { useStudioProjects } from "./useStudioProjects";
 const NO_PROJECTS: Readonly<Record<string, StudioProject>> = {};
 
 /**
- * The sidebar's folders gathered into Studio projects: every folder of a
- * project becomes one entry named for the project, holding all their
- * threads, where its first folder stood. Folders in no project, and folders
- * on other environments, stay as they are. The entry keeps its first
- * folder's key, so its order, folding and settings stay that folder's. A
- * folder in `hidden` (one only projects in Trash hold, `trashOnlyFolders`)
- * is left out, with its threads.
+ * Each merged entry keeps its first folder's key, so order, folding and settings stay that folder's.
+ * Folders on other environments stay as they are; folders in `hidden` (`trashOnlyFolders`) are left
+ * out with their threads.
  */
 export function mergeStudioProjectGroups(
   groups: ReadonlyArray<SidebarProjectSnapshot>,
@@ -73,11 +68,9 @@ export function useStudioSidebarGroups(
   const environmentId = usePrimaryEnvironmentId();
   const projects = useStudioProjects(engineering ? environmentId : null);
   const hidden = useTrashHiddenFolderKeys();
-  return useMemo(() => {
-    if (environmentId === null) return groups;
-    const shownProjects = engineering ? projects : NO_PROJECTS;
-    return Object.keys(shownProjects).length > 0 || hidden.size > 0
-      ? mergeStudioProjectGroups(groups, shownProjects, environmentId, hidden)
-      : groups;
-  }, [engineering, environmentId, groups, projects, hidden]);
+  if (environmentId === null) return groups;
+  const shownProjects = engineering ? projects : NO_PROJECTS;
+  return Object.keys(shownProjects).length > 0 || hidden.size > 0
+    ? mergeStudioProjectGroups(groups, shownProjects, environmentId, hidden)
+    : groups;
 }

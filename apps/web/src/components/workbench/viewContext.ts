@@ -50,12 +50,8 @@ export function readViewContext(content: ReadonlyArray<unknown>): {
 }
 
 /**
- * Puts what the viewer added (its "Add to chat": the person's words, the file
- * and the references they picked, a picture of the view) into the composer,
- * where it can be read and edited before it goes to the agent. A note of a hand
- * edit goes in quietly: the keyboard stays in the view, where the person is
- * still working, and a view filling the window stays as it is. Returns that
- * note when one went in, so the chat can say what it is (`handEditNoteShown`).
+ * A hand-edit note goes in quietly: focus stays in the view, where the person is still working, and
+ * a full-window view stays as it is. Returns that note when one went in (`handEditNoteShown`).
  */
 export function addViewContextToComposer(
   composer: ChatComposerHandle | null,

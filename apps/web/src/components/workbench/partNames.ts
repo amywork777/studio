@@ -1,9 +1,6 @@
 /**
- * Files as an engineer names them, for the engineering interface: a part, a
- * drawing, a study or a document by what it is called ("Servo bracket",
- * "Servo bracket drawing", "FEA summary"), not by its path or ending. The
- * name is the file's own, with its endings and separators taken off; a
- * study, a check or a job is named after the part it was run on.
+ * Files named as an engineer names them ("Servo bracket drawing"), not by path or ending. A study,
+ * a check or a job is named after the part it was run on.
  */
 
 export interface PartName {
@@ -174,11 +171,9 @@ const RESULTS_FOLDER =
   /^(?:fea|cam|sim|simulations?|stud(?:y|ies)|results?|analysis|analyses|toolpaths?|machining|out|output)$/i;
 
 /**
- * A study's or a CAM job's result as text-to-cad 0.11 writes it, `<folder>/result.json` and
- * `result.glb` (`cad step solve … --out studies/tip-load`, `cad step plan … --out CAM`): a CAM
- * job's when a folder it is in is named for one, else an FEA study's; named after its folder
- * (`tip-load` is "Tip load"), or null where the folder only says what it holds. Null for any
- * other file.
+ * text-to-cad 0.11 writes a result as `<folder>/result.json` and `result.glb`: a CAM job's when a
+ * folder above is named for one, else an FEA study's. Named after its folder (`tip-load` is "Tip
+ * load"), or null where the folder only says what it holds.
  */
 export function folderResult(
   path: string,

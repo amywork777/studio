@@ -1,11 +1,9 @@
 import { inSentence, meshFormat, partName } from "./partNames";
 
 /**
- * What a step or a turn changed, as design history reads it: by part and
- * document, not by file. A part's files fold into the part (its model
- * script, STEP, mesh, drawing and the studies run on it are one entry, "Servo
- * bracket: model, drawing"); a document, a table or a picture is its own
- * entry; anything with no engineer's name is counted, not listed.
+ * What a step or turn changed, by part and document rather than file: a part's files (script, STEP,
+ * mesh, drawing, studies) are one entry, "Servo bracket: model, drawing"; a document, table or
+ * picture is its own; anything with no engineer's name is counted, not listed.
  */
 
 export interface DesignChange {

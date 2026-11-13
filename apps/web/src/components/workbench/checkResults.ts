@@ -2,15 +2,10 @@ import { folderResult } from "./partNames";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
 
 /**
- * The checks a project's parts have been through, read from the results the
- * text-to-cad plugin writes: text-to-cad 0.11's study folder (`cad step solve
- * … --out studies/tip-load`), its answer `result.json` beside the model of its
- * result, `result.glb`, that the viewer opens; and, from earlier versions, an
- * FEA study's `<name>.fea.json` (or a named study's `<name>.<study>.json`)
- * beside its `.glb`. A result holds its findings (`severity` error, warning or
- * info, and its words: 0.11's `message` with a `hint`, earlier ones' `summary`
- * with a `fix` that has its own `summary`) and, from some checks, a verdict
- * (`status` ready or fix, a `headline`, counts).
+ * Check results read from what text-to-cad writes: 0.11's study folder (`result.json` beside
+ * `result.glb`), and from earlier versions `<name>.fea.json` or `<name>.<study>.json` beside a
+ * `.glb`. Findings carry `severity` and 0.11's `message`/`hint` or older `summary`/`fix.summary`;
+ * some checks add a verdict (`status` ready or fix, a `headline`, counts).
  */
 
 const RESULT_FILE = /\.fea\.json$/i;
@@ -25,12 +20,9 @@ const isFolderAnswer = (path: string) => /\.json$/i.test(path) && folderResult(p
 export const isCheckResultPath = (path: string) => RESULT_FILE.test(path) || isFolderAnswer(path);
 
 /**
- * Whether the file is a named FEA study's numbers, beside its picture: the FEA
- * skill keeps several studies of a part as `FEA/part.bracket-load.glb` and its
- * `part.bracket-load.json` (or `part.bracket-load.result.json`, as agents on
- * text-to-cad 0.10 save `cad fea solve --json`, whose picture may be `.fea.glb`,
- * or `part-load-result.json`, as agents also name it).
- * `paths` are the folder's files.
+ * Whether the file is a named FEA study's numbers beside its picture `FEA/part.load.glb`:
+ * `part.load.json`, `part.load.result.json` (text-to-cad 0.10's `cad fea solve --json`, whose
+ * picture may be `.fea.glb`) or `part-load-result.json`. `paths` are the folder's files.
  */
 export const isNamedStudyPath = (path: string, paths: ReadonlySet<string>) =>
   /\.json$/i.test(path) &&
@@ -212,11 +204,9 @@ export function parseCheckResult(
 }
 
 /**
- * A project's parts as its overview lists them: its models and boards, each
- * part once. A STEP or mesh exported beside a cadgen 0.8 model folds into the model,
- * a mesh exported beside its STEP folds into the STEP, and a STEP
- * exported beside its SolidCraft design folds into the design, which opens in
- * the part editor and is pictured by its STEP.
+ * A project's models and boards, each part once: an exported STEP or mesh folds into its cadgen
+ * model, a mesh into its STEP, and a STEP into its SolidCraft design, which opens in the part
+ * editor and is pictured by its STEP.
  */
 export function overviewParts(files: ReadonlyArray<ProjectFile>): ProjectFile[] {
   const parts = files.filter((file) => file.group === "CAD" || file.group === "Electronics");

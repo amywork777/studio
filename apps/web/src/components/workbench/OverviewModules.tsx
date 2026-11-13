@@ -1,6 +1,6 @@
 import { ChevronDownIcon, type LucideIcon } from "lucide-react";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { useAssetUrlState } from "~/assets/assetUrls";
 import { cn } from "~/lib/utils";
@@ -40,23 +40,20 @@ export function useFoldedModules(project: string) {
   const [state, setState] = useState(() => ({ project, folded: readFolded()[project] ?? [] }));
   // Another project, shown in the same page, reads its own folds.
   const folded = state.project === project ? state.folded : (readFolded()[project] ?? []);
-  const toggle = useCallback(
-    (module: string) => {
-      const next = folded.includes(module)
-        ? folded.filter((name) => name !== module)
-        : [...folded, module];
-      setState({ project, folded: next });
-      try {
-        globalThis.localStorage?.setItem(
-          FOLDED_KEY,
-          JSON.stringify({ ...readFolded(), [project]: next }),
-        );
-      } catch {
-        // Still folded for this visit.
-      }
-    },
-    [folded, project],
-  );
+  const toggle = (module: string) => {
+    const next = folded.includes(module)
+      ? folded.filter((name) => name !== module)
+      : [...folded, module];
+    setState({ project, folded: next });
+    try {
+      globalThis.localStorage?.setItem(
+        FOLDED_KEY,
+        JSON.stringify({ ...readFolded(), [project]: next }),
+      );
+    } catch {
+      // Still folded for this visit.
+    }
+  };
   return { folded, toggle };
 }
 
@@ -162,17 +159,13 @@ function Photo(props: {
   readonly root: string;
   readonly path: string;
 }) {
-  const resource = useMemo(
-    () =>
-      workspaceAssetResource({
-        kind: "workspace-file",
-        threadRef: props.threadRef,
-        draft: true,
-        workspaceRoot: props.root,
-        absolutePath: `${props.root.replace(/[\\/]+$/, "")}/${props.path}`,
-      }),
-    [props.threadRef, props.root, props.path],
-  );
+  const resource = workspaceAssetResource({
+    kind: "workspace-file",
+    threadRef: props.threadRef,
+    draft: true,
+    workspaceRoot: props.root,
+    absolutePath: `${props.root.replace(/[\\/]+$/, "")}/${props.path}`,
+  });
   const url = useAssetUrlState(props.environmentId, resource);
   const [failed, setFailed] = useState(false);
   if (url._tag !== "Success" || failed) return null;

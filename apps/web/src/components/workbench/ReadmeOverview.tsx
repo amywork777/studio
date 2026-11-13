@@ -19,7 +19,7 @@ import {
   setProjectFileQueryData,
   useProjectFileQuery,
 } from "../files/projectFilesQueryState";
-import { useFileSaveCoordinator } from "../files/useFileSaveCoordinator";
+import { changeFileSaveSession, useFileSaveSession } from "../files/fileSaveSessions";
 import { Skeleton } from "../ui/skeleton";
 import { OverviewModule, ShowAll, useFoldedModules } from "./OverviewModules";
 import { MODULE_HEADING, MODULE_NOTE, SECTION_STACK } from "./studioLayout";
@@ -52,15 +52,18 @@ const WritingIn = createContext(false);
 /** Words as they read; in a first README, each its own piece for `.readme-word` to bring in. */
 function Words(props: { readonly text: string }) {
   if (!useContext(WritingIn)) return props.text;
-  return props.text.split(/(\s+)/).map((word, index) =>
-    index % 2 === 1 || word === "" ? (
-      word
-    ) : (
-      <span key={`${index}-${word}`} data-readme-word="" className="readme-word">
+  const seen = new Map<string, number>();
+  return props.text.split(/(\s+)/).map((word, index) => {
+    if (index % 2 === 1 || word === "") return word;
+    // Each repeat of a word is its own piece, so the nth one keeps its key as more words arrive.
+    const nth = (seen.get(word) ?? 0) + 1;
+    seen.set(word, nth);
+    return (
+      <span key={`${word}-${nth}`} data-readme-word="" className="readme-word">
         {word}
       </span>
-    ),
-  );
+    );
+  });
 }
 
 /** README text as it reads: a link opens the file or page it names, and markdown marks drop away. */
@@ -254,6 +257,7 @@ function FoldedWords(props: { readonly children: ReactNode }) {
   const [more, setMore] = useState(false);
   const words = useRef<HTMLParagraphElement>(null);
   const folded = !all && !writingIn;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures whether the clamped paragraph overflows, on mount and on every resize
   useLayoutEffect(() => {
     const element = words.current;
     if (element === null || !folded) return;
@@ -280,14 +284,9 @@ function FoldedWords(props: { readonly children: ReactNode }) {
 }
 
 /**
- * The top of a project's Overview in the engineering interface: its README, read as an engineer
- * reads one. Every section the README has, Open actions first (`readmeRows`), each folded to its
- * heading until opened, a dated heading with its date quiet beside its title, then What it is (the
- * brief's purpose until the README says) and the decisions made so far, each with when and whether
- * it was asked of the agent or made by hand (a long list is one of the rows), so the page is as
- * short as the project's picture and the parts stay in view. The agent keeps the README
- * as it works (`studioProjectContext`); the person types into it where it reads (`Typed`), with no
- * Edit button.
+ * The engineering Overview's README, each section folded to its heading with Open actions first
+ * (`readmeRows`), so the page stays short and the parts stay in view. The agent keeps it up to
+ * date; the person types into it where it reads (`Typed`), with no Edit button.
  */
 export function ReadmeOverview(props: {
   readonly environmentId: EnvironmentId;
@@ -303,12 +302,8 @@ export function ReadmeOverview(props: {
   const { environmentId, cwd } = props;
   // Read with the person's unsaved typing in it, as the file view reads a file.
   const readme = useProjectFileQuery(environmentId, cwd, README);
-  const saveCoordinator = useFileSaveCoordinator({
-    environmentId,
-    cwd,
-    relativePath: README,
-    onPendingChange: noPending,
-  });
+  const saveTarget = { environmentId, cwd, relativePath: README };
+  useFileSaveSession(saveTarget, noPending);
   // A change that could not be placed puts the piece's old words back (a new key, a fresh piece).
   const [refused, setRefused] = useState(0);
   const save = (before: string, after: string) => {
@@ -321,7 +316,7 @@ export function ReadmeOverview(props: {
       return;
     }
     setProjectFileQueryData(environmentId, cwd, README, next);
-    saveCoordinator.change(next);
+    changeFileSaveSession(saveTarget, next);
   };
   useWorkspaceMutationRefresh({
     mutationId: props.mutationId,
@@ -339,6 +334,7 @@ export function ReadmeOverview(props: {
     written: sections.whatItIs === null ? null : (file?.contents ?? null),
   });
   const page = useRef<HTMLElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- staggers the rendered words' CSS animation delays in the DOM while the first README writes in
   useLayoutEffect(() => {
     if (!writingIn) return;
     const words = page.current?.querySelectorAll<HTMLElement>("[data-readme-word]") ?? [];

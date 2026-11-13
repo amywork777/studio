@@ -36,6 +36,7 @@ export function useProjectSizes(input: {
     readonly key: string;
     readonly read: ReadonlyArray<FolderSizes>;
   } | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads each folder's sizes from the CAD service again on every file change or size edit
   useEffect(() => {
     if (post === null || key === "") return;
     let cancelled = false;

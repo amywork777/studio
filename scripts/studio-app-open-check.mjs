@@ -1,16 +1,9 @@
 #!/usr/bin/env node
 /**
- * Opens a built or installed Studio and reads its first screen: a release must open. It starts the
- * app itself, not its CAD tools (scripts/studio-app-check.py does those), with a home of its own, so
- * it is a person's first launch and nothing it writes is theirs. It passes once the window shows
- * words, and fails on a window that stays blank, the app's error screen, or an app that exits.
- *
- *   node scripts/studio-app-open-check.mjs <Studio.app or Studio.exe> [folder for its scratch home]
- *
- * It stops only the process it started, by the id it was given (`app.kill`, then `taskkill` for that
- * id's own tree on Windows). It then removes the scratch home, though late CAD cache files can
- * bring a folder of them back. The home also keeps the app off the person's engine and counts
- * nothing: no update check, no usage counts.
+ * Opens a built or installed Studio with a scratch home (a first launch, no update check or counts)
+ * and passes once its window shows words; fails on a blank window, the error screen or an exit.
+ *   node scripts/studio-app-open-check.mjs <Studio.app or Studio.exe> [scratch home folder]
+ * Stops only the process it started, then removes the scratch home (late CAD cache files may return).
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";

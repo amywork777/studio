@@ -1,7 +1,7 @@
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { studioFolderKey } from "@t3tools/shared/studioProjects";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useNowMinute } from "~/hooks/useNowMinute";
@@ -51,6 +51,7 @@ const partKey = (part: VersionedPart) =>
 /** Which chat each checkpoint scope is, worked out from the project's chats. */
 function useChatsByScope(chats: ReadonlyArray<EnvironmentThreadShell>) {
   const [byScope, setByScope] = useState<ReadonlyMap<string, EnvironmentThreadShell>>(new Map());
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resolves each chat's checkpoint scope, an async digest, and drops an answer for chats since replaced
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
@@ -129,6 +130,7 @@ export function PartVersions(props: {
   const revealAt = useVersionRequestStore((store) => store.revealAt);
   const revealed = useVersionRequestStore((store) => store.revealed);
   const { folded, onFold } = props;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the section into view when the version request store asks, then marks the reveal taken
   useEffect(() => {
     const asks = asked !== null && shownRequest.current !== request;
     const reveals = revealAt !== null;
@@ -141,18 +143,18 @@ export function PartVersions(props: {
     section.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [asked, folded, onFold, request, revealAt, revealed]);
 
-  const choices = useMemo((): VersionChoice[] => {
-    if (versions === null) return [];
-    return versionChoices(
-      versions,
-      (version) => {
-        const turn = readCheckpointRef(version.ref);
-        const chat = turn === null ? undefined : byScope.get(turn.scope);
-        return chat === undefined ? null : chatLabel(chat.title);
-      },
-      (version) => formatRelativeTimeLabel(new Date(version.time * 1000).toISOString()),
-    );
-  }, [byScope, versions]);
+  const choices: VersionChoice[] =
+    versions === null
+      ? []
+      : versionChoices(
+          versions,
+          (version) => {
+            const turn = readCheckpointRef(version.ref);
+            const chat = turn === null ? undefined : byScope.get(turn.scope);
+            return chat === undefined ? null : chatLabel(chat.title);
+          },
+          (version) => formatRelativeTimeLabel(new Date(version.time * 1000).toISOString()),
+        );
 
   // The version asked for (a chip's turn, found by its checkpoint) or picked, else the newest; against
   // the one before it unless another was picked.

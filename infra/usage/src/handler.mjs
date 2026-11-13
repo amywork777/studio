@@ -1,21 +1,8 @@
 /**
- * Studio's usage receiver, after text-to-cad's (`apps/api/src/handler.mjs` there): the one place Studio sends
- * usage counts, served by this project's one function (`api/v1.mjs`, which vercel.json sends every /v1 path
- * to). A plain fetch handler over a `store` (Studio's own table, store.mjs), so what keeps the counts can
- * change without a release of Studio, and no build of Studio carries a key to it.
- *
- *   POST   /v1/events          a batch of counts (events.mjs) -> 204, or 429 past the limit per address
- *                              (limit.mjs)
- *   POST   /v1/forget          {install}: forget everything sent under an install id -> 204, or 429 past
- *                              the limit per address and per install id (limit.mjs)
- *   GET    /v1/health          -> 200, or 503 naming a missing setting (store.mjs: SETTINGS)
- *                              or the database's status when it will not answer
- *   GET    /?days=30           the numbers page (page.mjs), behind the NUMBERS_PASSWORD password the
- *                              browser asks for (HTTP Basic, any user name) -> 200, 401, 429 past the
- *                              limit on wrong passwords per address, or 503 when no password is set
- *
- * It keeps no IP address and passes on nothing the batch does not name. The one thing it adds is the
- * country the host places the request in, on each of the batch's events.
+ * Studio's usage receiver, a fetch handler over a `store` so no Studio build carries its key: POST
+ * /v1/events and /v1/forget (204, or 429 past the limit), GET /v1/health (200, or 503 naming what is
+ * missing) and GET / (the numbers page, HTTP Basic `NUMBERS_PASSWORD`). It keeps no IP address and
+ * adds only the country the host places the request in.
  */
 import * as NodeCrypto from "node:crypto";
 
@@ -99,17 +86,23 @@ async function json(request) {
   }
 }
 
+/** @typedef {{ take(key: string): { ok: boolean, retryAfter?: number } }} Limiter */
+
 /**
+ * @typedef {{ insert(rows: object[], context: { country: string | null }): Promise<void>,
+ *   forget(id: string): Promise<void>, ready(): Promise<void> }} Store
+ */
+
+/**
+ * @typedef {{ missing?: string[], country?: string | null, limiter?: Limiter, eventsLimiter?: Limiter,
+ *   client?: string | null, password?: string, passwordLimiter?: Limiter, now?: number }} Options
+ */
+
+/**
+ * `client` is the address the host gives; every limiter keys by it (`limiter` by install id too).
  * @param {Request} request
- * @param {{ insert(rows: object[], context: { country: string | null }): Promise<void>,
- *   forget(id: string): Promise<void>, ready(): Promise<void> }} store
- * @typedef {{ take(key: string): { ok: boolean, retryAfter?: number } }} Limiter
- * @param {{ missing?: string[], country?: string | null, limiter?: Limiter, eventsLimiter?: Limiter,
- *   client?: string | null, password?: string, passwordLimiter?: Limiter, now?: number }} [options]
- *   `missing`: settings the host lacks, by name. `country`: where the host places the request. `limiter`:
- *   how often one caller may ask to forget, by `client`, the address the host says the request came from,
- *   and by install id. `eventsLimiter`: how often one `client` may send a batch. `password`: the numbers
- *   page's, and `passwordLimiter` how many wrong ones one `client` may try.
+ * @param {Store} store
+ * @param {Options} [options]
  */
 export async function handle(
   request,

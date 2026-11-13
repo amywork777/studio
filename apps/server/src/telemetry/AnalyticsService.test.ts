@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
@@ -46,6 +47,7 @@ const SentBatch = Schema.fromJsonString(
     events: Schema.Array(Schema.Struct({ id: Schema.String })),
   }),
 );
+const decodeSentBatch = Schema.decodeEffect(SentBatch);
 
 /**
  * HTTP client that reads each batch, then fails as if the connection dropped
@@ -58,9 +60,9 @@ const layerAcceptThenFailClient = (batches: Array<ReadonlyArray<{ readonly id: s
     HttpClient.make((request) =>
       Effect.gen(function* () {
         if (request.body._tag === "Uint8Array") {
-          const body = yield* Schema.decodeEffect(SentBatch)(
-            new TextDecoder().decode(request.body.body),
-          ).pipe(Effect.orDie);
+          const body = yield* decodeSentBatch(new TextDecoder().decode(request.body.body)).pipe(
+            Effect.orDie,
+          );
           batches.push(body.events);
         }
         return yield* new HttpClientError.HttpClientError({
@@ -127,7 +129,7 @@ it("retryDelayMs doubles from 2s and stays under the 5 minute cap", () => {
   assert.equal(AnalyticsService.retryDelayMs(30, 0.999_999), 300_000);
 });
 
-it.layer(NodeServices.layer)("AnalyticsService test", (it) => {
+it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AnalyticsService test", (it) => {
   it.effect("a batch that keeps failing is retried with backoff, then dropped", () =>
     Effect.gen(function* () {
       const batches: Array<ReadonlyArray<{ readonly id: string }>> = [];

@@ -14,14 +14,10 @@ import {
  */
 
 /**
- * Rows an engineer has no use for: where threads start (checkout or worktree),
- * git, diffs and pull requests, usage-limit stops, the sidebar's coding
- * shelves, background git refreshes, the `t3` command and the legacy switches;
- * on Appearance the Dev and Nightly label, diff colors, the composer's branch
- * controls, the terminal font and word wrap (diffs and file sources); T3's
- * update track; a project's actions (its scripts and `t3.json`); and rows that do nothing in
- * Studio: project order (Home, the switcher and ⌘K always put the one opened last first) and
- * marking inactive chats done (the sidebar says when a chat was worked on, never Done).
+ * Settings rows an engineer has no use for (thread checkout, git, diffs, coding shelves, the `t3`
+ * command, code appearance, the update track, project scripts), plus rows that do nothing in
+ * Studio: project order (Home, the switcher and ⌘K always put the last opened first) and marking
+ * inactive chats done (the sidebar never says Done).
  */
 export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchItemId>([
   "new-threads",
@@ -37,9 +33,6 @@ export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchIte
   "proactive-panels",
   "background-activity",
   "cli-command",
-  "legacy-plan-mode",
-  "legacy-context-window-indicator",
-  "legacy-sidebar",
   "environment-identification",
   "diff-color-scheme",
   "composer-context",
@@ -50,11 +43,20 @@ export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchIte
   "project-order",
   "auto-settle-inactive-threads",
   "days-before-auto-settle",
+  "keep-threads-with-pull-requests",
+  "ghq-clone-layout",
+  // The model chosen under AI agents is the one new chats start on; there is no fallback row.
+  "fallback-model",
+  // Maintenance keeps its update checks here, not its storage cleanup (worktrees and artifacts).
+  "storage-delete-now",
+  "storage-artifacts",
   // Studio has no pins or archive, its chats' Delete always asks, and its Import is its own.
   "unpin-confirmation",
   "archive-confirmation",
   "delete-confirmation",
   "add-project-starts-in",
+  // The thread details card it sets up is left out of the engineering interface (`ChatView`).
+  "thread-details-items",
   // Programmer settings. Each keeps its stored value and default; the code interfaces still show
   // them, and the Interface switch (Settings, Advanced, Interface) is the way there.
   "code-font",
@@ -120,14 +122,6 @@ const ENGINEERING_SETTINGS_COPY: ReadonlyMap<string, SettingCopy> = new Map<
       description: "Also list skills when you type / in the chat box. Typing $ always lists them.",
     },
   ],
-  [
-    "composer-collapse",
-    {
-      title: "Collapse chat box on scroll",
-      description:
-        "Rest the chat box on a single line when you scroll the conversation. Click it or start typing to expand it again.",
-    },
-  ],
   // The composer has no model picker here, so the model new chats start on is set under AI agents.
   [
     "default-model",
@@ -150,7 +144,6 @@ const ENGINEERING_RESTORE_LABELS: ReadonlyMap<string, string> = new Map([
   ["Snooze limited threads", "Snooze limited chats"],
   ["Composer context", "Chat box context"],
   ["Show skills in slash menu", "Show skills when you type /"],
-  ["Collapse composer on scroll", "Collapse chat box on scroll"],
   ["Rich text composer", "Rich text chat box"],
   ["Continue threads after restarts", "Continue chats after restarts"],
   ["New thread mode", "New chat mode"],
@@ -182,7 +175,7 @@ export function engineeringSettingsSearchItems(
         : // The Interface switch is a page under Advanced here, not a row of Appearance.
           item.id === "studio-interface"
           ? { ...item, to: "/settings/interface" as const }
-          : // The model new chats start on is under AI agents here, not under General.
+          : // The model new chats start on is under AI agents here, not under Threads.
             item.id === "default-model"
             ? { ...item, to: "/settings/providers" as const }
             : item,

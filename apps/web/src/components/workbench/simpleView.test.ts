@@ -3,8 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   readSimpleView,
   setSimpleView,
-  modeOf,
-  simpleOf,
   simpleViewToggle,
   useSimpleViewStore,
   viewerEditLayout,
@@ -33,23 +31,24 @@ describe("Simple view", () => {
     useSimpleViewStore.setState({ on: false });
   });
 
-  it("opens in AI the first time, where no choice was ever kept, and a kept CAD stays CAD", async () => {
+  it("shows the CAD tools the first time, where no choice was ever kept, and a kept hide stays hidden", async () => {
     vi.stubGlobal("localStorage", storage());
+    expect(readSimpleView()).toBe(false);
+    expect(await restart()).toBe(false);
+    expect(viewerEditLayout(false)).toBe("manual");
+    // Hidden before, on Hide CAD tools or the old switch's AI: the person's, it stays.
+    vi.stubGlobal("localStorage", storage(new Map([[KEY, "1"]])));
     expect(readSimpleView()).toBe(true);
     expect(await restart()).toBe(true);
     expect(viewerEditLayout(true)).toBe("ai");
-    // A choice of CAD kept before AI became home is the person's: it stays.
     vi.stubGlobal("localStorage", storage(new Map([[KEY, "0"]])));
     expect(readSimpleView()).toBe(false);
-    expect(await restart()).toBe(false);
-    vi.stubGlobal("localStorage", storage(new Map([[KEY, "1"]])));
-    expect(readSimpleView()).toBe(true);
-    // A project's mode from before Simple view came says nothing of it: AI still.
+    // A project's mode from before Simple view came says nothing of it: shown still.
     vi.stubGlobal(
       "localStorage",
-      storage(new Map([["studio:workspace-modes", JSON.stringify({ "/p/clip": "manual" })]])),
+      storage(new Map([["studio:workspace-modes", JSON.stringify({ "/p/clip": "ai" })]])),
     );
-    expect(await restart()).toBe(true);
+    expect(await restart()).toBe(false);
   });
 
   it("remembers the choice across projects", async () => {
@@ -74,8 +73,8 @@ describe("Simple view", () => {
       throw new Error("Storage is off");
     };
     vi.stubGlobal("localStorage", { getItem: blocked, setItem: blocked });
-    // Nothing can have been kept: AI, as the first time.
-    expect(await restart()).toBe(true);
+    // Nothing can have been kept: the CAD tools shown, as the first time.
+    expect(await restart()).toBe(false);
     const { setSimpleView: set, useSimpleViewStore: store } = await import("./simpleView");
     expect(() => set(true)).not.toThrow();
     // The choice holds for the session.
@@ -92,14 +91,5 @@ describe("Simple view", () => {
     expect(simpleViewToggle({ editable: true, busy: false })).toBe("shown");
     // A command or sketch open holds it until it is finished or cancelled.
     expect(simpleViewToggle({ editable: true, busy: true })).toBe("held");
-  });
-});
-
-describe("the AI | CAD switch", () => {
-  it("reads the Simple view choice as AI, and the full workspace as CAD", () => {
-    expect(modeOf(true)).toBe("ai");
-    expect(modeOf(false)).toBe("cad");
-    expect(simpleOf("ai")).toBe(true);
-    expect(simpleOf("cad")).toBe(false);
   });
 });

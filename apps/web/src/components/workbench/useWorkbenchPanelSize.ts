@@ -33,17 +33,11 @@ const panelHost = (row: HTMLElement) =>
   row.querySelector<HTMLElement>(':scope > [data-preview-panel-mode="inline"]');
 
 /**
- * The right panel's size in the workbench layout: whatever the row leaves
- * after the chat dock. The panel's drag handle sets the dock's width, one
- * width for every thread. Same call as T3's `usePreviewPanelInlineSize`, whose
- * per-thread width it replaces (`useChatPanelInlineSize`).
- *
- * While the window or the sidebar resizes, the panel's width is written on it
- * directly each frame, unanimated, and the owner re-renders once the row
- * settles, the way a drag already avoids re-rendering it.
+ * The panel takes what the row leaves after the chat dock, one dock width for every thread. While
+ * the row resizes, the panel's width is written on it directly each frame, unanimated, and the
+ * owner re-renders once the row settles, the way a drag already avoids re-rendering it.
  */
 function useWorkbenchPanelSize(
-  _hostRef: unknown,
   options: {
     /** The row the chat column and the panel share. */
     readonly container?: HTMLElement | null | undefined;
@@ -53,10 +47,12 @@ function useWorkbenchPanelSize(
   const [dock, setDock] = useState(readDock);
   const [rowWidth, setRowWidth] = useState<number | null>(null);
   const latestDock = useRef(dock);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- keeps the resize observer's dock width current without resubscribing it
   useLayoutEffect(() => {
     latestDock.current = dock;
   }, [dock]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the row's DOM width and writes the panel's width on it each frame
   useLayoutEffect(() => {
     if (container === null) return;
     // Before first paint, so the panel never flashes at T3's width.
@@ -101,6 +97,8 @@ function useWorkbenchPanelSize(
     return {
       width,
       edge: "left",
+      // The widest and narrowest the panel can be: the dock at its floor, and at its cap.
+      bounds: { min: panelFor(0), max: panelFor(row) },
       resize(value) {
         const next = panelFor(value);
         host?.style.setProperty(RESIZABLE_WIDTH_PROPERTY, `${next}px`);
@@ -121,9 +119,10 @@ function useWorkbenchPanelSize(
         if (!committed) host?.style.setProperty(RESIZABLE_WIDTH_PROPERTY, `${width}px`);
       },
     };
-  }, CHAT_DOCK_WIDTH_STORAGE_KEY);
+  });
 
-  return { width, handlers };
+  // The row is measured above, from `container`, so the panel host has nothing to observe.
+  return { width, handlers, observeRow: () => () => {} };
 }
 
 /**

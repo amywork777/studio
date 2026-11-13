@@ -92,6 +92,7 @@ function InviteInstaller(props: {
     ? ({ kind: "failed", message: "Could not read Codex's setup. Try again." } as const)
     : inviteInstallStep(installation, started);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- starts the install over RPC once and reports when the server's install state settles; the refs keep one start and one report
   useEffect(() => {
     if (done.current) return;
     if (step.kind === "ready") {

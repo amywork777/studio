@@ -1,30 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off - a launcher that only sets the environment and runs the dev runner.
 /**
- * Runs this app as text-to-cad Studio: T3 Code with the text-to-cad plugin
- * built in. text-to-cad is this repository's `text-to-cad/` submodule
- * (STUDIO.md), so `node scripts/studio.ts [dev|dev:desktop]`
- * from here:
- *
- * - reads the checkout as a plugin marketplace and installs and enables its
- *   `text-to-cad` plugin on first start (apps/server/src/plugins/BundledPlugins.ts);
- * - names and brands the app from `brand/` (text-to-cad's mark, icons and accent);
- * - offers the finished sample projects (`studio-sample/`) to Make a copy to edit from the
- *   Library's Examples section, which copies them in the desktop app (`T3CODE_SAMPLES_DIR`);
- * - keeps its state in `~/.text-to-cad-studio`, never in T3 Code's own home.
- *
- * - edits parts by hand in text-to-cad's own viewer (its edit mode, `cad/edit`);
- *   Studio's own plugins (`studio-plugins/`) are offered beside it: SolidCraft,
- *   only with STUDIO_SOLIDCRAFT=1 (STUDIO_SOLIDCRAFT_APP=1 bridges it to the app);
- *
- * Its CAD server keeps its own state, cache, engine and port in the checkout's home
- * (`~/.text-to-cad-studio-dev`, `checkoutEngineEnv`), with its `cad` command first on the agents'
- * PATH, so neither a CAD server of the user's own nor the packaged app's ever meets it.
- *
- * TEXT_TO_CAD_ROOT points at another checkout; TEXT_TO_CAD_STUDIO_HOME moves the state;
- * TEXT_TO_CAD_STUDIO_ENGINE_PORT moves its engine's port (3346).
- * TEXT_TO_CAD_DEV=1 runs the checkout's working copy instead of the released CAD tools: its
- * development plugin (scripts/studio-dev-plugin.py), with state of its own in
- * `~/.text-to-cad-studio-dev`, so it never mixes with a release's installs.
+ * `node scripts/studio.ts [dev|dev:desktop]`: T3 Code as text-to-cad Studio, with the `text-to-cad/`
+ * submodule as plugin marketplace, `brand/`, samples, and state in `~/.text-to-cad-studio`. Env:
+ * TEXT_TO_CAD_ROOT (another checkout), TEXT_TO_CAD_STUDIO_HOME (state), TEXT_TO_CAD_DEV=1 (the
+ * checkout's CAD working copy), STUDIO_SOLIDCRAFT=1 (offer SolidCraft; `_APP=1` bridges the app).
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -54,12 +33,9 @@ const dev = process.env.TEXT_TO_CAD_DEV?.trim() === "1";
 const home =
   process.env.TEXT_TO_CAD_STUDIO_HOME?.trim() ||
   NodePath.join(NodeOS.homedir(), dev ? ".text-to-cad-studio-dev" : ".text-to-cad-studio");
-// Studio's own CAD state, engine and `cad` command: the dev plugin registers its
-// installation there, and the app and its agents run on it. Every run from a checkout keeps them in
-// the checkout's home on the checkout's port (whatever its T3 state's home), so it never shares an
-// engine with the packaged app.
-// TEXT_TO_CAD_STUDIO_ENGINE_PORT moves that engine off the checkout's port, so a second checkout's
-// Studio can run beside one already running instead of its CAD server failing on the held port.
+// The checkout's own CAD state, engine and `cad` command, in the checkout's home on its own port, so
+// it never shares an engine with the packaged app. TEXT_TO_CAD_STUDIO_ENGINE_PORT moves the port so a
+// second checkout's Studio can run beside a running one.
 const enginePort = process.env.TEXT_TO_CAD_STUDIO_ENGINE_PORT?.trim();
 const engineEnv = {
   ...checkoutEngineEnv(process.env, NodeOS.homedir()),

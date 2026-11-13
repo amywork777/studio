@@ -79,12 +79,9 @@ const TILE_LIVE =
   "enabled:hover:border-foreground/25 enabled:hover:bg-accent/50 dark:enabled:hover:bg-input/64 enabled:active:scale-97 enabled:active:bg-accent motion-reduce:enabled:active:scale-100";
 
 /**
- * A job as a tool to pick up: a square tile, its own picture (`toolIcon`) in its tab's hue over its
- * name in three lines' room, so a long name is read whole and names of any length sit level across a row. Its name and
- * what it makes show on a pause over it and is the tile's description for readers. A press sends
- * the job (`onRun`). One whose job does not fit the file in front (`worksOn`) is dimmed in its
- * place, as NX greys a command out, takes no press, and says what it works on instead; where the
- * project has none of that and New makes it (`start`), a press opens New there.
+ * A job's square tile: its picture in its tab's hue over its name, with three lines' room so names
+ * of any length sit level across a row. A job that does not fit the file in front (`worksOn`) is
+ * dimmed, takes no press and says what it works on; with `start`, a press opens New instead.
  */
 function ToolTile(props: {
   readonly action: HardwareAction;

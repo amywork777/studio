@@ -96,10 +96,13 @@ const refusal = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
 }) => {
   const error = squashAtomCommandFailure(result);
-  return new McpAppHostRefusal(
-    error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
-  );
+  return new McpAppHostRefusal({
+    message:
+      error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
+  });
 };
+
+const isPluginOperationError = Schema.is(PluginOperationError);
 
 /**
  * A tool call that ran out of time, answered as the plugin's own error rather than a refusal: the
@@ -109,7 +112,7 @@ const timedOut = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
 }): McpAppCallToolResult | null => {
   const error = squashAtomCommandFailure(result);
-  return Schema.is(PluginOperationError)(error) && error.reason === "timed_out"
+  return isPluginOperationError(error) && error.reason === "timed_out"
     ? { isError: true, content: [{ type: "text", text: error.message }] }
     : null;
 };
@@ -129,10 +132,7 @@ type Loaded =
   | { readonly _tag: "ready"; readonly document: PluginViewDocument };
 
 /**
- * A plugin's MCP App view filling its container. The environment runs the
- * view's tool and returns its document; the frame then speaks the MCP Apps
- * bridge, its requests going to the plugin's own server. On desktop the
- * document gets its own `mcp-app://` origin so workers and storage work; in
+ * On desktop the view's document gets its own `mcp-app://` origin so workers and storage work; in
  * a browser it runs in an opaque-origin `srcdoc` frame.
  */
 export function PluginViewFrame(props: {
@@ -178,6 +178,7 @@ export function PluginViewFrame(props: {
   const [reached, setReached] = useState(false);
   if (!reached && (phase === undefined || phase === "connected")) setReached(true);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the frame box's DOM size, which the view hears as its container dimensions
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
@@ -193,6 +194,7 @@ export function PluginViewFrame(props: {
   }, []);
 
   const argumentsKey = JSON.stringify(target.arguments);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks the environment's server to run the view's tool once it is reached, again on a new target or Try again, dropping a superseded answer
   useEffect(() => {
     if (!reached) return;
     let cancelled = false;
@@ -238,6 +240,7 @@ export function PluginViewFrame(props: {
 
   // The document becomes a frame: staged on desktop, inline elsewhere.
   const document_ = loaded._tag === "ready" ? loaded.document : null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- stages the document with the desktop bridge and releases the staged URL when the document changes or the frame unmounts
   useEffect(() => {
     if (document_ === null) return;
     const bridge = readPluginViewsBridge();
@@ -279,6 +282,7 @@ export function PluginViewFrame(props: {
   );
   const live = { theme, size, props, request, editLayout, focus, openChatFile };
   const latest = useRef(live);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed props and state to the long-lived MCP App host, which reads them asynchronously
   useEffect(() => {
     latest.current = live;
   });
@@ -287,6 +291,7 @@ export function PluginViewFrame(props: {
   // resends all of it until the host says the context is gone (null), as a sent message does.
   const modelContext = useRef<{ readonly taken: number } | null>(null);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- owns the MCP App host and the window message listener for the frame's document, torn down on a new document or unmount
   useEffect(() => {
     if (frame === null || document_ === null) return;
     const targetOrigin = "origin" in frame ? frame.origin : "*";
@@ -348,9 +353,12 @@ export function PluginViewFrame(props: {
     };
     const ask = async (message: string) => {
       const approved = await requestConfirmDialog(message);
-      if (approved === undefined)
-        throw new McpAppHostRefusal(`${APP_BASE_NAME} could not ask for approval here.`);
-      if (approved !== true) throw new McpAppHostRefusal("Declined by the user.");
+      if (approved === undefined) {
+        throw new McpAppHostRefusal({
+          message: `${APP_BASE_NAME} could not ask for approval here.`,
+        });
+      }
+      if (approved !== true) throw new McpAppHostRefusal({ message: "Declined by the user." });
     };
     const csp = readMcpAppCsp(document_.csp);
     const host = makeMcpAppHost({
@@ -388,13 +396,13 @@ export function PluginViewFrame(props: {
       readResource: ({ uri }) => call("resources/read", { uri }),
       openLink: async (url) => {
         if (document.activeElement !== frameRef.current || !navigator.userActivation?.isActive) {
-          throw new McpAppHostRefusal("Links open only from a click in the view.");
+          throw new McpAppHostRefusal({ message: "Links open only from a click in the view." });
         }
         window.open(url, "_blank", "noopener,noreferrer");
       },
       sendMessage: async (text) => {
         const send = latest.current.props.onSendMessage;
-        if (send === undefined) throw new McpAppHostRefusal("Messages need a thread.");
+        if (send === undefined) throw new McpAppHostRefusal({ message: "Messages need a thread." });
         const { target: current } = latest.current.props;
         const atItsPress = sendsWithoutAsking({
           studio: hasEngineeringSurfaces(),
@@ -408,7 +416,7 @@ export function PluginViewFrame(props: {
       updateModelContext: async (context) => {
         const add = latest.current.props.onAddContext;
         if (add === undefined) {
-          throw new McpAppHostRefusal("Plugin views cannot add model context here.");
+          throw new McpAppHostRefusal({ message: "Plugin views cannot add model context here." });
         }
         const content = context.content ?? [];
         if (content.length === 0) return;
@@ -430,7 +438,7 @@ export function PluginViewFrame(props: {
             openFile: async (path: string) => {
               const open = latest.current.props.onOpenFile;
               if (open === undefined)
-                throw new McpAppHostRefusal("Files open only beside a thread.");
+                throw new McpAppHostRefusal({ message: "Files open only beside a thread." });
               open(path);
             },
           }),
@@ -442,13 +450,15 @@ export function PluginViewFrame(props: {
               // CAD mode built a part: Home, the Overview and Cmd+K list it as it now is.
               if (heardBuilds(editKey, state.builds)) modelsChanged();
             },
-            // A double-click in the view steps into CAD on a face, or back to AI on empty space
-            // (`text-to-cad/.../edit/editLayout.js`): the bar's switch, pressed from the view.
+            // A double-click on a face with the CAD tools hidden shows them, the feature that made
+            // the face selected (`text-to-cad/.../edit/editLayout.js`). One on empty space, which
+            // asks for the AI layout, hides nothing: only Hide CAD tools does.
             requestEditLayout: async (layout: "manual" | "ai") => {
+              if (layout === "ai") return;
               if (frontViewBusy(useViewerEditState.getState().byView, editKey)) {
-                throw new McpAppHostRefusal("Finish or cancel the command first");
+                throw new McpAppHostRefusal({ message: "Finish or cancel the command first" });
               }
-              setSimpleView(layout === "ai");
+              setSimpleView(false);
             },
           }),
       ...(props.focusPlace == null
@@ -479,9 +489,11 @@ export function PluginViewFrame(props: {
             const declared = (content as { readonly mimeType?: unknown } | undefined)?.mimeType;
             if (typeof declared === "string") mimeType = declared;
           }
-          if (bytes === undefined) throw new McpAppHostRefusal(`${file.name} has no contents.`);
+          if (bytes === undefined) {
+            throw new McpAppHostRefusal({ message: `${file.name} has no contents.` });
+          }
           if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-            throw new McpAppHostRefusal(`${file.name} is too large to save.`);
+            throw new McpAppHostRefusal({ message: `${file.name} is too large to save.` });
           }
           saveBlob(new Blob([bytes.slice()], { type: mimeType }), file.name);
         }
@@ -518,6 +530,7 @@ export function PluginViewFrame(props: {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A new document needs a new host; the rest is read through `latest`.
   }, [frame, document_]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resends the host context to the view's frame when its theme, size, layout or focus ask changes
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.

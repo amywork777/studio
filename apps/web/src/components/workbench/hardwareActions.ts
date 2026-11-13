@@ -1,15 +1,10 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
 /**
- * Hardware first, code second (`brand.json` `"focus": "hardware"`). The
- * workbench groups a part's jobs the way CAD tools do: Evaluate (simulations,
- * fit, motion, mass), Manufacture by way of making it (a way's check and its
- * outputs together, the project's own way first), and Document. Each menu
- * keeps its everyday jobs in titled sections and the rest in a submenu each.
- * Every job is one the agent already knows through one of text-to-cad's
- * skills, offered only while an enabled plugin has that skill and only on the
- * kinds of file it applies to. A pick writes the job into the composer,
- * naming the part, to edit before sending.
+ * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
+ * own way first) and Document. Each job is one the agent knows through a text-to-cad skill, offered
+ * only while an enabled plugin has that skill and only on the kinds of file it applies to. A pick
+ * writes the job into the composer, naming the part, to edit before sending.
  */
 export const HARDWARE_FOCUS = import.meta.env.VITE_APP_FOCUS === "hardware";
 
@@ -158,7 +153,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     kinds: ["Assembly"],
     checks: true,
     prompt: (file) =>
-      `Check the parts in ${file} for collisions and tight clearances, and tell me where they touch or rub and by how much.`,
+      `Check the parts in ${file} for collisions with an exact interference check, and for tight clearances, and tell me where they touch or rub and by how much.`,
     short: (name) => `Check the fit of ${name}`,
   },
   {
@@ -531,13 +526,27 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     group: "Document",
     section: "robot",
     label: "Robot files",
-    gets: "A validated URDF with its links, joints, limits and meshes, and an SDF or SRDF if you want.",
+    gets: "A validated URDF with its links, joints, limits and meshes, and a MoveIt SRDF if you want.",
     skill: "robot-simulation",
     kinds: ["Part", "Assembly"],
     checks: false,
     prompt: (file) =>
-      `Make a URDF for ${file} with its links, joints and limits. Ask me whether I also want an SDF for Gazebo or a MoveIt SRDF.`,
+      `Make a URDF for ${file} from its joints, limits and materials, and validate it. Ask me whether I also want a MoveIt SRDF.`,
     short: (name) => `Describe ${name} as a robot`,
+  },
+  {
+    id: "mujoco",
+    group: "Document",
+    section: "robot",
+    label: "MuJoCo model",
+    gets: "An MJCF for MuJoCo with collision shapes, joint dynamics and actuators, checked for model health.",
+    needs: "Downloads MuJoCo on first use, about 20 MB.",
+    skill: "robot-simulation",
+    kinds: ["Assembly"],
+    checks: true,
+    prompt: (file) =>
+      `Make a MuJoCo model of ${file} from its joints, limits and materials, with collision shapes, joint dynamics and actuators, and check it with cad mujoco check. Tell me what the check found and ask me what each actuator should drive.`,
+    short: (name) => `MuJoCo model of ${name}`,
   },
 ];
 

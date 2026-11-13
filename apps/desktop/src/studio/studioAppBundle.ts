@@ -7,34 +7,10 @@ import * as NodePath from "node:path";
 import { studioEngineEnv, studioPath } from "./studioEngine.ts";
 
 /**
- * The Studio app (`scripts/build-studio-app.sh`) carries a bundle in its resources
- * (`Contents/Resources/studio` on a Mac, `resources\studio` on Windows):
- * the CAD tools with a Python of their own, their plugin laid out as a marketplace, the plugin's
- * page, and the settings the app starts with (`studio.json`). On each start, before anything reads
- * the environment, this points the app at that bundle, as `scripts/studio.ts` does for a checkout:
- *
- * - Studio's own home (`T3CODE_HOME`) and Electron profile (`T3CODE_DESKTOP_PROFILE`), apart from
- *   T3 Code's `~/.t3`, so the two apps never share state or a single-instance lock.
- * - Its name (`VITE_APP_BASE_NAME`), which the desktop and the server read at runtime.
- * - Its version (`T3CODE_APP_VERSION`), which the server says to clients and in usage counts, as
- *   the build gave the web client (`APP_VERSION`); the server's own package stays T3 Code's.
- * - The text-to-cad it includes (`STUDIO_TEXT_TO_CAD_VERSION`), which projects are stamped with.
- * - The CAD plugin, copied into the home with this copy of the app's paths filled in (the app can
- *   live anywhere), then offered and turned on (`T3CODE_PLUGIN_MARKETPLACE`,
- *   `T3CODE_DEFAULT_PLUGINS`).
- * - The finished sample projects, where the bundle has them (`T3CODE_SAMPLES_DIR`), which an
- *   example's Make a copy to edit copies into a new project.
- * - The text-to-cad library's own wheel, where the bundle has it (`CAD_UPDATE_FIND_LINKS`), so an
- *   integration made on first use installs Studio's text-to-cad, not the index's of that version.
- * - The CAD tools' own state, cache, server and port under the home (`studioEngineEnv`), with
- *   their `cad` command first on PATH, so the agents Studio runs use Studio's CAD server and a
- *   user's own never meets it. The bundled installation is registered there and that command
- *   written on each start (the server's `installations.startup`, as an agent app's `cad-mcp`
- *   runs it on a device with none), in the background, so a skill's `cad run` works before any
- *   CAD view has opened.
- *
- * Anything already set in the environment wins, so a test can point the app elsewhere. Without a
- * bundle (T3 Code, or Studio run from a checkout) it does nothing.
+ * Points the Studio app at the bundle in its resources (`Contents/Resources/studio`, or
+ * `resources\studio` on Windows) on each start, before anything reads the environment: a home and
+ * profile apart from T3 Code's `~/.t3`, so the apps never share state or a single-instance lock.
+ * Anything already set in the environment wins, so a test can point elsewhere; no bundle, no change.
  */
 export function applyStudioAppBundle(input: {
   readonly resourcesPath: string | undefined;

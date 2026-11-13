@@ -1,13 +1,5 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { PanelRightCloseIcon } from "lucide-react";
-import {
-  type ReactElement,
-  type RefObject,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
@@ -29,38 +21,25 @@ import { usePartForJobs } from "./StudioPanelBar";
 import { SECTION_GRID, SectionJobs } from "./ToolboxJobs";
 import {
   pairLoneSections,
-  readToolboxFolded,
   readToolboxTab,
   type ToolboxGroup,
-  toolboxFolded,
   toolboxGroups,
   toolboxLeftOut,
   toolboxLibraryLink,
   toolboxNarrowRem,
   toolboxStart,
   toolboxWorksOn,
-  writeToolboxFolded,
   writeToolboxTab,
 } from "./toolbox";
+import { selectToolboxFolded, useToolboxFold } from "./toolboxFold";
 import { useProjectKinds } from "./useLeadPart";
 import { useToolboxJobs } from "./useToolboxJobs";
 
 /**
- * The Toolbox, down the right of the workspace panel beside the part, the same in AI and CAD: every
- * job the enabled skills can do (`useToolboxJobs`), as Analysis, Manufacturing and Documents
- * (`toolboxGroups`, `MENU_WORDS`), a tab each, like SolidWorks' CommandManager; the tab left open is
- * remembered on this device. Every job in a group is a tile like every other, nothing folded and
- * none hidden: the group's purpose over one even grid of tiles, each section's name over its first.
- * The jobs are for the part in front, else the project's (`usePartForJobs`). A job that does not
- * fit that file (a board's on a part) keeps its tile, dimmed as NX greys a command out, and says
- * what it works on (`toolboxWorksOn`); with no file yet, every tile does. Where the project holds
- * nothing the job works on and New makes it (`toolboxStart`: a board job in a project with no
- * board), the tile's press opens New on that start instead, the way to make what the job needs.
- * A tile press sends its job in the chat for that part, or adds it after a draft being written
- * there for the person to send (`handToChat`). It folds to an edge of the groups' icons, as chosen
- * on this device, and on a narrow panel (`toolboxNarrowRem`: in CAD, one beside a chat) starts
- * folded so the model keeps the room; a group's icon there, in its jobs' color, opens it on that
- * group's tab, and the tab it would open on sits on a filled tile, as the sidebar's active row.
+ * Every job the enabled skills can do, a tab per group and each job an equal tile, none folded or
+ * hidden, for the part in front else the project's (`usePartForJobs`). A job that does not fit the
+ * file stays dimmed and says what it works on; one whose input New can make opens New instead. It
+ * starts folded on a narrow panel (`toolboxNarrowRem`) so the model keeps the room.
  */
 export function StudioToolbox(props: {
   readonly threadRef: ScopedThreadRef;
@@ -77,7 +56,7 @@ export function StudioToolbox(props: {
     projectKinds === null ? null : toolboxStart(action, projectKinds);
   const start = (template: NewTemplate) =>
     useNewDialogStore.getState().ask(template.discipline, template.id);
-  const groups = useMemo(() => toolboxGroups(jobs.menus), [jobs.menus]);
+  const groups = toolboxGroups(jobs.menus);
 
   const navigate = useNavigate();
   const router = useRouter();
@@ -111,139 +90,129 @@ export function StudioToolbox(props: {
     setFolded(false);
   };
 
-  if (folded) {
-    return (
-      <div
-        ref={rootRef}
-        className="flex w-10 shrink-0 flex-col items-center gap-2 border-l border-border py-2"
-        data-studio-toolbox="folded"
-      >
-        {groups.map((group) => {
-          const Icon = MENU_ICONS[group.group];
-          return (
-            <ToolboxTip key={group.group} text={MENU_WORDS[group.group]} side="left">
-              <Toggle
-                variant="ghost"
-                size="lg"
-                aria-label={MENU_WORDS[group.group]}
-                pressed={group.group === shown?.group}
-                onPressedChange={() => openOn(group.group)}
-              >
-                <Icon aria-hidden="true" className={cn("size-4.5", MENU_TINTS[group.group])} />
-              </Toggle>
-            </ToolboxTip>
-          );
-        })}
-      </div>
-    );
-  }
-
+  // One root for both, so its width slides between the edge and the open Toolbox as the sidebar's
+  // does (the app's panel animations), and the contents keep their own width while it does.
   return (
     <div
       ref={rootRef}
-      className="flex w-64 shrink-0 flex-col border-l border-border"
-      data-studio-toolbox="open"
+      className={cn(
+        "shrink-0 overflow-hidden border-l border-border",
+        "[[data-panel-animations=true]_&]:motion-safe:transition-[width] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+        folded ? "w-10" : "w-64",
+      )}
+      data-studio-toolbox={folded ? "folded" : "open"}
     >
-      {/* As tall as the ribbon's tab row beside it, so their hairlines run on as one. */}
-      <div className="flex h-7 shrink-0 items-center justify-between gap-2 border-b border-border ps-3 pe-1">
-        <h2 className="text-sm font-medium text-foreground">Toolbox</h2>
-        <ToolboxTip text="Fold the Toolbox" side="bottom">
-          <Button
-            variant="ghost-muted"
-            size="icon-xs"
-            aria-label="Fold the Toolbox"
-            onClick={() => setFolded(true)}
-          >
-            <PanelRightCloseIcon aria-hidden="true" />
-          </Button>
-        </ToolboxTip>
-      </div>
-      <div className="shrink-0 border-b border-border p-3">
-        {/* Each its group's icon (the folded edge's, in its jobs' color) over its name, the one in
-            front marked by the underline alone, so no tray stands behind them. Sized by its name with
-            the spare room shared out, and the panel holds its width (`w-64`) for that room: at equal
-            thirds, or narrower, Manufacturing runs into its neighbours. */}
-        <ToggleGroup
-          aria-label="Toolbox group"
-          value={shown === undefined ? [] : [shown.group]}
-          variant="underline"
-          size="tile"
-          className="w-full"
-          onValueChange={(value) => {
-            // Pressing the tab in front clears the group: it stays as it is.
-            const next = groups.find((group) => group.group === value[0]);
-            if (next) setTab(next.group);
-          }}
-        >
+      {folded ? (
+        <div className="flex w-10 flex-col items-center gap-2 py-2">
           {groups.map((group) => {
             const Icon = MENU_ICONS[group.group];
             return (
-              <ToggleGroupItem key={group.group} value={group.group} className="flex-auto">
-                <Icon aria-hidden="true" className={MENU_TINTS[group.group]} />
-                {MENU_WORDS[group.group]}
-              </ToggleGroupItem>
+              <ToolboxTip key={group.group} text={MENU_WORDS[group.group]} side="left">
+                <Toggle
+                  variant="ghost"
+                  size="lg"
+                  aria-label={MENU_WORDS[group.group]}
+                  pressed={group.group === shown?.group}
+                  onPressedChange={() => openOn(group.group)}
+                >
+                  <Icon aria-hidden="true" className={cn("size-4.5", MENU_TINTS[group.group])} />
+                </Toggle>
+              </ToolboxTip>
             );
           })}
-        </ToggleGroup>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-3 p-3">
-          {jobs.status === "loading" ? (
-            <p className="text-xs text-muted-foreground">Loading jobs…</p>
-          ) : jobs.status === "failed" ? (
-            <div className="flex flex-col items-start gap-2">
-              <p className="text-xs text-muted-foreground">Couldn't load the jobs.</p>
-              <Button variant="outline" size="sm" onClick={jobs.retry}>
-                Try again
-              </Button>
-            </div>
-          ) : (
-            <>
-              {part === null ? (
-                <p className="text-xs text-muted-foreground">
-                  The Toolbox works on a part you already have. Press a tile to start what it works
-                  on, or import a part.
-                </p>
-              ) : composerRef === null ? (
-                <p className="text-xs text-muted-foreground">
-                  Jobs start in a chat. Open one to use them.
-                </p>
-              ) : null}
-              {shown ? (
-                <GroupJobs
-                  group={shown}
-                  leftOut={leftOut}
-                  disabled={composerRef === null}
-                  worksOn={(action) => toolboxWorksOn(action, kind, startFor(action))}
-                  startFor={startFor}
-                  onRun={run}
-                  onStart={start}
-                  onBrowse={() => browse(shown.group)}
-                />
-              ) : null}
-            </>
-          )}
         </div>
-      </div>
+      ) : (
+        <div className="flex h-full w-64 flex-col">
+          {/* As tall as the ribbon's tab row beside it, so their hairlines run on as one. */}
+          {/* The title bar's right toggle folds the Toolbox, so the panel has no button of its own. */}
+          <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border ps-3 pe-1">
+            <h2 className="text-sm font-medium text-foreground">Toolbox</h2>
+          </div>
+          <div className="shrink-0 border-b border-border p-3">
+            {/* Each its group's icon (the folded edge's, in its jobs' color) over its name, the one in
+            front marked by the underline alone, so no tray stands behind them. Sized by its name with
+            the spare room shared out, and the panel holds its width (`w-64`) for that room: at equal
+            thirds, or narrower, Manufacturing runs into its neighbours. */}
+            <ToggleGroup
+              aria-label="Toolbox group"
+              value={shown === undefined ? [] : [shown.group]}
+              variant="underline"
+              size="tile"
+              className="w-full"
+              onValueChange={(value) => {
+                // Pressing the tab in front clears the group: it stays as it is.
+                const next = groups.find((group) => group.group === value[0]);
+                if (next) setTab(next.group);
+              }}
+            >
+              {groups.map((group) => {
+                const Icon = MENU_ICONS[group.group];
+                return (
+                  <ToggleGroupItem key={group.group} value={group.group} className="flex-auto">
+                    <Icon aria-hidden="true" className={MENU_TINTS[group.group]} />
+                    {MENU_WORDS[group.group]}
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-3 p-3">
+              {jobs.status === "loading" ? (
+                <p className="text-xs text-muted-foreground">Loading jobs…</p>
+              ) : jobs.status === "failed" ? (
+                <div className="flex flex-col items-start gap-2">
+                  <p className="text-xs text-muted-foreground">Couldn't load the jobs.</p>
+                  <Button variant="outline" size="sm" onClick={jobs.retry}>
+                    Try again
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {part === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      The Toolbox works on a part you already have. Press a tile to start what it
+                      works on, or import a part.
+                    </p>
+                  ) : composerRef === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      Jobs start in a chat. Open one to use them.
+                    </p>
+                  ) : null}
+                  {shown ? (
+                    <GroupJobs
+                      group={shown}
+                      leftOut={leftOut}
+                      disabled={composerRef === null}
+                      worksOn={(action) => toolboxWorksOn(action, kind, startFor(action))}
+                      startFor={startFor}
+                      onRun={run}
+                      onStart={start}
+                      onBrowse={() => browse(shown.group)}
+                    />
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * Whether the Toolbox is folded, and the way to fold or open it. The person's choice holds on a
- * wide panel and is remembered on this device; a narrow one (`toolboxFolded`) starts it folded and
- * forgets an opening there once it is wide again.
+ * Whether the Toolbox is folded, and the way to fold or open it (`useToolboxFold`, shared with the
+ * title bar's Toolbox button). The person's choice holds on a wide panel and is remembered on this
+ * device; a narrow one (`toolboxFolded`) starts it folded and forgets an opening there once it is
+ * wide again.
  */
 function useFolding(rootRef: RefObject<HTMLDivElement | null>) {
   const narrowRem = toolboxNarrowRem(useSimpleView());
-  const [chosen, setChosen] = useState(readToolboxFolded);
-  const [narrow, setNarrow] = useState(false);
-  const [openedNarrow, setOpenedNarrow] = useState(false);
-  const [seenNarrow, setSeenNarrow] = useState(narrow);
-  if (seenNarrow !== narrow) {
-    setSeenNarrow(narrow);
-    setOpenedNarrow(false);
-  }
+  const folded = useToolboxFold(selectToolboxFolded);
+  const setFolded = useToolboxFold((state) => state.setFolded);
+  const setNarrow = useToolboxFold((state) => state.setNarrow);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the panel body's width and keeps the fold store's narrow flag in step with it
   useLayoutEffect(() => {
     // The panel's body, the surface and the Toolbox side by side (`RightPanelTabs`' aside).
     const body = rootRef.current?.closest("[data-right-panel-body]");
@@ -254,18 +223,8 @@ function useFolding(rootRef: RefObject<HTMLDivElement | null>) {
       const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       setNarrow(width < narrowRem * rem);
     });
-  }, [rootRef, narrowRem]);
-  return {
-    folded: toolboxFolded({ chosen, narrow, openedNarrow }),
-    setFolded: (next: boolean) => {
-      if (narrow) {
-        setOpenedNarrow(!next);
-        return;
-      }
-      setChosen(next);
-      writeToolboxFolded(next);
-    },
-  };
+  }, [rootRef, narrowRem, setNarrow]);
+  return { folded, setFolded };
 }
 
 /** A control's tooltip, in the app's own. */

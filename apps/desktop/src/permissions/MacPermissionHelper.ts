@@ -1,4 +1,5 @@
 // @effect-diagnostics globalTimers:off -- Poll TCC only while the native permission helper is open.
+import { appName } from "@t3tools/shared/appName";
 import * as Electron from "electron";
 import { MAC_PERMISSION_HELPER_CHANNEL } from "../ipc/channels.ts";
 
@@ -18,8 +19,7 @@ const permissionGranted = (permission: MacPermission) => {
   return false;
 };
 
-/** Resolve the outer app bundle, never the executable or the ASAR inside it. */
-export function macAppBundlePath(executable: string): string | undefined {
+function macAppBundlePath(executable: string): string | undefined {
   return /^(.+\.app)\/Contents\/MacOS\/[^/]+$/.exec(executable)?.[1];
 }
 
@@ -60,12 +60,11 @@ button:focus-visible { outline: 2px solid #007aff; outline-offset: -2px; }
 img { width: 32px; height: 32px; pointer-events: none; }
 </style></head><body><main id="panel">
 <button id="close" aria-label="Close permission helper">×</button>
-<header>↑ Drag T3 Code into the list above</header>
-<button id="app" draggable="true" aria-label="Drag T3 Code to System Settings, or click to reveal in Finder"><img src="${escapeHtml(icon)}" alt="" draggable="false">T3 Code</button>
+<header>↑ Drag ${escapeHtml(appName())} into the list above</header>
+<button id="app" draggable="true" aria-label="Drag ${escapeHtml(appName())} to System Settings, or click to reveal in Finder"><img src="${escapeHtml(icon)}" alt="" draggable="false">${escapeHtml(appName())}</button>
 </main></body></html>`;
 }
 
-/** Owns one temporary panel and its IPC listener. Closing it releases all resources. */
 export class MacPermissionHelper {
   private generation = 0;
   private window: Electron.BrowserWindow | undefined;
@@ -90,12 +89,11 @@ export class MacPermissionHelper {
     const bundle = macAppBundlePath(Electron.app.getPath("exe"));
     if (!bundle) return;
     if (owner?.isDestroyed()) return;
-    // Finder's bundle-icon lookup can return the generic app icon for mounted artifacts.
-    // Use the same PNG that packaging uses to generate the app's macOS icon.
+    // Finder can return generic icons for mounted artifacts; use the packaging PNG.
     const appIcon = iconPaths
       .map((iconPath) => Electron.nativeImage.createFromPath(iconPath))
       .find((image) => !image.isEmpty());
-    if (!appIcon) throw new Error("The packaged T3 Code icon is missing.");
+    if (!appIcon) throw new Error(`The packaged ${appName()} icon is missing.`);
     const icon = appIcon.resize({ width: 64, height: 64 });
     const window = new Electron.BrowserWindow({
       width: 560,
@@ -130,7 +128,6 @@ export class MacPermissionHelper {
       try {
         if ((await isGranted()) && !window.isDestroyed()) finish();
       } catch {
-        // An unavailable probe is not evidence of a grant; the wizard can retry.
       } finally {
         checking = false;
       }

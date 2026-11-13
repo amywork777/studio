@@ -1,6 +1,6 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
@@ -157,12 +157,8 @@ function ListRows(props: {
 }
 
 /**
- * What a project holds, its assets, in one place, the way Google Drive shows a folder: every kind
- * of file together (CAD, electronics, analysis, manufacturing files, documents, references), each
- * marked by its kind's icon in its kind's color, filtered by type and shown as a list (name, kind,
- * how a part's checks went or where a file is) or as cards with pictures, what was built last
- * first, as Drive and Docs open on what you worked on last. Its chats are down the
- * left (`StudioSidebar`). A press opens a file beside the chat.
+ * Every file a project holds in one place, like a Drive folder: filtered by type, as a list or as
+ * cards, last built first. A press opens a file beside the chat.
  */
 export function ProjectEverything(props: {
   readonly environmentId: EnvironmentId;
@@ -179,17 +175,13 @@ export function ProjectEverything(props: {
   const [type, setType] = useState<ItemType | "All">("All");
   const [view, setView] = useState<"list" | "grid">(readView);
   const [all, setAll] = useState(false);
-  const items = useMemo<Item[]>(
-    () =>
-      projectFileItems(props.folders)
-        .toSorted((a, b) => byLatest(a.file, b.file))
-        .map((file) => ({
-          key: fullPath(file),
-          type: itemType(file.file.group),
-          file,
-        })),
-    [props.folders],
-  );
+  const items: Item[] = projectFileItems(props.folders)
+    .toSorted((a, b) => byLatest(a.file, b.file))
+    .map((file) => ({
+      key: fullPath(file),
+      type: itemType(file.file.group),
+      file,
+    }));
   const present = ITEM_TYPES.filter((entry) => items.some((item) => item.type === entry));
   const shownType = type !== "All" && present.includes(type) ? type : "All";
   const matching = shownType === "All" ? items : items.filter((item) => item.type === shownType);

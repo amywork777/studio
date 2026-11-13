@@ -7,11 +7,8 @@ import type { LibrarySkill } from "./libraryCatalog";
 import { libraryHref } from "./librarySearch";
 
 /**
- * One installed plugin's skills, listed under its row in Settings › Plugins in the engineering
- * interface: each with its name, which links to its entry in the Toolbox, and its description. A
- * skill is named as the library names it (`skillLabel`: `skillName` among every installed
- * plugin's skills). The library reads the primary environment's plugins, so a skill listed for
- * another environment has no link.
+ * The library reads the primary environment's plugins, so a skill listed for another environment
+ * has no Toolbox link.
  */
 export function PluginSkills(props: {
   /** This plugin's skills (`librarySkills`). */

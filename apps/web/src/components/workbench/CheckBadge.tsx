@@ -39,11 +39,9 @@ export const OutOfDateIcon = HistoryIcon;
 export const OUT_OF_DATE = "Part changed since this check";
 
 /**
- * One check of a part: its name and how it went, cut to the width it sits in, its whole name and
- * verdict on hover, and its result on a click. A check of a part since changed (`checkOutOfDate`)
- * is an outline, no status color: it no longer passes or fails anything, and its result is still a
- * click away. Under a line that already shows `OutOfDateIcon` and says why, `markedOutOfDate` makes
- * it plain quiet words.
+ * One check of a part, cut to its width, with the full name and verdict on hover. An out-of-date
+ * check (`checkOutOfDate`) is an outline with no status color, since it no longer passes or fails
+ * anything. `markedOutOfDate` makes it plain quiet words under a line that already says why.
  */
 export function CheckBadge(props: {
   readonly result: CheckResult;

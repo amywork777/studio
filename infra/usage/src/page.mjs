@@ -1,10 +1,7 @@
 /**
- * The numbers page, the receiver's root (`/`): Studio's usage counts for Amy, behind a password. It shows the
- * two views schema.sql makes (installs per day, how often each event happened), how many AI turns failed, and
- * how many installs opened each version, which says whether updates reach people. It counts install ids and
- * never shows one; no other property and no country reaches the page.
- *
- * Plain HTML and CSS, no script: it is drawn once per request and kept by nobody (`no-store`).
+ * The numbers page at `/`, behind a password: installs per day, event counts, failed AI turns by AI,
+ * model and reason, and installs per version. It counts install ids but never shows one, nor any
+ * other property or country. Plain HTML and CSS, no script, `no-store`.
  */
 import { PROPERTIES } from "./events.mjs";
 
@@ -14,6 +11,7 @@ export const LABELS = {
   "client.thread.started": "Chat started",
   "client.turn.requested": "Message sent",
   "provider.turn.completed": "AI turn finished",
+  "provider.turn.failed": "AI turn failed, with why",
   "chatgpt.auth.started": "ChatGPT sign-in started",
   "chatgpt.auth.completed": "ChatGPT sign-in finished",
   "chatgpt.transfer.started": "ChatGPT transfer started",
@@ -88,6 +86,49 @@ const escape = (text) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 const count = (n) => Number(n).toLocaleString("en-US");
+
+/** The AI by its kind, as the chat's picker names it. */
+const AI_NAMES = {
+  claudeAgent: "Claude",
+  codex: "Codex",
+  cursor: "Cursor",
+  grok: "Grok",
+  opencode: "OpenCode",
+  antigravity: "Antigravity",
+};
+
+/** Why a turn failed (`apps/server/src/telemetry/TurnFailure.ts`), in plain words. */
+export const FAILURE_REASONS = {
+  usage_limit: "Hit a usage or rate limit",
+  sign_in: "Not signed in, or the key was refused",
+  permission: "Not allowed",
+  service_down: "The AI's service was down or overloaded",
+  connection: "Lost the connection, or the AI quit",
+  context_full: "The chat outgrew the model's memory",
+  could_not_start: "The turn could not start",
+  gave_up: "The AI gave up after repeated errors",
+  other: "Something else",
+};
+
+/**
+ * Failed turns grouped by `keyOf`, most first: how many, and from how many installs.
+ * @param {object[]} rows
+ * @param {(row: object) => string[]} keyOf
+ */
+function failedBy(rows, keyOf) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const id = key.join("\u0000");
+    const kept = groups.get(id) ?? { key, times: 0, installs: new Set() };
+    kept.times += 1;
+    kept.installs.add(row.install);
+    groups.set(id, kept);
+  }
+  return [...groups.values()]
+    .map(({ key, times, installs }) => ({ key, times, installs: installs.size }))
+    .sort((a, b) => b.times - a.times);
+}
 const dayName = (day) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -195,6 +236,7 @@ footer { margin-top: 32px; color: var(--ink-muted); font-size: var(--small); max
 /**
  * The page for one span.
  * @param {{ days: number, installs: object[], events: object[], failedTurns?: number,
+ *   failures?: { turns: object[], reasons: object[] },
  *   launches?: { rows: object[], complete: boolean }, now?: number }} input
  */
 export function pageOf({
@@ -202,10 +244,34 @@ export function pageOf({
   installs,
   events,
   failedTurns = 0,
+  failures = { turns: [], reasons: [] },
   launches = { rows: [], complete: true },
   now = Date.now(),
 }) {
   const summary = summaryOf(installs, events, days, now);
+  const aiName = (provider) => AI_NAMES[provider] ?? provider ?? "Not sent";
+  const failedTable = (heads, groups) =>
+    `<table><thead><tr>${heads.map((head) => `<th>${head}</th>`).join("")}<th class="n">Failed turns</th><th class="n">Installs</th></tr></thead><tbody>${groups
+      .map(
+        (group) =>
+          `<tr>${group.key.map((cell) => `<td>${escape(cell)}</td>`).join("")}<td class="n">${count(group.times)}</td><td class="n">${count(group.installs)}</td></tr>`,
+      )
+      .join("")}</tbody></table>`;
+  const byModel = failedBy(failures.turns, (row) => [
+    aiName(row.provider),
+    row.model ?? "Not sent",
+  ]);
+  const byReason = failedBy(failures.reasons, (row) => [
+    aiName(row.provider),
+    FAILURE_REASONS[row.reason] ?? "Something else",
+  ]);
+  const failedSection = failedTurns
+    ? `<h2>Failed AI turns</h2>${failedTable(["AI", "Model"], byModel)}${
+        byReason.length
+          ? `<h2>Why they failed</h2>${failedTable(["AI", "Why"], byReason)}`
+          : `<p class="sub">Why a turn failed is sent from Studio 0.1.11 on.</p>`
+      }`
+    : "";
   const versions = versionsOf(launches.rows);
   const versionTable = versions.length
     ? `<table><thead><tr><th>Version</th><th class="n">Installs that opened it</th></tr></thead><tbody>${versions
@@ -281,6 +347,7 @@ ${figure(summary.cadFailures, "CAD actions failed")}
 ${figure(summary.edits, "hand edits")}
 ${figure(summary.projects, "projects made")}
 </section>
+${failedSection}
 <h2>Installs each day</h2>
 <div class="chart"><div class="bars" role="img" aria-label="Installs each day, newest on the right">${bars}</div>
 <div class="axis"><span>${escape(dayName(summary.days.at(-1).day))}</span><span>Busiest: ${count(summary.busiest)}</span><span>Today</span></div></div>

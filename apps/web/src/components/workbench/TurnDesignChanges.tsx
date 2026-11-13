@@ -1,5 +1,5 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
 import { Button } from "../ui/button";
@@ -158,12 +158,10 @@ function DesignChanges(props: {
 }
 
 /**
- * What a turn changed in the design, as its entry in the design history: in
- * the engineering interface, the parts and documents it changed (a part opens
- * what changed in it at this turn, in the Overview's Versions; anything else
- * opens beside the thread) in place of the files `children` lists; elsewhere,
- * `children` as they are. The changes are the turn's checkpoint, so they are
- * what the files say, whatever the agent reported.
+ * A turn's entry in the design history. In the engineering interface it lists the parts and
+ * documents it changed in place of `children`'s files; elsewhere `children` as they are. The
+ * changes come from the turn's checkpoint, so they are what the files say, whatever the agent
+ * reported.
  */
 export function TurnDesignChanges(props: {
   readonly threadRef: ScopedThreadRef | null;
@@ -173,10 +171,7 @@ export function TurnDesignChanges(props: {
   readonly children: ReactNode;
 }) {
   const engineering = useEngineeringInterface();
-  const { changes, other } = useMemo(
-    () => designChanges(props.files.map((file) => file.path)),
-    [props.files],
-  );
+  const { changes, other } = designChanges(props.files.map((file) => file.path));
   if (!engineering) return props.children;
   if (props.threadRef === null || (changes.length === 0 && other === 0)) return null;
   return (

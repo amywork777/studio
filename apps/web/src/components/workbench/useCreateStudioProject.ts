@@ -7,7 +7,6 @@ import type {
   StudioProjectOrigin,
 } from "@t3tools/contracts";
 import type { StudioProjectKind } from "@t3tools/shared/studioProjects";
-import { useCallback } from "react";
 
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { waitForProject } from "~/state/entities";
@@ -52,50 +51,47 @@ export function useCreateStudioProject(environmentId: EnvironmentId) {
   const knownFolders = useEnvironmentFolders(environmentId);
   const handleNewThread = useNewThreadHandler();
 
-  return useCallback(
-    async (input: NewStudioProject): Promise<boolean> => {
-      const name = input.name.trim();
-      let folders = input.folders;
-      let firstProjectId: ProjectId | null =
-        folders[0] === undefined ? null : (folderProject(knownFolders, folders[0])?.id ?? null);
-      if (folders.length === 0) {
-        const created = await createNew({ environmentId: input.environmentId, input: { name } });
-        if (created._tag !== "Success") {
-          const error = squashAtomCommandFailure(created);
-          toastManager.add({
-            type: "error",
-            title: "Could not create the project",
-            description: error instanceof Error ? error.message : "Creating its folder failed.",
-          });
-          return false;
-        }
-        folders = [created.value.workspaceRoot];
-        firstProjectId = created.value.projectId;
+  return async (input: NewStudioProject): Promise<boolean> => {
+    const name = input.name.trim();
+    let folders = input.folders;
+    let firstProjectId: ProjectId | null =
+      folders[0] === undefined ? null : (folderProject(knownFolders, folders[0])?.id ?? null);
+    if (folders.length === 0) {
+      const created = await createNew({ environmentId: input.environmentId, input: { name } });
+      if (created._tag !== "Success") {
+        const error = squashAtomCommandFailure(created);
+        toastManager.add({
+          type: "error",
+          title: "Could not create the project",
+          description: error instanceof Error ? error.message : "Creating its folder failed.",
+        });
+        return false;
       }
-      const id = await save(
-        null,
-        {
-          name,
-          template: input.kind.id,
-          brief: newProjectBrief(input),
-          folders,
-          createdAt: new Date().toISOString(),
-        },
-        input.origin,
-      );
-      if (id === null) return false;
-      if (folders[0] !== undefined) await input.onFolder?.(folders[0]);
-      // The project opening is the news; where its folder is stays in Show in Finder.
-      toastManager.add({ type: "success", title: `Created ${name}` });
+      folders = [created.value.workspaceRoot];
+      firstProjectId = created.value.projectId;
+    }
+    const id = await save(
+      null,
+      {
+        name,
+        template: input.kind.id,
+        brief: newProjectBrief(input),
+        folders,
+        createdAt: new Date().toISOString(),
+      },
+      input.origin,
+    );
+    if (id === null) return false;
+    if (folders[0] !== undefined) await input.onFolder?.(folders[0]);
+    // The project opening is the news; where its folder is stays in Show in Finder.
+    toastManager.add({ type: "success", title: `Created ${name}` });
 
-      if (firstProjectId !== null) {
-        const projectRef = scopeProjectRef(input.environmentId, firstProjectId);
-        const project = await waitForProject(projectRef).catch(() => null);
-        const draft = project === null ? null : await handleNewThread(projectRef).catch(() => null);
-        if (draft !== null) input.show?.(scopeThreadRef(input.environmentId, draft.threadId));
-      }
-      return true;
-    },
-    [createNew, save, knownFolders, handleNewThread],
-  );
+    if (firstProjectId !== null) {
+      const projectRef = scopeProjectRef(input.environmentId, firstProjectId);
+      const project = await waitForProject(projectRef).catch(() => null);
+      const draft = project === null ? null : await handleNewThread(projectRef).catch(() => null);
+      if (draft !== null) input.show?.(scopeThreadRef(input.environmentId, draft.threadId));
+    }
+    return true;
+  };
 }

@@ -1,10 +1,7 @@
 /**
- * Studio's part editor: the SolidCraft design open in this thread, as an engineer edits it. The
- * model with its sketch dimensions (double-click one and type a value or a formula), the named
- * sizes, and the feature timeline (rename, suppress, roll back, each feature's own inputs). Every
- * change goes to the thread's SolidCraft engine, the one the agent works on, which rebuilds, saves
- * and tells the agent on its next call. The page asks for the design again every second and a
- * half, so the agent's changes show up too.
+ * Studio's SolidCraft part editor: sketch dimensions, named sizes and the feature timeline. Every
+ * change goes to the thread's SolidCraft engine, the one the agent uses, and the page polls the
+ * design every 1.5 s so the agent's changes show too.
  */
 import { CornerDownLeft, Eye, EyeOff, Redo2, Ruler, Scan, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -347,20 +344,22 @@ export function App(props: { readonly bridge: Bridge; readonly context: HostCont
   }, [viewport, state]);
 
   const edit = useCallback(
-    async (name: string, args: Record<string, unknown>) => {
+    (name: string, args: Record<string, unknown>) => {
       setSaving(true);
-      try {
-        const reply = await bridge.call<EditReply>(name, args);
-        if (reply.ok === false) {
-          const detail = (reply.errors ?? []).map((error) =>
-            typeof error === "string" ? error : JSON.stringify(error),
-          );
-          throw new Error(detail.join("; ") || "SolidCraft refused the change");
-        }
-      } finally {
-        await refresh(true);
-        setSaving(false);
-      }
+      return bridge
+        .call<EditReply>(name, args)
+        .then((reply) => {
+          if (reply.ok === false) {
+            const detail = (reply.errors ?? []).map((error) =>
+              typeof error === "string" ? error : JSON.stringify(error),
+            );
+            throw new Error(detail.join("; ") || "SolidCraft refused the change");
+          }
+        })
+        .finally(async () => {
+          await refresh(true);
+          setSaving(false);
+        });
     },
     [bridge, refresh],
   );

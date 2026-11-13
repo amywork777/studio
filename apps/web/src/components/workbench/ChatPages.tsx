@@ -1,7 +1,7 @@
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
@@ -102,8 +102,8 @@ function ChatsPageContent(props: {
   const everyChat = useAllChats(props.environmentId);
   const [query, setQuery] = useState("");
   const filter = props.search.filter;
-  const waiting = useMemo(() => waitingChats(everyChat.chats), [everyChat.chats]);
-  const all = useMemo(() => waitingChatsFirst(everyChat.chats), [everyChat.chats]);
+  const waiting = waitingChats(everyChat.chats);
+  const all = waitingChatsFirst(everyChat.chats);
   const listed = filter === "needs-you" ? waiting : all;
   const shown = findChats(listed, everyChat.projectOf, query);
   return (

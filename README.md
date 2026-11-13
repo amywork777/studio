@@ -30,6 +30,9 @@ list differ):
 - `client.connected`, `client.thread.started` (with the kind of AI it starts with: Claude, Codex and
   the rest), `client.turn.requested`
 - `provider.turn.completed`
+- `provider.turn.failed`: a turn that failed, with the kind of AI and why, as one word from Studio's
+  own list (a usage limit, not signed in, the service down, a lost connection and the like), never
+  the AI's own message
 - `chatgpt.auth.started`, `chatgpt.auth.completed`, `chatgpt.transfer.started`,
   `chatgpt.transfer.completed`
 - `claude.signed_in`: Claude went from signed out to signed in (a launch that finds it already

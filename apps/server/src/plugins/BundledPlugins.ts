@@ -1,19 +1,8 @@
 /**
- * Plugins an app built on T3 Code ships with. text-to-cad Studio runs this
- * server from inside a text-to-cad checkout and sets:
- *
- * - `T3CODE_PLUGIN_MARKETPLACE`: marketplace folders read in place, beside the
- *   default catalogs (the checkout itself, whose plugin is `./`, and any of the
- *   app's own), separated as PATH separates folders;
- * - `T3CODE_DEFAULT_PLUGINS`: comma-separated plugin names to install and
- *   enable on first start, each from the first of those folders that lists it.
- *
- * Each default is offered once (`plugins/offered.json`), so one the user
- * uninstalls stays uninstalled; one the app stops naming is uninstalled, and
- * offered again if it is named again. A default still installed is updated when its
- * folder changed since the last start (`plugins/bundled.json`), so the tools
- * and views T3 lists for it follow the app, and one whose servers failed at their last start is
- * listed again (`failedDefaults`). Without the variables nothing changes.
+ * Plugins an app built on T3 Code ships with: `T3CODE_PLUGIN_MARKETPLACE` folders (PATH-separated)
+ * and `T3CODE_DEFAULT_PLUGINS` names, installed and enabled on first start. Each default is offered
+ * once (`offered.json`), so an uninstall sticks; one still installed is updated when its folder
+ * changed (`bundled.json`). Without the variables nothing changes.
  */
 import { catalogKey } from "@t3tools/plugins";
 import * as HostProcess from "@t3tools/shared/HostProcess";

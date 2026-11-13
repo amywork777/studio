@@ -3,6 +3,7 @@ import {
   type PullRequestDiffInput,
   type PullRequestDiffResult,
 } from "@t3tools/contracts";
+import { appName } from "@t3tools/shared/appName";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -28,7 +29,7 @@ export class PullRequestDiffCredentialRejectedError extends Schema.TaggedError<P
   },
 ) {
   override get message(): string {
-    return "This environment session is no longer valid (invalid_credential). Refresh the page or quit and reopen T3 Code.";
+    return `This environment session is no longer valid (invalid_credential). Refresh the page or quit and reopen ${appName()}.`;
   }
 }
 
@@ -86,14 +87,19 @@ export const layer: Layer.Layer<PullRequestDiffLoader, never, HttpClient.HttpCli
     const remoteAuthorization = yield* Effect.serviceOption(
       RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization,
     );
+    // The HTTP fetch owns the load span.
     return PullRequestDiffLoader.of({
-      load: (prepared, input) =>
-        fetchEnvironmentPullRequestDiff({
-          prepared,
-          diff: input,
-          signer,
-          remoteAuthorization,
-        }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient)),
+      load: Effect.fnUntraced(
+        function* (prepared, input) {
+          return yield* fetchEnvironmentPullRequestDiff({
+            prepared,
+            diff: input,
+            signer,
+            remoteAuthorization,
+          });
+        },
+        Effect.provideService(HttpClient.HttpClient, httpClient),
+      ),
     });
   }),
 );

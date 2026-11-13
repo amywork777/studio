@@ -70,8 +70,6 @@ const nameOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 const bucketOf = (target: OpenedTarget, key: string) =>
   target.kind === "file" ? `file:${nameOf(key)}` : `page:${key}`;
 
-// --- Codex reads files through the shell ----------------------------------------------------
-
 /** What makes a command more than programs and their words, when it is not in quotes. */
 const SHELL_SYNTAX = /[&;<>()$`*?[]/;
 const SHELL_WRAPPER = /(?:^|\/)(?:bash|sh|zsh)$/;
@@ -227,8 +225,6 @@ function readCommand(command: string): FileRead | null {
   return path === null ? null : { path, lines: program === "head" ? headLines(args) : null };
 }
 
-// --- What a tool call opened ----------------------------------------------------------------
-
 /** The text-to-cad plugin's viewer tools that name a model, after any server or plugin prefix. */
 const CAD_VIEWER_OPENER = /cad_(?:open|show)$/;
 const HTTP_ADDRESS = /^https?:\/\//i;
@@ -298,8 +294,6 @@ function itemOpenings(item: OrchestrationV2TurnItem, viewedImagePath: string | u
       return [];
   }
 }
-
-// --- Reading the chat -----------------------------------------------------------------------
 
 interface ChatOpening {
   readonly target: OpenedTarget;
@@ -400,12 +394,8 @@ const titleOf = (scan: ChatScan, target: SourceTarget) =>
 const openedLists = new WeakMap<ReadonlyArray<TimelineEntry>, ReadonlyArray<Opened>>();
 
 /**
- * What the agent opened in the chat, in the order it did: a Read, the CAD viewer's `cad_open` and
- * `cad_show`, the pages it fetched, and the reads Codex makes through the shell (`cat`, `nl`,
- * `head`, `tail` or `sed -n` on one file, or `cat`/`nl` piped to that `sed`). A search lists files
- * or pages and opens none of them. It reads the chat's tool calls, which a collapsed turn still
- * holds, and only those that completed. The array is shared by every caller: read it, do not
- * change it.
+ * Completed tool calls only, which a collapsed turn still holds. A search lists files or pages and
+ * opens none of them. The array is shared by every caller: read it, do not change it.
  */
 export function openedInChat(entries: ReadonlyArray<TimelineEntry>): ReadonlyArray<Opened> {
   const known = openedLists.get(entries);
@@ -418,8 +408,6 @@ export function openedInChat(entries: ReadonlyArray<TimelineEntry>): ReadonlyArr
   openedLists.set(entries, opened);
   return opened;
 }
-
-// --- Marking a citation ---------------------------------------------------------------------
 
 /** The openings that are the source `target`, files by `sameFile`'s rule, pages by address. */
 function openingsOf(scan: ChatScan, target: OpenedTarget): ReadonlyArray<ChatOpening> {
@@ -502,11 +490,8 @@ interface KeptList {
 const keptLists = new WeakMap<ChatScan, Map<string, KeptList>>();
 
 /**
- * The list under an answer: the sources it cites, each with when the agent opened it, or, for an
- * answer with no Sources block, what its turn opened in the thread's folder (`root`). An answer
- * with no run has no turn to say what was opened in, and gets none. Given its message's `id`, the
- * list is kept for the chat as read, so a derive pass over the same entries makes none again: the
- * array is shared, read it and do not change it.
+ * An answer with no Sources block lists what its turn opened in `root`; one with no run gets none.
+ * Given `id`, the list is cached per chat scan, so the array is shared: read it, do not change it.
  */
 export function turnReferences(input: {
   id?: string;
@@ -535,8 +520,6 @@ export function turnReferences(input: {
   }
   return references;
 }
-
-// --- Describing a row -----------------------------------------------------------------------
 
 const linesPhrase = ([from, to]: [number, number]) =>
   from === to ? `line ${from}` : `lines ${from}–${to}`;

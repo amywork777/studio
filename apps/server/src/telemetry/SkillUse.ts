@@ -1,13 +1,7 @@
 /**
- * Which of Studio's skills and jobs a sent message asked for, for the usage count `studio.skill.used`:
- * a job a Toolbox tile, a job menu or Quick Find wrote into the message (its `Tool: <label>` line, as the
- * web's `withToolLine` writes it), and a skill typed by name (`$fdm`, `$cad`).
- *
- * Every name comes from one closed list, `toolboxJobs.json` (each job's id, label and skill, which the web's
- * `jobSkills.test.ts` keeps the same as its jobs), so a skill a person added and named, or any other word
- * they typed, is never counted and never sent.
- *
- * @module SkillUse
+ * Which Studio skills and jobs a sent message asked for (`studio.skill.used`): a job's `Tool: <label>`
+ * line or a skill typed by name (`$fdm`). Names come only from the closed list in `toolboxJobs.json`,
+ * so a person's own skill or any other word they typed is never counted or sent.
  */
 import jobs from "./toolboxJobs.json" with { type: "json" };
 

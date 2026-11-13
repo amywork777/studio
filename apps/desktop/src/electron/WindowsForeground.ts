@@ -1,3 +1,5 @@
+import { appName } from "@t3tools/shared/appName";
+
 export interface WindowsForegroundApi {
   readonly getCurrentThreadId: () => number;
   readonly getForegroundWindow: () => bigint;
@@ -14,7 +16,6 @@ export interface WindowsForegroundApi {
     | { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
     | undefined;
   readonly getProcessImagePath: (processId: number) => string;
-  /** High bit of `GetAsyncKeyState`: whether the virtual key is currently down. */
   readonly isKeyDown: (virtualKey: number) => boolean;
   readonly attachThreadInput: (
     sourceThreadId: number,
@@ -55,7 +56,7 @@ export function activateWindowsForegroundWithApi(
   }
 }
 
-export function isWindowsShellHostedForegroundWithApi(api: WindowsForegroundApi): boolean {
+function isWindowsShellHostedForegroundWithApi(api: WindowsForegroundApi): boolean {
   const foregroundWindow = api.getForegroundWindow();
   return (
     foregroundWindow !== 0n &&
@@ -216,7 +217,7 @@ export function loadWindowsForegroundApi(): Promise<WindowsForegroundApi> {
 export async function activateWindowsForeground(handleBuffer: Buffer): Promise<void> {
   const api = await loadWindowsForegroundApi();
   if (activateWindowsForegroundWithApi(handleBuffer, api)) return;
-  throw new Error("Windows refused to activate the T3 Code window.");
+  throw new Error(`Windows refused to activate the ${appName()} window.`);
 }
 
 export async function isWindowsShellHostedForeground(): Promise<boolean> {

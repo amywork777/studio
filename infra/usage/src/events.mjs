@@ -1,19 +1,8 @@
 /**
- * What Studio's server sends (`apps/server/src/telemetry/AnalyticsService.ts`), checked field by field and
- * turned into rows. Anything outside the contract is refused, not stored: an event not in `EVENTS` (the list
- * README.md's "Usage data" shows, which a test holds this to), a property that event does not carry
- * (`PROPERTIES`, which a test holds to the server's code), a value that is not a number, a boolean or a short
- * word, or a batch of the wrong shape. Nothing in a row names a person, a file or what they made: a short word
- * alone could be a file's name, so each value must come under a name kept here.
- *
- * A batch, schema 1:
- *
- *   { schema: 1, install, version, platform, arch, mode, events: [{ id, event, at, properties }] }
- *
- * `install` is the install's random id (a UUID made on the machine, `anonymous-id` in Studio's state), the one
- * thing an opt-out names (`/v1/forget`). Each event's `id` is a UUID of its own, made when it was counted, and
- * `at` when (ISO 8601): a sender that never heard back sends the batch again as it was, and the store passes
- * both on, so the store takes the copy for what it is.
+ * Checks what Studio's server sends and turns it into rows, refusing anything outside the contract:
+ * an event not in `EVENTS` or a property not in `PROPERTIES` (both held by tests), a value that is
+ * not a number, boolean or short word, or a misshapen batch. A short word could be a file name, so
+ * each value must come under a name kept here.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -78,6 +67,8 @@ export const PROPERTIES = {
     "interactionMode",
     "durationMs",
   ],
+  // Why a turn failed, one word from Studio's own list (`apps/server/src/telemetry/TurnFailure.ts`).
+  "provider.turn.failed": ["provider", "reason"],
   "chatgpt.auth.started": CHATGPT,
   "chatgpt.auth.completed": CHATGPT_DONE,
   "chatgpt.transfer.started": CHATGPT,

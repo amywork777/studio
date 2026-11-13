@@ -1,12 +1,7 @@
 /**
- * StudioGitHubSignIn - Sign in with GitHub by device flow: GitHub gives a code, the person enters
- * it at github.com/login/device, and the token lands in the same saved `tokens["github.com"]` a
- * token pasted into Settings uses, so `GitHubCredentials` and everything behind it just work.
- *
- * The client id is public, and device flow takes no client secret. The token never reaches a
- * client: a check answers only how far along the person is.
- *
- * @module StudioGitHubSignIn
+ * GitHub sign-in by device flow. The token lands in the saved `tokens["github.com"]` a pasted token
+ * uses, so `GitHubCredentials` works unchanged. The client id is public and device flow takes no
+ * secret; the token never reaches a client, which only hears how far along the person is.
  */
 import {
   StudioGitHubSignInError,
@@ -14,8 +9,8 @@ import {
   type StudioGitHubSignInCheckResult,
   type StudioGitHubSignInStartResult,
 } from "@t3tools/contracts";
-import { readSourceControlHostSettings } from "@t3tools/source-control-core/client/definition";
-import * as GitHubClient from "@t3tools/source-control-github/client/definition";
+import { readSourceControlHostSettings } from "@t3tools/source-control-core/shared/definition";
+import * as GitHubClient from "@t3tools/source-control-github/shared/definition";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -113,7 +108,7 @@ const make = Effect.gen(function* () {
         expiresInSeconds: body.expires_in,
       })),
     ),
-    check: ({ deviceCode }) =>
+    check: Effect.fn("StudioGitHubSignIn.check")(({ deviceCode }) =>
       post(
         TOKEN_URL,
         { client_id: CLIENT_ID, device_code: deviceCode, grant_type: DEVICE_GRANT },
@@ -137,6 +132,7 @@ const make = Effect.gen(function* () {
           }
         }),
       ),
+    ),
   });
 });
 

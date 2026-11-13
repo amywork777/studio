@@ -1,13 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off -- a skill is a folder of files, read synchronously like the rest of the plugin files.
 /**
- * What an installed skill says about itself, for lists of skills. Codex's
- * `agents/openai.yaml` gives a display name (`interface.display_name`), a
- * one-line description (`short_description`) and an ask that shows the skill off
- * (`default_prompt`); the description in `SKILL.md`'s front matter stands in
- * when openai.yaml has none. That front matter is read by the Claude skill
- * picker's own reader, so a description holding a colon ("Typical requests: ...")
- * is kept, as Claude Code keeps it. Each file is read on its own, so one that is
- * missing or broken costs only what it would have said.
+ * What an installed skill says about itself: Codex's `agents/openai.yaml`, with `SKILL.md` front
+ * matter as the description fallback, parsed by the Claude skill picker's reader so a description
+ * holding a colon survives. Each file is read on its own, so a missing or broken one costs only
+ * what it would have said.
  */
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";

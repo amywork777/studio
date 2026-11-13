@@ -10,13 +10,9 @@ const VIEWS = [
 ] as const;
 
 /**
- * The engineering surfaces' Project tab, pinned at the head of the panel's
- * tabs and set apart from them: the project is home base, where the parts,
- * boards, documents and outputs that open as tabs come from. It cannot be
- * closed or dragged; a press brings the project page back. With code tools
- * (`studioInterface.ts`, `both`), Source sits beside it: the same place shown
- * as T3 Code's file explorer, scripts and all. Alone (the engineering interface) it is the
- * Overview, pinned as a browser pins a tab: its icon only, ahead of the files that open as tabs.
+ * The Project tab, pinned ahead of the panel's tabs: it cannot be closed or dragged. With code
+ * tools (`both`) Source sits beside it; in the engineering interface alone it shows its icon only,
+ * as a browser pins a tab.
  */
 export function PinnedProjectTab(props: {
   /** Whether the project's surface is the panel's active one. */

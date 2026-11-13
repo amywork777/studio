@@ -29,6 +29,7 @@ export function usePendingStart(
   folder: string | null,
   notStarted: boolean,
 ): void {
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- waits frames for the composer to mount, then hands it the pending start
   useEffect(() => {
     if (composerRef === null || folder === null || !notStarted) return;
     let frame = 0;
@@ -74,6 +75,7 @@ export function useFirstChatName(
   });
   const id = thread?.id ?? null;
   const title = thread?.title ?? "";
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- renames the server's thread once the project's name arrives from the server
   useEffect(() => {
     if (draft || environmentId === null || id === null || folder === null || projectName === null)
       return;
@@ -100,11 +102,9 @@ export function sendStep(box: {
 }
 
 /**
- * Presses Send until the composer no longer holds `message`: sent, or changed by the person. A
- * press while a send is under way is ignored by the chat, so it goes once. With no AI agent to
- * send to it stops and says so, as it does when its tries run out with the message still held:
- * the message stays in the chat's box, never dropped in silence. This outlives the effect that
- * began it: React may run that effect twice, and the start is taken only once.
+ * Presses Send until the composer no longer holds `message`; the chat ignores a press while a send
+ * is under way. With no agent, or out of tries, it says so and leaves the message in the box. This
+ * outlives the effect that began it: React may run that effect twice, and the start is taken once.
  */
 export function pressSendWhileHeld(composerRef: ComposerHandleRef, message: string): void {
   let tries = 0;

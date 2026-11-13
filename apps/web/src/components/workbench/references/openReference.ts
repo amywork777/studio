@@ -49,13 +49,9 @@ function headingLine(text: string, heading: string): number | null {
 }
 
 /**
- * Where a reference opens, read from its target (`splitSources`), the thread's folder (`root`) and
- * its files as listed there (`files`, relative to it; null while they are listed, when a script
- * opens as a file): a `.py` with a model of its name beside it is that part, at the citation's first
- * line (1 without lines); a document cited by its heading opens at the line of that heading, which
- * `read` (the document's text, or null) finds; any other file at its first cited line; an address as
- * a link. A path in full inside the folder is taken as the folder lists it. What the agent knew
- * without opening anything opens nothing.
+ * A `.py` with a model of its name beside it opens as that part. `files` is null while the folder
+ * is still listed, and then a script opens as a plain file. A full path inside `root` is taken as
+ * the folder lists it.
  */
 export async function referenceOpening(
   target: SourceTarget,
@@ -83,12 +79,9 @@ export async function referenceOpening(
 }
 
 /**
- * Opens a reference beside its chat (`threadKey`), where `referenceOpening` says: a file at its
- * line (`openFile`, as a chat's file link opens one, saying whether a plugin view shows it), a
- * page as the person's link setting has it (`openLink`), a part's model. In the workspace the
- * part's CAD view is asked to select the feature at the cited line (`viewerFocus.ts`), only where
- * one shows the part: opened as a plain file it has no features to show. Simple view shows none
- * either, so there the script opens at those lines in front, the part one tab away.
+ * The CAD view is asked to select the cited feature only where one shows the part; a plain file
+ * has no features. Simple view shows none either, so there the script opens in front at the cited
+ * lines, the part one tab away.
  */
 export async function openReference(
   opening: ReferenceOpening,

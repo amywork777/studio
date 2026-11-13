@@ -32,7 +32,14 @@ function store() {
   };
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+/** Resolves on the store's next notice, which ends every read it takes in. */
+const nextChange = (models: ReturnType<typeof folderModelsStore>) =>
+  new Promise<void>((resolve) => {
+    const stop = models.subscribe(() => {
+      stop();
+      resolve();
+    });
+  });
 
 describe("project folders' models", () => {
   const roots = Array.from({ length: 20 }, (_, index) => `/p/tile${index}`);
@@ -52,7 +59,7 @@ describe("project folders' models", () => {
         roots.map((root, index) => [root, [model(`id-${index}`, `p${index}`)]]),
       ),
     });
-    await settle();
+    await nextChange(models);
     expect(models.models(env, "/p/tile3").map((entry) => entry.name)).toEqual(["p3"]);
     // Read already at this revision: asking again asks nothing.
     for (const root of roots) models.want(env, [root], cad.get);
@@ -71,7 +78,7 @@ describe("project folders' models", () => {
     models.want(env, ["/p/a"], cad.get);
     flush();
     cad.pending[0]!({ roots: { "/p/a": [model("id-a", "plate")] } });
-    await settle();
+    await nextChange(models);
     models.changed();
     models.want(env, ["/p/a"], cad.get);
     flush();
@@ -79,14 +86,14 @@ describe("project folders' models", () => {
     expect(cad.asked).toHaveLength(2);
     expect(models.models(env, "/p/a").map((entry) => entry.name)).toEqual(["plate"]);
     cad.pending[1]!({ roots: { "/p/a": [model("id-a", "plate"), model("id-b", "bracket")] } });
-    await settle();
+    await nextChange(models);
     expect(models.models(env, "/p/a").map((entry) => entry.name)).toEqual(["plate", "bracket"]);
     // A read that fails keeps them too.
     models.changed();
     models.want(env, ["/p/a"], cad.get);
     flush();
     cad.pending[2]!(null);
-    await settle();
+    await nextChange(models);
     expect(models.models(env, "/p/a")).toHaveLength(2);
     expect(models.title("id-b")).toBe("Bracket");
   });
@@ -101,7 +108,7 @@ describe("project folders' models", () => {
     models.want(env, ["/p/a"], cad.get);
     flush();
     cad.pending[0]!({ roots: { "/p/a": [model("id-a", "plate")] } });
-    await settle();
+    await nextChange(models);
     // Home's tile, mounted before the answer, now sees the part.
     const after = models.snapshot(env, "/p/a");
     expect(after).not.toBe(before);
@@ -121,7 +128,7 @@ describe("project folders' models", () => {
       models.want(env, ["/p/a"], cad.get);
       flushes.splice(0).forEach((flush) => flush());
       cad.pending.at(-1)!(reply);
-      await settle();
+      await nextChange(models);
     };
     // A fresh Home: the CAD service does not answer the tile's first read.
     await ask(null);
@@ -138,7 +145,7 @@ describe("project folders' models", () => {
       models.want(env, ["/p/b"], cad.get);
       flushes.splice(0).forEach((flush) => flush());
       cad.pending.at(-1)!(null);
-      await settle();
+      await nextChange(models);
       retries.splice(0).forEach((again) => again());
     }
     expect(models.known(env, "/p/b")).toBe(true);
@@ -153,7 +160,7 @@ describe("project folders' models", () => {
     cad.pending[0]!({
       roots: { "/p/a": [model("id-a", "plate")], "/p/b": [model("id-b", "horn")] },
     });
-    await settle();
+    await nextChange(models);
     expect(models.script("id-b")).toBe("/p/b/parts/horn.py");
     expect(models.script("id-c")).toBeUndefined();
   });
@@ -164,7 +171,7 @@ describe("project folders' models", () => {
     models.want(env, ["/p/a"], cad.get);
     flush();
     cad.pending[0]!({ roots: { "/p/a": [model("id-a", "led_module")] } });
-    await settle();
+    await nextChange(models);
     models.hear("id-a", "Old name");
     models.hear("id-b", "Head");
     expect([...models.titles()]).toEqual([

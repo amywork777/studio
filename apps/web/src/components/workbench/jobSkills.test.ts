@@ -54,7 +54,7 @@ describe("each job of a skill with several as a skill of its own", () => {
           : [],
       ),
     );
-    expect(several).toEqual(new Set(["cad", "pcb"]));
+    expect(several).toEqual(new Set(["cad", "pcb", "robot-simulation"]));
     expect(JOB_SKILL_JOBS.map((job) => job.id)).toContain("fdm");
     expect(JOB_SKILL_JOBS.map((job) => job.id)).not.toContain("sendcutsend");
     expect(jobOfSkill("board-fab")?.skill).toBe("pcb");

@@ -1,10 +1,7 @@
 /**
- * A failed build's reason as one line. Studio's CAD service gives a build's last two lines run
- * together (`cad/edit/service.py`, `_last_said`), which for a script that raised are the line of
- * code it stopped on and then the error: `part.py: w = widht * 2 NameError: name 'widht' is not
- * defined`. The code line is a piece of a traceback, so only the error stays, after the script's
- * name: `part.py: NameError: name 'widht' is not defined`. A reason with no Python error in it
- * (the service's own words) is left as it is.
+ * The CAD service joins a build's last two lines (`_last_said`), so a script that raised gives the
+ * code line then the error: `part.py: w = widht * 2 NameError: ...`. Only the error stays after the
+ * script's name; a reason with no Python error in it is left as it is.
  */
 
 /** The script's name as the service puts it before the reason. */

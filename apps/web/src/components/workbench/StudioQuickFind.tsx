@@ -11,7 +11,7 @@ import {
   SettingsIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { useComposerHandleContext } from "~/composerHandleContext";
 import { cn } from "~/lib/utils";
@@ -171,7 +171,7 @@ function QuickFindBody(props: {
         ) ?? null);
 
   // Every project's parts, the open project's first; a folder in no project has its own.
-  const owners = useMemo(() => {
+  const owners = (() => {
     const ordered =
       current === null ? cards : [current, ...cards.filter((card) => card !== current)];
     const entries = ordered.flatMap((card) =>
@@ -180,64 +180,48 @@ function QuickFindBody(props: {
     return workspace !== null && current === null
       ? [[workspace.folder, null] as const, ...entries]
       : entries;
-  }, [cards, current, workspace]);
+  })();
   const listings = useFolderPaths(
     environmentId,
-    useMemo(() => owners.map(([root]) => root), [owners]),
+    owners.map(([root]) => root),
   );
   // Each folder's cadgen 0.8 models, among its parts by their document ids.
   const models = useProjectModels({
     environmentId,
-    folders: useMemo(() => owners.map(([root]) => root), [owners]),
+    folders: owners.map(([root]) => root),
   });
-  const parts = useMemo(
-    () =>
-      folderParts<ListedProject | null>(
-        listings.map((listing, index) => ({
-          project: owners[index]?.[1] ?? null,
-          root: listing.root,
-          paths: listing.paths,
-          models: models.get(listing.root) ?? [],
-        })),
-      ),
-    [listings, models, owners],
+  const parts = folderParts<ListedProject | null>(
+    listings.map((listing, index) => ({
+      project: owners[index]?.[1] ?? null,
+      root: listing.root,
+      paths: listing.paths,
+      models: models.get(listing.root) ?? [],
+    })),
   );
-  const docs = useMemo(
-    () =>
-      folderDocuments<ListedProject | null>(
-        listings.map((listing, index) => ({
-          project: owners[index]?.[1] ?? null,
-          root: listing.root,
-          paths: listing.paths,
-        })),
-      ),
-    [listings, owners],
+  const docs = folderDocuments<ListedProject | null>(
+    listings.map((listing, index) => ({
+      project: owners[index]?.[1] ?? null,
+      root: listing.root,
+      paths: listing.paths,
+    })),
   );
-  const otherFiles = useMemo(
-    () =>
-      folderOtherFiles<ListedProject | null>(
-        listings.map((listing, index) => ({
-          project: owners[index]?.[1] ?? null,
-          root: listing.root,
-          paths: listing.paths,
-        })),
-      ),
-    [listings, owners],
+  const otherFiles = folderOtherFiles<ListedProject | null>(
+    listings.map((listing, index) => ({
+      project: owners[index]?.[1] ?? null,
+      root: listing.root,
+      paths: listing.paths,
+    })),
   );
   const inHere = (part: FoundPart<ListedProject | null>) =>
     here !== null &&
     (part.project === null ? studioFolderKey(part.root) === here : part.project === current);
 
-  const skills = useMemo(
-    () => new Set((plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : []))),
-    [plugins],
+  const skills = new Set(
+    (plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : [])),
   );
   const part = workspace?.part ?? null;
   const process = workspace?.process;
-  const menus = useMemo(
-    () => (part === null ? [] : hardwareActions(part.kind, skills, process)),
-    [part, skills, process],
-  );
+  const menus = part === null ? [] : hardwareActions(part.kind, skills, process);
   // A model's id is never a title: its name, as its viewer or the project's list says it.
   const partTitle =
     part === null

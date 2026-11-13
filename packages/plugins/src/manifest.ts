@@ -1,13 +1,7 @@
 /**
- * Reading a plugin folder in the Codex/Claude Code plugin format: its manifest,
- * its MCP servers and its skills.
- *
- * The manifest is looked for where each host keeps it: `.codex-plugin/plugin.json`
- * (Codex), `.claude-plugin/plugin.json` (Claude Code), or a bare `plugin.json`.
- * Servers come from `mcpServers` (a path to a JSON file holding
- * `{ "mcpServers": {...} }` or the bare map, or that map inline), else from a
- * `.mcp.json` in the folder, else the Agent Plugins standard's `mcp.json`; skills from `skills` (a directory of
- * `<name>/SKILL.md`), else `skills/` when it exists.
+ * Reads a plugin folder: its manifest at `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`
+ * or `plugin.json`; servers from `mcpServers` (inline, or a JSON file holding the map or
+ * `{ "mcpServers": ... }`), else `.mcp.json`, else `mcp.json`; skills from `skills`, else `skills/`.
  */
 import {
   type PluginFolder,

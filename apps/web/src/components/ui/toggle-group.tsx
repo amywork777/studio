@@ -1,5 +1,3 @@
-"use client";
-
 import type { Toggle as TogglePrimitive } from "@base-ui/react/toggle";
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import type { VariantProps } from "class-variance-authority";
@@ -19,12 +17,14 @@ const isSegmented = (variant: VariantProps<typeof toggleVariants>["variant"]) =>
 function ToggleGroup({
   className,
   variant = "segmented",
-  size = isSegmented(variant) ? "segmented" : "default",
+  size: sizeProp,
   orientation = "horizontal",
   children,
   ...props
 }: ToggleGroupPrimitive.Props & VariantProps<typeof toggleVariants>) {
-  const value = React.useMemo(() => ({ size, variant }), [size, variant]);
+  const size =
+    sizeProp === undefined ? (isSegmented(variant) ? "segmented" : "default") : sizeProp;
+  const value = { size, variant };
   return (
     <ToggleGroupPrimitive
       className={cn(

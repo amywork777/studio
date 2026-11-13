@@ -1,9 +1,7 @@
 /**
- * The agent's steps in an engineer's words, for the engineering interface: a
- * shell command reads as what it did to the design ("FEA study on the L
- * bracket", "Built the L bracket") instead of the command line, and a step
- * that read or changed files names the parts and documents they are. The
- * command itself stays one click away, in the step's details.
+ * The agent's steps in an engineer's words: a shell command reads as what it did to the design
+ * ("Built the L bracket"), and a file step names the parts and documents. The command itself stays
+ * one click away in the step's details.
  */
 
 import { APP_BASE_NAME } from "../../branding";
@@ -281,7 +279,7 @@ export function engineeringToolLabel(tool: string | null | undefined): StepLabel
  */
 export function engineeringChatWords(label: string): string {
   return label
-    .replace(/\bT3 thread metadata\b/g, "chat details")
+    .replace(/\b(?:T3 )?thread metadata\b/g, "chat details")
     .replace(/\b(?:T3 )?thread(s?)\b/g, "chat$1");
 }
 

@@ -1,12 +1,9 @@
 import { useState } from "react";
 
 /**
- * A project's README as its Overview reads it (`ReadmeOverview.tsx`): the title, "What it is",
- * and "Decisions", one line each, which the agent keeps as it works (`studioProjectContext`):
- * `- <what was decided> (<YYYY-MM-DD>, asked)`, or `by hand` for a change made by hand. A
- * decision written date first (`- 2026-10-19 — ... Source: ...`) reads too, as does a line
- * `Decision: ...` outside that section, and every other section is kept as written, so whatever
- * the README holds shows.
+ * Decisions are written `- <what was decided> (<YYYY-MM-DD>, asked)` or `by hand`
+ * (`studioProjectContext`). Date-first lines and a `Decision: ...` line outside the section read too,
+ * and every other section is kept as written.
  */
 
 export interface ReadmeDecision {
@@ -38,7 +35,7 @@ export interface ReadmeSections {
  * What a new project's README starts with (`ManagedProjectFolders.namedProjectReadme` on the
  * server): the project's icon and a line saying where it was made, not what it is.
  */
-const STARTING_LINE = /^\s*(<[^>]+>|Created in \[T3 Code\]\([^)]*\)\.?)\s*$/;
+const STARTING_LINE = /^\s*(<[^>]+>|Created in \[[^\]]+\]\([^)]*\)\.?)\s*$/;
 const LIST_ITEM = /^\s*(?:[-*]|\d+[.)])\s+(.+)$/;
 const SUBHEADING = /^#{3,6}\s+(.+?)\s*#*\s*$/;
 /** Where one sentence ends and the next starts, past the abbreviations that end in a stop. */

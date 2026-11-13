@@ -1,12 +1,8 @@
 /**
- * text-to-cad's app capability (its MCP server's page protocol 9). The CAD server's `cad_http`
- * reaches the viewer's routes (`/api/v1/documents`, `/api/v1/local/…`: edit mode's, versions', sizes')
- * only with the capability its tool results deliver in `_meta`, UI-only: an agent calling
- * `cad_http` reaches its telemetry route and nothing else. A CAD view reads it from its launch and
- * sends it itself. Studio's own UI asks the same routes with no view in front (a part's facts, a
- * project's sizes and versions, New part's first build), so the service asks them with the
- * capability of that scope's server, read from a launch the server answered, as a view would.
- * Agents' calls (`callAgentTool`) never carry it.
+ * text-to-cad's app capability (page protocol 9): `cad_http` reaches the viewer's routes only with
+ * the capability tool results carry in UI-only `_meta`. Studio's UI asks those routes with no view
+ * open, using the capability from a launch that scope's server answered. Agents' calls
+ * (`callAgentTool`) never carry it.
  */
 import { isRecord } from "@t3tools/plugins";
 

@@ -5,11 +5,9 @@ import type { FolderChecks } from "./useProjectChecks";
 const normal = (path: string) => path.replaceAll("\\", "/").replace(/\/+$/, "");
 
 /**
- * Whether the check result the viewer shows (`shown`, its full path) is of a part changed since,
- * for the title block to say so over it. Read as the project's Overview reads its parts' checks
- * (`currentResults`, a study on a copy counted for its part: `claimStudies`), so a result open on
- * its own says what its part's badge says. False when `shown` is no result, and when nothing is
- * known: a result whose file names no time, a part the engine has not built.
+ * Read as the Overview reads its parts' checks (`currentResults`, `claimStudies`), so a result open
+ * on its own says what its part's badge says. False when nothing is known: a result whose file
+ * names no time, or a part the engine has not built.
  */
 export function shownResultOutOfDate(
   folders: ReadonlyArray<FolderChecks>,

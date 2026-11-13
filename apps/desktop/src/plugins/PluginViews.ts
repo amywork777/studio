@@ -25,14 +25,13 @@ const releasePluginView = DesktopIpc.makeIpcMethod({
   channel: PLUGIN_VIEW_RELEASE_CHANNEL,
   payload: Schema.String,
   result: Schema.Void,
-  handler: (url) =>
-    Effect.gen(function* () {
-      const origin = documents.release(url);
-      if (origin === null) return;
-      yield* Effect.promise(() =>
-        Electron.session.defaultSession.clearStorageData({ origin }).catch(() => undefined),
-      );
-    }),
+  handler: Effect.fn("desktop.ipc.pluginView.release")(function* (url) {
+    const origin = documents.release(url);
+    if (origin === null) return;
+    yield* Effect.promise(() =>
+      Electron.session.defaultSession.clearStorageData({ origin }).catch(() => undefined),
+    );
+  }),
 });
 
 /** Keeps every view frame on its own origin, in any window. */

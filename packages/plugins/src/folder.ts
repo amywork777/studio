@@ -14,6 +14,7 @@ export interface PluginFolder {
 }
 
 /** A plugin or marketplace that cannot be read, with a sentence a person can act on. */
+// @effect-diagnostics-next-line extendsNativeError:off - this package loads no Effect runtime; readers throw it synchronously.
 export class PluginReadError extends Error {
   override readonly name = "PluginReadError";
 }

@@ -1,9 +1,7 @@
 /**
- * The library: every kind of document Studio makes, and every installed plugin's skills, each
- * with its example in one of the examples Studio ships (`studio-sample/servo-bracket`, unless
- * `libraryExamples.json` names another). A document gathers
- * under one name the templates New offers and the part menus' jobs that make it. The library
- * page lists these; New, the part menus and Settings link into it.
+ * Every document kind Studio makes and every installed plugin's skill, each with its example
+ * (`studio-sample/servo-bracket` unless `libraryExamples.json` names another). A document gathers
+ * New's templates and the part menus' jobs that make it under one name.
  */
 
 import type { InstalledPlugin } from "@t3tools/contracts";
@@ -343,11 +341,11 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:robot",
     name: "Robot description",
     templates: ["robot"],
-    actions: ["robot-files"],
-    what: "Links, joints and limits of an assembly, for simulation.",
+    actions: ["robot-files", "mujoco"],
+    what: "Links, joints and limits of an assembly, for ROS, MoveIt and MuJoCo.",
     give: "The assembly, and which parts move.",
     asks: null,
-    gets: "A URDF and its meshes in robots/, validated, and an SRDF for MoveIt and an SDF for Gazebo when you want them.",
+    gets: "A URDF and its meshes in robots/, validated, an SRDF for MoveIt when you want one, and a MuJoCo model checked for health.",
   }),
   doc({
     id: "doc:prd",
@@ -423,7 +421,7 @@ const SKILL_BLURBS: Readonly<Record<string, string>> = {
   pcb: "Edit and check KiCad circuit boards",
   print3d: "Slice and print on Bambu Lab printers",
   render: "Photoreal stills and films with Blender",
-  "robot-simulation": "URDF, SRDF and SDF robot descriptions",
+  "robot-simulation": "URDF, SRDF and MuJoCo robot descriptions",
   sendcutsend: "Review DXF/STEP against specs",
   "work-instructions": "Step-by-step assembly PDF",
 };
@@ -566,9 +564,15 @@ export function ownTemplateEntries(files: ReadonlyArray<NewTemplate>): LibraryDo
   );
 }
 
-/** A skill's name as the chat shows it: its own display name, else its name title-cased. */
+/** A skill's own display name, else its name title-cased: T3's chat now shows the bare name. */
 const chatName = (name: string, displayName: string | null) =>
-  formatProviderSkillDisplayName(displayName === null ? { name } : { name, displayName });
+  displayName?.trim()
+    ? formatProviderSkillDisplayName({ name, displayName })
+    : name
+        .split(/[\s:_-]+/)
+        .filter((word) => word !== "")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 
 /**
  * A skill's one name wherever the library shows it (its card and detail, Made by, what an entry

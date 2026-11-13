@@ -27,11 +27,15 @@ CAD="$ROOT/text-to-cad"
 BUNDLE="$ROOT/build/studio-bundle"
 VERSION="${1:-0.1.0}"
 export PATH="$ROOT/node_modules/.bin:$HOME/.local/bin:$PATH"
-# Its scratch folders (the work folder here, the desktop build's stage) stay under build/: every
-# night macOS empties the system's temp folder of what no one has opened in three days (dirhelper,
-# 3:35 AM), and a build running then lost the bundle's empty files, which keep their packages' old
-# dates and are never read, so its update zip no longer matched the app's signature.
-export TMPDIR="$ROOT/build/tmp"
+# Its scratch folders (the work folder here, the desktop build's stage) stay out of the system's
+# temp folder, which macOS empties nightly of files unopened for three days (dirhelper): a build
+# then lost the bundle's old empty files and its update zip no longer matched the signature. On a
+# Mac they also stay out of the repository, whose node_modules the bundle's self-check refuses.
+if [ "$(uname -s)" = Darwin ]; then
+  export TMPDIR="$HOME/Library/Caches/studio-build/tmp"
+else
+  export TMPDIR="$ROOT/build/tmp"
+fi
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 stop() {
@@ -139,7 +143,10 @@ wheel_url() {
   wheel="$(ls "$work"/"$1"-*.whl)"
   if [ "$platform" = win ]; then echo "file:///$(cygpath -m "$wheel")"; else echo "file://$wheel"; fi
 }
+# setuptools packs whatever its build/lib holds, and keeps old files there: the viewer's renamed
+# bundles from every earlier build (392 files, not 64, by 0.1.11). Each build starts it empty.
 for package in cad cad-server cad-mcp; do
+  rm -rf "$CAD/packages/$package/build"
   uv build --wheel --out-dir "$(native "$work")" "$(native "$CAD/packages/$package")"
 done
 # The versions the checkout's CAD tools run on, so the app runs the same ones.

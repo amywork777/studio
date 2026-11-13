@@ -1,17 +1,8 @@
 /**
- * StudioProjects - Studio's projects (`StudioProject` in contracts) as files
- * the user can read, diff and share. A root folder (`$STUDIO_PROJECTS_DIR`,
- * else `~/studio-projects`) holds one folder per project, `<root>/<id>/`, with
- * its `project.json` and a README Studio writes. Where git is available each
- * project folder is its own repository and every save is a commit, so pushing
- * that repository shares that project. Each save stamps `.studio/engine.json`
- * with the text-to-cad this app includes, so every Version records what it was
- * last worked on with; an update alone never touches a project. Git is
- * best-effort: a save never fails over it. Trash is `<root>/.trash/<id>/project.json`: a trashed project's
- * file moves there (with when) and back on restore; its folder and history
- * stay where they are, so the id stays its own.
- *
- * @module StudioProjects
+ * Studio projects as files: `<root>/<id>/project.json` and a README, the root `$STUDIO_PROJECTS_DIR`
+ * or `~/studio-projects`. Each folder is its own git repository where git exists, each save a commit
+ * stamped with this app's text-to-cad (`.studio/engine.json`); git never fails a save. Trash moves
+ * only `project.json` to `<root>/.trash/<id>/`, so the folder, history and id stay put.
  */
 import {
   StudioProject,
@@ -96,10 +87,8 @@ export class StudioProjects extends Context.Service<
      */
     readonly list: Effect.Effect<StudioProjectsListResult, StudioProjectsError>;
     /**
-     * Writes one project and its README and commits them; a new project
-     * (`id: null`) gets a folder named for it. A project is taken out only
-     * through Trash (`trash`), so a save to a project in Trash is refused
-     * (`in-trash`), never bringing it back beside its Trash record. Saves run
+     * Writes one project and its README and commits them; `id: null` makes a new folder. A save to a
+     * trashed project is refused (`in-trash`) so it never comes back beside its Trash record. Saves run
      * one at a time.
      */
     readonly save: (

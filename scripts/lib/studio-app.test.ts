@@ -91,6 +91,11 @@ describe("studioBuildConfig", () => {
     expect(mac.protocols).toEqual([]);
     expect(mac.extendInfo).not.toHaveProperty("CFBundleDocumentTypes");
     expect(mac.icon).toBe("icon.icns");
+    const bare = studioBuildConfig(
+      { ...t3Config, mac: { ...t3Config.mac, target: ["dir"] } },
+      signed,
+    );
+    expect((bare.mac as Record<string, unknown>).target).toEqual(["dir"]);
   });
 
   it("signs ad hoc without the hardened runtime unless signing was asked for", () => {

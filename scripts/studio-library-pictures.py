@@ -709,6 +709,42 @@ def cover_urdf():
     return model(parts, camera, hook)
 
 
+def cover_link_frames():
+    """Robot files: a frame at each link the URDF names (base_link, the horn, tool0), on the mount."""
+    origin, axis, lower, upper = horn_joint()
+    tool = origin + axis * tool_height()
+    camera = mount_camera()
+    side = unit(np.cross(axis, (1.0, 0.0, 0.0)) if abs(axis[0]) < 0.9 else np.cross(axis, (0.0, 1.0, 0.0)))
+    third = unit(np.cross(axis, side))
+
+    def hook(picture, marks):
+        for place in (np.zeros(3), origin, tool):
+            centre = camera.project([place])[0][:2]
+            for direction in (axis, side, third):
+                tip = camera.project([place + direction * 14])[0][:2]
+                marks.line([centre, tip], "hue", 3.6)
+            marks.add(circle_path(centre[0], centre[1], 5.5), "hue")
+
+    return model(mount_parts(0.5), camera, hook)
+
+
+def cover_mujoco():
+    """A MuJoCo model: each part's collision box and the horn's hinge, over the mount."""
+    origin, axis, lower, upper = horn_joint()
+    camera = mount_camera()
+    boxes = [(mesh.vertices.min(axis=0), mesh.vertices.max(axis=0))
+             for name, meshes in mount().items() if name not in ("m3x8_screw",) for mesh in meshes]
+
+    def hook(picture, marks):
+        for low, high in boxes:
+            for start, end in box_edges(low, high):
+                marks.line(camera.project([start, end])[:, :2], "hue", 2.6, 0.85)
+        marks.line(camera.project([origin - axis * 6, origin + axis * 22])[:, :2], "ink", 3.2)
+        marks.line(camera.project(arc(origin, 18, lower, upper, height=4))[:, :2], "ink", 3.6)
+
+    return model(mount_parts(0.35), camera, hook)
+
+
 def cover_fit():
     """The mount with its centre of mass, from the URDF's links, and the horn's travel."""
     root = robot_file("servo_mount.urdf")
@@ -1882,6 +1918,8 @@ COVERS = {
     "flat-pattern": cover_flat_pattern,
     "step": cover_step,
     "robot": cover_robot,
+    "link-frames": cover_link_frames,
+    "mujoco": cover_mujoco,
     "board": cover_board,
     "board-step": cover_board_step,
     "board-fab": cover_board_fab,

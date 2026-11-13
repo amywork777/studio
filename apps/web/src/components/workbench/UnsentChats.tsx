@@ -3,7 +3,6 @@ import { replaceComposerContextReferences } from "@t3tools/shared/composerContex
 import type { ScopedProjectRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { SquarePenIcon } from "lucide-react";
-import { useMemo } from "react";
 
 import {
   type ComposerThreadDraftState,
@@ -49,18 +48,16 @@ export function useUnsentChats(
 ): UnsentChat[] {
   const sessions = useComposerDraftStore((store) => store.draftThreadsByThreadKey);
   const composers = useComposerDraftStore((store) => store.draftsByThreadKey);
-  return useMemo(() => {
-    const keys = new Set(projects.map((ref) => `${ref.environmentId}:${ref.projectId}`));
-    const unsent: UnsentChat[] = [];
-    for (const [key, session] of Object.entries(sessions)) {
-      if (session.promotedTo != null || key === currentDraftId) continue;
-      if (!keys.has(`${session.environmentId}:${session.projectId}`)) continue;
-      const composer = composers[key];
-      if (!composer || !composerDraftHasUserContent(composer)) continue;
-      unsent.push({ draftId: DraftId.make(key), session, preview: previewOf(composer) });
-    }
-    return unsent.toSorted((a, b) => b.session.createdAt.localeCompare(a.session.createdAt));
-  }, [sessions, composers, projects, currentDraftId]);
+  const keys = new Set(projects.map((ref) => `${ref.environmentId}:${ref.projectId}`));
+  const unsent: UnsentChat[] = [];
+  for (const [key, session] of Object.entries(sessions)) {
+    if (session.promotedTo != null || key === currentDraftId) continue;
+    if (!keys.has(`${session.environmentId}:${session.projectId}`)) continue;
+    const composer = composers[key];
+    if (!composer || !composerDraftHasUserContent(composer)) continue;
+    unsent.push({ draftId: DraftId.make(key), session, preview: previewOf(composer) });
+  }
+  return unsent.toSorted((a, b) => b.session.createdAt.localeCompare(a.session.createdAt));
 }
 
 /** Each unsent chat as a row above the project's chats, led by the pen T3 marks unsent work with. */

@@ -1,7 +1,7 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { STUDIO_PROJECT_KINDS } from "@t3tools/shared/studioProjects";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useRightPanelStore } from "~/rightPanelStore";
@@ -69,14 +69,6 @@ export function projectKindFor(templateId: string) {
 }
 
 /**
- * Home's Start: makes the project (a new folder with its repository, `useCreateStudioProject`)
- * and opens its first chat, which sends the description, or New's job, as its first message
- * (`usePendingStart`), the way New in a project hands its job to the open chat. With a project of
- * yours chosen, it opens a new chat there instead, which sends the description the same way.
- * What was attached is copied into the project's References first, and the first message asks
- * the agent to read it before anything else (`startMessage`): a new project is set up from it.
- */
-/**
  * Starts work as `useStartProject` does, one start at a time, from Home's box or from New on Home
  * and the Projects page: a second press while one is being made does nothing. `busy` says one is.
  */
@@ -102,80 +94,82 @@ export function useStartOnce(environmentId: EnvironmentId): {
 const showOverviewBeside = (threadRef: ScopedThreadRef) =>
   useRightPanelStore.getState().open(threadRef, "files");
 
+/**
+ * Makes the project, or with one of yours chosen a new chat in it, whose first message
+ * (`usePendingStart`) sends the description or New's job. Attachments are copied into References
+ * first, and the first message asks the agent to read them (`startMessage`).
+ */
 export function useStartProject(environmentId: EnvironmentId) {
   const create = useCreateStudioProject(environmentId);
   const handleNewThread = useNewThreadHandler();
 
-  return useCallback(
-    async (start: ProjectStart): Promise<boolean> => {
-      const units = "mm" as const;
-      if (start.kind === "described") {
-        const description = start.description.trim();
-        const { attachments } = start;
-        if (description === "" && attachments.length === 0) return false;
-        const paths = attachments.flatMap((attachment) => attachment.path ?? []);
-        // What has no path on this computer goes with the first message, as a chat attaches it.
-        const files = attachments.flatMap((attachment) =>
-          attachment.path === null && attachment.file !== null ? [attachment.file] : [],
-        );
-        const prepare = async (folder: string, newProject: boolean) => {
-          const references = await copyIntoReferences(folder, paths);
-          setPendingStart(folder, {
-            prompt: startMessage({ description, references, attached: files.length, newProject }),
-            files,
-          });
-        };
-        const folder = start.project?.folder ?? null;
-        if (start.project !== null) {
-          if (folder === null) return false;
-          await prepare(folder.workspaceRoot, false);
-          const draft = await handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
-          // The new chat in front, where its first message shows going out.
-          if (draft !== null) {
-            const ref = scopeThreadRef(folder.environmentId, draft.threadId);
-            useRightPanelStore.getState().setMaximized(ref, false);
-          }
-          return draft !== null;
-        }
-        // Started from files alone, it is named after the first until the agent names it.
-        const name =
-          description === ""
-            ? nameFromAttachment(attachments[0]!.name)
-            : provisionalProjectName(description);
-        return create({
-          environmentId,
-          name,
-          kind: kindOf("part"),
-          units,
-          material: "",
-          // The description goes with the first message, where the agent reads it. It is no
-          // purpose: written to run a chat, it reads badly as "What it is", and the agent writes one.
-          purpose: "",
-          folders: [],
-          onFolder: async (folder) => {
-            await prepare(folder, true);
-            nameFirstChatAfterProject(folder, name);
-          },
-          show: showOverviewBeside,
+  return async (start: ProjectStart): Promise<boolean> => {
+    const units = "mm" as const;
+    if (start.kind === "described") {
+      const description = start.description.trim();
+      const { attachments } = start;
+      if (description === "" && attachments.length === 0) return false;
+      const paths = attachments.flatMap((attachment) => attachment.path ?? []);
+      // What has no path on this computer goes with the first message, as a chat attaches it.
+      const files = attachments.flatMap((attachment) =>
+        attachment.path === null && attachment.file !== null ? [attachment.file] : [],
+      );
+      const prepare = async (folder: string, newProject: boolean) => {
+        const references = await copyIntoReferences(folder, paths);
+        setPendingStart(folder, {
+          prompt: startMessage({ description, references, attached: files.length, newProject }),
+          files,
         });
+      };
+      const folder = start.project?.folder ?? null;
+      if (start.project !== null) {
+        if (folder === null) return false;
+        await prepare(folder.workspaceRoot, false);
+        const draft = await handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
+        // The new chat in front, where its first message shows going out.
+        if (draft !== null) {
+          const ref = scopeThreadRef(folder.environmentId, draft.threadId);
+          useRightPanelStore.getState().setMaximized(ref, false);
+        }
+        return draft !== null;
       }
-      const { job } = start;
-      const name = newProjectName(job);
+      // Started from files alone, it is named after the first until the agent names it.
+      const name =
+        description === ""
+          ? nameFromAttachment(attachments[0]!.name)
+          : provisionalProjectName(description);
       return create({
         environmentId,
         name,
-        kind: projectKindFor(job.template.id),
-        units: job.units,
+        kind: kindOf("part"),
+        units,
         material: "",
+        // The description goes with the first message, where the agent reads it. It is no
+        // purpose: written to run a chat, it reads badly as "What it is", and the agent writes one.
         purpose: "",
         folders: [],
-        onFolder: (folder) => {
-          setPendingStart(folder, { prompt: job.prompt, files: [] });
+        onFolder: async (folder) => {
+          await prepare(folder, true);
           nameFirstChatAfterProject(folder, name);
         },
         show: showOverviewBeside,
       });
-    },
-    [create, environmentId, handleNewThread],
-  );
+    }
+    const { job } = start;
+    const name = newProjectName(job);
+    return create({
+      environmentId,
+      name,
+      kind: projectKindFor(job.template.id),
+      units: job.units,
+      material: "",
+      purpose: "",
+      folders: [],
+      onFolder: (folder) => {
+        setPendingStart(folder, { prompt: job.prompt, files: [] });
+        nameFirstChatAfterProject(folder, name);
+      },
+      show: showOverviewBeside,
+    });
+  };
 }

@@ -109,11 +109,9 @@ export async function trashWithUndo(input: {
 }
 
 /**
- * Delete forever, from Trash: deletes each of the project's folders' records with their chats
- * (`deleteFolder`, T3's project delete), then the project's record in Trash (`purge`). The files on
- * disk stay. A folder another project holds, in Trash or not, is left with its chats, and one the
- * environment no longer knows is passed over, so its record still goes. When a folder cannot be
- * deleted the record stays, to try again. Resolves to whether it is gone.
+ * Files on disk stay. A folder another project holds (in Trash or not) keeps its chats, and one the
+ * environment no longer knows is passed over. If a folder cannot be deleted the record stays, to
+ * try again. Resolves to whether it is gone.
  */
 export async function deleteForever<F extends { readonly workspaceRoot: string }>(input: {
   readonly id: string;

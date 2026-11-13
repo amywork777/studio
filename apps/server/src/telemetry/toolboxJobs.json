@@ -158,5 +158,10 @@
     "id": "robot-files",
     "label": "Robot files",
     "skill": "robot-simulation"
+  },
+  {
+    "id": "mujoco",
+    "label": "MuJoCo model",
+    "skill": "robot-simulation"
   }
 ]

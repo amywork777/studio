@@ -6,12 +6,9 @@ import type { RightPanelSurface } from "~/rightPanelStore";
 import { sameFile, surfaceFile } from "../sameFile";
 
 /**
- * The place a reference asks a part's CAD view to show (`openReference`): the line of the part's
- * script the answer cites, for the view to select the feature whose statement holds it. The view
- * hears it in its host context (`studio/focus`, `PluginViewFrame.tsx`) and says when it has taken
- * it (`studio/notifications/focus-taken`), the feature selected or nothing there to select, and the
- * ask is let go. Each press is numbered (`nonce`), so a view takes each ask once and an answer to
- * an earlier press never lets a later one go.
+ * A script line for a part's CAD view to select, sent as `studio/focus` and let go on
+ * `studio/notifications/focus-taken`. Each press has its own `nonce`, so a view takes each ask
+ * once and an answer to an earlier press never lets a later one go.
  */
 export interface ViewerFocus {
   readonly path: string;

@@ -3,7 +3,7 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import type { StudioImportKind } from "@t3tools/shared/studioImport";
 import { studioFolderKey } from "@t3tools/shared/studioProjects";
 import { BoxIcon, FolderPlusIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { cn } from "~/lib/utils";
@@ -120,13 +120,9 @@ export function ImportDialogHost(props: { readonly environmentId: EnvironmentId 
 }
 
 /**
- * Import, as the Final design lays it out: Scan this computer (the folders to look in, what has
- * been found so far by kind, how many projects it looks like), then the projects found (each
- * ticked to import, with what it holds and where it is), and Sort for the files in no project
- * (where each goes) and the copies and older versions that need a look. Nothing is moved: a
- * project is its folder where it is; only loose files placed in a project are copied into it.
- * Importing itself only reads, but an imported project's folder is where the agent then works, so
- * the screen says so before Import is pressed and never promises that Studio only reads.
+ * Import: scan, pick projects, sort loose files. Nothing is moved; a project stays its folder where
+ * it is, and only loose files placed into a project are copied. The agent then works in an imported
+ * folder, so the screen says so and never promises that Studio only reads.
  */
 function ImportDialog(props: {
   readonly environmentId: EnvironmentId;
@@ -140,14 +136,10 @@ function ImportDialog(props: {
   // Studio's projects' folders, in Trash too (Restore brings one back), not every folder the
   // server knows: one whose project was deleted forever keeps its folder known, and is offered
   // here again.
-  const known = useMemo(
-    () =>
-      new Set(
-        [...Object.values(studioProjects), ...Object.values(trashed)].flatMap((project) =>
-          project.folders.map(studioFolderKey),
-        ),
-      ),
-    [studioProjects, trashed],
+  const known = new Set(
+    [...Object.values(studioProjects), ...Object.values(trashed)].flatMap((project) =>
+      project.folders.map(studioFolderKey),
+    ),
   );
   const runImport = useImportProjects(environmentId);
   const handleNewThread = useNewThreadHandler();
@@ -174,6 +166,7 @@ function ImportDialog(props: {
   const rootsAreProjects = start.kind !== "scan";
 
   // The folders a first scan offers: Documents, Desktop and Downloads.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks the desktop bridge (IPC) for the folders to offer, dropping a reply that lands after unmount
   useEffect(() => {
     if (start.kind !== "scan" || bridge === null) return;
     let cancelled = false;
@@ -186,6 +179,7 @@ function ImportDialog(props: {
   }, [start.kind, bridge]);
 
   // Files or folders dropped or picked are read at once.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scans the dropped paths through the desktop bridge (IPC) on open, stopping when the dialog closes
   useEffect(() => {
     if (start.kind !== "paths" || bridge === null) return;
     let cancelled = false;
@@ -230,15 +224,12 @@ function ImportDialog(props: {
     );
   };
 
-  const plan = useMemo(
-    () => planImport(scans, known, { rootsAreProjects }),
-    [scans, known, rootsAreProjects],
-  );
-  const allFiles = useMemo(() => scans.flatMap((scan) => scan.files), [scans]);
+  const plan = planImport(scans, known, { rootsAreProjects });
+  const allFiles = scans.flatMap((scan) => scan.files);
   // Dropped or picked things have no scanned folder around them: they are named by their parent.
   const scannedRoots = rootsAreProjects ? [] : scans.map((scan) => scan.root);
   const counts = countByKind(allFiles);
-  const look = useMemo(() => needsALook(plan.projects.flatMap((project) => project.files)), [plan]);
+  const look = needsALook(plan.projects.flatMap((project) => project.files));
   const lookCount = look.duplicates.length + look.oldVersions.length;
   const chosen = plan.projects.filter((project) => !excluded.has(project.folder));
   const placementOf = (file: ImportFile): number | "new" | null =>

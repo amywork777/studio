@@ -3,12 +3,6 @@ import { useEffect } from "react";
 import { formatShortcutLabel } from "~/keybindings";
 import { isMacPlatform } from "~/lib/utils";
 
-/**
- * Cmd+O (Ctrl+O off a Mac), a desktop CAD tool's Open, in the engineering interface: in a
- * project's workspace it opens the project switcher (`ProjectSwitcher`), on Home the quick find.
- * It takes the chord before T3 Code's own binding for it (open the folder in an editor), which is
- * a coding tool's.
- */
 /** The chord as this keyboard names it: \u2318O on a Mac, Ctrl+O on Windows. */
 export const openShortcutLabel = (platform: string = navigator.platform): string =>
   formatShortcutLabel(
@@ -16,7 +10,9 @@ export const openShortcutLabel = (platform: string = navigator.platform): string
     platform,
   );
 
+/** Cmd+O (Ctrl+O off a Mac), taken in the capture phase before T3 Code's own binding for it. */
 export function useOpenShortcut(onOpen: () => void): void {
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener held while mounted
   useEffect(() => {
     const mac = isMacPlatform(navigator.platform);
     const handle = (event: KeyboardEvent) => {

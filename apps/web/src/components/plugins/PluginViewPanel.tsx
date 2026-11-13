@@ -1,6 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { PluginAppSurface } from "~/rightPanelStore";
 import { TitleBlock } from "../workbench/TitleBlock";
@@ -38,20 +38,15 @@ export default function PluginViewPanel(props: {
     readonly file: string | undefined;
     readonly workspace: string | undefined;
   } | null>(null);
-  useEffect(() => {
-    if (opened?.id !== surface.id)
-      // oxlint-disable-next-line react/set-state-in-effect -- what a view opened with is kept for that view.
-      setOpened({ id: surface.id, file: named, workspace: draftWorkspaceRoot });
-  }, [opened?.id, surface.id, named, draftWorkspaceRoot]);
+  if (opened?.id !== surface.id) {
+    setOpened({ id: surface.id, file: named, workspace: draftWorkspaceRoot });
+  }
   const file = opened?.id === surface.id ? opened.file : named;
   // A view that opens no file (a model by its document id) names a new thread's project instead.
   const workspace = opened?.id === surface.id ? opened.workspace : draftWorkspaceRoot;
   // A file the view asks for (a CAD view's Open Part) opens beside the thread in a tab of its own,
   // and what the view says of its part is kept by this tab, for Studio's bar (`StudioPanelBar`).
-  const threadRef = useMemo(
-    () => scopeThreadRef(props.environmentId, props.threadId),
-    [props.environmentId, props.threadId],
-  );
+  const threadRef = scopeThreadRef(props.environmentId, props.threadId);
   const openInWorkbench = useOpenInWorkbench(threadRef);
   return (
     <>

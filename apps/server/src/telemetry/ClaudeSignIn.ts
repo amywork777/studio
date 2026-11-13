@@ -1,12 +1,7 @@
 /**
- * Counts a Claude sign-in (`claude.signed_in`, no properties), the Claude match for
- * `chatgpt.auth.completed`.
- *
- * Claude signs in outside Studio (`claude auth login`), so Studio sees a sign-in only as a Claude
- * instance's auth status turning from `unauthenticated` to `authenticated`. A launch that finds
- * Claude already signed in goes from `unknown` to `authenticated` and is not counted.
- *
- * @module ClaudeSignIn
+ * Counts `claude.signed_in`. Claude signs in outside Studio, so a sign-in shows only as auth status
+ * going from `unauthenticated` to `authenticated`; a launch that finds Claude already signed in goes
+ * from `unknown` and is not counted.
  */
 import type { ServerProvider } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";

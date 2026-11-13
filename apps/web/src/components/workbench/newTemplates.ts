@@ -1,11 +1,6 @@
 /**
- * What a new piece of work can be, the way a CAD system's New dialog offers
- * templates (a part, an assembly, a drawing) but across engineering: circuit boards,
- * studies, manufacturing, robots, documents. Each runs on one
- * of text-to-cad's skills and can be made only while an enabled plugin has it;
+ * Each template runs on one text-to-cad skill and can be made only while an enabled plugin has it;
  * New shows the rest dimmed, naming the skill (`templateOffers`).
- * A template either makes something new (a name, a folder, units) or works
- * from a part the project already holds (which one).
  */
 
 import type { InstalledPlugin } from "@t3tools/contracts";

@@ -2,9 +2,9 @@ import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
-import { useCallback } from "react";
 
 import { useRefreshOnReturn } from "~/hooks/useRefreshOnReturn";
+import { useStableCallback } from "~/hooks/useStableCallback";
 import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { projectEnvironment } from "~/state/projects";
@@ -89,7 +89,7 @@ export function useProjectChecks(input: {
     folders: input.folders,
   } satisfies Target);
   const folders = useAtomValue(checksFamily(key));
-  const refresh = useCallback(() => {
+  const refresh = useStableCallback(() => {
     const { environmentId, folders: roots } = JSON.parse(key) as Target;
     for (const root of roots) appAtomRegistry.refresh(listing(environmentId, root));
     for (const folder of appAtomRegistry.get(checksFamily(key))) {
@@ -97,7 +97,7 @@ export function useProjectChecks(input: {
         appAtomRegistry.refresh(reading(environmentId, folder.root, result.path));
       }
     }
-  }, [key]);
+  });
   useWorkspaceMutationRefresh({
     mutationId: input.mutationId,
     refresh,

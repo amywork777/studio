@@ -1,11 +1,8 @@
 import { folderResult, humanName, partName } from "./partNames";
 
 /**
- * A project the way an engineer files it, for the project page and the sidebar: first the three
- * kinds of thing designed (CAD, Electronics and Documents), then what the top bar's jobs make
- * from a part (its drawings, analysis and manufacturing files), then images and the references
- * the brief gathered. Source and configuration (the model scripts, settings, environments) are left to the
- * code interface. Each kind has one icon wherever Studio shows it (`kinds.ts`).
+ * Source and configuration (model scripts, settings, environments) are left to the code interface.
+ * Each kind has one icon wherever Studio shows it (`kinds.ts`).
  */
 
 export type ProjectGroup =

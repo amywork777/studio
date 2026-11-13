@@ -2,7 +2,7 @@ import type { EnvironmentId, InstalledPlugin } from "@t3tools/contracts";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { Link, useLocation } from "@tanstack/react-router";
 import { FilePlusIcon, FolderOpenIcon } from "lucide-react";
-import { lazy, type ReactNode, Suspense, useId, useMemo, useState } from "react";
+import { lazy, type ReactNode, Suspense, useId, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { pluginEnvironment } from "~/state/plugins";
@@ -186,18 +186,9 @@ function BrowseLibrary(props: { readonly onBrowse: () => void }) {
 }
 
 /**
- * New work, the way a CAD system's New dialog starts a part or a drawing, but
- * across engineering: the disciplines down the side, their templates beside
- * them, and the new work's properties (a name, a folder and units, or the
- * part it works from). Documents are templates too: the built-in ones (PRD,
- * requirements, FMEA, design review), and the person's own files
- * (`documentTemplates.ts`), with Add a template. A template whose skill is off
- * shows dimmed, and its panel names the skill. The selected one's panel opens
- * with its example (`TemplatePreview`), and Browse the Toolbox opens the rest.
- * Create hands the job on (`onCreate`): into the open chat in a project, into a
- * new project's first chat on Home. Part is New part (`onNewPart`), made at once and opened in
- * CAD mode, with no agent turn: on Home with nothing to fill in (it is "Untitled part" until
- * renamed), in a project by its name.
+ * New work across disciplines, like a CAD system's New dialog. A template whose skill is off shows
+ * dimmed and names the skill. Create hands the job on (`onCreate`); Part skips the agent and makes
+ * the part at once (`onNewPart`), named "Untitled part" on Home until renamed.
  */
 export function NewDialog(props: {
   readonly open: boolean;
@@ -228,7 +219,7 @@ export function NewDialog(props: {
   const plugins = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: props.environmentId, input: {} }),
   ).data?.plugins;
-  const skills = useMemo(() => librarySkills(plugins ?? []), [plugins]);
+  const skills = librarySkills(plugins ?? []);
   const fileTemplates = props.fileTemplates ?? [];
   // The person's own templates need no skill.
   const offers = [
@@ -337,8 +328,8 @@ export function NewDialog(props: {
             {starts.length === 0
               ? ""
               : `Start ${startLine}${props.newProject ? " in a new project" : ""}. `}
-            {isPart ? "Create opens it in CAD mode." : "Create hands it to the agent."} To work on a
-            part you already have, use the Toolbox.
+            {isPart ? "Create opens it with the CAD tools." : "Create hands it to the agent."} To
+            work on a part you already have, use the Toolbox.
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>

@@ -5,13 +5,7 @@ import { cn } from "~/lib/utils";
 /** The tags a card names, whole; the rest are counted, so its line fits a tile without cutting one. */
 const TAGS_SHOWN = 2;
 
-/**
- * A card, as Home's project tiles are: a picture over a name, and a note or tags under it. A press
- * opens what it shows; a disabled one says why in its note, and one that needs a program or a
- * download first says which. The Library's entries, the Toolbox's groups and the examples
- * (`ExampleCard`, with what each shows as tags) are these. Tags are one quiet line, so the name
- * leads.
- */
+/** Matches Home's project tiles. A disabled card says why in its note. */
 export function LibraryCard({
   ref,
   ...props

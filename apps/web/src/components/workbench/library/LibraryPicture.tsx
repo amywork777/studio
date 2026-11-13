@@ -1,6 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { type LucideIcon, PuzzleIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { createElement, type ReactNode, useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { fileTint, KIND_ICONS, KIND_TINT, MENU_TINTS, templateIcon } from "../kinds";
@@ -108,17 +108,20 @@ export function DocumentSheet(props: { readonly text: string }) {
   return (
     <CoverCanvas>
       <SheetShape />
-      {lines.map((line, index) => (
-        <rect
-          key={index}
-          x={COVER_SHEET.x + SHEET_PAD}
-          y={COVER_SHEET.y + SHEET_PAD + index * SHEET_ROW}
-          width={Math.max(10, Math.min(1, line.length / FULL_LINE) * room)}
-          height={8}
-          rx={4}
-          className={line.startsWith("#") ? "fill-foreground/55" : "fill-foreground/25"}
-        />
-      ))}
+      {lines.map((line, row) => {
+        const y = COVER_SHEET.y + SHEET_PAD + row * SHEET_ROW;
+        return (
+          <rect
+            key={y}
+            x={COVER_SHEET.x + SHEET_PAD}
+            y={y}
+            width={Math.max(10, Math.min(1, line.length / FULL_LINE) * room)}
+            height={8}
+            rx={4}
+            className={line.startsWith("#") ? "fill-foreground/55" : "fill-foreground/25"}
+          />
+        );
+      })}
     </CoverCanvas>
   );
 }
@@ -214,7 +217,7 @@ export function LibraryPicture(props: {
   }
   return (
     <span className={box}>
-      <Icon aria-hidden="true" className={cn("size-8 opacity-60", KIND_TINT)} />
+      {createElement(Icon, { "aria-hidden": true, className: cn("size-8 opacity-60", KIND_TINT) })}
     </span>
   );
 }

@@ -35,12 +35,9 @@ export function isModelScript(file: string): boolean {
 }
 
 /**
- * Makes a copy of an example and opens it on its file, as New part opens a new part: the project is
- * made with the example copied into its folder (`create`, its chat opened by `show`), and the copy
- * opens at once. A model's script (`isModelScript`), whose copy has never been built, opens on the
- * project's Overview; `building` then says the build is under way, and the model's document takes
- * the Overview's place once the build lands (`buildThenSwap`, which says why when it does not). Any
- * other file opens as it is. Resolves to whether the copy was made, once what it opens is open.
+ * Copies an example into a new project and opens it on its file. A model script has never been
+ * built in the copy, so it opens on the Overview until the build lands (`buildThenSwap`).
+ * Resolves to whether the copy was made, once what it opens is open.
  */
 export async function copyThenOpen<Ref>(steps: {
   /** The file the copy opens on, inside it, with "/". */

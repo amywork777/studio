@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-
 import { toastManager } from "../ui/toast";
 import { classifyProjectFile, DESIGN_GROUPS } from "./projectFiles";
 import { readStudioImport } from "./studioImportBridge";
@@ -26,13 +24,11 @@ export function importedToOpen(copied: ReadonlyArray<string>): string | null {
 }
 
 /**
- * Import inside a project, as a file uploaded into a Drive folder: the files or folders picked
- * (Import in the panel's toolbar) or dropped on the Overview are copied into the project's folder,
- * where the Overview lists them. The originals stay where they are, and nothing there is written
- * over: a name already taken becomes "name (2)". One part imported opens straight away
- * (`importedToOpen`, by `open`). Null outside the desktop app, which copies them.
+ * Copies picked or dropped files into the project's folder, like an upload into a Drive folder. The
+ * originals stay put and nothing is overwritten: a taken name becomes "name (2)". One part imported
+ * opens at once (`importedToOpen`). Null outside the desktop app, which does the copying.
  */
-export function useImportIntoProject(
+export function importIntoProject(
   folder: string | null,
   projectName: string,
   open?: (path: string) => void,
@@ -41,30 +37,27 @@ export function useImportIntoProject(
   readonly copy: (paths: ReadonlyArray<string>) => Promise<void>;
 } | null {
   const bridge = readStudioImport();
-  const copy = useCallback(
-    async (paths: ReadonlyArray<string>) => {
-      if (bridge === null || folder === null || paths.length === 0) return;
-      try {
-        const copied = await bridge.copy(paths, folder);
-        toastManager.add({
-          type: "success",
-          title: `Imported ${copied.length === 1 ? "1 item" : `${copied.length} items`} into ${projectName}`,
-        });
-        const part = importedToOpen(copied);
-        if (part !== null) open?.(part);
-      } catch (error) {
-        toastManager.add({
-          type: "error",
-          title: `Could not import into ${projectName}`,
-          description: plainError(error),
-        });
-      }
-    },
-    [bridge, folder, open, projectName],
-  );
-  const pick = useCallback(async () => {
+  const copy = async (paths: ReadonlyArray<string>) => {
+    if (bridge === null || folder === null || paths.length === 0) return;
+    try {
+      const copied = await bridge.copy(paths, folder);
+      toastManager.add({
+        type: "success",
+        title: `Imported ${copied.length === 1 ? "1 item" : `${copied.length} items`} into ${projectName}`,
+      });
+      const part = importedToOpen(copied);
+      if (part !== null) open?.(part);
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: `Could not import into ${projectName}`,
+        description: plainError(error),
+      });
+    }
+  };
+  const pick = async () => {
     if (bridge === null) return;
     await copy(await bridge.pick());
-  }, [bridge, copy]);
+  };
   return bridge === null || folder === null ? null : { pick, copy };
 }

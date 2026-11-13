@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import type {
   ResourceTelemetryProcessCategory,
   ServerProcessDiagnosticsEntry,
@@ -54,7 +55,7 @@ function canSignalCategory(category: ResourceTelemetryProcessCategory): boolean 
   );
 }
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.fn("makeProcessDiagnostics")(function* () {
   const telemetry = yield* ResourceTelemetry.ResourceTelemetry;
   const refreshedTelemetry = telemetry.refresh.pipe(Effect.catch(() => telemetry.latest));
@@ -94,7 +95,7 @@ export const make = Effect.fn("makeProcessDiagnostics")(function* () {
           pid: input.pid,
           signal: input.signal,
           signaled: false,
-          message: Option.some("Refusing to signal the T3 server process."),
+          message: Option.some(`Refusing to signal the ${appName()} server process.`),
         };
       }
       const current = yield* telemetry.refresh.pipe(Effect.option);
@@ -127,7 +128,9 @@ export const make = Effect.fn("makeProcessDiagnostics")(function* () {
           pid: input.pid,
           signal: input.signal,
           signaled: false,
-          message: Option.some(`Process ${input.pid} is not a signalable T3 backend descendant.`),
+          message: Option.some(
+            `Process ${input.pid} is not a signalable ${appName()} backend descendant.`,
+          ),
         };
       }
       return yield* Effect.try({

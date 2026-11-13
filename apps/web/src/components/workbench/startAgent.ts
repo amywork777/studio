@@ -4,11 +4,7 @@ import {
   resolveProjectSettings,
 } from "@t3tools/shared/projectSettings";
 
-import {
-  applyProviderInstanceSettings,
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
-} from "~/providerInstances";
+import { providerInstanceEntriesFor } from "~/providerInstances";
 import { hasProviderSetup } from "../chat/ProviderStatusBanner";
 import { resolveComposerProviderSelection } from "../ChatView.logic";
 
@@ -28,12 +24,10 @@ export function missingAgent(
   project: (LegacyProjectSettingsFields & { readonly id: ProjectId }) | null,
 ): MissingAgent | null {
   if (config === null) return null;
-  const entries = sortProviderInstanceEntries(
-    applyProviderInstanceSettings(
-      deriveProviderInstanceEntries(config.providers),
-      config.settings,
-      project?.id ?? null,
-    ),
+  const entries = providerInstanceEntriesFor(
+    config.providers,
+    config.settings,
+    project?.id ?? null,
   );
   const { selectedProviderEntry, unavailableProviderInstanceId } = resolveComposerProviderSelection(
     {

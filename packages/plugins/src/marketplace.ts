@@ -1,10 +1,7 @@
 /**
  * Marketplaces: Codex's `.agents/plugins/marketplace.json` and Claude Code's
- * `.claude-plugin/marketplace.json` (or a bare `marketplace.json`) at the root
- * of a folder or repository. Each entry's `source` says where the plugin is:
- * a folder inside the marketplace (`"./plugins/x"`, `{source: "local"}`), or
- * another git repository (`github`, `url`/`git`, `git-subdir`). npm and pip
- * sources are listed with why they cannot be installed.
+ * `.claude-plugin/marketplace.json` (or a bare `marketplace.json`). An entry's `source` is a folder
+ * in the marketplace or another git repository; npm and pip sources are listed with why they can't.
  */
 import {
   type PluginFolder,

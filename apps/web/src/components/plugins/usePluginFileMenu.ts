@@ -1,6 +1,5 @@
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
 import type { ContextMenuItem, EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
@@ -18,25 +17,22 @@ export function usePluginFileMenu(environmentId: EnvironmentId, threadRef: Scope
     threadRef === null ? null : pluginEnvironment.list({ environmentId, input: {} }),
   );
   const plugins = list.data?.plugins;
-  return useMemo(
-    () => ({
-      buildItems: (path: string): ContextMenuItem[] =>
-        pluginFileHandlers(plugins ?? [], path).map((choice, index) => ({
-          id: `${ITEM_PREFIX}${index}`,
-          label: `Open with ${choice.pluginName}`,
-          ...(index === 0 ? { separatorBefore: true } : {}),
-        })),
-      /** True when the clicked id was one of these entries. */
-      activate: (clicked: string, path: string): boolean => {
-        if (!clicked.startsWith(ITEM_PREFIX) || threadRef === null) return false;
-        const choice = pluginFileHandlers(plugins ?? [], path)[
-          Number(clicked.slice(ITEM_PREFIX.length))
-        ];
-        if (choice === undefined) return true;
-        useRightPanelStore.getState().openPluginApp(threadRef, pluginAppSurface(choice, path));
-        return true;
-      },
-    }),
-    [plugins, threadRef],
-  );
+  return {
+    buildItems: (path: string): ContextMenuItem[] =>
+      pluginFileHandlers(plugins ?? [], path).map((choice, index) => ({
+        id: `${ITEM_PREFIX}${index}`,
+        label: `Open with ${choice.pluginName}`,
+        ...(index === 0 ? { separatorBefore: true } : {}),
+      })),
+    /** True when the clicked id was one of these entries. */
+    activate: (clicked: string, path: string): boolean => {
+      if (!clicked.startsWith(ITEM_PREFIX) || threadRef === null) return false;
+      const choice = pluginFileHandlers(plugins ?? [], path)[
+        Number(clicked.slice(ITEM_PREFIX.length))
+      ];
+      if (choice === undefined) return true;
+      useRightPanelStore.getState().openPluginApp(threadRef, pluginAppSurface(choice, path));
+      return true;
+    },
+  };
 }

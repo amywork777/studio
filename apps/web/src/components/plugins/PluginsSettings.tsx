@@ -16,7 +16,7 @@ import {
   type PluginCompatibility,
 } from "@t3tools/contracts";
 import { CheckIcon, EllipsisIcon, SearchIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { requestConfirmDialog } from "~/confirmDialog";
 import { pluginEnvironment } from "~/state/plugins";
@@ -96,6 +96,7 @@ function PluginsSettings({ environmentId }: { environmentId: EnvironmentId }) {
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears the pending search debounce timer on unmount
   useEffect(
     () => () => {
       if (searchTimer.current !== null) clearTimeout(searchTimer.current);
@@ -144,6 +145,7 @@ function PluginsSettings({ environmentId }: { environmentId: EnvironmentId }) {
   // The server never waits on the network for a catalog read; while a catalog is
   // still downloading, read again until it lands.
   const refreshCatalogQuery = catalog.refresh;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls the catalog on a timer while one is still downloading, cleared on change or unmount
   useEffect(() => {
     if (!fetchingCatalogs) return;
     const timer = setTimeout(() => refreshCatalogQuery(), CATALOG_POLL_MS);
@@ -158,6 +160,7 @@ function PluginsSettings({ environmentId }: { environmentId: EnvironmentId }) {
       plugin.servers.some((server) => server.state === "starting" || server.state === "error"),
   );
   const refreshList = list.refresh;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls the plugin list on a timer while a server is settling, cleared on change or unmount
   useEffect(() => {
     if (!unsettled) return;
     const timer = setTimeout(() => refreshList(), LIST_POLL_MS);
@@ -166,11 +169,11 @@ function PluginsSettings({ environmentId }: { environmentId: EnvironmentId }) {
   }, [unsettled, list.data, refreshList]);
   const visibleEntries =
     entries === null || showAll ? entries : entries.slice(0, INITIAL_CATALOG_ROWS);
-  const globalViews = useMemo(() => pluginViewsWithEntrypoint(plugins, "global"), [plugins]);
+  const globalViews = pluginViewsWithEntrypoint(plugins, "global");
   // Studio's engineering interface lists each plugin's skills under its row, named as the library
   // names them (`PluginSkills`).
   const engineering = useEngineeringInterface();
-  const skills = useMemo(() => (engineering ? librarySkills(plugins) : []), [engineering, plugins]);
+  const skills = engineering ? librarySkills(plugins) : [];
 
   const installedRow = (plugin: InstalledPlugin) => {
     const busy = pending[plugin.id];

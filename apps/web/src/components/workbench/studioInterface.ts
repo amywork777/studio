@@ -5,21 +5,10 @@ import { partLabel } from "./partNames";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
 /**
- * How Studio presents itself, the person's choice (Settings, Appearance, Interface in the
- * code interfaces; Settings, Advanced, Interface in the engineering one):
- *
- * - `engineering`: parts, checks and outputs first. The projects home, the
- *   project's overview, the title block over the viewer, Check, Make and
- *   Document, and the coding tools (branches, diffs, terminal, raw commands)
- *   put away, with things named in an engineer's words.
- * - `both`: the same engineering surfaces with every coding tool kept in view
- *   and T3 Code's own words, for an engineer who also works on the code.
- * - `code`: T3 Code's own surfaces, for working on the code behind a model.
- *
- * Offered only by a brand with a hardware focus (`brand.json` `"focus":
- * "hardware"`), which also makes `engineering` the default. Per device, like
- * the panel widths: `<html data-studio-focus>` carries it for `theme.css`
- * (`hardware`, `both` or `code`).
+ * `engineering` puts the coding tools away and uses an engineer's words; `both` keeps every coding
+ * tool in view; `code` is T3 Code's own. Offered only by a hardware-focus brand (`brand.json`),
+ * which makes `engineering` the default. Per device; `<html data-studio-focus>` carries it for
+ * `theme.css` (`hardware`, `both` or `code`).
  */
 export type StudioInterface = "engineering" | "both" | "code";
 
@@ -60,13 +49,20 @@ export const ENGINEERING_FOLLOW_UP_PLACEHOLDER =
 export const CODE_SETTINGS_SECTIONS: ReadonlySet<string> = new Set([
   "/settings/keybindings",
   "/settings/snap-shot",
-  "/settings/integrations",
+  "/settings/diffs",
+  // Integrations, now Browser and Devices: the agent's browser and phone test hosts.
+  "/settings/browser",
+  "/settings/devices",
   "/settings/scheduled-tasks",
   "/settings/source-control",
-  "/settings/storage",
+  "/settings/worktrees",
   "/settings/connections",
+  "/settings/access",
+  // T3 Code's beta switches, all coding tools.
+  "/settings/labs",
   // No chat is archived in Studio (its sidebar lists a project's chats), so there is no archive.
   "/settings/archived",
+  // Maintenance stays: it holds the update checks. Its storage cleanup is left out of it here.
 ]);
 
 /**

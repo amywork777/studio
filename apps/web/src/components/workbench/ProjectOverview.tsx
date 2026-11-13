@@ -6,7 +6,7 @@ import type {
 } from "@t3tools/contracts";
 import { studioFolderName } from "@t3tools/shared/studioProjects";
 import { CircleXIcon, TriangleAlertIcon } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useNowMinute } from "~/hooks/useNowMinute";
@@ -388,16 +388,10 @@ function FolderParts(props: {
 }
 
 /**
- * The project's overview, the first thing its page shows, made of modules that each appear once
- * the project holds something for them and update as the agent writes files: the lead part large,
- * what was built last (or, with none yet, how to start one), then in Studio every file, latest
- * first, so the parts are in view without scrolling past the README, the issues its checks found with the fix each suggests
- * (asking for one writes the ask into the composer: the agent proposes and waits), its versions,
- * its sizes (a long table, so below the versions), then the three kinds of thing designed (CAD
- * and Electronics, each part with its checks, drawing and manufacturing files; Documents), a
- * module for each kind made from them (drawings, analysis,
- * manufacturing files) and the rest, and the project's other chats. Each module folds
- * away. Checks are the results text-to-cad writes beside the parts (`checkResults.ts`).
+ * The project's overview: modules that each appear once the project holds something for them and
+ * update as the agent writes files. Asking for a fix writes the ask into the composer, so the agent
+ * proposes and waits. Checks are the results text-to-cad writes beside the parts
+ * (`checkResults.ts`).
  */
 export function ProjectOverview(props: {
   readonly environmentId: EnvironmentId;
@@ -436,12 +430,12 @@ export function ProjectOverview(props: {
     folders: props.folders,
     mutationId: props.mutationId,
   });
-  const folders = useMemo(
-    () => folderChecks.map((folder) => ({ ...folder, models: models.get(folder.root) ?? [] })),
-    [folderChecks, models],
-  );
+  const folders = folderChecks.map((folder) => ({
+    ...folder,
+    models: models.get(folder.root) ?? [],
+  }));
 
-  const { byFolder, issues, checked, reading } = useMemo(() => {
+  const { byFolder, issues, checked, reading } = (() => {
     const byFolder = folders.map((folder) => {
       const files = folderFiles(folder.paths ?? [], folder.models);
       const designs = overviewParts(files);
@@ -483,23 +477,19 @@ export function ProjectOverview(props: {
       checked: folders.some((folder) => folder.results.length > 0),
       reading: folders.some((folder) => folder.paths === null),
     };
-  }, [folders]);
+  })();
 
   // Every part and board with its checks, by full path, for the list of everything.
-  const partsByPath = useMemo(
-    () =>
-      new Map(
-        byFolder.flatMap((folder) =>
-          folder.parts.map(
-            (part) => [`${part.root.replace(/[\\/]+$/, "")}/${part.file.path}`, part] as const,
-          ),
-        ),
+  const partsByPath = new Map(
+    byFolder.flatMap((folder) =>
+      folder.parts.map(
+        (part) => [`${part.root.replace(/[\\/]+$/, "")}/${part.file.path}`, part] as const,
       ),
-    [byFolder],
+    ),
   );
   const showChat = () => useRightPanelStore.getState().setMaximized(props.threadRef, false);
   // The lead part as its folder's parts have it, with its checks and what was made from it.
-  const lead = useMemo(() => {
+  const lead = (() => {
     const found = leadPartOf(folders);
     if (found === null) return null;
     return (
@@ -507,10 +497,10 @@ export function ProjectOverview(props: {
         .find((folder) => folder.root === found.root)
         ?.parts.find((part) => part.file.path === found.file.path) ?? null
     );
-  }, [byFolder, folders]);
+  })();
   // Every kind of file not designed, across the project's folders, in the page's order; the README
   // is read above as itself.
-  const modules = useMemo(() => {
+  const modules = (() => {
     const byGroup = new Map<ProjectGroup, Array<{ root: string; file: ProjectFile }>>();
     for (const folder of folders) {
       for (const { group, files } of groupProjectFiles(folder.paths ?? [])) {
@@ -527,26 +517,24 @@ export function ProjectOverview(props: {
       const files = byGroup.get(group);
       return files === undefined ? [] : [{ group, files }];
     });
-  }, [folders]);
+  })();
   // The designed kinds, CAD then Electronics, each a module of its parts by folder.
-  const designModules = useMemo(
-    () =>
-      PROJECT_GROUPS.filter((group) => DESIGN_GROUPS.has(group)).flatMap((group) => {
-        const inGroup = byFolder
-          .map((folder) => ({
-            root: folder.root,
-            parts: folder.parts.filter((part) => part.file.group === group),
-          }))
-          .filter((folder) => folder.parts.length > 0);
-        const count = inGroup.reduce((total, folder) => total + folder.parts.length, 0);
-        return count === 0 ? [] : [{ group, folders: inGroup, count }];
-      }),
-    [byFolder],
+  const designModules = PROJECT_GROUPS.filter((group) => DESIGN_GROUPS.has(group)).flatMap(
+    (group) => {
+      const inGroup = byFolder
+        .map((folder) => ({
+          root: folder.root,
+          parts: folder.parts.filter((part) => part.file.group === group),
+        }))
+        .filter((folder) => folder.parts.length > 0);
+      const count = inGroup.reduce((total, folder) => total + folder.parts.length, 0);
+      return count === 0 ? [] : [{ group, folders: inGroup, count }];
+    },
   );
   const chats = projectChats(useThreadShellsForProjectRefs(props.projectRefs));
   const otherChats = chats.filter((chat) => chat.id !== props.currentThreadId).length;
   // Every part, the lead part first, for its versions.
-  const versioned = useMemo(() => {
+  const versioned = (() => {
     const all: VersionedPart[] = byFolder.flatMap((folder) => folder.parts);
     const first =
       lead === null
@@ -554,7 +542,7 @@ export function ProjectOverview(props: {
         : all.find((entry) => entry.root === lead.root && entry.file.path === lead.file.path);
     const rest = all.filter((entry) => entry !== first);
     return first === undefined ? rest : [first, ...rest];
-  }, [byFolder, lead]);
+  })();
   const { folded, toggle } = useFoldedModules(props.folders[0] ?? "");
   const partCount = byFolder.reduce((total, folder) => total + folder.parts.length, 0);
   const engineering = useEngineeringInterface();

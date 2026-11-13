@@ -7,7 +7,6 @@ import * as NodePath from "node:path";
 import { ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 
 import * as ServerConfig from "../config.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
@@ -138,7 +137,7 @@ const layerThreads = (work: string) =>
     Layer.succeed(
       ProjectStore.ProjectStoreV2,
       ProjectStore.ProjectStoreV2.of({
-        get: () => Effect.succeed(Option.none()),
+        get: () => Effect.succeedNone,
         list: () => Effect.succeed([{ workspaceRoot: work }]),
       } as unknown as ProjectStore.ProjectStoreV2["Service"]),
     ),

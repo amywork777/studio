@@ -1,3 +1,4 @@
+import { appName } from "@t3tools/shared/appName";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -116,6 +117,8 @@ const runFriendlyLabelCommand = Effect.fn("runFriendlyLabelCommand")(function* (
     .run({
       command: input.command,
       args: input.args,
+      // Server startup waits on this; hostnamectl can block on D-Bus when hostnamed is down.
+      timeout: "5 seconds",
       timeoutBehavior: "timedOutResult",
     })
     .pipe(
@@ -192,5 +195,5 @@ export const resolveServerEnvironmentLabel = Effect.fn("resolveServerEnvironment
     return hostname;
   }
 
-  return normalizeLabel(input.cwdBaseName) ?? "T3 environment";
+  return normalizeLabel(input.cwdBaseName) ?? `${appName()} environment`;
 });

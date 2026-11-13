@@ -12,7 +12,6 @@ import {
   type LucideIcon,
   MessageSquareIcon,
 } from "lucide-react";
-import { useMemo } from "react";
 
 import { usePrimarySettings } from "~/hooks/useSettings";
 import { useNowMinute } from "~/hooks/useNowMinute";
@@ -39,12 +38,8 @@ const OUTCOMES: Record<
 };
 
 /**
- * The project's history: every piece of work on its design, in any of its
- * folders, newest first under the day it was last worked on. Each says how it
- * came out (done, needs you, at work, stopped) and its folder when there are
- * several; the one open now is marked, and archived ones stay out. Opening
- * one goes to it; the project page comes along. With code tools on, the same
- * list reads in T3 Code's words, as threads.
+ * Every thread in the project's folders, newest first under the day last worked on, archived ones
+ * left out. With code tools on, the same list reads in T3 Code's words.
  */
 export function ProjectThreads(props: {
   /** The project's folders' records (stable between renders). */
@@ -62,16 +57,12 @@ export function ProjectThreads(props: {
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const shells = useThreadShellsForProjectRefs(props.projectRefs);
   const needle = props.query.trim().toLowerCase();
-  const days = useMemo(
-    () =>
-      historyByDay(
-        shells
-          .filter((thread) => thread.archivedAt === null)
-          .filter((thread) => needle === "" || thread.title.toLowerCase().includes(needle))
-          .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-          .slice(0, props.limit),
-      ),
-    [shells, needle, props.limit],
+  const days = historyByDay(
+    shells
+      .filter((thread) => thread.archivedAt === null)
+      .filter((thread) => needle === "" || thread.title.toLowerCase().includes(needle))
+      .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, props.limit),
   );
 
   if (days.length === 0) {

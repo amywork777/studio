@@ -1,17 +1,10 @@
 /**
- * T3 as an MCP host for plugin servers: one client per (scope, plugin,
- * server). A thread's scope is its id, so each thread has its own server
- * processes the way a Codex thread does; the `environment` scope serves views
- * opened outside a thread and the tool listing. Agents never start a plugin's
- * server themselves: T3's MCP server forwards their calls here, so an agent's
- * `cad_file` and the CAD tab's requests reach the same process.
- *
- * The client declares MCP Apps (`io.modelcontextprotocol/ui`) and the three
- * Codex UI entrypoints (`dev.texttocad/tabs`), and answers `roots/list` with
- * the thread's workspace. Codex starts a plugin's servers in the plugin's
- * folder (its launchers are relative); Claude Code starts them in the project
- * and plugins reach their files through `${CLAUDE_PLUGIN_ROOT}`.
+ * T3 as the MCP host for plugin servers: one client per (scope, plugin, server), a thread's scope
+ * its id, so an agent's calls (forwarded by T3's MCP server) and a view's requests reach one process.
+ * Codex starts a plugin's servers in the plugin's folder (its launchers are relative); Claude Code
+ * starts them in the project, and plugins find their files by `${CLAUDE_PLUGIN_ROOT}`.
  */
+import { appName } from "@t3tools/shared/appName";
 import { PluginOperationError, type PluginRequestInput } from "@t3tools/contracts";
 import {
   expandPluginRoot,
@@ -166,7 +159,7 @@ const make = Effect.gen(function* () {
     now: number,
   ): Promise<Connection> => {
     const client = new Client(
-      { name: "T3 Code", version: "1.0.0" },
+      { name: appName(), version: "1.0.0" },
       {
         capabilities: {
           roots: { listChanged: false },
@@ -267,44 +260,44 @@ const make = Effect.gen(function* () {
     });
 
   /** The live connection for a scope, started on first use; a changed config restarts it. */
-  const connection = (
+  const connection = Effect.fn("PluginHost.connection")(function* (
     scope: string,
     pluginId: string,
     server: string,
     roots: ReadonlyArray<string>,
-  ) =>
-    Effect.gen(function* () {
-      const plugins = yield* store.enabledPlugins;
-      const plugin = plugins.find((item) => item.id === pluginId);
-      const config = plugin?.servers[server];
-      if (plugin === undefined || config === undefined) {
-        return yield* requestFailed(
-          "server_failed",
-          `no enabled plugin "${pluginId}" has an MCP server "${server}"`,
+  ) {
+    const plugins = yield* store.enabledPlugins;
+    const plugin = plugins.find((item) => item.id === pluginId);
+    const config = plugin?.servers[server];
+    if (plugin === undefined || config === undefined) {
+      return yield* requestFailed(
+        "server_failed",
+        `no enabled plugin "${pluginId}" has an MCP server "${server}"`,
+      );
+    }
+    const now = yield* Clock.currentTimeMillis;
+    const key = keyOf(scope, pluginId, server);
+    const signature = PluginFiles.serverSignature(plugin.root, config);
+    return yield* Effect.tryPromise({
+      try: async () => {
+        const live = await liveOrRestart(
+          connections,
+          key,
+          (existing) => !existing.closed && existing.signature === signature,
+          (stale) => stale.client.close(),
+          () => connect(plugin, server, config, roots, signature, now),
         );
-      }
-      const now = yield* Clock.currentTimeMillis;
-      const key = keyOf(scope, pluginId, server);
-      const signature = PluginFiles.serverSignature(plugin.root, config);
-      return yield* Effect.tryPromise({
-        try: async () => {
-          const live = await liveOrRestart(
-            connections,
-            key,
-            (existing) => !existing.closed && existing.signature === signature,
-            (stale) => stale.client.close(),
-            () => connect(plugin, server, config, roots, signature, now),
-          );
-          if (roots.length > 0) live.roots = roots;
-          live.lastUsed = now;
-          return { connection: live, config };
-        },
-        catch: (cause) => requestFailed("server_failed", sentence(cause)),
-      });
+        if (roots.length > 0) live.roots = roots;
+        live.lastUsed = now;
+        return { connection: live, config };
+      },
+      catch: (cause) => requestFailed("server_failed", sentence(cause)),
     });
+  });
 
-  const request: PluginHost["Service"]["request"] = (input) =>
-    Effect.gen(function* () {
+  const request: PluginHost["Service"]["request"] = Effect.fn("PluginHost.request")(
+    function* (input) {
+      yield* Effect.annotateCurrentSpan({ method: input.method });
       const { connection: live, config } = yield* connection(
         input.scope,
         input.pluginId,
@@ -331,48 +324,50 @@ const make = Effect.gen(function* () {
               )
             : requestFailed("request_failed", sentence(cause)),
       });
-    }).pipe(Effect.withSpan("PluginHost.request", { attributes: { method: input.method } }));
+    },
+  );
 
-  const listServer = (pluginId: string, server: string) =>
-    Effect.gen(function* () {
-      yield* store.markStarting(pluginId, server);
-      const tools: Array<Record<string, unknown> & { readonly name: string }> = [];
-      const listed = yield* Effect.gen(function* () {
-        let cursor: string | undefined;
-        do {
-          const page = (yield* request({
-            scope: ENVIRONMENT_SCOPE,
-            pluginId,
-            server,
-            method: "tools/list",
-            params: cursor === undefined ? {} : { cursor },
-            roots: [],
-          })) as {
-            readonly tools: ReadonlyArray<Record<string, unknown> & { readonly name: string }>;
-            readonly nextCursor?: string;
-          };
-          tools.push(...page.tools);
-          cursor = page.nextCursor;
-        } while (cursor !== undefined);
-      }).pipe(Effect.result);
-      yield* store.recordListing(
-        pluginId,
-        server,
-        listed._tag === "Success"
-          ? { state: "ready", error: null, tools }
-          : { state: "error", error: listed.failure.message, tools: [] },
-      );
-    });
+  const listServer = Effect.fn("PluginHost.listServer")(function* (
+    pluginId: string,
+    server: string,
+  ) {
+    yield* store.markStarting(pluginId, server);
+    const tools: Array<Record<string, unknown> & { readonly name: string }> = [];
+    const listed = yield* Effect.gen(function* () {
+      let cursor: string | undefined;
+      do {
+        const page = (yield* request({
+          scope: ENVIRONMENT_SCOPE,
+          pluginId,
+          server,
+          method: "tools/list",
+          params: cursor === undefined ? {} : { cursor },
+          roots: [],
+        })) as {
+          readonly tools: ReadonlyArray<Record<string, unknown> & { readonly name: string }>;
+          readonly nextCursor?: string;
+        };
+        tools.push(...page.tools);
+        cursor = page.nextCursor;
+      } while (cursor !== undefined);
+    }).pipe(Effect.result);
+    yield* store.recordListing(
+      pluginId,
+      server,
+      listed._tag === "Success"
+        ? { state: "ready", error: null, tools }
+        : { state: "error", error: listed.failure.message, tools: [] },
+    );
+  });
 
-  const listPlugin = (pluginId: string) =>
-    Effect.gen(function* () {
-      const plugin = (yield* store.enabledPlugins).find((item) => item.id === pluginId);
-      if (plugin === undefined) return;
-      yield* Effect.forEach(Object.keys(plugin.servers), (server) => listServer(pluginId, server), {
-        concurrency: "unbounded",
-        discard: true,
-      });
+  const listPlugin = Effect.fn("PluginHost.listPlugin")(function* (pluginId: string) {
+    const plugin = (yield* store.enabledPlugins).find((item) => item.id === pluginId);
+    if (plugin === undefined) return;
+    yield* Effect.forEach(Object.keys(plugin.servers), (server) => listServer(pluginId, server), {
+      concurrency: "unbounded",
+      discard: true,
     });
+  });
 
   // A thread's processes go when it has been idle a while; the environment's stay.
   yield* Effect.gen(function* () {
@@ -395,7 +390,9 @@ const make = Effect.gen(function* () {
   return PluginHost.of({
     request,
     listPlugin,
-    closePlugin: (pluginId) => closeWhere((_, serverKey) => serverKey.startsWith(`${pluginId}/`)),
+    closePlugin: Effect.fn("PluginHost.closePlugin")((pluginId) =>
+      closeWhere((_, serverKey) => serverKey.startsWith(`${pluginId}/`)),
+    ),
   });
 });
 

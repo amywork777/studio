@@ -536,8 +536,8 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   tab you were on before it, as a browser does: a drawing opened from its part and closed returns
   to the part, one opened from the Overview to the Overview (`rightPanelStore.ts`). The menu's
   Close others, Close to the right and Close all count the tabs shown, never the pinned Overview. The toolbar ends the
-  tab row (`StudioPanelBar.tsx`, there is no row of its own): the AI | CAD switch, where the viewer
-  in front has two layouts (the one way between them: no Back to AI beside it), then Import and New,
+  tab row (`StudioPanelBar.tsx`, there is no row of its own): Hide CAD tools (Show CAD tools
+  once hidden), where the viewer in front has its CAD tools (the one way between them), then Import and New,
   always there, as Home has them (`StudioNew.tsx`, which hosts New's dialog in Engineering), with
   the tabs keeping their scroller and Import dropping to its icon beside chat; a narrow window's
   panel sheet keeps it. Whatever writes into the chat (the Toolbox, Cmd+K, the viewer's Add
@@ -610,7 +610,7 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   already exist (Home's New is the toolbar's; Home is "Home" everywhere; the chat says "AI
   agent", as Settings does).
 - **Onboarding.** Setup speaks Studio's words and ends at signing in to Claude or Codex
-  (`WelcomeWizard.tsx`; Home brings in files). With no projects, Home asks Where would you like to
+  (`onboarding/WelcomePage.tsx`; Home brings in files). With no projects, Home asks Where would you like to
   start?, with two big buttons, New part and Import a STEP (which opens the one Import menu: Files
   or a folder, Scan this computer), the Start box right under them, then the examples' cards
   (`StartChoices.tsx`, `homeLayout` in `homeStart.ts`). With projects, the examples sit in a Get
@@ -732,11 +732,14 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   routes, and `commands.py`, which matches a selection to the part by its geometry and writes a
   command's line); the frame is `text-to-cad/packages/ui/src/renderers/xbf/edit/`. The CAD skill's
   `references/edit-mode.md` tells the agent how to write parts that edit well.
-- **The AI | CAD switch.** Studio's bar chooses it where the CAD viewer in front has two layouts. AI
-  is the viewer's ai layout, text-to-cad's view exactly as it ships, where a selection opens Quick
-  Edit; CAD is the full workspace (edit mode), where the pick bar's Quick Edit opens it. One choice for the person, across
-  projects, kept on this device (`studio:simple-view`), AI where none was stored
-  (`workbench/simpleView.ts`); New part and Start a part by hand turn it off. The workspace stands
+- **Hide CAD tools.** One view: a part opens with its CAD tools (the full workspace, edit mode),
+  where the pick bar's Quick Edit opens Quick Edit. Hide CAD tools on Studio's bar (Show CAD tools
+  once hidden; `workbench/CadToolsButton.tsx`) puts them away: the viewer's ai layout, text-to-cad's
+  view exactly as it ships, where a selection opens Quick Edit. Either way a selection goes to the
+  agent. One choice for the person, across projects, kept on this device (`studio:simple-view`,
+  "1" hidden), shown where none was stored (`workbench/simpleView.ts`); New part and Start a part by
+  hand show them. A double-click on a face with them hidden shows them; one on empty space hides
+  nothing. The workspace stands
   over the view, one 150 ms fade (none with reduced motion), and the design tree is a column docked
   at the view's left: the canvas starts at its hairline, so the switch is a plain resize of the canvas
   and the camera stays where it was. The viewer says what its part allows (`studio/notifications/edit-state`, to
@@ -808,7 +811,10 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
   nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It
   folds to its icons, and starts folded in a narrow panel, in CAD any panel beside a chat, so the
-  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. Every job the
+  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. The title bar's right
+  button is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox, with the panel
+  if that is shut, and folds it again (`toolboxFold.ts`), and the Toolbox slides open and shut at
+  the sidebar's pace (Amy, 11/11); the Toolbox has no fold button of its own (Amy, 11/12). Every job the
   enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
   board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
   and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.

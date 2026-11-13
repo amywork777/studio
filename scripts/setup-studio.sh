@@ -46,9 +46,9 @@ else
   npx --yes -p "vite-plus@${vp_version:?}" vp install
 fi
 
-# Electron fetches its app on first use; fetching it now keeps Studio's first start quick.
+# Electron 44 has no install script: the desktop package's ensure:electron fetches its app.
 step "Downloading the desktop app's runtime (Electron)"
-(cd "$ROOT/apps/desktop" && node -e "require('electron')" >/dev/null)
+(cd "$ROOT/apps/desktop" && node scripts/ensure-electron-runtime.mjs)
 
 step "Setting up the CAD plugin's Python"
 cd "$CAD"

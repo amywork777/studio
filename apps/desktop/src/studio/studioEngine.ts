@@ -13,23 +13,10 @@ export const STUDIO_ENGINE_PORT = 3345;
 export const STUDIO_DEV_ENGINE_PORT = 3346;
 
 /**
- * Where Studio's bundled CAD server keeps everything, under Studio's own home (`~/.text-to-cad-studio`,
- * or `-dev` for a checkout), never the user's own CAD server's:
- *
- * - `CAD_STATE_DIR`: its registry of documents (Recents), its installation's record and the
- *   page token;
- * - `CAD_CACHE_DIR`: its built documents;
- * - `CAD_ENGINE_DIR`: its server's door, lock and port file, so a user's own CAD server (Claude
- *   Code's or Codex's plugin, on 3245) is never found by Studio's to retire, nor finds it;
- * - `CAD_ENGINE_PORT`: its own port (`STUDIO_ENGINE_PORT`);
- * - `CAD_LAUNCHER_DIR`: where its `cad` command is written (`<home>/bin`), which its agents'
- *   skills run (`studioPath` puts it first on their PATH);
- * - `CAD_INSTALL_CHANNEL`: `dev`, which keeps the CAD tools' update notices and telemetry off from
- *   the very first `cad` command, before any MCP session has written the channel down.
- *
- * The folder is `cad`, not 0.8's `cadgen`: a 0.8 installation's record never stands for 0.10's.
- * The agents Studio runs inherit these, so every `cad` they run is Studio's installation on
- * Studio's server.
+ * Keeps Studio's bundled CAD server under Studio's own home, apart from the user's own CAD server
+ * (Claude Code's or Codex's plugin, on 3245), so neither finds or retires the other. The folder is
+ * `cad`, not 0.8's `cadgen`, so a 0.8 installation record never stands for 0.10's. Channel `dev`
+ * keeps update notices and telemetry off from the very first `cad` command.
  */
 export function studioEngineEnv(home: string, options: { readonly dev: boolean }) {
   const cad = NodePath.join(home, "cad");

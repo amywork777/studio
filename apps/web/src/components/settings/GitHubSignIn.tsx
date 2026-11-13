@@ -1,8 +1,9 @@
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, StudioGitHubSignInStartResult } from "@t3tools/contracts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
+import { useStableCallback } from "../../hooks/useStableCallback";
 import { readLocalApi } from "../../localApi";
 import { studioProjectsEnvironment } from "../../state/studioProjects";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -33,10 +34,9 @@ export function GitHubSignIn(props: {
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const { copyToClipboard } = useCopyToClipboard<void>();
-  const onSignedIn = useRef(props.onSignedIn);
-  onSignedIn.current = props.onSignedIn;
+  const onSignedIn = useStableCallback(props.onSignedIn);
 
-  // One check at a time, each waiting for the last, for as long as the code is on screen.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls GitHub on a timer, one check at a time, while the code is on screen.
   useEffect(() => {
     if (code === null) return;
     let stopped = false;
@@ -59,7 +59,7 @@ export function GitHubSignIn(props: {
       switch (result.value.state) {
         case "signed-in":
           stop(null);
-          onSignedIn.current();
+          onSignedIn();
           return;
         case "expired":
           stop("That code expired. Sign in again for a new one.");
@@ -80,7 +80,7 @@ export function GitHubSignIn(props: {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [check, code, environmentId]);
+  }, [check, code, environmentId, onSignedIn]);
 
   const begin = async () => {
     setStarting(true);

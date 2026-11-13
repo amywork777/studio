@@ -1,13 +1,8 @@
 /**
- * Plugins as clients and agents use them: the catalog and lifecycle (over
- * `PluginStore`), views and their requests (over `PluginHost`, in the
- * thread's own scope with the thread's workspace as its root), and the
- * plugin tools agents call through T3's MCP server.
- *
- * Installing or enabling a plugin lists its servers' tools in the background,
- * which fills its views and server status; the call waits a few seconds for
- * that so a quick server's views are there on return, never for a slow first
- * download.
+ * Plugins as clients and agents use them: catalog and lifecycle over `PluginStore`, views and tools
+ * over `PluginHost` in the thread's own scope. Install and enable list the servers' tools in the
+ * background and wait only a few seconds, so a quick server's views are there on return but a slow
+ * first download never blocks.
  */
 import {
   type InstalledPlugin,
@@ -135,30 +130,31 @@ const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const environment = yield* HostProcess.Environment;
 
-  const modelPictures = (input: PluginModelPicturesInput) =>
-    Effect.gen(function* () {
-      const plugins = yield* store.enabledPlugins;
-      const launch =
-        plugins
-          .map((plugin) => ModelPictures.snapshotLaunch(plugin, environment))
-          .find((candidate) => candidate !== null) ?? null;
-      if (launch === null) {
-        return { pictures: input.paths.map((entry) => ({ path: entry, png: null })) };
-      }
-      const pictures = yield* Effect.tryPromise({
-        try: () =>
-          ModelPictures.renderModelPictures({
-            launch,
-            cwd: input.cwd,
-            paths: input.paths,
-            versions: input.versions,
-            cacheDir: path.join(config.stateDir, "plugins", "pictures"),
-          }),
-        catch: (cause) =>
-          fail("request_failed", cause instanceof Error ? cause.message : "Rendering failed."),
-      });
-      return { pictures };
-    }).pipe(Effect.withSpan("PluginService.modelPictures"));
+  const modelPictures = Effect.fn("PluginService.modelPictures")(function* (
+    input: PluginModelPicturesInput,
+  ) {
+    const plugins = yield* store.enabledPlugins;
+    const launch =
+      plugins
+        .map((plugin) => ModelPictures.snapshotLaunch(plugin, environment))
+        .find((candidate) => candidate !== null) ?? null;
+    if (launch === null) {
+      return { pictures: input.paths.map((entry) => ({ path: entry, png: null })) };
+    }
+    const pictures = yield* Effect.tryPromise({
+      try: () =>
+        ModelPictures.renderModelPictures({
+          launch,
+          cwd: input.cwd,
+          paths: input.paths,
+          versions: input.versions,
+          cacheDir: path.join(config.stateDir, "plugins", "pictures"),
+        }),
+      catch: (cause) =>
+        fail("request_failed", cause instanceof Error ? cause.message : "Rendering failed."),
+    });
+    return { pictures };
+  });
 
   // A new thread lives only in its client until its first message is sent, so the server has no
   // record of it. A view opened in one names its file by its absolute path, or its project's folder
@@ -167,12 +163,8 @@ const make = Effect.gen(function* () {
   const draftRoots = new Map<ThreadId, string>();
 
   /** The thread's workspace: its worktree, else its project's root; a new thread's, as above. */
-  const workspaceOf = (
-    threadId: ThreadId,
-    file: string | undefined,
-    workspace: string | undefined,
-  ) =>
-    Effect.gen(function* () {
+  const workspaceOf = Effect.fn("PluginService.workspaceOf")(
+    function* (threadId: ThreadId, file: string | undefined, workspace: string | undefined) {
       const records = yield* threads.getThreadRecords(threadId, []).pipe(Effect.option);
       if (Option.isSome(records)) {
         draftRoots.delete(threadId);
@@ -204,7 +196,9 @@ const make = Effect.gen(function* () {
       const remembered = draftRoots.get(threadId);
       if (remembered === undefined) return yield* Effect.fail("missing thread");
       return remembered;
-    }).pipe(Effect.mapError(() => fail("thread_not_found", "that thread is gone")));
+    },
+    Effect.mapError(() => fail("thread_not_found", "that thread is gone")),
+  );
 
   const rootsOf = (threadId: ThreadId | null, file?: string, workspace?: string) =>
     threadId === null
@@ -225,23 +219,25 @@ const make = Effect.gen(function* () {
   };
   // Each key's launch under way: reads that start together ask the server's home launch once.
   const launching = new Map<string, Deferred.Deferred<string | null>>();
-  const capabilityOf = (key: string, launch: Effect.Effect<string | null>) =>
-    Effect.gen(function* () {
-      const known = capabilities.get(key);
-      if (known !== undefined) return known;
-      const pending = launching.get(key);
-      if (pending !== undefined) return yield* Deferred.await(pending);
-      const deferred = yield* Deferred.make<string | null>();
-      launching.set(key, deferred);
-      return yield* launch.pipe(
-        Effect.tap((token) => Deferred.succeed(deferred, token)),
-        Effect.ensuring(
-          Deferred.succeed(deferred, null).pipe(
-            Effect.andThen(Effect.sync(() => launching.delete(key))),
-          ),
+  const capabilityOf = Effect.fn("PluginService.capabilityOf")(function* (
+    key: string,
+    launch: Effect.Effect<string | null>,
+  ) {
+    const known = capabilities.get(key);
+    if (known !== undefined) return known;
+    const pending = launching.get(key);
+    if (pending !== undefined) return yield* Deferred.await(pending);
+    const deferred = yield* Deferred.make<string | null>();
+    launching.set(key, deferred);
+    return yield* launch.pipe(
+      Effect.tap((token) => Deferred.succeed(deferred, token)),
+      Effect.ensuring(
+        Deferred.succeed(deferred, null).pipe(
+          Effect.andThen(Effect.sync(() => launching.delete(key))),
         ),
-      );
-    });
+      ),
+    );
+  });
 
   /**
    * A request of a view's server. A `cad_http` call that carries no capability (Studio's own UI
@@ -249,49 +245,47 @@ const make = Effect.gen(function* () {
    * is known (once for reads that start together), and asked again once when the server answers
    * the call with an error: the server that gave it may have restarted since.
    */
-  const request = (input: PluginRequestInput) =>
-    Effect.gen(function* () {
-      const roots = yield* rootsOf(input.threadId);
-      const call = (method: PluginHost.ForwardedMethod, params: unknown) =>
-        host.request({
-          scope: scopeOf(input.threadId),
-          pluginId: input.pluginId,
-          server: input.server,
-          method,
-          params,
-          roots,
-        });
-      if (!AppCapability.wantsCapability(input.method, input.params) || !isRecord(input.params)) {
-        return { result: yield* call(input.method, input.params) };
-      }
-      const params = input.params;
-      const key = capabilityKey(input.threadId, input.pluginId, input.server);
-      const launch = call("tools/call", { name: AppCapability.LAUNCH_TOOL, arguments: {} }).pipe(
-        Effect.map((result) => remember(key, result)),
-        Effect.orElseSucceed(() => null),
-      );
-      const token = yield* capabilityOf(key, launch);
-      if (token === null) return { result: yield* call("tools/call", params) };
-      const result = yield* call("tools/call", AppCapability.withCapability(params, token));
-      if (!AppCapability.isErrorResult(result)) return { result };
-      if (capabilities.get(key) === token) capabilities.delete(key);
-      const fresh = yield* capabilityOf(key, launch);
-      return {
-        result:
-          fresh === null
-            ? result
-            : yield* call("tools/call", AppCapability.withCapability(params, fresh)),
-      };
-    });
+  const request = Effect.fn("PluginService.request")(function* (input: PluginRequestInput) {
+    const roots = yield* rootsOf(input.threadId);
+    const call = (method: PluginHost.ForwardedMethod, params: unknown) =>
+      host.request({
+        scope: scopeOf(input.threadId),
+        pluginId: input.pluginId,
+        server: input.server,
+        method,
+        params,
+        roots,
+      });
+    if (!AppCapability.wantsCapability(input.method, input.params) || !isRecord(input.params)) {
+      return { result: yield* call(input.method, input.params) };
+    }
+    const params = input.params;
+    const key = capabilityKey(input.threadId, input.pluginId, input.server);
+    const launch = call("tools/call", { name: AppCapability.LAUNCH_TOOL, arguments: {} }).pipe(
+      Effect.map((result) => remember(key, result)),
+      Effect.orElseSucceed(() => null),
+    );
+    const token = yield* capabilityOf(key, launch);
+    if (token === null) return { result: yield* call("tools/call", params) };
+    const result = yield* call("tools/call", AppCapability.withCapability(params, token));
+    if (!AppCapability.isErrorResult(result)) return { result };
+    if (capabilities.get(key) === token) capabilities.delete(key);
+    const fresh = yield* capabilityOf(key, launch);
+    return {
+      result:
+        fresh === null
+          ? result
+          : yield* call("tools/call", AppCapability.withCapability(params, fresh)),
+    };
+  });
 
   /** List the plugin's tools in the background, waiting a little for a quick server. */
-  const relist = (pluginId: string) =>
-    Effect.gen(function* () {
-      yield* host.closePlugin(pluginId);
-      const fiber = yield* host.listPlugin(pluginId).pipe(Effect.forkIn(scope));
-      yield* Fiber.join(fiber).pipe(Effect.timeout(LISTING_WAIT), Effect.ignore);
-      return yield* store.get(pluginId);
-    });
+  const relist = Effect.fn("PluginService.relist")(function* (pluginId: string) {
+    yield* host.closePlugin(pluginId);
+    const fiber = yield* host.listPlugin(pluginId).pipe(Effect.forkIn(scope));
+    yield* Fiber.join(fiber).pipe(Effect.timeout(LISTING_WAIT), Effect.ignore);
+    return yield* store.get(pluginId);
+  });
 
   const listedTool = (pluginId: string, server: string, tool: string) =>
     store.enabledPlugins.pipe(
@@ -404,26 +398,27 @@ const make = Effect.gen(function* () {
     }),
   );
 
-  const callAgentTool: PluginService["Service"]["callAgentTool"] = (input) =>
-    Effect.gen(function* () {
-      const tool = (yield* agentTools).find((item) => item.name === input.name);
-      if (tool === undefined)
-        return yield* fail("not_found", `no enabled plugin has the tool ${input.name}`);
-      const roots = yield* rootsOf(input.threadId);
-      const result = yield* host.request({
-        scope: input.threadId,
-        pluginId: tool.pluginId,
-        server: tool.server,
-        method: "tools/call",
-        params: {
-          name: tool.tool.name,
-          arguments: isRecord(input.arguments) ? input.arguments : {},
-        },
-        roots,
-      });
-      // A launch's app capability is the UI's alone: it never reaches the agent's context.
-      return AppCapability.withoutCapability(result);
+  const callAgentTool: PluginService["Service"]["callAgentTool"] = Effect.fn(
+    "PluginService.callAgentTool",
+  )(function* (input) {
+    const tool = (yield* agentTools).find((item) => item.name === input.name);
+    if (tool === undefined)
+      return yield* fail("not_found", `no enabled plugin has the tool ${input.name}`);
+    const roots = yield* rootsOf(input.threadId);
+    const result = yield* host.request({
+      scope: input.threadId,
+      pluginId: tool.pluginId,
+      server: tool.server,
+      method: "tools/call",
+      params: {
+        name: tool.tool.name,
+        arguments: isRecord(input.arguments) ? input.arguments : {},
+      },
+      roots,
     });
+    // A launch's app capability is the UI's alone: it never reaches the agent's context.
+    return AppCapability.withoutCapability(result);
+  });
 
   // An enabled plugin whose servers failed to list is listed again on its own (`listingRetries.ts`),
   // as opening one of its views would: a server that has come back gives agents its tools.
@@ -447,20 +442,24 @@ const make = Effect.gen(function* () {
   return PluginService.of({
     catalog: store.catalog,
     list: store.list.pipe(Effect.map((plugins) => ({ plugins }))),
-    install: (key) => store.install(key).pipe(Effect.flatMap(relist)),
+    install: Effect.fn("PluginService.install")((key) =>
+      store.install(key).pipe(Effect.flatMap(relist)),
+    ),
     // Stop the servers before the update replaces the folder they run from.
-    update: (pluginId) =>
+    update: Effect.fn("PluginService.update")((pluginId) =>
       host
         .closePlugin(pluginId)
         .pipe(Effect.andThen(store.update(pluginId)), Effect.flatMap(relist)),
-    uninstall: (pluginId) =>
+    ),
+    uninstall: Effect.fn("PluginService.uninstall")((pluginId) =>
       host.closePlugin(pluginId).pipe(Effect.andThen(store.uninstall(pluginId))),
+    ),
     readSkill: store.readSkill,
     createSkill: store.createSkill,
     saveSkill: store.saveSkill,
     copySkill: store.copySkill,
     removeSkill: store.removeSkill,
-    setEnabled: (pluginId, enabled) =>
+    setEnabled: Effect.fn("PluginService.setEnabled")((pluginId, enabled) =>
       store
         .setEnabled(pluginId, enabled)
         .pipe(
@@ -470,6 +469,7 @@ const make = Effect.gen(function* () {
               : host.closePlugin(pluginId).pipe(Effect.andThen(store.get(pluginId))),
           ),
         ),
+    ),
     openView,
     request,
     modelPictures,

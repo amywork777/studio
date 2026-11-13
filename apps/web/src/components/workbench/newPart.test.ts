@@ -2,7 +2,7 @@
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   type BuiltPart,
@@ -226,15 +226,16 @@ describe("New part, step by step", () => {
   it("stays on the project and says the build's error, with Build again, when its part doesn't build", async () => {
     const seen = await run(written, [], [{ error: "part.py: the build failed" }, { id }]);
     // Build again's own build settles after `makeNewPart` does.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(seen).toEqual([
-      "made Untitled part",
-      "overview beside chat",
-      "built /projects/untitled-part/parts/part.py for chat",
-      "Made Untitled part, but its part did not build: part.py: the build failed",
-      "built /projects/untitled-part/parts/part.py for chat",
-      `${id} beside chat`,
-    ]);
+    await vi.waitFor(() =>
+      expect(seen).toEqual([
+        "made Untitled part",
+        "overview beside chat",
+        "built /projects/untitled-part/parts/part.py for chat",
+        "Made Untitled part, but its part did not build: part.py: the build failed",
+        "built /projects/untitled-part/parts/part.py for chat",
+        `${id} beside chat`,
+      ]),
+    );
   });
 
   it("keeps the project when its starter can't be written, opens it, and says so", async () => {

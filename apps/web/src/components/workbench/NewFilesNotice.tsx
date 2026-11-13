@@ -1,6 +1,8 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { studioFolderKey } from "@t3tools/shared/studioProjects";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+import { useStableCallback } from "~/hooks/useStableCallback";
 
 import { Button } from "../ui/button";
 import { useImportDialogStore } from "./importDialogStore";
@@ -27,10 +29,7 @@ export function NewFilesNotice(props: { readonly environmentId: EnvironmentId })
     ...knownFolders.map((folder) => studioFolderKey(folder.workspaceRoot)),
     ...Object.values(studioProjects).flatMap((project) => project.folders.map(studioFolderKey)),
   ];
-  const known = useRef(knownKeys);
-  useEffect(() => {
-    known.current = knownKeys;
-  });
+  const knownNow = useStableCallback(() => knownKeys);
   const show = useImportDialogStore((store) => store.show);
   const [found, setFound] = useState<{
     readonly files: ReadonlyArray<ImportFile>;
@@ -39,6 +38,7 @@ export function NewFilesNotice(props: { readonly environmentId: EnvironmentId })
     readonly roots: ReadonlyArray<string>;
   } | null>(null);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- waits, then scans the remembered folders through the desktop bridge (IPC) once a session, cancelled on unmount
   useEffect(() => {
     const bridge = readStudioImport();
     const remembered = readRememberedScan();
@@ -51,7 +51,7 @@ export function NewFilesNotice(props: { readonly environmentId: EnvironmentId })
         for (const root of remembered.roots) {
           const scan = await bridge.scan(root).catch(() => null);
           if (cancelled) return;
-          if (scan !== null) fresh.push(...freshFiles(scan.files, remembered.at, known.current));
+          if (scan !== null) fresh.push(...freshFiles(scan.files, remembered.at, knownNow()));
         }
         if (cancelled || fresh.length === 0) return;
         setFound({
@@ -66,7 +66,7 @@ export function NewFilesNotice(props: { readonly environmentId: EnvironmentId })
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [knownNow]);
 
   if (found === null) return null;
   const dismiss = () => {

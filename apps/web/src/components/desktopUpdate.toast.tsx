@@ -1,10 +1,8 @@
 import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
 import { ArrowRightIcon } from "lucide-react";
 
-import {
-  getDesktopUpdateDownloadedVersion,
-  getDesktopUpdateReleaseUrl,
-} from "./desktopUpdate.logic";
+import { getDesktopUpdateDownloadedVersion, getDesktopUpdateReleaseUrl } from "./desktopUpdate.logic";
+import { installLocalUpdate } from "./sidebar/SidebarUpdatePill";
 import { toastManager } from "./ui/toast";
 
 type DesktopUpdateShell = Pick<DesktopBridge, "openExternal">;
@@ -15,9 +13,7 @@ export async function openDesktopUpdateReleaseNotes(
 ): Promise<void> {
   try {
     if (shell && (await shell.openExternal(releaseUrl))) return;
-  } catch {
-    // Surface rejected IPC calls through the same user-visible fallback.
-  }
+  } catch {}
   toastManager.add({ type: "error", title: "Unable to open release notes" });
 }
 
@@ -61,4 +57,10 @@ export function showDesktopUpdateDownloadedToast(
       </>
     ),
   });
+}
+
+/** Installs this app's downloaded update, which relaunches the app, for Settings: the sidebar's
+    one install (`installLocalUpdate`), which says why a refused or failed install did not run. */
+export async function installDesktopUpdate(bridge: DesktopBridge): Promise<void> {
+  await installLocalUpdate(bridge);
 }

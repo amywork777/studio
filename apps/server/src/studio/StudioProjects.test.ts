@@ -22,6 +22,19 @@ const GIT_KEYS = [
   "GIT_CONFIG_NOSYSTEM",
 ] as const;
 
+/** Sets git's variables to `values` for a test, and answers how to put them back. */
+const replaceGitEnv = (values: Readonly<Record<string, string>>) => {
+  const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
+  for (const key of GIT_KEYS) delete process.env[key];
+  Object.assign(process.env, values);
+  return () => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+};
+
 /**
  * Runs `body` against the service with its home directory in a fresh temp
  * folder and `environment` as its process environment. Git reads only a
@@ -44,10 +57,8 @@ const withStudio = <A, E>(
       yield* fileSystem.writeFileString(globalConfig, "[user]\n\tuseConfigOnly = true\n");
     }
     yield* Effect.acquireRelease(
-      Effect.sync(() => {
-        const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
-        for (const key of GIT_KEYS) delete process.env[key];
-        Object.assign(process.env, {
+      Effect.sync(() =>
+        replaceGitEnv({
           GIT_CONFIG_GLOBAL: globalConfig,
           GIT_CONFIG_NOSYSTEM: "1",
           ...(gitIdentity
@@ -58,16 +69,9 @@ const withStudio = <A, E>(
                 GIT_COMMITTER_EMAIL: "test@test.com",
               }
             : {}),
-        });
-        return saved;
-      }),
-      (saved) =>
-        Effect.sync(() => {
-          for (const [key, value] of saved) {
-            if (value === undefined) delete process.env[key];
-            else process.env[key] = value;
-          }
         }),
+      ),
+      (restore) => Effect.sync(restore),
     );
     return yield* body(home).pipe(
       Effect.provide(

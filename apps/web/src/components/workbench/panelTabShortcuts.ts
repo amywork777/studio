@@ -42,6 +42,7 @@ export function tabTarget(
  * sidebar, which the engineering interface does not show).
  */
 export function usePanelTabShortcuts(threadRef: ScopedThreadRef): void {
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener held while the workspace is mounted
   useEffect(() => {
     const mac = isMacPlatform(navigator.platform);
     const handle = (event: KeyboardEvent) => {

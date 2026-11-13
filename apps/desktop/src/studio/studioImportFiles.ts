@@ -195,11 +195,9 @@ const isWithin = (outer: string, inner: string) => {
 const seconds = (ms: number) => Math.floor(ms / 1000);
 
 /**
- * Backs a project's folders up into a folder the person chose (a Google Drive, Dropbox or iCloud
- * folder carries it off this computer from there): each folder under its own name, its version
- * history (`.git`) too, so the copy opens as the project. Only files new or changed since the last
- * backup are copied, their times kept so the next backup can tell; nothing in a backup is
- * deleted, so a file removed from the project stays in it.
+ * Backs project folders, `.git` included, into a folder the person chose, so the copy opens as the
+ * project. Copies only files new or changed since the last backup, keeping their times so the next
+ * backup can tell; it never deletes, so a file removed from the project stays in the backup.
  */
 export async function backUp(
   sources: ReadonlyArray<string>,

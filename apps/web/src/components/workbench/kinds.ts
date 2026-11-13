@@ -25,12 +25,9 @@ import type { Discipline, NewTemplate } from "./newTemplates";
 import type { ProjectGroup } from "./projectFiles";
 
 /**
- * One icon for each kind of thing a project holds, the same wherever Studio shows it: the
- * Overview's list of everything in the project, New, the part cards, the top bar's menus, the quick
- * find and the chat's change chips. Three kinds are designed from nothing (CAD, Electronics,
- * Documents); FEA and CAM are not kinds of design but work done on one, so what the top bar's
- * menus make (Analysis, Manufacturing, and Documents with Drawings) carries the menu's icon and
- * shows on the part it was made from, as a CAD system keeps a study or a toolpath with its part.
+ * One icon per kind of thing a project holds, the same everywhere Studio shows it. FEA and CAM are
+ * work done on a design, not kinds of design, so what the top bar's menus make carries the menu's
+ * icon and shows on the part it was made from.
  */
 export const KIND_ICONS: Readonly<Record<ProjectGroup, LucideIcon>> = {
   CAD: BoxIcon,

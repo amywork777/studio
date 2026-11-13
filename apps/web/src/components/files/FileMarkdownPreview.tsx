@@ -6,6 +6,7 @@ import { SOURCE_REMARK_PLUGINS } from "~/components/workbench/documentSource";
 import { DOCUMENT_REMARK_PLUGINS } from "~/components/workbench/remarkNoIndentedCode";
 import { useEngineeringInterface } from "~/components/workbench/studioInterface";
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
+import { maskMarkdownFrontmatter } from "@t3tools/shared/markdownFrontmatter";
 
 // Indented lines read as text, and each piece carries its place in the file for editing in place.
 const STUDIO_DOCUMENT_PLUGINS = [...DOCUMENT_REMARK_PLUGINS, ...SOURCE_REMARK_PLUGINS];
@@ -15,6 +16,7 @@ export function FileMarkdownPreview(props: {
   readonly relativePath: string;
   readonly text: string;
   readonly threadRef: ScopedThreadRef;
+  readonly workspaceMutationId: string | null;
   readonly onTaskListChange?:
     | ((input: { readonly markerOffset: number; readonly checked: boolean }) => void)
     | undefined;
@@ -35,10 +37,11 @@ export function FileMarkdownPreview(props: {
       <DocumentHeader text={props.text} relativePath={props.relativePath} />
       <div data-document="">
         <ChatMarkdown
-          text={props.text}
+          text={maskMarkdownFrontmatter(props.text)}
           cwd={props.cwd}
           imageBaseDir={imageBaseDir}
           threadRef={props.threadRef}
+          workspaceMutationId={props.workspaceMutationId}
           className="mx-auto max-w-4xl px-6 py-5"
           onTaskListChange={props.onTaskListChange}
           {...(documents ? { extraRemarkPlugins: STUDIO_DOCUMENT_PLUGINS } : {})}

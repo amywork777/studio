@@ -87,12 +87,18 @@ NodeTest.test("names the settings a host lacks", () => {
 });
 
 NodeTest.test(
-  "reads the two daily views, counts failed turns and pages through launches, nothing else",
+  "reads the two daily views, counts and lists failed turns and pages through launches, nothing else",
   async () => {
     const launch = { version: "0.1.10", install: "a" };
     const { calls, fetch } = recorder((url, init) => {
       if (init?.method === "HEAD") {
         return new Response(null, { status: 200, headers: { "content-range": "*/4" } });
+      }
+      if (url.includes("terminalStatus=eq.failed&at")) {
+        return Response.json([{ install: "a", provider: "claudeAgent", model: "claude-opus-5-5" }]);
+      }
+      if (url.includes("provider.turn.failed")) {
+        return Response.json([{ install: "a", provider: "claudeAgent", reason: "sign_in" }]);
       }
       if (url.includes("offset=0"))
         return Response.json(Array.from({ length: 1000 }, () => launch));
@@ -105,11 +111,17 @@ NodeTest.test(
       `${rest}usage_daily_events?day=gte.2026-11-04&order=day.desc,times.desc`,
       `${rest}usage_daily_installs?day=gte.2026-11-04&order=day.desc`,
       `${rest}usage_events?select=id&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04`,
+      `${rest}usage_events?select=install,provider:properties->>provider,model:properties->>model&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04&order=id&limit=1000`,
+      `${rest}usage_events?select=install,provider:properties->>provider,reason:properties->>reason&event=eq.provider.turn.failed&at=gte.2026-11-04&order=id&limit=1000`,
       `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
       `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=1000`,
     ]);
     NodeAssert.deepEqual(numbers.installs, [{ day: "2026-11-10", installs: 1 }]);
     NodeAssert.equal(numbers.failedTurns, 4);
+    NodeAssert.deepEqual(numbers.failures, {
+      turns: [{ install: "a", provider: "claudeAgent", model: "claude-opus-5-5" }],
+      reasons: [{ install: "a", provider: "claudeAgent", reason: "sign_in" }],
+    });
     NodeAssert.equal(numbers.launches.rows.length, 1001);
     NodeAssert.equal(numbers.launches.complete, true);
   },

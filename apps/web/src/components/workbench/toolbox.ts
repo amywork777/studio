@@ -131,11 +131,8 @@ const START_FOR_KIND: Readonly<Record<string, string>> = {
 };
 
 /**
- * New's start (`NEW_TEMPLATES`) for a job whose project holds nothing it works on (`projectKinds`,
- * its files' kinds): a board job in a project with no board starts a circuit board, an assembly
- * job in one with only parts starts an assembly. Its tile then opens New there instead of running.
- * Null while the project has something the job works on (the tile says to open it), and for a job
- * on any file or on what only another job makes (a study, a drawing alone).
+ * Null while the project has something the job works on (the tile says to open it), and for a job on
+ * any file or on what only another job makes (a study, a drawing alone).
  */
 export function toolboxStart(
   action: HardwareAction,

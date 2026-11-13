@@ -55,11 +55,9 @@ function StartChoice({
 }
 
 /**
- * The start page's two big buttons (`homeLayout` is `start`), as Vizcom's start page has them:
- * New part (a project with a starter part, open in CAD mode at once: `useNewPart`) and Import a
- * STEP, which opens Studio's one Import menu (`ImportMenu`: Files or a folder, Scan this
- * computer). `importActions` is null where there is no desktop app to read this computer's files.
- * Home's Start box, which takes the AI's typing, sits right under these.
+ * The start page's two big buttons: New part (`useNewPart`, opens in CAD mode at once) and Import a
+ * STEP (`ImportMenu`). `importActions` is null where there is no desktop app to read this
+ * computer's files.
  */
 export function StartChoices(props: {
   readonly onNewPart: () => void;
@@ -84,7 +82,7 @@ export function StartChoices(props: {
         note={
           props.newPartBusy
             ? "Making the part…"
-            : "Opens in CAD mode on a block to shape by its sizes."
+            : "Opens with the CAD tools, on a block to shape by its sizes."
         }
         busy={props.newPartBusy}
         onChoose={props.onNewPart}

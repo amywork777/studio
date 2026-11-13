@@ -1,21 +1,14 @@
 /**
- * Product analytics: Studio's anonymous usage counts, sent the way text-to-cad and Backplane send theirs.
- *
- * Events go to Studio's usage receiver (`infra/usage`, which keeps them in Studio's own table) only when the app was
- * built with its address (`T3CODE_USAGE_URL`, which a Studio app bundle sets), the person has been told
- * by the first-launch notice (`usageDataAnswered`) and has left `shareUsageData` on, and neither
- * `DO_NOT_TRACK` nor `CI` is set. Otherwise `record` drops every event. They go under a random install id,
- * never one derived from an account, and carry counts, kinds and provider names, never prompts, file names
- * or geometry. Turning `shareUsageData` off asks the receiver to delete everything sent under the id, and
- * that deletion is owed, across restarts, until the receiver takes it.
- *
- * @module AnalyticsService
+ * Studio's anonymous usage counts, sent only when built with `T3CODE_USAGE_URL`, the person has seen
+ * the notice (`usageDataAnswered`) and kept `shareUsageData` on, and neither `DO_NOT_TRACK` nor `CI`
+ * is set; under a random install id, never prompts, file names or geometry. Turning sharing off owes
+ * the receiver a delete request, kept across restarts until it is taken.
  */
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -34,6 +27,7 @@ import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import { appVersion } from "../appVersion.ts";
 import * as ServerConfig from "../config.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { getInstallId } from "./Identify.ts";
 
@@ -71,6 +65,9 @@ export function retryDelayMs(failures: number, random: number): number {
   const ceiling = Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** (failures - 1));
   return Math.round(ceiling / 2 + (ceiling / 2) * random);
 }
+
+/** `record` when nothing may be sent: the event is dropped where it is made. */
+const recordNothing = Effect.fn("AnalyticsService.record")(() => Effect.void);
 
 const TelemetryEnvConfig = Config.all({
   // Studio's usage receiver (`infra/usage`); a build without it sends nothing.
@@ -121,22 +118,32 @@ export class AnalyticsService extends Context.Service<
   static readonly layerTest = Layer.succeed(
     AnalyticsService,
     AnalyticsService.of({
-      record: () => Effect.void,
+      record: recordNothing,
       flush: Effect.void,
     }),
   );
 }
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const telemetryConfig = yield* TelemetryEnvConfig;
   const version = yield* appVersion;
-  if (!canSend(telemetryConfig)) {
-    return AnalyticsService.of({ record: () => Effect.void, flush: Effect.void });
+  // A managed policy can switch usage counts off, never on.
+  const policy = yield* Effect.serviceOption(ManagedPolicy.ManagedPolicy);
+  const policyDenies =
+    Option.isSome(policy) && ManagedPolicy.deniedBy(policy.value, "telemetry") !== undefined;
+  if (!canSend(telemetryConfig) || policyDenies) {
+    return AnalyticsService.of({
+      record: recordNothing,
+      flush: Effect.void,
+    });
   }
   const install = yield* getInstallId;
   if (install === null) {
-    return AnalyticsService.of({ record: () => Effect.void, flush: Effect.void });
+    return AnalyticsService.of({
+      record: recordNothing,
+      flush: Effect.void,
+    });
   }
   const httpClient = yield* HttpClient.HttpClient;
   const serverConfig = yield* ServerConfig.ServerConfig;
@@ -144,7 +151,7 @@ export const make = Effect.gen(function* () {
   const path = yield* Path.Path;
   // Read on each event, so turning the setting off in Settings stops events at once.
   const settings = yield* Effect.serviceOption(ServerSettings.ServerSettingsService);
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* SecureRandom.SecureRandom;
   // A deletion the receiver has not taken yet, kept beside the install id so a restart still owes it.
   const forgetOwedPath = path.join(path.dirname(serverConfig.anonymousIdPath), "usage-forget-owed");
   const forgetOwed = yield* Ref.make(
@@ -315,7 +322,7 @@ export const make = Effect.gen(function* () {
 
       // Telemetry is best effort: an event without a uuid is not sent. The
       // Node implementation throws (a defect) rather than failing, so catch both.
-      const uuid = yield* Effect.exit(crypto.randomUUIDv7);
+      const uuid = yield* Effect.exit(crypto.uuidV7());
       if (Exit.isFailure(uuid)) return;
 
       const enqueueResult = yield* enqueueBufferedEvent(uuid.value, event, properties);
@@ -351,8 +358,8 @@ export const make = Effect.gen(function* () {
 
   yield* Effect.forever(
     Effect.sleep(FLUSH_INTERVAL_MS).pipe(
-      Effect.flatMap(() => forgetWhenOwed),
-      Effect.flatMap(() => flushWhenDue),
+      Effect.andThen(forgetWhenOwed),
+      Effect.andThen(flushWhenDue),
     ),
     { disableYield: true },
   ).pipe(Effect.forkScoped);
@@ -363,5 +370,3 @@ export const make = Effect.gen(function* () {
 });
 
 export const layer = Layer.effect(AnalyticsService, make);
-
-const layerTest = AnalyticsService.layerTest;

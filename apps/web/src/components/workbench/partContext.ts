@@ -1,13 +1,7 @@
 /**
- * The part, board or assembly a text-to-cad viewer shows, as the workbench's
- * context strip names it: what it is, its units, its material and its last
- * build. The viewer's own sync (`cad_sync`, relayed by the frame) says which
- * document it shows (a file's path, or a cadgen 0.8 model's document id) and its
- * revision; the viewer's routes, reached through `cad_http` as the view reaches
- * them, say the rest once per revision: the engine's document (its parts, so
- * part or assembly, and its materials), its build (`/version`), and when
- * Recents last saw it change (`updated`). Nothing is guessed: a fact the server
- * does not hold is left out, or said to be missing.
+ * The viewer's sync (`cad_sync`) says which document it shows and its revision; its routes, read
+ * through `cad_http` once per revision, say the rest. Nothing is guessed: a fact the server does not
+ * hold is left out, or said to be missing.
  */
 
 import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";

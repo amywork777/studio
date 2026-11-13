@@ -3,7 +3,7 @@ import * as NodeURL from "node:url";
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { STUDIO_BACKUP_BRIEF_FILE } from "@t3tools/contracts";
-import * as GitHubApi from "@t3tools/source-control-github/server/GitHubApi";
+import * as GitHubCredentials from "@t3tools/source-control-github/server/GitHubCredentials";
 import * as Effect from "effect/Effect";
 import * as Base64 from "effect/encoding/Base64";
 import * as FileSystem from "effect/FileSystem";
@@ -29,6 +29,19 @@ const GIT_KEYS = [
   "GIT_CONFIG_GLOBAL",
   "GIT_CONFIG_NOSYSTEM",
 ] as const;
+
+/** Sets git's variables to `values` for a test, and answers how to put them back. */
+const replaceGitEnv = (values: Readonly<Record<string, string>>) => {
+  const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
+  for (const key of GIT_KEYS) delete process.env[key];
+  Object.assign(process.env, values);
+  return () => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+};
 
 type Git = (cwd: string, ...args: ReadonlyArray<string>) => Effect.Effect<string>;
 
@@ -74,19 +87,10 @@ const withProject = <A, E>(
         : "[user]\n\tuseConfigOnly = true\n",
     );
     yield* Effect.acquireRelease(
-      Effect.sync(() => {
-        const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
-        for (const key of GIT_KEYS) delete process.env[key];
-        Object.assign(process.env, { GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1" });
-        return saved;
-      }),
-      (saved) =>
-        Effect.sync(() => {
-          for (const [key, value] of saved) {
-            if (value === undefined) delete process.env[key];
-            else process.env[key] = value;
-          }
-        }),
+      Effect.sync(() =>
+        replaceGitEnv({ GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1" }),
+      ),
+      (restore) => Effect.sync(restore),
     );
 
     const runner = yield* Effect.provide(ProcessRunner.ProcessRunner, ProcessRunner.layer);
@@ -184,8 +188,9 @@ const withProject = <A, E>(
         );
       },
     });
-    const gitHub = Layer.mock(GitHubApi.GitHubApi)({
-      credential: () => Effect.succeed({ token: Redacted.make(TOKEN), fingerprint: "test" }),
+    const gitHub = Layer.mock(GitHubCredentials.GitHubCredentials)({
+      get: (host) =>
+        Effect.succeed({ host, token: Redacted.make(TOKEN), source: "env", fingerprint: "test" }),
     });
 
     return yield* body({ work, copy, root, git, write, version, refs, calls, made }).pipe(

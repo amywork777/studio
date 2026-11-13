@@ -30,13 +30,9 @@ const isStudyPicture = (path: string, paths: ReadonlySet<string>) =>
     paths.has(path.replace(/\.glb$/i, ".result.json")));
 
 /**
- * A new thread's starters, made from the project rather than fixed: the jobs
- * its lead part (`leadPartOf`, the part the Overview shows), then its most
- * recently used parts, boards and studies take, each kind of job once
- * (a check of how it is made, by the brief's way only; strength, fit or mass;
- * a document; a way to make it), each one the installed skills can do. A project with no files yet starts from its brief;
- * with neither, there is nothing to suggest. `paths` are the recent files as
- * they are, numbers beside pictures included.
+ * Starters come from the lead part (`leadPartOf`), then recently used parts, boards and studies,
+ * each kind of job once and only what installed skills can do. With no files it starts from the
+ * brief; with neither, nothing. `paths` keep numbers beside pictures.
  */
 export function projectStarters(
   recentFiles: ReadonlyArray<ProjectFile>,

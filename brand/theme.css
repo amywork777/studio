@@ -308,6 +308,17 @@ html.dark {
   --model-ground: #36393f;
 }
 
+/* What changed between two versions (`WhatChanged.tsx`), matching the colours text-to-cad's
+   `solid_diff.py` gives the picture: never green and red, which say passed and failed. */
+html {
+  --diff-added: #2c7197;
+  --diff-removed: oklch(0.52 0.18 350);
+}
+html.dark {
+  --diff-added: #62b7ec;
+  --diff-removed: oklch(0.72 0.15 350);
+}
+
 /* A file's format on its small mark (`kinds.ts`): muted, and never red, amber or green. */
 html {
   --kind-cad: var(--primary);

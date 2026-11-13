@@ -1,6 +1,7 @@
 import { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { providerAuthReturnUrl } from "./providerAuthReturnUrl.ts";
+import { appName } from "./appName.ts";
 
 export const CodexAuthHandoff = Schema.Struct({
   authorizationUrl: Schema.String.check(Schema.isMaxLength(16_384)),
@@ -23,7 +24,6 @@ const decodeHandoff = Schema.decodeUnknownSync(Schema.fromJsonString(CodexAuthHa
 const encodeDelivery = Schema.encodeSync(Schema.fromJsonString(Delivery));
 const decodeDelivery = Schema.decodeUnknownSync(Schema.fromJsonString(Delivery));
 
-/** The helper only opens OpenAI's authorize endpoint and receives a loopback callback. */
 export function codexAuthorizationRequest(value: string) {
   const url = new URL(value);
   if (
@@ -56,10 +56,13 @@ export function codexAuthorizationRequest(value: string) {
   return { authorizationUrl: url.toString(), redirectUri, state };
 }
 
-/** Validation is shared by the desktop listener and the environment receiving the code. */
 export function codexCallbackUrl(value: string, redirectUri: string, state: string) {
-  const callback = new URL(value);
   const expected = new URL(redirectUri);
+  const pasted = value.trimStart();
+  // Browsers can hide `http://` in the address bar, so a pasted callback may lack it.
+  const callback = new URL(
+    /^[a-z][a-z\d+.-]*:\/\//iu.test(pasted) ? pasted : `${expected.protocol}//${pasted}`,
+  );
   const states = callback.searchParams.getAll("state");
   const codes = callback.searchParams.getAll("code");
   const errors = callback.searchParams.getAll("error");
@@ -118,7 +121,7 @@ export function codexAuthDeliveryUrl(input: CodexAuthHandoff, callbackUrl: strin
   const request = codexAuthorizationRequest(input.authorizationUrl);
   codexCallbackUrl(callbackUrl, request.redirectUri, request.state);
   const destination = providerAuthReturnUrl(input.returnUrl);
-  if (!destination) throw new Error("Invalid T3 Code return address.");
+  if (!destination) throw new Error(`Invalid ${appName()} return address.`);
   const url = new URL(destination);
   const delivery = {
     environmentId: input.environmentId,
