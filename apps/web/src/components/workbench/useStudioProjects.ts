@@ -1,6 +1,5 @@
 import type { EnvironmentId, StudioProject, StudioProjectOrigin } from "@t3tools/contracts";
 import { studioProjectAt } from "@t3tools/shared/studioProjects";
-import { useCallback, useMemo } from "react";
 
 import { useEnvironmentQuery } from "~/state/query";
 import { studioProjectsEnvironment } from "~/state/studioProjects";
@@ -9,11 +8,8 @@ import { useAtomCommand } from "~/state/use-atom-command";
 const NONE: Readonly<Record<string, StudioProject>> = {};
 
 /**
- * Studio's projects on an environment: named groupings of its folders with a
- * brief. Each is a file in the environment's projects folder, a git
- * repository the server commits every change to, so the projects can be
- * pushed and shared; the server also hands a thread's agent its project's
- * other folders and brief. Null reads nothing.
+ * Each project is a file in the environment's projects folder, a git repository the server commits
+ * every change to, so projects can be pushed and shared. Null reads nothing.
  */
 export function useStudioProjectsList(environmentId: EnvironmentId | null) {
   return useEnvironmentQuery(
@@ -33,10 +29,7 @@ export function useStudioProjectAt(
   folder: string | null,
 ): { readonly id: string; readonly project: StudioProject } | null {
   const projects = useStudioProjects(environmentId);
-  return useMemo(
-    () => (folder === null ? null : studioProjectAt(projects, folder)),
-    [projects, folder],
-  );
+  return folder === null ? null : studioProjectAt(projects, folder);
 }
 
 /**
@@ -48,20 +41,17 @@ export function useStudioProjectAt(
 export function useSaveStudioProject(environmentId: EnvironmentId) {
   const save = useAtomCommand(studioProjectsEnvironment.save, { reportFailure: true });
   const { refresh } = useStudioProjectsList(environmentId);
-  return useCallback(
-    async (
-      id: string | null,
-      project: StudioProject,
-      origin?: StudioProjectOrigin,
-    ): Promise<string | null> => {
-      const result = await save({
-        environmentId,
-        input: { id, project, ...(origin === undefined ? {} : { origin }) },
-      });
-      if (result._tag !== "Success") return null;
-      refresh();
-      return result.value.id;
-    },
-    [save, environmentId, refresh],
-  );
+  return async (
+    id: string | null,
+    project: StudioProject,
+    origin?: StudioProjectOrigin,
+  ): Promise<string | null> => {
+    const result = await save({
+      environmentId,
+      input: { id, project, ...(origin === undefined ? {} : { origin }) },
+    });
+    if (result._tag !== "Success") return null;
+    refresh();
+    return result.value.id;
+  };
 }

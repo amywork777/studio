@@ -1,18 +1,16 @@
-// @vitest-environment jsdom
-
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
+
+import { act, render } from "../../../../test/render";
 
 // The view's environment, reduced to what opening one needs: its document, and a server that answers.
 const mocks = vi.hoisted(() => ({
-  openView: vi.fn(async () => ({
+  openView: async () => ({
     _tag: "Success" as const,
     value: { html: "<html></html>", csp: undefined, toolInput: {}, toolResult: undefined },
-  })),
-  request: vi.fn(async () => ({ _tag: "Success" as const, value: { result: {} } })),
+  }),
+  request: async () => ({ _tag: "Success" as const, value: { result: {} } }),
 }));
 vi.mock("~/state/plugins", () => ({
   // No plugins listed: a script the view sends back to opens as a document, as it would with them.
@@ -53,20 +51,31 @@ const settle = () => act(async () => {});
 const tabs = () => selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, thread);
 const askOf = (file: string) => viewerFocusOf(useViewerFocusStore.getState(), threadKey, file);
 
+function setup() {
+  useViewerFocusStore.setState({ byThread: {} });
+  useRightPanelStore.setState({
+    byThreadKey: {},
+    threadPanelVisibilityByThreadKey: {},
+    userActionRevisionByThreadKey: {},
+    closeRevisionByThreadKey: {},
+  });
+}
+
 /** The view, mounted beside the chat for `parts/bracket.step`, its host up. */
 async function bracketView() {
-  const container = document.body.appendChild(document.createElement("div"));
-  const root = createRoot(container);
-  await act(async () => {
-    root.render(
+  await using stack = new AsyncDisposableStack();
+  const screen = stack.use(
+    await render(
       <PluginViewFrame target={target} focusPlace={{ threadKey, file: "parts/bracket.step" }} />,
-    );
-  });
+    ),
+  );
   await settle();
   await settle();
-  const frame = container.querySelector("iframe");
+  const frame = screen.container.querySelector("iframe");
+  const owned = stack.move();
   return {
     frame,
+    unmount: screen.unmount,
     /** What the view posts its host, as from inside its frame. */
     says: (method: string, params: unknown) =>
       act(async () => {
@@ -77,67 +86,47 @@ async function bracketView() {
           }),
         );
       }),
-    close: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
+    [Symbol.asyncDispose]: () => owned.disposeAsync(),
   };
 }
 
-afterEach(() => {
-  useViewerFocusStore.setState({ byThread: {} });
-  useRightPanelStore.setState({
-    byThreadKey: {},
-    threadPanelVisibilityByThreadKey: {},
-    userActionRevisionByThreadKey: {},
-    closeRevisionByThreadKey: {},
-  });
-});
-
 it("lets the ask a view was given go when the view's host goes, so no view opened later selects it", async () => {
+  setup();
   const { focus } = useViewerFocusStore.getState();
   focus(threadKey, "parts/bracket.step", { path: "parts/bracket.py", line: 12 });
   // Another part's ask, beside the same chat, is not this view's to let go.
   focus(threadKey, "parts/clip.step", { path: "parts/clip.py", line: 4 });
-  const container = document.body.appendChild(document.createElement("div"));
-  const root = createRoot(container);
-  await act(async () => {
-    root.render(
-      <PluginViewFrame target={target} focusPlace={{ threadKey, file: "parts/bracket.step" }} />,
-    );
-  });
-  await settle();
-  await settle();
+  await using view = await bracketView();
   // The view is up, with its host, and the ask waits for the part to be read.
-  expect(container.querySelector("iframe")).not.toBeNull();
-  expect(viewerFocusOf(useViewerFocusStore.getState(), threadKey, "parts/bracket.step")).toEqual({
+  expect(view.frame).not.toBeNull();
+  expect(askOf("parts/bracket.step")).toEqual({
     path: "parts/bracket.py",
     line: 12,
     nonce: expect.any(Number),
   });
   // Closed before it read the part: its ask goes with it, the other part's stays.
-  await act(async () => root.unmount());
-  expect(viewerFocusOf(useViewerFocusStore.getState(), threadKey, "parts/bracket.step")).toBeNull();
-  expect(viewerFocusOf(useViewerFocusStore.getState(), threadKey, "parts/clip.step")).toEqual({
+  await view.unmount();
+  expect(askOf("parts/bracket.step")).toBeNull();
+  expect(askOf("parts/clip.step")).toEqual({
     path: "parts/clip.py",
     line: 4,
     nonce: expect.any(Number),
   });
-  container.remove();
 });
 
 it("opens the part's script at the cited line when the view finds no feature there, and nothing more when it does", async () => {
+  setup();
   const { focus } = useViewerFocusStore.getState();
   focus(threadKey, "parts/bracket.step", { path: "parts/bracket.py", line: 12 });
-  const view = await bracketView();
+  await using view = await bracketView();
   expect(view.frame?.contentWindow).toBeTruthy();
   // A feature holds the line: it is selected in the view, the ask goes, and nothing else opens.
   const found = askOf("parts/bracket.step");
   await view.says("studio/notifications/focus-taken", { nonce: found?.nonce, found: true });
   expect(askOf("parts/bracket.step")).toBeNull();
   expect(tabs().surfaces).toEqual([]);
-  // Pressed twice before the view answers: its late answer to the first, found nowhere, opens nothing, as the second
-  // ask is the view's to answer.
+  // Pressed twice before the view answers: its late answer to the first, found nowhere, opens
+  // nothing, as the second ask is the view's to answer.
   focus(threadKey, "parts/bracket.step", { path: "parts/bracket.py", line: 5 });
   await settle();
   const first = askOf("parts/bracket.step");
@@ -147,13 +136,12 @@ it("opens the part's script at the cited line when the view finds no feature the
   await view.says("studio/notifications/focus-taken", { nonce: first?.nonce, found: false });
   expect(tabs().surfaces).toEqual([]);
   expect(askOf("parts/bracket.step")).toEqual(second);
-  // No feature holds the second's line (a constant, a helper's line, a build that failed): the script opens there, in
-  // front, as Simple view opens it, and the ask goes.
+  // No feature holds the second's line: the script opens there, in front, as Simple view opens
+  // it, and the ask goes.
   await view.says("studio/notifications/focus-taken", { nonce: second?.nonce, found: false });
   expect(askOf("parts/bracket.step")).toBeNull();
   expect(tabs().activeSurfaceId).toBe("file:parts/bracket.py");
   expect(tabs().surfaces).toEqual([
     expect.objectContaining({ relativePath: "parts/bracket.py", revealLine: 3 }),
   ]);
-  await view.close();
 });

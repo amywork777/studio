@@ -31,14 +31,10 @@ import {
 } from "./useScopedSettings";
 
 /**
- * The model new threads start on, with its Thinking and Speed choices: the one row that edits
- * `defaultModelSelection` at the scope Settings has selected (an environment's default, or a
- * project's override). General and Project settings show it under "New threads"; the engineering
- * interface, whose composer carries no model picker, shows it under AI agents instead. A change
- * applies to chats started afterwards; in the engineering interface the chat that was in front when
- * Settings opened also takes a chosen model on its next turn (`workbench/defaultModelFollow.ts`).
- * Resetting it is not applied to an open chat. There it also forgets the composer's remembered
- * pick, so new chats start on the built-in model (at project scope, on the environment default).
+ * The one row that edits `defaultModelSelection` at the selected scope. A change applies to new
+ * chats, and in the engineering interface to the chat in front when Settings opened
+ * (`workbench/defaultModelFollow.ts`). A reset skips open chats and forgets the composer's
+ * remembered pick.
  */
 export function DefaultModelRow() {
   const { scope, target, targets, connectedEnvironments } = useSettingsScope();

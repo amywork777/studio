@@ -76,13 +76,9 @@ function LooseFolderRow(props: {
 }
 
 /**
- * Studio's Projects page (the rail's Projects), every project, where Home keeps only the starred
- * ones and the last few. A project is a grouping of folders with a brief (`useStudioProjects.ts`):
- * each is a tile as on Home (`useProjectTiles`), the starred ones first, each group with the
- * projects waiting on the person first, then the one worked on last; the box finds one by name,
- * what it is for or a chat's title. Folders in no project are listed below, to open or make a
- * project of, in one press (its brief is filled in later). New adds a project as on Home, and
- * Import too in the engineering interface.
+ * Every project, where Home keeps only the starred and the last few: starred first, then within
+ * each group the ones waiting on the person, then the last worked on. Folders in no project are
+ * listed below, to open or make a project of in one press.
  */
 export function ProjectsHome() {
   const environmentId = usePrimaryEnvironmentId();

@@ -3,11 +3,9 @@ import * as Schema from "effect/Schema";
 import { ThreadId, TrimmedNonEmptyString, TrimmedString } from "./baseSchemas.ts";
 
 /**
- * Plugins in the Codex/Claude plugin format: a folder holding a manifest
- * (`.codex-plugin/plugin.json` or `.claude-plugin/plugin.json`), MCP servers,
- * skills and MCP App views. The environment installs them into its own state
- * directory (never into `~/.claude` or `~/.codex`), runs their servers once per
- * thread, and hands their tools to every provider through T3's MCP server.
+ * Plugins in the Codex/Claude plugin format (manifest, MCP servers, skills, MCP App views). The
+ * environment installs them in its own state dir (never `~/.claude` or `~/.codex`), runs their
+ * servers once per thread, and gives their tools to every provider through T3's MCP server.
  */
 
 const Text = (max: number) => Schema.String.check(Schema.isMaxLength(max));

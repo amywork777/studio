@@ -3,7 +3,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/model
 import type { EnvironmentId, ProjectId, ScopedThreadRef } from "@t3tools/contracts";
 import { useLocation, useParams } from "@tanstack/react-router";
 import { ChevronRightIcon, EllipsisIcon, LayoutDashboardIcon, PlusIcon } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { type DraftId, useComposerDraftStore } from "~/composerDraftStore";
 import { isElectron } from "~/env";
@@ -144,15 +144,10 @@ function ProjectChats(props: {
     strict: false,
     select: (params) => ("draftId" in params ? (params.draftId ?? null) : null),
   });
-  const refs = useMemo(
-    () =>
-      entry.folder === null
-        ? []
-        : entry.folderIds.map((id) =>
-            scopeProjectRef(entry.folder!.environmentId, id as ProjectId),
-          ),
-    [entry.folder, entry.folderIds],
-  );
+  const refs =
+    entry.folder === null
+      ? []
+      : entry.folderIds.map((id) => scopeProjectRef(entry.folder!.environmentId, id as ProjectId));
   // Chats begun and left unsent for another (New chat over one with text in it), listed first.
   const unsent = useUnsentChats(refs, currentDraftId);
   const openChat = useOpenFromSidebar();
@@ -306,24 +301,21 @@ function ProjectsList(props: { readonly environmentId: EnvironmentId }) {
     onOpen: (card) => void openProject(card.folder, card.threads),
   });
   const currentFolderId = inWorkspace ? folderId : null;
-  const entries = useMemo(
-    () =>
-      sidebarProjects({
-        cards,
-        loose,
-        unfiled: noProjectChats(threads, environmentId, free?.id ?? null).filter(
-          (thread) => thread.archivedAt === null,
-        ),
-        freeFolderId: free?.id ?? null,
-        currentFolderId,
-      }),
-    [cards, loose, threads, environmentId, free, currentFolderId],
-  );
+  const entries = sidebarProjects({
+    cards,
+    loose,
+    unfiled: noProjectChats(threads, environmentId, free?.id ?? null).filter(
+      (thread) => thread.archivedAt === null,
+    ),
+    freeFolderId: free?.id ?? null,
+    currentFolderId,
+  });
   const currentId =
     currentFolderId === null
       ? null
       : (entries.find((entry) => entry.folderIds.includes(currentFolderId))?.id ?? null);
   const arrive = useChatScopeStore((store) => store.arrive);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- tells the chat scope store when the route lands in a project, which navigation changes outside this list
   useEffect(() => {
     if (currentId !== null) arrive();
   }, [currentId, arrive]);

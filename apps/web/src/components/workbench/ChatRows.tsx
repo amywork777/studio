@@ -33,13 +33,9 @@ export const childRowClass = (lit: boolean) =>
   cn("min-w-0 flex-1 truncate", !lit && "font-normal text-muted-foreground");
 
 /**
- * Chats down the sidebar (`StudioSidebar`), each with how it stands (`chatStanding`),
- * and the two things a chat app lets you do to one: Rename it where it is (its name becomes a box;
- * Enter or clicking away keeps the new name, Escape the old) and Delete it, after asking. Both
- * are a right-click away, or the "…" that shows on a row's hover in place of its time. The
- * actions are T3 Code's own (`updateMetadata`, `useThreadActions().deleteThread`, which moves to
- * another chat when the open one goes); Archive is left out, as Studio has no archive to come back
- * from.
+ * Sidebar chats with Rename in place (Enter or blur keeps, Escape reverts) and Delete after asking,
+ * from a right-click or the hover "…". Both are T3 Code's own actions; `deleteThread` moves off the
+ * open chat. Archive is left out because Studio has nowhere to restore from.
  */
 export function ChatRows(props: {
   readonly chats: ReadonlyArray<EnvironmentThreadShell>;

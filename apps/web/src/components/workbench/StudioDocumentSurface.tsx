@@ -22,12 +22,9 @@ interface Editing {
 const PIECE_KINDS = new Set<string>(["heading", "paragraph", "listItem", "tableCell"]);
 
 /**
- * A document in the engineering interface (`FilePreviewPanel`), read as a document and edited where
- * it reads, as Google Docs is: a click in a heading, a paragraph, a list item or a table cell puts
- * the cursor there to type (`documentSource.ts` knows each piece's place in the file), and leaving
- * it saves the new words into that place, the rest of the file as it was, the way the file view
- * saves a file. Enter leaves a heading, a list item or a cell; Escape puts the words back. A piece
- * with formatting in it (bold, a link) is read only for now.
+ * A document edited where it reads, as in Google Docs: clicking a heading, paragraph, list item or
+ * table cell types into it, and leaving saves just that place in the file (`documentSource.ts`).
+ * Enter leaves a heading, list item or cell; Escape reverts. Pieces with formatting are read only.
  */
 export function StudioDocumentSurface(props: {
   readonly environmentId: EnvironmentId;

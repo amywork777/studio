@@ -47,6 +47,7 @@ const SentBatch = Schema.fromJsonString(
     events: Schema.Array(Schema.Struct({ id: Schema.String })),
   }),
 );
+const decodeSentBatch = Schema.decodeEffect(SentBatch);
 
 /**
  * HTTP client that reads each batch, then fails as if the connection dropped
@@ -59,9 +60,9 @@ const layerAcceptThenFailClient = (batches: Array<ReadonlyArray<{ readonly id: s
     HttpClient.make((request) =>
       Effect.gen(function* () {
         if (request.body._tag === "Uint8Array") {
-          const body = yield* Schema.decodeEffect(SentBatch)(
-            new TextDecoder().decode(request.body.body),
-          ).pipe(Effect.orDie);
+          const body = yield* decodeSentBatch(new TextDecoder().decode(request.body.body)).pipe(
+            Effect.orDie,
+          );
           batches.push(body.events);
         }
         return yield* new HttpClientError.HttpClientError({

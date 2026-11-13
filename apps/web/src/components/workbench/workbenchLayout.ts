@@ -1,9 +1,6 @@
 /**
- * The workbench layout (`brand.json` `"layout": "workbench"`, text-to-cad
- * Studio): the right panel is the main surface, where the model or board
- * viewer lives, and the chat docks beside it at a width the user sets. The
- * viewer absorbs a wider window; the dock keeps its width. T3 Code's own
- * layout, a chat column with a side panel, is unchanged without the brand.
+ * The viewer absorbs a wider window; the chat dock keeps its user-set width. Without the brand
+ * (`brand.json` `"layout": "workbench"`), T3 Code's own layout is unchanged.
  */
 export const WORKBENCH_LAYOUT = import.meta.env.VITE_APP_LAYOUT === "workbench";
 

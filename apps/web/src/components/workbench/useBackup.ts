@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 /**
  * Where a project was backed up to: a private GitHub repository Studio made for it, or a folder
@@ -38,19 +38,16 @@ function readBackups(): Record<string, LastBackup> {
 /** A project's last backup, and recording a new one. */
 export function useLastBackup(projectId: string | null) {
   const [backups, setBackups] = useState(readBackups);
-  const remember = useCallback(
-    (place: BackupPlace) => {
-      if (projectId === null) return;
-      const next = { ...readBackups(), [projectId]: { place, at: Date.now() } };
-      setBackups(next);
-      try {
-        globalThis.localStorage?.setItem(KEY, JSON.stringify(next));
-      } catch {
-        // Backed up all the same; where is asked again next time.
-      }
-    },
-    [projectId],
-  );
+  const remember = (place: BackupPlace) => {
+    if (projectId === null) return;
+    const next = { ...readBackups(), [projectId]: { place, at: Date.now() } };
+    setBackups(next);
+    try {
+      globalThis.localStorage?.setItem(KEY, JSON.stringify(next));
+    } catch {
+      // Backed up all the same; where is asked again next time.
+    }
+  };
   return { last: projectId === null ? null : (backups[projectId] ?? null), remember };
 }
 

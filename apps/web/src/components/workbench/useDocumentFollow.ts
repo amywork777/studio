@@ -136,15 +136,9 @@ const followed = new Map<
 >();
 
 /**
- * With the engineering surfaces on, what the agent makes comes to the person, in
- * measure: one thing per run, the most worth seeing (`pickFollow`). A
- * document it writes opens as soon as it is written; otherwise, when the run
- * ends, its checkpoint names everything it made (models its commands built, a
- * study's result, G-code), and the best of those opens, in the viewer when
- * one draws it. Nothing the viewer already shows opens again, and a panel
- * choice the person made during the run is never overridden. The rest stays
- * on the project page. Only runs seen live: opening an old thread never
- * replays its finished runs.
+ * Opens one thing per run, the most worth seeing (`pickFollow`): a written document at once,
+ * otherwise the best of the run's checkpoint when it ends. Nothing already shown opens again, a
+ * panel choice the person made during the run is never overridden, and only runs seen live count.
  */
 export function useDocumentFollow(input: {
   readonly environmentId: EnvironmentId;
@@ -163,6 +157,7 @@ export function useDocumentFollow(input: {
   );
   const plugins = list.data?.plugins;
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records each live run in the session's follow map with the panel store's revision at its start
   useEffect(() => {
     if (!engineering || threadRef === null || threadKey === null || runningRunId === null) return;
     let state = followed.get(threadKey);
@@ -179,6 +174,7 @@ export function useDocumentFollow(input: {
     }
   }, [engineering, threadRef, threadKey, runningRunId]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens what a live run made in the right panel store as the server streams its items and checkpoints
   useEffect(() => {
     if (!engineering || threadRef === null || threadKey === null) return;
     const state = followed.get(threadKey);

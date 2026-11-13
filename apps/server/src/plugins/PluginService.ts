@@ -1,13 +1,8 @@
 /**
- * Plugins as clients and agents use them: the catalog and lifecycle (over
- * `PluginStore`), views and their requests (over `PluginHost`, in the
- * thread's own scope with the thread's workspace as its root), and the
- * plugin tools agents call through T3's MCP server.
- *
- * Installing or enabling a plugin lists its servers' tools in the background,
- * which fills its views and server status; the call waits a few seconds for
- * that so a quick server's views are there on return, never for a slow first
- * download.
+ * Plugins as clients and agents use them: catalog and lifecycle over `PluginStore`, views and tools
+ * over `PluginHost` in the thread's own scope. Install and enable list the servers' tools in the
+ * background and wait only a few seconds, so a quick server's views are there on return but a slow
+ * first download never blocks.
  */
 import {
   type InstalledPlugin,

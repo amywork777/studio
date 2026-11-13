@@ -1,14 +1,10 @@
 import type { ModelSelection } from "@t3tools/contracts";
 
 /**
- * The engineering composer has no model picker, so a model chosen in Settings, AI agents also
- * reaches the chat that was open when Settings was: its next turn uses the new choice.
- *
- * Settings unmounts the chat, so the change waits as one pending entry keyed to that chat
- * (`chatInFront`, which `ChatView` sets whenever a chat is shown; it keeps the last one while
- * Settings is up). Only `DefaultModelRow` makes a pending change, and a later one replaces it.
- * The chat takes it only when its own key matches, once, through the picker's own path
- * (`onProviderModelSelect`).
+ * The engineering composer has no model picker, so a model chosen in Settings reaches the chat open
+ * behind Settings. Settings unmounts that chat, so the change waits as one pending entry keyed to
+ * it (`chatInFront`); a later change replaces it, and the chat takes it once, when its key matches,
+ * through the picker's own path (`onProviderModelSelect`).
  */
 export interface PendingModelFollow {
   readonly threadKey: string;

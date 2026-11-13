@@ -1,11 +1,7 @@
 /**
- * Agents list T3's MCP tools when their session opens, and a provider may keep that list for as
- * long as the session stays loaded: Codex ignores `notifications/tools/list_changed`, so a thread
- * started while a plugin's server was down never gets its tools, even once T3 lists them. When the
- * plugin tools agents see change (a plugin installed, updated, toggled, or listed again after its
- * server failed), every live provider session goes as soon as it is idle
- * (`ProviderSessionManagerV2.releaseWhenIdle`), and its thread's next turn resumes it with the
- * tools T3 offers then.
+ * Codex ignores `notifications/tools/list_changed`, so a provider can keep a stale tool list for its
+ * whole session. When the plugin tools agents see change, every live provider session is released
+ * once idle (`releaseWhenIdle`) and its thread's next turn resumes with the current tools.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

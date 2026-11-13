@@ -1,12 +1,9 @@
 import { useState } from "react";
 
 /**
- * A project's README as its Overview reads it (`ReadmeOverview.tsx`): the title, "What it is",
- * and "Decisions", one line each, which the agent keeps as it works (`studioProjectContext`):
- * `- <what was decided> (<YYYY-MM-DD>, asked)`, or `by hand` for a change made by hand. A
- * decision written date first (`- 2026-10-19 — ... Source: ...`) reads too, as does a line
- * `Decision: ...` outside that section, and every other section is kept as written, so whatever
- * the README holds shows.
+ * Decisions are written `- <what was decided> (<YYYY-MM-DD>, asked)` or `by hand`
+ * (`studioProjectContext`). Date-first lines and a `Decision: ...` line outside the section read too,
+ * and every other section is kept as written.
  */
 
 export interface ReadmeDecision {

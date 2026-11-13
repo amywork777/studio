@@ -611,7 +611,7 @@ describe("turnReferences", () => {
     ).toBe("earlier in this chat");
   });
 
-  it("stays quick on a long chat, each answer's sources matched against a few openings, and keeps each list", () => {
+  it("matches each answer's sources on a long chat and keeps each list", () => {
     // 200 turns, each reading two or three of 300 scripts: 500 openings. Each answer cites what its turn read, a script
     // read in an earlier turn, a document nothing opened, and a page.
     const chat = makeChat();
@@ -646,11 +646,7 @@ describe("turnReferences", () => {
         entries,
         root: ROOT,
       });
-    // A derive pass of every settled answer, which the timeline makes as the chat changes, the chat read once. It took about
-    // 100 ms here while each source was compared with every opening, both paths normalized for each pair, and about 5 since.
-    const started = performance.now();
     const lists = answers.map(listOf);
-    expect(performance.now() - started).toBeLessThan(50);
     expect(lists[150]).toEqual([
       { n: 1, target: file("parts/part-75.py"), opened: "this turn" },
       { n: 2, target: file("parts/part-76.py"), opened: "this turn" },

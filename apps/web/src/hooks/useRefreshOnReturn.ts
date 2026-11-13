@@ -36,7 +36,8 @@ export function onReturn(
   };
 }
 
-/** `onReturn` for as long as the component is mounted. Pass a stable `refresh` (`useCallback`). */
+/** `onReturn` for as long as the component is mounted. Pass a stable `refresh` (`useStableCallback`). */
 export function useRefreshOnReturn(refresh: () => void): void {
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- holds window focus and visibility listeners while mounted.
   useEffect(() => onReturn(window, document, refresh), [refresh]);
 }

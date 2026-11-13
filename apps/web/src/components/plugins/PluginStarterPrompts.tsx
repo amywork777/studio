@@ -1,6 +1,5 @@
 import { pluginStarterPrompts } from "@t3tools/client-runtime/state/plugins";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { pluginEnvironment } from "~/state/plugins";
@@ -27,10 +26,9 @@ export function PluginStarterPrompts(props: {
       ? null
       : pluginEnvironment.list({ environmentId: props.environmentId, input: {} }),
   );
-  const prompts = useMemo(() => {
-    const plugins = list.data?.plugins ?? [];
-    return brandStarterPrompts(BRAND_STARTERS, plugins, 4) ?? pluginStarterPrompts(plugins, 3);
-  }, [list.data]);
+  const plugins = list.data?.plugins ?? [];
+  const prompts =
+    brandStarterPrompts(BRAND_STARTERS, plugins, 4) ?? pluginStarterPrompts(plugins, 3);
   // Studio suggests from the project itself, and nothing without one (`workbench/ProjectStarters.tsx`).
   if (WORKBENCH_LAYOUT) {
     return props.environmentId !== null && props.cwd ? (

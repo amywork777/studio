@@ -188,11 +188,9 @@ export const layerFromProjectStore: Layer.Layer<
       );
 
     /**
-     * What the thread's Studio project adds to its turns: the project's other
-     * folders, its own record's folder (so the agent can change the setup when
-     * asked, `studioProjectContext`), and its context. Matched by the
-     * project's folder, so a worktree thread gets its project's. Projects that
-     * cannot be read add nothing rather than fail the turn.
+     * Adds a thread's Studio project to its turns (other folders, the record's folder, its context),
+     * matched by the project's folder so a worktree thread gets its project's. A project that cannot
+     * be read adds nothing rather than fail the turn.
      */
     const studioProjectPolicy = Effect.fn("RuntimePolicyV2.studioProjectPolicy")(function* (
       input: RuntimePolicyV2ResolveInput,

@@ -1,10 +1,7 @@
 /**
- * The numbers page, the receiver's root (`/`): Studio's usage counts for Amy, behind a password. It shows the
- * two views schema.sql makes (installs per day, how often each event happened), how many AI turns failed and
- * with which AI, model and reason, and how many installs opened each version, which says whether updates
- * reach people. It counts install ids and never shows one; no other property and no country reaches the page.
- *
- * Plain HTML and CSS, no script: it is drawn once per request and kept by nobody (`no-store`).
+ * The numbers page at `/`, behind a password: installs per day, event counts, failed AI turns by AI,
+ * model and reason, and installs per version. It counts install ids but never shows one, nor any
+ * other property or country. Plain HTML and CSS, no script, `no-store`.
  */
 import { PROPERTIES } from "./events.mjs";
 

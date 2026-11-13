@@ -32,13 +32,9 @@ const asSizeName = (typed: string) =>
     .replace(/[\s-]+/g, "_");
 
 /**
- * Sizes on the Overview: every named size in the project's scripts in one table, as a CAD tool's
- * global variables. The shared ones come first (`sizes.py` beside the parts, which import them),
- * with the parts that use them; then each part's own, the named numbers at the top of its script.
- * A number changes where it is written, a click away, and every part that uses its file is built
- * again; a formula of other sizes changes where those are. Add shared size writes a new one, and
- * Use it in parts asks the agent to put it to work. The agent is told of each change, as of a hand
- * edit.
+ * Every named size in the project's scripts in one table, shared ones (`sizes.py`) first. A number
+ * is edited where it is written and every part using that file rebuilds; a formula is changed at
+ * the sizes it uses. The agent is told of each change, as of a hand edit.
  */
 export function ProjectSizes(props: {
   readonly environmentId: EnvironmentId;

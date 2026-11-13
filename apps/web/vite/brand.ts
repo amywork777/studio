@@ -1,9 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off - a build plugin that reads a folder of brand files.
 /**
- * A fork's identity, from the folder `T3CODE_BRAND_DIR` names (text-to-cad
- * Studio's `brand/`): `brand.json` gives the page title and the loading
- * splash's colors, `theme.css` restyles T3 Code's default look, and the other
- * files replace the favicons and the wordmark. The app's name itself is
+ * A fork's identity from the `T3CODE_BRAND_DIR` folder: `brand.json` (title, splash colors),
+ * `theme.css` over T3 Code's default look, and replacement favicons and wordmark. The app's name is
  * `VITE_APP_BASE_NAME`. Without the variable the app stays T3 Code.
  */
 import * as NodeFS from "node:fs";

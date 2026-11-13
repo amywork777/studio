@@ -1,15 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off -- renders through the plugin's own CLI and caches PNG files on disk.
 /**
- * Pictures of a project's models for Studio's project page: every part,
- * assembly, board, drawing and mesh, not only the ones a viewer has opened.
- * text-to-cad renders them itself: its plugin's MCP server is `cad-mcp`, and
- * the server of the same release, `cad <type> snapshot` (0.11's, by the
- * document's type: `cad step snapshot`, `cad model snapshot` for a model by its
- * document id), renders any document or file it opens (STEP, xbf, meshes, DXF,
- * robots) to a PNG, a whole batch of one type in one run. So a release runs the
- * release's server and a development checkout or the Studio app its own
- * Python's. Pictures are cached by the file's size and time, or by a model's
- * build, so a page renders only what changed.
+ * Pictures of every model in a project for Studio's project page, rendered by text-to-cad's own
+ * `cad <type> snapshot` from the same release as the plugin's `cad-mcp`, a batch of one type a run.
+ * Cached by file size and time, or by a model's build, so a page renders only what changed.
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
@@ -66,12 +59,9 @@ export interface SnapshotLaunch {
 const releaseOf = (pin: string | undefined) => /^==(\d+)\.(\d+)/.exec(pin ?? "");
 
 /**
- * The command that renders pictures, from a plugin's CAD server: a release's
- * `uvx … --from cad-mcp==<version> cad-mcp` becomes that release's server's
- * `uvx … --from cad-server==<version> cad`, and a Python's `python -m cad_mcp`
- * (a checkout's .venv, the Studio app's own) that Python's `-m cad_server.cli`,
- * each then given the document's type and `snapshot`. Null for a server that is
- * not CAD's.
+ * The snapshot command for a plugin's CAD server: a release's `uvx … --from cad-mcp==<v> cad-mcp`
+ * becomes `uvx … --from cad-server==<v> cad`, and a Python's `-m cad_mcp` becomes
+ * `-m cad_server.cli`. Null for a server that is not CAD's.
  */
 export function snapshotLaunch(
   plugin: { readonly root: string; readonly servers: Readonly<Record<string, PluginServerConfig>> },
@@ -195,11 +185,9 @@ interface PicturesInput {
 }
 
 /**
- * The pictures of `paths` under `cwd`, as base64 PNGs, null for a file that
- * is gone or would not render, and for a model whose build is not named.
- * Cached ones come back at once; the rest render in one batch a document type
- * (`cad step snapshot`, `cad model snapshot`), and a batch that fails renders
- * one by one, so one broken file costs only its own picture.
+ * Base64 PNGs of `paths` under `cwd`; null for a file that is gone or will not render, or a model
+ * whose build is not named. Uncached ones render in one batch per document type, and a failed batch
+ * falls back to one by one, so a broken file costs only its own picture.
  */
 export async function renderModelPictures(
   input: PicturesInput,

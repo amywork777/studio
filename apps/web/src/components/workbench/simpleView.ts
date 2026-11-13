@@ -17,12 +17,9 @@ export function readSimpleView(): boolean {
 }
 
 /**
- * Whether the CAD tools are hidden, kept as Simple view: on is hidden, the CAD viewer's ai layout,
- * text-to-cad's view exactly as it ships; off is shown, the full workspace, its manual layout.
- * The panel bar's Hide CAD tools sets it (`CadToolsButton.tsx`, `StudioPanelBar.tsx`) and every
- * CAD view takes it from its host context (`PluginViewFrame.tsx`, `studio/editLayout`); a
- * double-click on a face in the view asks to show them (`studio/request/edit-layout`). One choice
- * for the person across projects, kept on this device; shown the first time.
+ * On hides the CAD tools (the viewer's ai layout, text-to-cad as it ships); off shows the full
+ * workspace. Every CAD view reads it from its host context (`PluginViewFrame.tsx`). One choice
+ * across projects, kept on this device; shown the first time.
  */
 export const useSimpleViewStore = create<{ readonly on: boolean }>()(() => ({
   on: readSimpleView(),

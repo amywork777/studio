@@ -14,12 +14,9 @@ import { useProjectCover, useProjectPage } from "./useProjectCover";
 import { chatLabel, workspaceTitle } from "./workspaceTitle";
 
 /**
- * A project as Home and Projects show it: a picture of its main part (its first assembly, else
- * its first part or board), or its kind's icon until it has one; its name as the sidebar says it
- * (`workspaceTitle`); and its latest chat and when, or the chat that waits, or how many do. Needs
- * you sits in blue on the picture's corner while a chat waits on the person, the only place the
- * tile says so; a star on the other (shown on hover, and always once starred). With
- * `onMenu`, a right-click or the "…" on hover opens its menu, as Drive's on a file (`ProjectMenu`).
+ * A project tile: a picture of its main part (first assembly, else first part or board) or its
+ * kind's icon, its name as the sidebar says it, and its latest or waiting chat. Needs you on the
+ * picture's corner is the only place the tile says a chat waits. With `onMenu`, it opens its menu.
  */
 export function ProjectTile(props: {
   readonly environmentId: EnvironmentId;

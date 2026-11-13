@@ -1,9 +1,7 @@
 /**
- * What a folder's own git settings may not do. A project can arrive from anyone (Import keeps a
- * supplier's `.git`), and its `.git/config` can name programs for git to run: an fsmonitor, hooks, a
- * pager, a clean or smudge filter. Studio's own git steps, checkpoints and project saves, run with
- * those turned off, so such a folder stays just files. A person's own git commands in the code
- * interfaces keep their hooks, and the filters of a person's own settings (git-lfs) always stand.
+ * A project's `.git/config` can come from anyone (Import keeps a supplier's `.git`) and name programs
+ * for git to run (fsmonitor, hooks, pager, clean or smudge filters). Studio's own git steps run with
+ * those off; a person's own git commands keep their hooks, and their own settings' filters stand.
  */
 
 /**

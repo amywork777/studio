@@ -1,7 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
 import { studioFolderName } from "@t3tools/shared/studioProjects";
-import { useCallback, useMemo } from "react";
 
 import { newProjectId } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
@@ -20,12 +19,8 @@ export function useEnvironmentFolders(
   environmentId: EnvironmentId,
 ): ReadonlyArray<EnvironmentProject> {
   const projects = useProjects();
-  return useMemo(
-    () =>
-      projects.filter(
-        (project) => project.environmentId === environmentId && project.isScratch !== true,
-      ),
-    [projects, environmentId],
+  return projects.filter(
+    (project) => project.environmentId === environmentId && project.isScratch !== true,
   );
 }
 
@@ -41,7 +36,7 @@ export function usePickFolder(environmentId: EnvironmentId): (() => Promise<stri
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const folders = useEnvironmentFolders(environmentId);
   const create = useAtomCommand(projectEnvironment.create, { reportFailure: true });
-  const pick = useCallback(async () => {
+  const pick = async () => {
     const picked = await readLocalApi()?.dialogs.pickFolder();
     if (!picked) return null;
     if (folderProject(folders, picked) !== null) return picked;
@@ -56,7 +51,7 @@ export function usePickFolder(environmentId: EnvironmentId): (() => Promise<stri
       },
     });
     return result._tag === "Success" ? picked : null;
-  }, [create, environmentId, folders]);
+  };
   return typeof window !== "undefined" &&
     window.desktopBridge !== undefined &&
     primaryEnvironmentId === environmentId

@@ -18,14 +18,9 @@ import { backUp, copyInto, defaultRoots, isOpenable, scanFolder } from "./studio
 export type { StudioImportFile, StudioImportScan } from "./studioImportFiles.ts";
 
 /**
- * Studio's files on this computer. Import: the folders a first scan offers, a walk of one folder
- * for its engineering files (`studioImportKind`), a picker for files or folders, and copying files
- * into a project's folder; proposing projects from what a walk finds is the web's
- * (`apps/web/src/components/workbench/importPlan.ts`). Back up: a picker for one folder, and
- * backing a project's folders up into it (`backUp`). Open: a document, sheet, drawing or model in
- * its own app on this Mac (`isOpenable`; never a script or an app). The page reaches it as
- * `window.studioImport` (`studioImportPreload.ts`). It only reads, except where it copies into a
- * folder the person chose.
+ * Studio's files on this computer, reached by the page as `window.studioImport`: import scans and
+ * copies, project backups, and opening a document in its own app (`isOpenable`; never a script or
+ * an app). It only reads, except where it copies into a folder the person chose.
  */
 
 const isAbsolutePath = (value: unknown): value is string =>

@@ -143,13 +143,9 @@ export class ManagedProjectFolders extends Context.Service<
       NamedProjectError
     >;
     /**
-     * Starts a history in a project folder that keeps none (one the user
-     * picked or imported), as a named project's folder gets it: `git init`
-     * and a first commit, here of everything already in the folder. Only
-     * Git's own `.git` is written: no file is added, moved, renamed or
-     * removed. A folder that already keeps a history is left as it is. A
-     * failed commit keeps the history and returns why in `commitError`; a
-     * folder Git could not make a repository fails.
+     * `git init` and a first commit of everything in a folder that keeps no history; only `.git` is
+     * written. A folder with a history is left alone. A failed commit keeps the history and returns why
+     * in `commitError`; a folder Git could not make a repository fails.
      */
     readonly startHistory: (input: {
       readonly cwd: string;

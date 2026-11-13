@@ -19,11 +19,9 @@ export const StudioProjectBrief = Schema.Struct({
 export type StudioProjectBrief = typeof StudioProjectBrief.Type;
 
 /**
- * A Studio project: a named grouping of folders (each an ordinary project's
- * workspace root) with one brief. A thread in any of its folders works in all
- * of them, the way a coding agent takes extra working directories, and reads
- * the brief first (`packages/shared/src/studioProjects.ts`). Each project is
- * a folder of its own in Studio's projects folder (below).
+ * A Studio project: named folders (each an ordinary project's workspace root) with one brief. A
+ * thread in any of its folders works in all of them and reads the brief first; each project is a
+ * folder of its own in Studio's projects folder.
  */
 export const StudioProject = Schema.Struct({
   name: TrimmedNonEmptyString,
@@ -213,12 +211,10 @@ export class StudioGitHubSignInError extends Schema.TaggedError<StudioGitHubSign
 /** A send or a receive stopped. The message is shown to the person as it is. */
 export class StudioSyncError extends Schema.TaggedError<StudioSyncError>()("StudioSyncError", {
   /**
-   * `no-history`: the folder has no Versions. `other-copy`: it already goes somewhere else.
-   * `too-large`: a file in the project is over the limit; `too-large-version`: one in a Version
-   * is. `make-copy`: the online copy could not be made. `sign-in`: no credential, or it was
-   * refused. `changed-elsewhere`: the online copy moved, and nothing forces it back. `prepare`:
-   * git failed on this computer. `send` and `receive`: the transfer failed. `no-copy`: a restore
-   * named no `owner/name`. `no-backup`: the folder holds no project with Versions.
+   * `no-history`: no Versions. `other-copy`: it goes elsewhere. `too-large`, `too-large-version`: a
+   * file in the project or a Version is over the limit. `make-copy`: no online copy made. `sign-in`:
+   * no or refused credential. `changed-elsewhere`: the online copy moved. `prepare`: local git failed.
+   * `send`, `receive`: transfer failed. `no-copy`: no `owner/name`. `no-backup`: no project with Versions.
    */
   failure: Schema.Literals([
     "no-history",

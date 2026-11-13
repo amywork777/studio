@@ -13,6 +13,15 @@ const ID = "6f1c0d8e-2b7a-4c1e-9d3f-5a6b7c8d9e0f";
 const CHECKED = "2026-10-01T12:00:00.000Z";
 const seconds = (time: string) => String(Date.parse(time) / 1000);
 
+/** Resolves on the store's next notice, which ends every read it takes in. */
+const nextChange = (models: ReturnType<typeof folderModelsStore>) =>
+  new Promise<void>((resolve) => {
+    const stop = models.subscribe(() => {
+      stop();
+      resolve();
+    });
+  });
+
 /** A strength study of the model, written at `written` (no time when the file names none). */
 const study = (written?: string) =>
   parseCheckResult(
@@ -141,20 +150,25 @@ describe("a text-to-cad 0.11 study's result on screen, its part's script edited 
       results: [answer(path)],
     },
   ];
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
   it("says the part changed once the viewer shows it built again, in no agent's turn", async () => {
     const models = folderModelsStore((flush) => flush());
     // The engine's registry: when it last built the hook.
     let built = Date.parse("2026-10-01T11:00:00.000Z") / 1000;
-    const get = async () => ({
-      roots: {
-        [root]: [{ id: ID, name: "hook", script: "parts/hook.py", kind: "part", updated: built }],
-      },
-    });
+    let asked = 0;
+    const get = async () => {
+      asked += 1;
+      return {
+        roots: {
+          [root]: [{ id: ID, name: "hook", script: "parts/hook.py", kind: "part", updated: built }],
+        },
+      };
+    };
     const read = async () => {
+      const before = asked;
       models.want(env, [root], get);
-      await settle();
+      // Already read at this revision, nothing is asked, and no notice comes.
+      if (asked > before) await nextChange(models);
       return new Map([[root, models.models(env, root)]]);
     };
     // The part's view was on screen as it was checked.

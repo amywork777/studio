@@ -102,6 +102,8 @@ const refusal = (result: {
   });
 };
 
+const isPluginOperationError = Schema.is(PluginOperationError);
+
 /**
  * A tool call that ran out of time, answered as the plugin's own error rather than a refusal: the
  * host carries the view's calls, its server was only slow, so the view says that and keeps calling.
@@ -110,7 +112,7 @@ const timedOut = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
 }): McpAppCallToolResult | null => {
   const error = squashAtomCommandFailure(result);
-  return Schema.is(PluginOperationError)(error) && error.reason === "timed_out"
+  return isPluginOperationError(error) && error.reason === "timed_out"
     ? { isError: true, content: [{ type: "text", text: error.message }] }
     : null;
 };
@@ -130,10 +132,7 @@ type Loaded =
   | { readonly _tag: "ready"; readonly document: PluginViewDocument };
 
 /**
- * A plugin's MCP App view filling its container. The environment runs the
- * view's tool and returns its document; the frame then speaks the MCP Apps
- * bridge, its requests going to the plugin's own server. On desktop the
- * document gets its own `mcp-app://` origin so workers and storage work; in
+ * On desktop the view's document gets its own `mcp-app://` origin so workers and storage work; in
  * a browser it runs in an opaque-origin `srcdoc` frame.
  */
 export function PluginViewFrame(props: {
@@ -179,6 +178,7 @@ export function PluginViewFrame(props: {
   const [reached, setReached] = useState(false);
   if (!reached && (phase === undefined || phase === "connected")) setReached(true);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the frame box's DOM size, which the view hears as its container dimensions
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
@@ -194,6 +194,7 @@ export function PluginViewFrame(props: {
   }, []);
 
   const argumentsKey = JSON.stringify(target.arguments);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks the environment's server to run the view's tool once it is reached, again on a new target or Try again, dropping a superseded answer
   useEffect(() => {
     if (!reached) return;
     let cancelled = false;
@@ -239,6 +240,7 @@ export function PluginViewFrame(props: {
 
   // The document becomes a frame: staged on desktop, inline elsewhere.
   const document_ = loaded._tag === "ready" ? loaded.document : null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- stages the document with the desktop bridge and releases the staged URL when the document changes or the frame unmounts
   useEffect(() => {
     if (document_ === null) return;
     const bridge = readPluginViewsBridge();
@@ -280,6 +282,7 @@ export function PluginViewFrame(props: {
   );
   const live = { theme, size, props, request, editLayout, focus, openChatFile };
   const latest = useRef(live);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed props and state to the long-lived MCP App host, which reads them asynchronously
   useEffect(() => {
     latest.current = live;
   });
@@ -288,6 +291,7 @@ export function PluginViewFrame(props: {
   // resends all of it until the host says the context is gone (null), as a sent message does.
   const modelContext = useRef<{ readonly taken: number } | null>(null);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- owns the MCP App host and the window message listener for the frame's document, torn down on a new document or unmount
   useEffect(() => {
     if (frame === null || document_ === null) return;
     const targetOrigin = "origin" in frame ? frame.origin : "*";
@@ -526,6 +530,7 @@ export function PluginViewFrame(props: {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A new document needs a new host; the rest is read through `latest`.
   }, [frame, document_]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resends the host context to the view's frame when its theme, size, layout or focus ask changes
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.

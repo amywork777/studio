@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "../ui/button";
@@ -13,11 +13,9 @@ interface Box {
 }
 
 /**
- * Studio's tour of a workspace (`tourSteps.ts`): the first time one opens, a card points at the
- * project, its Overview, the tabs and the toolbar in turn, the rest of the window dimmed. Skip or
- * Escape ends it; it is not shown again on this computer, and Take the tour in ⌘K brings it back.
- * A step whose place is not on screen (the sidebar folded) shows its card in the middle. It waits
- * for a quiet chat (`chatBusy`), so it never sits over a question or a reply being written.
+ * The workspace tour (`tourSteps.ts`), shown the first time one opens and not again on this
+ * computer (⌘K's Take the tour brings it back). A step whose target is off screen centers its card.
+ * It waits for a quiet chat (`chatBusy`) so it never covers a question or a reply being written.
  */
 export function StudioTour(props: {
   /** The agent is working, or a question waits for the person. */
@@ -37,10 +35,11 @@ export function StudioTour(props: {
     readonly top: number;
     readonly left: number;
   } | null>(null);
-  const steps = useMemo(() => tourSteps(navigator.platform), []);
+  const steps = tourSteps(navigator.platform);
   const current = steps[step] ?? null;
 
   // The first workspace opened: the tour starts once it has settled and the chat is quiet.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- a timer starts the tour once the workspace settles, held while the chat is busy
   useEffect(() => {
     if (chatBusy) {
       hold();
@@ -51,6 +50,7 @@ export function StudioTour(props: {
     return () => clearTimeout(timer);
   }, [chatBusy, hold, startFirst]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the step's target in the DOM and listens for resize and Escape while the tour is open
   useEffect(() => {
     if (!open || current === null) return;
     const measure = () => {

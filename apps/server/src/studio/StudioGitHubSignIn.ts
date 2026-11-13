@@ -1,12 +1,7 @@
 /**
- * StudioGitHubSignIn - Sign in with GitHub by device flow: GitHub gives a code, the person enters
- * it at github.com/login/device, and the token lands in the same saved `tokens["github.com"]` a
- * token pasted into Settings uses, so `GitHubCredentials` and everything behind it just work.
- *
- * The client id is public, and device flow takes no client secret. The token never reaches a
- * client: a check answers only how far along the person is.
- *
- * @module StudioGitHubSignIn
+ * GitHub sign-in by device flow. The token lands in the saved `tokens["github.com"]` a pasted token
+ * uses, so `GitHubCredentials` works unchanged. The client id is public and device flow takes no
+ * secret; the token never reaches a client, which only hears how far along the person is.
  */
 import {
   StudioGitHubSignInError,

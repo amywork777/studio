@@ -1,10 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off - a build step the launcher runs before the app starts.
 /**
- * Builds a Studio plugin's editor page (studio-plugins/solidcraft/editor) into the one HTML file
- * the plugin serves as an MCP Apps view: Studio frames views from a single
- * document, so the script and styles are inlined. esbuild is the one beside the web app's Vite;
- * React and lucide come from the web app, three.js from client-runtime, so the pages need no
- * packages of their own.
+ * Builds a Studio plugin's editor page into the one HTML file its MCP Apps view serves: Studio frames
+ * views from a single document, so script and styles are inlined. React and lucide come from the web
+ * app and three.js from client-runtime, so the pages need no packages of their own.
  */
 import * as NodeFS from "node:fs";
 import * as NodeModule from "node:module";

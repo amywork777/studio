@@ -1,10 +1,7 @@
 /**
- * Studio as a Mac or Windows app (`scripts/build-studio-app.sh`): what T3 Code's desktop build
- * changes when it is handed the Studio bundle (`T3CODE_DESKTOP_STUDIO_BUNDLE`), a folder holding the
- * CAD tools, a Python of their own and the settings the app starts with (`studio.json`). The bundle
- * is copied to the app's resources (`Contents/Resources/studio` on a Mac, `resources\studio` on
- * Windows), which `apps/desktop/src/studio/studioAppBundle.ts` reads on each start. Everything else
- * is T3 Code's own build.
+ * What T3 Code's desktop build changes when handed the Studio bundle (`T3CODE_DESKTOP_STUDIO_BUNDLE`):
+ * the bundle is copied to the app's resources, which `apps/desktop/src/studio/studioAppBundle.ts`
+ * reads on each start. Everything else is T3 Code's own build.
  */
 
 /** Studio's own identity, apart from T3 Code's, so the two can be installed side by side. */
@@ -40,13 +37,10 @@ const record = (value: unknown): Record<string, unknown> =>
     : {};
 
 /**
- * T3 Code's staged package.json, named Studio. Electron names the running app from its
- * `productName` (else its `name`, T3 Code's `t3code`) before any of the app's code runs, and macOS
- * keeps the app's saved secrets in the keychain under that name ("<name> Safe Storage"). Named
- * `t3code`, Studio asked for T3 Code's keychain item, which needs the login password to open.
- * electron-builder names the updater's download folder from the package's `name` ("<name>-updater",
- * in the user's caches), so under `t3code` Studio's updater would share T3 Code's folder, and each
- * app empties the other's downloaded update when it finds one it didn't fetch.
+ * T3 Code's staged package.json, renamed Studio. Electron names the app from it before any code
+ * runs, macOS keys saved secrets by that name ("<name> Safe Storage") and electron-builder its
+ * updater folder ("<name>-updater"), so as `t3code` Studio would open T3 Code's keychain item and
+ * the two apps would empty each other's downloaded updates.
  */
 export function studioPackageJson<T extends object>(
   packageJson: T,

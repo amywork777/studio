@@ -1,16 +1,8 @@
 /**
- * T3 as an MCP host for plugin servers: one client per (scope, plugin,
- * server). A thread's scope is its id, so each thread has its own server
- * processes the way a Codex thread does; the `environment` scope serves views
- * opened outside a thread and the tool listing. Agents never start a plugin's
- * server themselves: T3's MCP server forwards their calls here, so an agent's
- * `cad_file` and the CAD tab's requests reach the same process.
- *
- * The client declares MCP Apps (`io.modelcontextprotocol/ui`) and the three
- * Codex UI entrypoints (`dev.texttocad/tabs`), and answers `roots/list` with
- * the thread's workspace. Codex starts a plugin's servers in the plugin's
- * folder (its launchers are relative); Claude Code starts them in the project
- * and plugins reach their files through `${CLAUDE_PLUGIN_ROOT}`.
+ * T3 as the MCP host for plugin servers: one client per (scope, plugin, server), a thread's scope
+ * its id, so an agent's calls (forwarded by T3's MCP server) and a view's requests reach one process.
+ * Codex starts a plugin's servers in the plugin's folder (its launchers are relative); Claude Code
+ * starts them in the project, and plugins find their files by `${CLAUDE_PLUGIN_ROOT}`.
  */
 import { PluginOperationError, type PluginRequestInput } from "@t3tools/contracts";
 import {
@@ -302,8 +294,9 @@ const make = Effect.gen(function* () {
     });
   });
 
-  const request: PluginHost["Service"]["request"] = (input) =>
-    Effect.gen(function* () {
+  const request: PluginHost["Service"]["request"] = Effect.fn("PluginHost.request")(
+    function* (input) {
+      yield* Effect.annotateCurrentSpan({ method: input.method });
       const { connection: live, config } = yield* connection(
         input.scope,
         input.pluginId,
@@ -330,7 +323,8 @@ const make = Effect.gen(function* () {
               )
             : requestFailed("request_failed", sentence(cause)),
       });
-    }).pipe(Effect.withSpan("PluginHost.request", { attributes: { method: input.method } }));
+    },
+  );
 
   const listServer = Effect.fn("PluginHost.listServer")(function* (
     pluginId: string,

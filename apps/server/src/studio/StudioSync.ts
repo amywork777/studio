@@ -1,14 +1,8 @@
 /**
- * StudioSync - sends a project's work folder to its private online copy with every Version, and
- * brings one back. A plain push of `main` carries almost nothing: a Version is a checkpoint, and a
- * checkpoint's parent is `HEAD`, so checkpoints sit beside `main`, under refs a clone never asks
- * for. A send pushes all three sets by refspec, with the token in a header for that one process.
- *
- * Checkpoint refs are forced, since T3 can delete a stale one and reuse its ordinal, and each
- * chat's refs belong to one computer. `main` and kept refs never are: when they moved online the
- * send says so. Nothing is pruned, so a Version deleted here stays in the online copy.
- *
- * @module StudioSync
+ * Sends a project's folder to its private online copy and brings one back. Versions are checkpoints
+ * beside `main` under refs a clone never asks for, so a send pushes each ref set by refspec, the token
+ * in a header for that one process. Checkpoint refs are forced (T3 reuses ordinals); `main` and kept
+ * refs never are. Nothing is pruned, so a Version deleted here stays online.
  */
 import {
   SourceControlProviderKind,
@@ -497,8 +491,8 @@ const make = Effect.fn("StudioSync.make")(function* (maxFileBytes: number) {
    * The project in a folder someone picked: the folder itself, or the one folder inside it.
    * `backUp` writes `<chosen>/<project>/<folder>`, and a person may pick any of those.
    */
-  const projectIn = (folder: string, levels: number): Effect.Effect<string | undefined> =>
-    Effect.gen(function* () {
+  const projectIn: (folder: string, levels: number) => Effect.Effect<string | undefined> =
+    Effect.fn("StudioSync.projectIn")(function* (folder: string, levels: number) {
       if (yield* hasHistory(folder)) return folder;
       if (levels === 0) return undefined;
       const names = yield* fileSystem

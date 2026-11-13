@@ -49,6 +49,7 @@ export function followFolderTabs(threadKey: string, folderKey: string): () => vo
 export function useProjectTabs(threadRef: ScopedThreadRef | null, folder: string | null): void {
   const threadKey = threadRef === null ? null : scopedThreadKey(threadRef);
   const folderKey = folder === null ? null : studioFolderKey(folder);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes the right panel store to the folder's shared tabs for this thread
   useEffect(() => {
     if (threadKey === null || folderKey === null) return;
     return followFolderTabs(threadKey, folderKey);

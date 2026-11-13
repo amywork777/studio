@@ -89,11 +89,9 @@ export function usePartContext(
   const model = shown !== null && isDocumentId(shown.path) ? shown : null;
   const modelKey = model === null ? null : [model.pluginId, model.server, model.path].join("\n");
 
-  // While a model is shown, its build state is asked again each time it moves (a long ask, shared
-  // by every caller showing it): a build starting, and its end or failure, reach the strip at once.
-  // A view that goes leaves its last ask to end by itself, within `BUILD_WAIT_SECONDS`, and asks no
-  // more: a plugin request has no way to be called off (the command, the server's relay to the CAD
-  // server and its tunnel to the engine all run to their answer), and one per view is all there is.
+  // A shown model's build state is long-polled, shared by every caller showing it. A plugin request
+  // can't be called off, so a view that goes leaves its last ask to end within `BUILD_WAIT_SECONDS`.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- long-polls the CAD server's build state for the shown model until it goes
   useEffect(() => {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `modelKey` names the model `model` holds; its revision moving must not restart the ask.
     if (model === null || modelKey === null) return;
@@ -122,6 +120,7 @@ export function usePartContext(
     };
   }, [modelKey, request, threadRef.environmentId, threadRef.threadId]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads the shown document's facts from the CAD server's routes once per revision
   useEffect(() => {
     if (shown === null || key === null) return;
     let cancelled = false;

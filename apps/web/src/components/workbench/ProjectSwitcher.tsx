@@ -13,7 +13,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
@@ -51,15 +51,9 @@ const actionClass =
   "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground outline-none transition-colors duration-150 hover:bg-accent focus-visible:bg-accent [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
 
 /**
- * The project's name in the top bar, as a CAD tool's document switcher: a control that says it is the project on one line
- * (its picture, its name, the up-and-down chevrons every switcher has), opened by a click or
- * Cmd+O. Its top is the open project's own menu: Rename, Duplicate (a copy with its own folder,
- * `useDuplicateProject`), Version history (the Overview's Versions), Back up (into a folder the
- * person chooses once, `useBackup`), Show in Finder, Move to Trash (with Undo, `useTrash`) and its
- * star. Below, the other projects to
- * switch to: the starred ones, then the rest, the one opened last first, each with when (and its
- * star on hover), and a box to find one by name; then New project and Home.
- * Picking one opens it where it was left (`useOpenProject`).
+ * The project switcher in the top bar, opened by a click or Cmd+O: the open project's menu on top,
+ * then the other projects (starred first, then last opened first) with a box to find one. Picking
+ * one opens it where it was left (`useOpenProject`).
  */
 export function ProjectSwitcher(props: {
   readonly environmentId: EnvironmentId;
@@ -81,7 +75,7 @@ export function ProjectSwitcher(props: {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
-  const openSwitcher = useCallback(() => setOpen(true), []);
+  const openSwitcher = () => setOpen(true);
   useOpenShortcut(openSwitcher);
 
   const here = props.folder === null ? null : studioFolderKey(props.folder);

@@ -1,9 +1,6 @@
 /**
- * New part, made with no agent and no questions (`useNewPart.ts`): a CAD model script that
- * sketches one block from three named sizes, the cad skill's smallest part, so CAD mode opens on
- * something to edit. The engine never builds a model because a view opened it, so the script is
- * written, built by Studio's CAD service (edit mode's builds), and its document opened by its id
- * once that build is done. Every change in CAD mode builds it again from the script.
+ * The engine never builds a model because a view opened it, so New part writes the script, builds
+ * it through Studio's CAD service, and opens its document by id once that build is done.
  */
 
 import { copyName } from "./examples/examples";
@@ -92,11 +89,8 @@ export function freePartStem(stem: string, taken: ReadonlyArray<string>): string
 }
 
 /**
- * The starter part's script, as the servo bracket's parts are written: what it is, its sizes named
- * at the top, and one sketch on the Top plane, fully defined from them, extruded, in a CAD
- * model (`@model`), which the engine builds when the script runs. `stem` names its function and its
- * label, as the script's file is named; the function's name and the script's path are its document
- * id.
+ * `stem` names the function and its label, as the script's file is named; the function's name and
+ * the script's path are its document id.
  */
 export function starterScript(stem: string): string {
   return `"""A new part: one block, sketched on the Top plane and extruded. Change its sizes here or in CAD
@@ -182,13 +176,8 @@ export async function buildPart(input: {
 }
 
 /**
- * New part's steps in order (`useNewPart`): name the project past every name taken, make it, write
- * the starter into its folder, open its Overview beside its new chat at once, build the part, and
- * swap to the part, by its document id, once it is built. A starter that can't be written, or doesn't
- * build, leaves the project made, as it is, on its Overview, where Start a part by hand tries again;
- * `failed` says it was made and why its part was not (a build's own error), with a way to build it
- * again (`retry`). Anything that stops the project being made says so (`create` says its own
- * failures). It resolves once the part is open, or has said why not.
+ * A starter that can't be written or doesn't build leaves the project made, on its Overview;
+ * `failed` says why, with `retry`. Resolves once the part is open, or has said why not.
  */
 export async function makeNewPart<Ref>(steps: {
   /** Every project's name, and Trash's. */
@@ -259,11 +248,9 @@ export async function makeNewPart<Ref>(steps: {
 }
 
 /**
- * The second half of opening a model that has not been built yet, as New part, a part added to a
- * project and a copied example open theirs: what there is has already been opened at once (the
- * project's Overview), then the script is built, and its document opened in its place once the
- * build lands. A build that fails leaves what was opened and says why (`failedTitle`, the build's
- * own error), with Build again (`retry`). It resolves once the document is open, or has said why not.
+ * What there is is opened first, then the script is built and its document swapped in once the
+ * build lands. A failed build leaves what was opened and says why, with `retry`. Resolves once the
+ * document is open, or has said why not.
  */
 export async function buildThenSwap<Ref>(steps: {
   readonly ref: Ref;

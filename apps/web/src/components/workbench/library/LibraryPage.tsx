@@ -1,7 +1,7 @@
 import { MY_SKILLS_PLUGIN_ID, type EnvironmentId, type InstalledPlugin } from "@t3tools/contracts";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { PlusIcon, PuzzleIcon, SearchIcon, UserRoundIcon } from "lucide-react";
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { pluginEnvironment } from "~/state/plugins";
@@ -89,17 +89,9 @@ const shelfOf = (shelf: Omit<Shelf, "count">, entries: ReadonlyArray<LibraryEntr
 });
 
 /**
- * Studio's Toolbox page (`/library`, the one place on the rail for what Studio ships), laid out as
- * a library of skills: a directory of shelves down its side (`ShelfIndex`) and always-open shelves
- * of covers (`LibraryShelf`). text-to-cad's skills stand on the shelves of the work they do (New,
- * then the part menus Analysis, Manufacturing and Documents), each holding what it makes, then each
- * job of theirs as a skill of its own (`jobSkills.ts`) on its menu's shelf, with the document types
- * no skill makes beside them. Then every other plugin's skills, and the person's own
- * with Add a skill: first once they have one, last until then. A shelf of one or two covers shares
- * a row with the next short one (`gatherShortShelves`). A skill's cover opens it in full
- * (`SkillDetail`), a document type's its detail, kept in the URL (`entry`) so Back closes it;
- * `group` scrolls to its shelf. Reached from ⌘K, New, the part menus and
- * Settings › Plugins (`libraryHref`).
+ * The Toolbox page (`/library`). The person's own skills shelf comes first once they have one,
+ * last until then. An open entry is kept in the URL (`entry`) so Back closes it; `group` scrolls
+ * to its shelf.
  */
 export function LibraryPage(props: { readonly search: LibrarySearch }) {
   const environmentId = usePrimaryEnvironmentId();
@@ -121,12 +113,9 @@ function LibraryContent(props: {
   const examples = useExamples(environmentId).examples;
   const [query, setQuery] = useState("");
 
-  const documents = useMemo(
-    () => [...LIBRARY_DOCUMENTS, ...ownTemplateEntries(ownTemplates)],
-    [ownTemplates],
-  );
-  const skills = useMemo(() => librarySkills(plugins ?? []), [plugins]);
-  const entries = useMemo(() => [...documents, ...skills], [documents, skills]);
+  const documents = [...LIBRARY_DOCUMENTS, ...ownTemplateEntries(ownTemplates)];
+  const skills = librarySkills(plugins ?? []);
+  const entries = [...documents, ...skills];
   const matching = new Set(filterLibrary(entries, query));
   const pluginsWithSkills = [
     ...new Map(skills.map((skill) => [skill.pluginId, skill.pluginName] as const)),
@@ -259,7 +248,7 @@ function LibraryContent(props: {
     />
   );
 
-  // Opened on a group: it comes up to the top, unless it shows near the top already.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the DOM to the shelf the URL's group names, unless it already shows near the top
   useEffect(() => {
     if (search.group === undefined) return;
     const anchor = document.getElementById(shelfAnchor(search.group));
@@ -349,11 +338,8 @@ function LibraryContent(props: {
 }
 
 /**
- * An entry's detail: its picture large, what it is, then a document type's You give, It asks you
- * first, You get, Made by and Find it in, or a skill's Try asking and Shows up as. See the example
- * opens the page of the example its example is in, where the server ships it; Make one opens New on
- * its template, where it can be made and a New will take the ask. One that can't be made says
- * which skill it needs and why.
+ * See the example shows only where the server ships the example; Make one only where the entry
+ * can be made and a New will take the ask. One that can't be made says which skill it needs.
  */
 function EntryDetail(props: {
   readonly entry: LibraryEntry;

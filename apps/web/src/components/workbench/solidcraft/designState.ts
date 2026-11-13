@@ -1,10 +1,6 @@
 /**
- * A SolidCraft design as the editor's panels show it: its named sizes (the
- * user parameters an engineer changes, `width`, `wall`), each feature in
- * timeline order with its own inputs (an extrude's distance, a fillet's
- * radius) and how it built, read from `parameters.list` and
- * `inspect_design`. Sketch dimensions are drawn on the model instead
- * (`dimensions.ts`).
+ * A SolidCraft design's named sizes and timeline, read from `parameters.list` and
+ * `inspect_design`. Sketch dimensions are drawn on the model instead (`dimensions.ts`).
  */
 
 export interface DesignParameter {

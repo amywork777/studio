@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 /**
- * Studio's SolidCraft server: SolidCraft's engine (`solidcraft-cli mcp`, headless, or bridged to
- * the app with --connect) behind one MCP server that Studio's plugin host runs once per thread, so
- * the thread's agent and its editor tab work on the same live design.
- *
- * - Every SolidCraft tool passes through to the agent unchanged.
- * - `editor_open` opens Studio's editor tab beside the thread (an MCP Apps view, ui://solidcraft/editor).
- * - The tab's own calls (`editor_state`, `editor_change`, `editor_timeline`, `editor_undo`,
- *   `editor_redo`) read the design and change it by hand. A hand edit saves the design and exports
- *   its STEP beside it, and is noted for the agent: its next SolidCraft call says what the engineer
- *   changed, so it knows without being started by each edit.
- *
+ * Studio's SolidCraft server: SolidCraft's engine behind one MCP server per thread, so the agent and
+ * the editor tab share the live design. Engine tools pass through; `editor_*` tools are the tab's
+ * own, and a hand edit saves, exports STEP and is reported on the agent's next SolidCraft call.
  * Usage: server.mjs --cli <solidcraft-cli> [--connect HOST:PORT] [--allow-path DIR]...
- * No dependencies: MCP over stdio is one JSON message per line.
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -64,7 +55,6 @@ const send = (stream, message) => stream.write(`${JSON.stringify(message)}\n`);
 const toHost = (message) => send(process.stdout, message);
 const toEngine = (message) => send(engine.stdin, message);
 
-// ---------------------------------------------------------------------------------------------
 // Calls of our own to the engine, on ids the host never uses.
 
 let nextId = 0;
@@ -93,7 +83,6 @@ async function tool(name, args = {}) {
 }
 const command = (id, params = {}) => tool("execute", { command: id, params });
 
-// ---------------------------------------------------------------------------------------------
 // Hand edits, saved as they are made and noted for the agent.
 
 /** What the engineer changed since the agent's last SolidCraft call, in words. */
@@ -224,7 +213,6 @@ async function editorHistory(direction) {
   return { ok: true, ...(await keep()) };
 }
 
-// ---------------------------------------------------------------------------------------------
 // Our tools, beside SolidCraft's.
 
 const appOnly = { ui: { visibility: ["app"] } };
@@ -357,7 +345,6 @@ function editorResource() {
   return { uri: EDITOR_URI, mimeType: MCP_APP_MIME, text, _meta: RESOURCE_META };
 }
 
-// ---------------------------------------------------------------------------------------------
 // The relay: the host's requests go to the engine unless they are ours; the engine's replies come
 // back, with ours added where the host lists tools and resources.
 

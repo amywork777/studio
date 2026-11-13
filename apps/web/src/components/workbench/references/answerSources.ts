@@ -93,11 +93,9 @@ function readFileTarget(target: string, cutDescription: boolean): SourceTarget |
 }
 
 /**
- * One source's target as written after its number: an address, `own knowledge: …`, or a file as
- * `path`, `path:12-18` or `path#Heading`; null when nothing there can be a source. A link (by its
- * address), a target that starts with a backtick span and a target in angle brackets are taken
- * whole. Any other loses its description (see `DESCRIPTION`) after a plain path or an address
- * only: a heading and own knowledge keep the rest of the line.
+ * A link, a leading backtick span and an angle-bracket target are taken whole. Otherwise a plain
+ * path or an address drops its trailing description (`DESCRIPTION`); a heading and own knowledge
+ * keep the rest of the line.
  */
 function readTarget(text: string): SourceTarget | null {
   const whole = wholeTarget(text);
@@ -111,11 +109,9 @@ function readTarget(text: string): SourceTarget | null {
 }
 
 /**
- * The answer without its Sources block, and the block's sources in the order written. The block
- * is the message's last: the last Sources line and the lines under it, each `[1] target` or
- * `[1]: target`. A Sources line with anything else under it is part of the answer, which comes
- * back as it is. A line of the block that cannot be read is dropped, and so is a number that
- * repeats. A horizontal rule right before the Sources line goes with it.
+ * The block is the last Sources line and the `[n] target` lines under it; anything else under it
+ * makes it part of the answer. Unreadable lines and repeated numbers are dropped, and a horizontal
+ * rule right before the Sources line goes with it.
  */
 export function splitSources(markdown: string): {
   body: string;

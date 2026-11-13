@@ -1,5 +1,5 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { onReturn } from "~/hooks/useRefreshOnReturn";
 import { humanName } from "./partNames";
@@ -7,13 +7,9 @@ import { type ProjectModel, readFolderModels } from "./projectModels";
 import { type CadGet, useEnvironmentCadGet } from "./useVersions";
 
 /**
- * Project folders' cadgen 0.8 models (`readFolderModels`), read through Studio's CAD service as the
- * environment's own CAD server asks it (`GET /api/v1/local/models?root=A&root=B...`), shared by every list
- * that shows a folder: the Overview, Home's tiles, the project switcher, ⌘K and a new chat's
- * starters. The revision moves when an agent changes a project's files, Studio builds a part
- * (`modelsChanged`), or a view shows a model at a build not heard of yet (`modelShown`); then every
- * folder on screen is read again, all of them in ONE request per
- * environment, and until it lands each keeps the models it had, so nothing blanks while it refreshes.
+ * Shared by every list that shows a folder. When the revision moves (`modelsChanged`, `modelShown`)
+ * every folder on screen is read again in ONE request per environment
+ * (`GET /api/v1/local/models?root=A&root=B...`), and each keeps its models until it lands.
  */
 export function folderModelsStore(
   schedule: (flush: () => void) => void = queueMicrotask,
@@ -251,12 +247,15 @@ export function useProjectModels(input: {
   const key = input.folders.filter((folder) => folder !== "").join("\n");
   const mutationId = input.mutationId ?? null;
   const seen = useRef(mutationId);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- marks the shared models store changed once per new workspace mutation from the server
   useEffect(() => {
     if (mutationId === seen.current) return;
     seen.current = mutationId;
     store.changed();
   }, [mutationId]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- holds the shared window-return listener while mounted
   useEffect(listenForReturn, []);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- asks the shared models store to read these folders through the CAD service
   useEffect(() => {
     if (get === null || key === "") return;
     store.want(environmentId, key.split("\n"), get);
@@ -273,6 +272,6 @@ export function useFolderModels(
   root: string,
   mutationId?: string | null,
 ): ReadonlyArray<ProjectModel> {
-  const folders = useMemo(() => (root === "" ? [] : [root]), [root]);
+  const folders = root === "" ? [] : [root];
   return useProjectModels({ environmentId, folders, mutationId }).get(root) ?? EMPTY;
 }

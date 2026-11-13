@@ -2679,6 +2679,7 @@ export default function ChatView(props: ChatViewProps) {
     });
     return item ? [item] : [];
   });
+  const openModelPickerStable = useStableCallback(() => composerRef.current?.openModelPicker());
   const limitRecoveryBanner =
     limitRecoveryRun !== null && activeThreadShell !== null
       ? usageLimitRecoveryBannerItem({
@@ -2698,7 +2699,7 @@ export default function ChatView(props: ChatViewProps) {
             });
             if (result._tag === "Failure") throw squashAtomCommandFailure(result);
           },
-          onUseAnotherModel: () => composerRef.current?.openModelPicker(),
+          onUseAnotherModel: openModelPickerStable,
         })
       : null;
   // Studio: the notes of hand edits written into the message box (`addViewContextToComposer`).
@@ -4137,7 +4138,9 @@ export default function ChatView(props: ChatViewProps) {
                     activeProjectName={activeProject?.title}
                     activeProjectScripts={activeProject ? activeProjectScripts : undefined}
                     preferredScriptId={
-                      activeProject ? (lastInvokedScriptByProjectId[activeProject.id] ?? null) : null
+                      activeProject
+                        ? (lastInvokedScriptByProjectId[activeProject.id] ?? null)
+                        : null
                     }
                     keybindings={keybindings}
                     availableEditors={availableEditors}

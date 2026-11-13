@@ -1,18 +1,8 @@
 /**
- * The catalog: every marketplace's entries merged, the same plugin offered by
- * several marketplaces shown once.
- *
- * Two entries are the same plugin when they come from the same repository
- * folder (a git URL plus a subfolder, or the same folder of one marketplace),
- * and then when they have the same name: Linear in Claude's marketplace and in
- * Codex's is one card. The card lists every marketplace; the first is the one
- * Install uses: the listing that works best here (`LEVEL_ORDER`), and among
- * equals a folder with a Codex manifest (where MCP App views are declared),
- * then any folder, then another repository. What the card shows is gathered
- * from every listing, the primary's first.
- *
- * Whether a plugin works here is read from its folder, without installing it
- * (`compatibilityOf`). An entry in another repository is read on install, and says so.
+ * Every marketplace's entries merged: the same repository folder, then the same name, is one card
+ * (Linear in Claude's and Codex's). Install uses the best-working listing (`LEVEL_ORDER`), then a
+ * folder with a Codex manifest (where MCP App views live), then any folder, then another repository.
+ * What the card shows is gathered from every listing, the primary's first.
  */
 import {
   PLUGIN_CATALOG_PAGE_LIMIT,
@@ -120,12 +110,9 @@ const compatibility = (
 ): PluginCompatibility => ({ level, label, notes: [clip(note, 200)] });
 
 /**
- * Whether a plugin will work in T3 Code, read from its folder (or the entry's
- * inline manifest) without installing it. Works: MCP servers that run here and
- * skills. May need sign-in: a remote server. Partly: parts T3 ignores (language
- * servers, ChatGPT apps). Hooks, slash commands, subagents and output styles load
- * for Claude only, through the Agent SDK's `plugins` option, so they are noted.
- * Needs Codex: nothing but launchers Codex supplies.
+ * Read from the folder or inline manifest without installing. Works: local MCP servers and skills.
+ * May need sign-in: a remote server. Partly: parts T3 ignores; hooks, commands, subagents and output
+ * styles load for Claude only (Agent SDK `plugins`). Needs Codex: only Codex-supplied launchers.
  */
 export function compatibilityOf(
   entry: Pick<MarketplaceEntry, "source" | "inline">,

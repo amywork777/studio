@@ -125,11 +125,9 @@ export interface McpAppHostOptions {
    */
   readonly requestEditLayout?: ((layout: "manual" | "ai") => Promise<void>) | undefined;
   /**
-   * Hears that Studio's CAD view has taken the place its host context asked it to show
-   * (`studio/focus`, from a reference under an answer), by the ask's number, and whether a
-   * feature of the part held the line (`found`; `studio/notifications/focus-taken`). A view
-   * older than `found` says nothing of it, and its take is found: let go, nothing else opened.
-   * Absent, the app is not offered it.
+   * Hears that Studio's CAD view took the place its host context asked for (`studio/focus`), by the
+   * ask's nonce, and whether a part feature held it (`found`). A view older than `found` omits it and
+   * counts as found. Absent, the app is not offered it.
    */
   readonly onFocusTaken?:
     | ((taken: { readonly nonce: number; readonly found: boolean }) => void)

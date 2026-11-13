@@ -1,11 +1,8 @@
 /**
- * Each job of a text-to-cad skill that does more than one (`HARDWARE_ACTIONS`) as a skill of its
- * own, so a person can call one job by name in the chat (`$fdm`, `$export`, `$board-fab`) and find it on
- * the Toolbox page with its own cover. A job's skill only hands off: it names the job as its part
- * Toolbox tile does and sends the agent to the text-to-cad skill that does it. Its files are written
- * from here into `studio-job-skills/` (`jobSkills.test.ts` keeps them the same), and Studio adds that
- * folder to the text-to-cad plugin it lays out (`scripts/studio_job_skills.py`), so `text-to-cad/`
- * itself holds only Jake's.
+ * Each job of a multi-job text-to-cad skill (`HARDWARE_ACTIONS`) as its own hand-off skill, so a
+ * person can call one by name (`$fdm`) and find it in the Toolbox. Written into `studio-job-skills/`
+ * (`jobSkills.test.ts` keeps them the same) and added by `scripts/studio_job_skills.py`, so
+ * `text-to-cad/` itself holds only Jake's.
  */
 
 import { HARDWARE_ACTIONS, jobLine, type HardwareAction } from "./hardwareActions";

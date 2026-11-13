@@ -97,15 +97,9 @@ function Property(props: { readonly label: string; readonly children: ReactNode 
 }
 
 /**
- * The project's setup, shown the way a CAD tool shows its document
- * properties: units, material (from the library, `MaterialPicker`), process
- * and quantity. Picking a value sends the request to the chat, as the part
- * menus send a job, and the agent changes the setup (the project's
- * `project.json`, `studioProjectContext`), says what it means for the parts,
- * and waits for a go. Only a folder in no project yet is set up in place,
- * since there is no project for the agent to change. What the project is for
- * and must meet, with its links, notes and references, is the brief behind
- * Brief. Every agent in the project reads all of it first.
+ * The project's setup (units, material, process, quantity). Picking a value sends the request to
+ * the chat, and the agent changes `project.json` and waits for a go. Only a folder in no project
+ * yet is set up in place, since there is no project for the agent to change.
  */
 export function ProjectSetup(props: {
   readonly environmentId: EnvironmentId;

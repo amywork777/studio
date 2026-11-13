@@ -1,16 +1,9 @@
 // @effect-diagnostics nodeBuiltinImport:off -- the plugin readers in @t3tools/plugins take a synchronous folder, and git runs as the person's own binary.
 /**
- * Plugin files on disk: a `PluginFolder` over a directory, git clones pinned to
- * a commit, copies out of a clone, and the registry file. Plain Node, wrapped
- * into Effects by the services that call it.
- *
- * Git uses the person's own `git` and credentials (a private repository works
- * when their credential helper does); T3 stores no token. `GIT_TERMINAL_PROMPT=0`
- * turns a missing credential into an error instead of a prompt nobody sees,
- * `GIT_LFS_SKIP_SMUDGE=1` leaves LFS objects as pointers (a plugin is code and
- * skills), and a clone lands in a temporary sibling renamed into place only
- * when complete, so a half clone is never read. A URL, ref or commit comes from a
- * marketplace file, so each follows `--end-of-options` and git never reads one as a flag.
+ * Plugin files on disk, in plain Node. Git uses the person's own credentials: `GIT_TERMINAL_PROMPT=0`
+ * makes a missing one an error, not a hidden prompt, and `GIT_LFS_SKIP_SMUDGE=1` leaves LFS pointers.
+ * A clone lands in a temporary sibling renamed when complete, and marketplace URLs, refs and commits
+ * follow `--end-of-options` so git never reads one as a flag.
  */
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";

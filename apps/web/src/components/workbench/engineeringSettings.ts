@@ -14,14 +14,10 @@ import {
  */
 
 /**
- * Rows an engineer has no use for: where threads start (checkout or worktree),
- * git, diffs and pull requests, usage-limit stops, the sidebar's coding
- * shelves, background git refreshes and the `t3` command;
- * on Appearance the Dev and Nightly label, diff colors, the composer's branch
- * controls, the terminal font and word wrap (diffs and file sources); T3's
- * update track; a project's actions (its scripts and `t3.json`); and rows that do nothing in
- * Studio: project order (Home, the switcher and ⌘K always put the one opened last first) and
- * marking inactive chats done (the sidebar says when a chat was worked on, never Done).
+ * Settings rows an engineer has no use for (thread checkout, git, diffs, coding shelves, the `t3`
+ * command, code appearance, the update track, project scripts), plus rows that do nothing in
+ * Studio: project order (Home, the switcher and ⌘K always put the last opened first) and marking
+ * inactive chats done (the sidebar never says Done).
  */
 export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchItemId>([
   "new-threads",

@@ -1,17 +1,8 @@
 /**
- * `mcp-app://`: where a plugin's MCP App view is served from on desktop.
- *
- * A plugin view arrives as one HTML string. In an opaque-origin frame (srcdoc,
- * as the web client hosts it) module and `blob:` workers and storage fail, and
- * text-to-cad's CAD viewer starts its model workers that way. Served from its
- * own scheme instead, every staged document is its own origin,
- * `mcp-app://<random id>`, so the renderer frame keeps `allow-same-origin`
- * and that origin is real: same-origin with itself only, never with T3's
- * renderer or another view. The frame cannot navigate off its origin
- * (`pluginViewNavigationAllowed`), its storage is cleared on release, and it
- * talks to the host by `postMessage` alone.
- *
- * This file holds the Electron-free rules; `PluginViews.ts` wires them up.
+ * `mcp-app://`: plugin views on desktop. An opaque-origin srcdoc frame breaks module and `blob:`
+ * workers and storage (text-to-cad's CAD viewer needs them), so each staged document is its own
+ * origin, `mcp-app://<random id>`, same-origin only with itself: it cannot navigate off it, its
+ * storage is cleared on release, and it talks to the host by `postMessage` alone.
  */
 export const PLUGIN_VIEW_SCHEME = "mcp-app";
 

@@ -7,7 +7,7 @@ import {
   InfoIcon,
   ScrollTextIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { pluginEnvironment } from "~/state/plugins";
@@ -90,12 +90,9 @@ function CheckReport(props: { readonly result: CheckResult; readonly onOpenModel
 }
 
 /**
- * A file with no viewer of its own, as the engineering interface shows it in place of a code
- * editor or a "binary file" error: what it is in an engineer's words (`aboutFile`), where it is,
- * Open in its own app on this Mac (the desktop app; "Open the spreadsheet", `openLabel`) and Show
- * in Finder, and its text one press away, read only, so a machine
- * file is never edited by accident. A check's result reads as a report (`parseCheckResult`), and
- * plain text reads as a document.
+ * A file with no viewer of its own, in place of a code editor or a "binary file" error: what it is
+ * (`aboutFile`), Open in its own app and Show in Finder, and its text read only, so a machine file
+ * is never edited by accident. A check's result reads as a report, plain text as a document.
  */
 export function StudioFilePage(props: {
   readonly environmentId: EnvironmentId;
@@ -114,10 +111,7 @@ export function StudioFilePage(props: {
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
     ?.plugins;
-  const result = useMemo(
-    () => (text === null ? null : parseCheckResult(relativePath, text)),
-    [relativePath, text],
-  );
+  const result = text === null ? null : parseCheckResult(relativePath, text);
   const name = relativePath.replaceAll("\\", "/").split("/").at(-1) ?? relativePath;
   const folder = relativePath.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
   const canReveal =

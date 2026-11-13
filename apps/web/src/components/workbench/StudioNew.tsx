@@ -1,7 +1,7 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
@@ -12,13 +12,9 @@ import { type NewRequest, useNewDialogStore } from "./newDialogStore";
 import { templateOffers } from "./newTemplates";
 
 /**
- * New, as Google Drive's New is: a part, an assembly, a circuit board, a robot or a document
- * (`NewDialog`). The same button and dialog in every place it is: first in a project's panel
- * toolbar, where Create hands the job to the open chat, and on Home and the Projects page, where
- * it starts a new project with the job as its first message. Its Part is New part, made at once
- * (`onNewPart`, `useNewPart.ts`). It also opens when asked from elsewhere (`useNewDialogStore`:
- * the library's Make one, New project from ⌘K and the switcher), on the template asked for: it
- * takes the request, so the ask opens this New once and no other.
+ * New, the same button and dialog everywhere: in a project's toolbar Create hands the job to the
+ * open chat; on Home and Projects it starts a new project. It also opens on request from elsewhere
+ * (`useNewDialogStore`) and takes the request, so one ask opens this New once and no other.
  */
 export function StudioNew(props: {
   readonly environmentId: EnvironmentId;
@@ -38,7 +34,7 @@ export function StudioNew(props: {
   const newProject = props.newProject ?? false;
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
     ?.plugins;
-  const offers = useMemo(() => {
+  const offers = (() => {
     const known = plugins ?? [];
     const skills = new Set(known.flatMap((plugin) => (plugin.enabled ? plugin.skills : [])));
     // Until the plugins are known, only what needs no skill, so nothing reads as not installed.
@@ -46,7 +42,7 @@ export function StudioNew(props: {
       (offer) =>
         offer.template.source === "new" && (plugins !== undefined || offer.availability.on),
     );
-  }, [plugins]);
+  })();
   const documents = useDocumentTemplates(environmentId);
   // Each open is a fresh dialog (`count`), on what was asked for, if anything.
   const [opened, setOpened] = useState<{
@@ -56,6 +52,7 @@ export function StudioNew(props: {
   }>({ open: false, count: 0, asked: null });
   const pending = useNewDialogStore((store) => store.request);
   const take = useNewDialogStore((store) => store.take);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- takes a New request posted to the shared store from elsewhere, so one ask opens one New
   useEffect(() => {
     if (pending === null) return;
     const asked = take(newProject);
@@ -111,8 +108,8 @@ export function StudioNew(props: {
 export function useAskNewProject(): () => void {
   const navigate = useNavigate();
   const pathname = useLocation({ select: (location) => location.pathname });
-  return useCallback(() => {
+  return () => {
     useNewDialogStore.getState().askNewProject();
     if (pathname !== "/" && pathname !== "/projects") void navigate({ to: "/" });
-  }, [navigate, pathname]);
+  };
 }

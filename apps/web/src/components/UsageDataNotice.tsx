@@ -11,11 +11,9 @@ import { toastManager } from "./ui/toast";
 let shown = false;
 
 /**
- * Tells the person once, in a build that sends usage counts, before any are sent: what it sends, and
- * where to turn it off (Settings → About), as text-to-cad's CAD tools tell theirs. Being told is the
- * answer (`usageDataAnswered`): counts go from then on unless they press Turn off, and a no given
- * before, under the old Share or Don't share notice, stays a no. Builds without a usage receiver
- * never tell.
+ * Tells the person once, before any usage counts are sent, what is sent and where to turn it off.
+ * Being told is the answer (`usageDataAnswered`); a no from the old Share or Don't share notice stays
+ * a no. Builds without a usage receiver never show it.
  */
 export function UsageDataNotice() {
   const config = useAtomValue(primaryServerConfigAtom);
@@ -29,6 +27,7 @@ export function UsageDataNotice() {
     config.observability.usageDataAvailable &&
     config.settings.shareUsageData &&
     !config.settings.usageDataAnswered;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- shows the imperative notice toast once while the server says it is owed.
   useEffect(() => {
     // A no that Restore defaults has reopened is asked again, not only at the next launch.
     if (!asking) shown = false;

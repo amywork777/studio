@@ -33,11 +33,9 @@ export function sourceParts(parts: ReadonlyArray<ProjectFile>): ProjectFile[] {
 }
 
 /**
- * The project's lead part, the one its work is on: of the parts not made from another
- * (`sourceParts`), across its folders, the one with the most made from it (drawings, CAM jobs,
- * studies), then an assembly, then what was built last (`byLatest`); with nothing to tell them
- * apart, the first of the first folder that has a part, in the order the project files them. Read
- * from the project's files alone, so the Overview, the workspace and a new chat's starters agree.
+ * Of the parts not made from another (`sourceParts`): the one with the most made from it, then an
+ * assembly, then the last built (`byLatest`), else the first part in file order. Read from the
+ * project's files alone, so the Overview, the workspace and a new chat's starters agree.
  */
 export function leadPartOf(
   folders: ReadonlyArray<ReadFolder>,

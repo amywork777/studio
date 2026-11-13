@@ -11,11 +11,9 @@ export interface NewRequest {
 }
 
 /**
- * Opens New from outside it (`NewDialog`): the library's Make one, and New project from ⌘K and
- * the project switcher. A request is used once. The first New to see it that may take it
- * (`StudioNew`, or `ProjectPage` with code tools on; a new project's only by a New that makes
- * one) takes it into its own open state and opens on it, so it opens once, and nothing is left
- * for a New mounted later.
+ * Opens New from outside it (`NewDialog`). A request is used once: the first New that may take it
+ * (`StudioNew`, or `ProjectPage` with code tools on) moves it into its own open state, so nothing
+ * is left for a New mounted later.
  */
 export const useNewDialogStore = create<{
   /** The request no New has taken yet. */

@@ -4,11 +4,8 @@ import { BRIEF_REFERENCES } from "./briefFolder";
 import { humanName } from "./partNames";
 
 /**
- * Starting a project from Home (`StudioHome.tsx`): a name to begin with, which the agent replaces
- * with a proper one in its first reply (`studioProjectContext`), and the first message, held until
- * the new project's workspace has a composer to send it from (`usePendingStart.ts`). Files and
- * folders attached to Home's box set the project up: Start copies them into its References, and
- * the first message asks the agent to read them before anything else (`startMessage`).
+ * The agent replaces the starting name in its first reply (`studioProjectContext`), and the first
+ * message is held until the new workspace has a composer (`usePendingStart.ts`).
  */
 
 const NAME_LENGTH = 32;
@@ -147,11 +144,7 @@ const SET_UP =
   "Read them all before anything else, then set the project up from them: its name, its units, material, process and quantity where they say, and the README with what it is, its requirements and the decisions they settle. Ask me only what they leave open.";
 
 /**
- * The first message of a start from Home's box. A description alone goes as it is. With files
- * copied into the project's References (`references`, by their paths in its folder), it names
- * them and asks the agent to read them before anything else: a new project is set up from them,
- * and a project of yours takes them in. Files that could not be copied (`attached`, the web app)
- * go with the message.
+ * Files that could not be copied (`attached`, the web app) go with the message.
  */
 export function startMessage(input: {
   readonly description: string;

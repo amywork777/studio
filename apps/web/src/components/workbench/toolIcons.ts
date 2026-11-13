@@ -38,12 +38,8 @@ import type { HardwareAction } from "./hardwareActions";
 import { DISCIPLINE_ICONS, KIND_ICONS, MENU_ICONS } from "./kinds";
 
 /**
- * Each job's own picture on its Toolbox tile, by job id (`HARDWARE_ACTIONS`), so the tiles in a
- * section read as different tools. A job's picture says the one thing it is about (a weight for
- * mass, a spool for FDM, a folded sheet for a sheet metal check and scissors for its cut file);
- * the same idea keeps the same picture across sections (a timer for anything "over
- * time", a truck for an order, a route for a toolpath). The robot face is the AI agent's, so the
- * robot descriptions take Robotics' joints.
+ * One picture per job, so a section's tiles read as different tools; the same idea keeps the same
+ * picture across sections. The robot face is the AI agent's, so robot jobs take Robotics' joints.
  */
 const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   // Evaluate: Simulation

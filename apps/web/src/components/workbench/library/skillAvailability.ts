@@ -1,12 +1,9 @@
 import type { InstalledPlugin } from "@t3tools/contracts";
 
 /**
- * Whether something New or the library offers can be made now. When it can't, it names the
- * skill it needs and the plugin that lists that skill, and says whether that plugin is installed
- * (the skill is turned off) or not (it is not installed).
- *
- * New's templates (`newTemplates.ts`) and the library (`libraryCatalog.ts`) both say it this way.
- * This module imports neither, so New can use it without importing the library.
+ * Whether something New or the library offers can be made now; `installed` tells a skill turned
+ * off from a plugin not installed. Imports neither New nor the library, so New can use it
+ * without importing the library.
  */
 export type Availability =
   | { readonly on: true }

@@ -95,11 +95,9 @@ function BackupFor(props: {
 type Choice = "open" | "rename" | "duplicate" | "backup" | "folder" | "star" | "trash";
 
 /**
- * A project's menu where it shows as a tile (Home), as Google Drive's is on a file: a right-click,
- * or the "…" on its hover. The same actions in the same words as the project switcher's own menu
- * (`ProjectSwitcher`): Open, Rename…, Duplicate, Back up…, Show in Finder, Star (not where the
- * project's own star shows, `ownStar`), and Move to Trash, which says so with Undo (`useTrash`).
- * `dialogs` goes once beside the tiles.
+ * A project tile's menu (right-click or the hover "…"), with the same actions and words as the
+ * switcher's menu (`ProjectSwitcher`). Star is left out where the tile shows its own (`ownStar`).
+ * Render `dialogs` once beside the tiles.
  */
 export function useProjectMenu(props: {
   readonly environmentId: EnvironmentId;

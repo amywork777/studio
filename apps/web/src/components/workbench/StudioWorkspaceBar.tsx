@@ -20,13 +20,10 @@ export function useProjectHeading(
 }
 
 /**
- * The start of a project workspace's top bar, in the chat's header row: where the person is, the
- * project's switcher (`ProjectSwitcher`, which holds Home too), then the open chat in it. The
- * panel's toolbar carries the rest (`StudioPanelBar`). Short of room the switcher stops at about
- * half the row, truncating its own name, and the chat has the rest: its name gives way, then its
- * icon, which wraps out of the one row shown rather than clip. Its name stays on its tooltip.
- * Under 16rem (the chat column at its narrowest, beside the window's controls) the chat is left
- * out and the project has the whole row, since a name cut to one letter names nothing.
+ * The start of a workspace's top bar: the project switcher, then the open chat. Short of room the
+ * switcher stops at about half the row and the chat's name, then its icon, gives way, wrapping out
+ * rather than clipping. Under 16rem the chat is left out, since a name cut to one letter names
+ * nothing.
  */
 export function StudioWorkspaceBar(props: {
   readonly environmentId: EnvironmentId;

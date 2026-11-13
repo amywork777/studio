@@ -9,11 +9,9 @@ import {
 import { KIND_ICONS } from "./kinds";
 
 /**
- * The panel bar's one button for the CAD tools: a part opens with them (the ribbon, the design tree
- * and the feature boxes, as NX and SolidWorks have them), and Hide CAD tools puts them away for
- * someone who would rather click the model and ask; Show CAD tools brings them back. Either way a
- * selection on the model goes to the agent. Held while a command or sketch is open in the view in
- * front, and says why. The choice itself is Simple view's store (`simpleView.ts`).
+ * The one button that hides or shows a part's CAD tools; a selection on the model goes to the agent
+ * either way. Held, with the reason, while a command or sketch is open in the view in front. The
+ * choice lives in Simple view's store (`simpleView.ts`).
  */
 export function CadToolsButton(props: {
   readonly shown: boolean;

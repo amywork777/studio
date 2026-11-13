@@ -1,5 +1,4 @@
 import type { EnvironmentId, StudioProject } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
@@ -13,11 +12,9 @@ import { usePictures } from "./usePictures";
 const COVER_GROUPS = ["CAD", "Electronics", "Drawings", "Analysis"] as const;
 
 /**
- * The file that pictures a project: its first assembly (the whole product), else its first part
- * (a cadgen 0.8 model among them, by its document id), else its first board, drawing or study,
- * of those not made from another (`sourceParts`: never `bracket_flat` over `bracket`);
- * the file its picture is rendered from (a SolidCraft design's STEP). Null when it has nothing to
- * picture yet.
+ * The first assembly, else the first part, board, drawing or study, of those not made from another
+ * (`sourceParts`: never `bracket_flat` over `bracket`). Answers the file its picture is rendered
+ * from (a SolidCraft design's STEP). Null when it has nothing to picture yet.
  */
 export function projectCover(
   paths: ReadonlyArray<string>,
@@ -66,14 +63,12 @@ export function useProjectPart(
   const models = useFolderModels(environmentId, cwd);
   const modelsKnown = cwd !== "" && folderModelsKnown(environmentId, cwd);
   const entries = listing.data?.entries;
-  return useMemo(() => {
-    if (entries === undefined) return undefined;
-    const paths = entries
-      .filter((entry) => entry.kind === "file" && entry.ignored !== true)
-      .map((entry) => entry.path);
-    if (!modelsKnown && paths.some((path) => path.endsWith(".py"))) return undefined;
-    return coverFile(paths, models)?.path ?? null;
-  }, [entries, models, modelsKnown]);
+  if (entries === undefined) return undefined;
+  const paths = entries
+    .filter((entry) => entry.kind === "file" && entry.ignored !== true)
+    .map((entry) => entry.path);
+  if (!modelsKnown && paths.some((path) => path.endsWith(".py"))) return undefined;
+  return coverFile(paths, models)?.path ?? null;
 }
 
 /** The file that pictures the project's first folder (`projectCover`); null when none does yet. */
@@ -83,18 +78,16 @@ function useCoverFile(environmentId: EnvironmentId, project: StudioProject | nul
     cwd === "" ? null : projectEnvironment.listEntries({ environmentId, input: { cwd } }),
   );
   const models = useFolderModels(environmentId, cwd);
-  const { cover, page, versions } = useMemo(() => {
-    const paths = (listing.data?.entries ?? [])
-      .filter((entry) => entry.kind === "file" && entry.ignored !== true)
-      .map((entry) => entry.path);
-    const file = coverFile(paths, models);
-    return {
-      cover: file === null ? null : (file.picture ?? file.path),
-      page: file === null ? projectPage(paths) : null,
-      versions: file === null ? {} : pictureVersions([file]),
-    };
-  }, [listing.data, models]);
-  return { cwd, cover, page, versions };
+  const paths = (listing.data?.entries ?? [])
+    .filter((entry) => entry.kind === "file" && entry.ignored !== true)
+    .map((entry) => entry.path);
+  const file = coverFile(paths, models);
+  return {
+    cwd,
+    cover: file === null ? null : (file.picture ?? file.path),
+    page: file === null ? projectPage(paths) : null,
+    versions: file === null ? {} : pictureVersions([file]),
+  };
 }
 
 /** The page that stands for a project with nothing to picture (`projectPage`), by its folder. */

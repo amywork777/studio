@@ -66,19 +66,9 @@ function FindButton() {
 }
 
 /**
- * Studio's Home, the way a CAD tool's welcome starts: what to make, and where you left off. With no
- * projects (`homeLayout`) it asks Where would you like to start?, with two big buttons (New part,
- * Import a STEP; `StartChoices`), Home's Start box right under them, and the examples
- * Studio ships to make a copy of. With projects it is Welcome back: the box, then your starred
- * projects and every other one, the last worked on first, as pictures of their parts, each opening
- * on its part (Amy, 2026-10-29: one Home, not a Projects page beside it), and the examples in a Get
- * started strip under them that folds away, its All examples the Library. The box takes what to
- * make: Start sends it to a new project (made, with a first chat that sends it), or, with a project
- * of yours chosen beside Attach, to a new chat in that project. New and Import beside the tiles add
- * a project: New the same New and dialog as a project's toolbar (a part, a board or a document, in
- * a new project), Import from files. A project with a chat waiting on the person (a question, an
- * approval) comes first, says so, and opens on that chat. Search finds a project, a part or a chat
- * (`StudioQuickFind`). One column, so the box and the tiles line up.
+ * Studio's Home. With no projects (`homeLayout`) it asks where to start, with two big buttons and
+ * the Start box; with projects, the box and then the project tiles, last worked on first, a project
+ * with a waiting chat ahead and opening on that chat. One column, so the box and the tiles line up.
  */
 export function StudioHome() {
   const environmentId = usePrimaryEnvironmentId();
@@ -220,14 +210,9 @@ function AttachedList(props: {
 }
 
 /**
- * Home's Start box, the AI's way in: say what to make and Start. It goes to a new project, as it
- * starts, or to a new chat in a project of yours chosen beside Attach (`ProjectPicker`), the box
- * then reading as a project's chat box does. Files can come with the words or on their own (a PRD,
- * requirements, sketches, CAD, a whole folder: Attach, or dropped on the box), and Start makes a
- * new project from them. Files go into the project's References and the agent reads them first
- * (`startMessage`). There is no Ask here: a question goes in the box, or in a chat. With no AI
- * agent to send to (`missingAgent`) it says so beside Start, in the chat box's words and with its
- * way to Settings, and Start makes nothing.
+ * Home's Start box: say what to make, and Start goes to a new project, or to a new chat in the
+ * project chosen beside Attach. Attached files go into the project's References and the agent reads
+ * them first (`startMessage`). With no agent (`missingAgent`) it says so and Start makes nothing.
  */
 function StartProject(props: {
   readonly environmentId: EnvironmentId;

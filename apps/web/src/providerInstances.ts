@@ -216,12 +216,9 @@ const isKnownBrokenProviderInstanceEntry = (entry: ProviderInstanceEntry): boole
   entry.snapshot.compatibilityAdvisory?.status === "broken";
 
 /**
- * Resolve an exact stored instance when it remains enabled and available.
- * Otherwise choose a deterministic fallback that can plausibly start now:
- * ready and not a version known to be broken first, then ready, then a
- * non-error probe result. An errored provider is retained
- * only when it was explicitly requested; it is never invented as a new-user
- * default.
+ * Resolve the stored instance while it stays enabled and available; otherwise fall back, in a fixed
+ * order, to one that can plausibly start now: ready and not a known-broken version, then ready, then
+ * a non-error probe. An errored provider is kept only when explicitly requested, never as a default.
  */
 export function resolveSelectableProviderInstanceEntry(
   entries: ReadonlyArray<ProviderInstanceEntry>,

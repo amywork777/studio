@@ -1,12 +1,7 @@
 /**
- * MCP App views: which of a server's tools render a UI, and where the UI shows.
- *
- * A tool renders a view when its `_meta` names a UI resource: MCP Apps'
- * `ui.resourceUri`, the older flat `ui/resourceUri`, or `openai/outputTemplate`.
- * `_meta["openai/ui"].entrypoints` (or the neutral `_meta.ui.entrypoints`) says
- * where it opens: `global` (a page), `thread` (a thread tab), `file` (how files
- * with those extensions open). A UI tool that names none is a `thread` tool.
- * `ui.visibility: ["app"]` hides a tool from the model: only its view calls it.
+ * MCP App views. A tool renders one when its `_meta` names a UI resource (`ui.resourceUri`,
+ * `ui/resourceUri` or `openai/outputTemplate`); `entrypoints` says where it opens (`global`,
+ * `thread`, `file`), `thread` when none. `ui.visibility: ["app"]` hides a tool from the model.
  */
 import type { PluginView, PluginViewEntrypoint } from "@t3tools/contracts";
 

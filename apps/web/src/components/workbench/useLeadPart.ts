@@ -1,5 +1,4 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
 import { projectEnvironment } from "~/state/projects";
@@ -34,19 +33,15 @@ function useFolderListing(
   const entries = listing.data?.entries;
   // Its cadgen 0.8 models among its parts, by their document ids.
   const models = useFolderModels(environmentId, folder ?? "", mutationId);
-  return useMemo(
-    () =>
-      folder === null || entries === undefined
-        ? null
-        : {
-            root: folder,
-            paths: entries
-              .filter((entry) => entry.kind === "file" && entry.ignored !== true)
-              .map((entry) => entry.path),
-            models,
-          },
-    [entries, folder, models],
-  );
+  return folder === null || entries === undefined
+    ? null
+    : {
+        root: folder,
+        paths: entries
+          .filter((entry) => entry.kind === "file" && entry.ignored !== true)
+          .map((entry) => entry.path),
+        models,
+      };
 }
 
 /** A project folder's lead part (`leadPartOf`), read again when the agent changes files. */
@@ -56,7 +51,7 @@ export function useLeadPart(
   mutationId?: string | null,
 ) {
   const listing = useFolderListing(environmentId, folder, mutationId);
-  return useMemo(() => (listing === null ? null : leadPartOf([listing])), [listing]);
+  return listing === null ? null : leadPartOf([listing]);
 }
 
 /**
@@ -69,11 +64,7 @@ export function useProjectKinds(
   mutationId?: string | null,
 ): ReadonlySet<string> | null {
   const listing = useFolderListing(environmentId, folder, mutationId);
-  return useMemo(
-    () =>
-      listing === null
-        ? null
-        : new Set(folderFiles(listing.paths, listing.models).map((file) => file.kind)),
-    [listing],
-  );
+  return listing === null
+    ? null
+    : new Set(folderFiles(listing.paths, listing.models).map((file) => file.kind));
 }

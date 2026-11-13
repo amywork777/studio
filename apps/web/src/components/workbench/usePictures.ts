@@ -40,11 +40,9 @@ export function wantsPicture(cached: Cached | undefined, built: boolean, now: nu
 }
 
 /**
- * Pictures of the project's models, boards and drawings, rendered on the
- * server by the CAD plugin (`plugins.modelPictures`, cached there by file
- * size and time, a cadgen 0.8 model's by its build), a batch at a time, the
- * first files first. A model is asked for by its document id, with its build
- * (`versions`): a new build is a new picture.
+ * Rendered on the server by the CAD plugin (`plugins.modelPictures`), a batch at a time, first files
+ * first. A model is asked for by its document id with its build (`versions`): a new build is a new
+ * picture.
  */
 export function usePictures(input: {
   readonly environmentId: EnvironmentId;
@@ -61,6 +59,7 @@ export function usePictures(input: {
   const [tries, setTries] = useState(0);
   const wanted = input.paths.join("\n");
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- fetches missing pictures from the server in batches, with a retry timer
   useEffect(() => {
     if (wanted === "") return;
     let cancelled = false;

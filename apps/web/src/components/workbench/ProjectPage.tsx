@@ -11,7 +11,7 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useThreadShellsForProjectRefs } from "~/state/entities";
 import { useComposerHandleContext } from "~/composerHandleContext";
@@ -47,7 +47,7 @@ import {
   type ProjectGroup,
 } from "./projectFiles";
 import { ImportDropZone } from "./ImportDropZone";
-import { useImportIntoProject } from "./importIntoProject";
+import { importIntoProject } from "./importIntoProject";
 import { useEngineeringInterface } from "./studioInterface";
 import { MODULE_HEADING, SECTION_STACK } from "./studioLayout";
 import { folderProject, useEnvironmentFolders } from "./useProjectFolders";
@@ -230,15 +230,11 @@ function FolderFiles(props: {
     refresh: listing.refresh,
     resourceKey: `project-page:${root}`,
   });
-  const groups = useMemo(
-    () =>
-      groupProjectFiles(
-        (listing.data?.entries ?? [])
-          .filter((entry) => entry.kind === "file" && entry.ignored !== true)
-          .map((entry) => entry.path),
-        props.query,
-      ),
-    [listing.data, props.query],
+  const groups = groupProjectFiles(
+    (listing.data?.entries ?? [])
+      .filter((entry) => entry.kind === "file" && entry.ignored !== true)
+      .map((entry) => entry.path),
+    props.query,
   );
   const shown = groups.filter(({ group }) =>
     props.tab === "references" ? group === "References" : group !== "References",
@@ -376,20 +372,9 @@ function LinksList(props: { readonly links: ReadonlyArray<string> }) {
 }
 
 /**
- * The project page, the engineering surfaces' Project tab (in place of the
- * file explorer). A project is a grouping of folders with one brief
- * (`useStudioProjects.ts`); a folder in none is a project of its own. The page
- * shows the project's name and brief, its folders (add or take one out), then
- * its overview first (`ProjectOverview.tsx`: the lead part, the open issues
- * its checks found, every part with its checks, recent work), everything its
- * folders hold, folder by folder and filed as an engineer files it (models,
- * boards, drawings, studies and jobs, documents, fabrication files), each a
- * tile that opens in the viewer or as a document, and every thread in any of
- * its folders. Source stays in T3 Code's explorer (Source, with code tools).
- * The engineering interface shows the Overview alone, its folders and links at
- * its end: what the other tabs list, its modules hold, and the project's chats
- * are down the left (`StudioSidebar`). Its New starts new designs only; the
- * jobs on a part are in the top bar's menus.
+ * The project page, the engineering surfaces' Project tab in place of the file explorer. A project
+ * groups folders under one brief (`useStudioProjects.ts`); a folder in none is its own project. The
+ * engineering interface shows the Overview alone, with its folders and links at the end.
  */
 export function ProjectPage(props: {
   readonly environmentId: EnvironmentId;
@@ -434,6 +419,7 @@ export function ProjectPage(props: {
   // New asked for from outside the page (the library's Make
   // one): where this page shows its New, it takes the request and opens on it, once.
   const showsNew = composerRef !== null && !plainWords;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- takes a New request posted to the shared store from elsewhere, once this page can show New
   useEffect(() => {
     if (pendingNew === null || !showsNew) return;
     const asked = takeNew(false);
@@ -455,7 +441,7 @@ export function ProjectPage(props: {
   const name = studio?.project.name ?? props.projectName;
   const open = useOpenFromOverview(threadRef);
   // Files dropped on the Overview go into the project, as onto a Drive folder; one part opens.
-  const importer = useImportIntoProject(isProject && plainWords ? cwd : null, name, open);
+  const importer = importIntoProject(isProject && plainWords ? cwd : null, name, open);
   // What it is, as the brief says it: the project's description under its name.
   const purpose = studio?.project.brief.purpose.trim().split("\n")[0]?.trim() ?? "";
   const byHand = !useSimpleView();
@@ -472,7 +458,7 @@ export function ProjectPage(props: {
   const listing = useEnvironmentQuery(
     projectEnvironment.listEntries({ environmentId, input: { cwd } }),
   );
-  const offers = useMemo(() => {
+  const offers = (() => {
     const known = plugins ?? [];
     const skills = new Set(known.flatMap((plugin) => (plugin.enabled ? plugin.skills : [])));
     // Until the plugins are known, only what needs no skill, so nothing reads as not installed.
@@ -481,43 +467,32 @@ export function ProjectPage(props: {
         (!plainWords || offer.template.source === "new") &&
         (plugins !== undefined || offer.availability.on),
     );
-  }, [plugins, plainWords]);
+  })();
   // What a template can work from: the models and boards in this thread's folder.
-  const parts = useMemo(
-    () =>
-      groupProjectFiles(
-        (listing.data?.entries ?? [])
-          .filter((entry) => entry.kind === "file" && entry.ignored !== true)
-          .map((entry) => entry.path),
-      )
-        .filter(({ group }) => DESIGN_GROUPS.has(group))
-        .flatMap(({ files }) => files.map((file) => file.path)),
-    [listing.data],
-  );
+  const parts = groupProjectFiles(
+    (listing.data?.entries ?? [])
+      .filter((entry) => entry.kind === "file" && entry.ignored !== true)
+      .map((entry) => entry.path),
+  )
+    .filter(({ group }) => DESIGN_GROUPS.has(group))
+    .flatMap(({ files }) => files.map((file) => file.path));
   // Every folder's record, for the threads in it.
   const folderKey = folders.join("\n");
-  const projectRefs = useMemo(
-    () =>
-      folderKey
-        .split("\n")
-        .map((folder) => folderProject(knownFolders, folder))
-        .filter((project) => project !== null)
-        .map((project) => scopeProjectRef(project.environmentId, project.id)),
-    [folderKey, knownFolders],
-  );
+  const projectRefs = folderKey
+    .split("\n")
+    .map((folder) => folderProject(knownFolders, folder))
+    .filter((project) => project !== null)
+    .map((project) => scopeProjectRef(project.environmentId, project.id));
   const onlyChat = projectChats(useThreadShellsForProjectRefs(projectRefs)).length <= 1;
-  const folderNames = useMemo(
-    () =>
-      folders.length < 2
-        ? null
-        : new Map(
-            folders.flatMap((folder) => {
-              const project = folderProject(knownFolders, folder);
-              return project === null ? [] : [[project.id, studioFolderName(folder)] as const];
-            }),
-          ),
-    [folders, knownFolders],
-  );
+  const folderNames =
+    folders.length < 2
+      ? null
+      : new Map(
+          folders.flatMap((folder) => {
+            const project = folderProject(knownFolders, folder);
+            return project === null ? [] : [[project.id, studioFolderName(folder)] as const];
+          }),
+        );
 
   const addFolder = (folder: string) =>
     void saveProject(

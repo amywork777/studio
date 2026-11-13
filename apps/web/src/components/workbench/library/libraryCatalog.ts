@@ -1,9 +1,7 @@
 /**
- * The library: every kind of document Studio makes, and every installed plugin's skills, each
- * with its example in one of the examples Studio ships (`studio-sample/servo-bracket`, unless
- * `libraryExamples.json` names another). A document gathers
- * under one name the templates New offers and the part menus' jobs that make it. The library
- * page lists these; New, the part menus and Settings link into it.
+ * Every document kind Studio makes and every installed plugin's skill, each with its example
+ * (`studio-sample/servo-bracket` unless `libraryExamples.json` names another). A document gathers
+ * New's templates and the part menus' jobs that make it under one name.
  */
 
 import type { InstalledPlugin } from "@t3tools/contracts";

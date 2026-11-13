@@ -1,7 +1,6 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
 
 import { BoxIcon } from "lucide-react";
-import { useMemo } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
@@ -34,12 +33,9 @@ export function partFacts(part: PartContext) {
 }
 
 /**
- * What the viewer beside the thread shows, kept above the composer so "this
- * bracket" always names something: its name, what it is, its units, its
- * material and its last build. It stays while another tab or a hidden panel
- * puts the viewer out of sight, and a press brings the viewer back; closing
- * the viewer's tab takes it away. Workbench layout only; `threadRef` is null
- * for a draft.
+ * The part the viewer shows, kept above the composer so "this bracket" always names something. It
+ * stays while the viewer is out of sight behind another tab or a hidden panel, and goes when the
+ * viewer's tab closes. Workbench layout only; `threadRef` is null for a draft.
  */
 export function PartContextStrip(props: { readonly threadRef: ScopedThreadRef | null }) {
   // The engineering interface names the part in its top bar; its jobs are in the Toolbox.
@@ -55,13 +51,13 @@ function ThreadPartContext(props: { readonly threadRef: ScopedThreadRef }) {
     selectThreadRightPanelState(state.byThreadKey, threadRef),
   );
   // The viewer's tab, open or hidden: the active one when it is the viewer's plugin.
-  const view = useMemo(() => {
-    if (shown === null) return null;
-    const views = panel.surfaces.filter(
-      (surface) => surface.kind === "plugin-app" && surface.pluginId === shown.pluginId,
-    );
-    return views.find((surface) => surface.id === panel.activeSurfaceId) ?? views[0] ?? null;
-  }, [panel, shown]);
+  const views =
+    shown === null
+      ? []
+      : panel.surfaces.filter(
+          (surface) => surface.kind === "plugin-app" && surface.pluginId === shown.pluginId,
+        );
+  const view = views.find((surface) => surface.id === panel.activeSurfaceId) ?? views[0] ?? null;
   const engineering = useEngineeringSurfaces();
   const plainWords = useEngineeringInterface();
   // Re-reads "Built 3m ago" each minute.

@@ -1,6 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { type ReactNode, useMemo } from "react";
+import type { ReactNode } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
@@ -63,11 +63,9 @@ interface TitleBlockProps {
 }
 
 /**
- * The drawing's title block, over the viewer: the part on screen, its type,
- * units, material, last build and checks (each opening its result; a result
- * on screen leads back to its part, and says so when that part changed since:
- * `ResultAge`), read the way a shop drawing reads. In the
- * engineering surfaces only (`useEngineeringSurfaces`), and only while the viewer shows a part of this plugin.
+ * The drawing's title block over the viewer: the part on screen, its type, units, material, last
+ * build and checks, each opening its result. Engineering surfaces only (`useEngineeringSurfaces`),
+ * and only while the viewer shows a part of this plugin.
  */
 export function TitleBlock(props: TitleBlockProps) {
   const surfaces = useEngineeringSurfaces();
@@ -106,19 +104,13 @@ function ThreadTitleBlock(
   );
   useNowMinute();
   const studio = useStudioProjectAt(props.environmentId, props.cwd ?? null);
-  const folders = useMemo(
-    () => studio?.project.folders ?? (props.cwd === undefined ? [] : [props.cwd]),
-    [studio, props.cwd],
-  );
+  const folders = studio?.project.folders ?? (props.cwd === undefined ? [] : [props.cwd]);
   const checks = useProjectChecks({
     environmentId: props.environmentId,
     folders,
     mutationId: props.mutationId ?? null,
   });
-  const threadRef = useMemo(
-    () => scopeThreadRef(props.environmentId, props.threadId),
-    [props.environmentId, props.threadId],
-  );
+  const threadRef = scopeThreadRef(props.environmentId, props.threadId);
   const open = useOpenInWorkbench(threadRef);
   // When each part was last built, as the project's Overview reads it.
   const models = useProjectModels({

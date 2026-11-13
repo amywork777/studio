@@ -7,12 +7,9 @@ import {
 import { type PluginViewChoice, pluginFileHandlers } from "./plugins.ts";
 
 /**
- * A plugin view a settled turn item asks to show beside its thread:
- * - `agent`: the agent called a view's tool itself (text-to-cad's `cad_open`),
- *   so the view opens with the call's arguments, as Codex opens its tab. A
- *   cadgen 0.8 model is named by its document id: its run writes no file.
- * - `file`: a file edit wrote a file an enabled view claims (a `.step`), so
- *   the view follows the agent's work.
+ * A plugin view a settled turn item asks to show beside its thread. `agent`: the agent called the
+ * view's tool (`cad_open`), so it opens with the call's arguments; a cadgen 0.8 model is named by its
+ * document id since its run writes no file. `file`: an edit wrote a file an enabled view claims.
  */
 export type PluginFollowTarget =
   | {

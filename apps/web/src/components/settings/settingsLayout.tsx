@@ -307,19 +307,10 @@ function projectOverrides(
 }
 
 /**
- * One setting. `serverScoped` marks rows whose value lives in the primary
- * environment's settings.json; where there is no primary (the hosted app)
- * the control goes inert with a tooltip instead of showing an editable
- * default that would never save.
- *
- * Keep descriptions short enough for one line where possible. Allow wrapping
- * for clarity or narrow screens instead of truncating or forcing no-wrap.
- *
- * Control sizing across settings follows two tiers so rows share a baseline:
- * - Every control, section `headerAction` and button in a list item or card: `size="sm"` (Button,
- *   Select, Input, NumberField) or `icon-sm`.
- * - Inline affordances (reset arrows, info tooltips, table-cell buttons): `icon-micro`.
- * Dialog footers keep the app-wide default button size.
+ * One setting. `serverScoped` rows live in the primary environment's settings.json; with no primary
+ * (the hosted app) the control goes inert with a tooltip rather than offer an edit that never saves.
+ * Controls in rows use `size="sm"` or `icon-sm` so rows share a baseline; inline affordances use
+ * `icon-micro`; dialog footers keep the default size.
  */
 export function SettingsRow({
   title,

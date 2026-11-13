@@ -1,5 +1,5 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { usePrimaryEnvironmentId } from "~/state/environments";
@@ -52,7 +52,7 @@ function TrashPageFor(props: { readonly environmentId: EnvironmentId }) {
   const { environmentId } = props;
   const list = useStudioProjectsList(environmentId).data;
   const trash = useTrash(environmentId);
-  const entries = useMemo(() => inTrashOrder(list?.trashed ?? {}), [list]);
+  const entries = inTrashOrder(list?.trashed ?? {});
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
   // One step at a time per project, so a second click never repeats one under way.
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());

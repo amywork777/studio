@@ -121,6 +121,7 @@ export function useShowWaitingChat(
 ): void {
   const environmentId = threadRef?.environmentId ?? null;
   const threadId = threadRef?.threadId ?? null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- unmaximizes the panel store once per new pending request the server reports
   useEffect(() => {
     if (environmentId === null || threadId === null || requestId === null) return;
     showChat(scopeThreadRef(environmentId, threadId));

@@ -1,5 +1,4 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useMemo } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useFilesystemReadAccess } from "~/state/filesystem";
@@ -14,11 +13,9 @@ import { useFolderModels } from "./useFolderModels";
 import { useLeadPart } from "./useLeadPart";
 
 /**
- * A new thread's starters in Studio, made from the project (`starterJobs.ts`): its lead part, the
- * one the Overview shows, then its most recently used files (the project search's own order) and
- * its brief. An even block of the chat's chips (`ChangeChip`), two columns over the composer, each
- * with the icon and hue of the kind of work it starts, so none outranks it; a long name wraps.
- * Nothing without a project. A pick goes into the composer to edit before sending.
+ * A new thread's starters, made from the project (`starterJobs.ts`): the lead part, recent files
+ * and the brief, in two even columns so none outranks the others. Nothing without a project. A pick
+ * goes into the composer to edit before sending.
  */
 export function ProjectStarters(props: {
   readonly environmentId: EnvironmentId;
@@ -41,14 +38,11 @@ export function ProjectStarters(props: {
   // Its cadgen 0.8 models stand where their scripts are among its recent files.
   const models = useFolderModels(environmentId, cwd);
   const lead = useLeadPart(environmentId, cwd)?.file ?? null;
-  const starters = useMemo(() => {
-    const paths = (recent ?? []).map((entry) => entry.path);
-    const files = folderFiles(paths, models);
-    const skills = new Set(
-      (plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : [])),
-    );
-    return projectStarters(files, skills, brief, new Set(paths), lead);
-  }, [recent, models, plugins, brief, lead]);
+  const paths = (recent ?? []).map((entry) => entry.path);
+  const skills = new Set(
+    (plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : [])),
+  );
+  const starters = projectStarters(folderFiles(paths, models), skills, brief, new Set(paths), lead);
   if (starters.length === 0) return null;
 
   return (

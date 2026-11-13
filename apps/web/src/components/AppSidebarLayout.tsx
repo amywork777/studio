@@ -320,6 +320,7 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
 /** Folds the sidebar as a project or a part opens (`foldSidebarForPart`), which runs outside React. */
 function FoldSidebarForPart() {
   const { setOpen } = useSidebar();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to fold requests raised outside React while mounted.
   useEffect(() => onFoldSidebarForPart(() => void setOpen(false)), [setOpen]);
   return null;
 }

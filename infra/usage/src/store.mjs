@@ -1,15 +1,7 @@
 /**
- * The store: Studio's own Postgres table, as Backplane keeps its own (no analytics vendor). It is a Supabase
- * project reached through its REST API (PostgREST), so the function needs nothing but `fetch`. Every row a batch
- * makes (`events.mjs`) becomes one row of `usage_events` (schema.sql), keyed by the event's own id: a batch
- * sent again inserts nothing new (`resolution=ignore-duplicates`). Beside the batch's context and the event's
- * properties it keeps the country the host placed the request in, never the IP address nor anything finer.
- *
- * An opt-out deletes every row under the install's id (`/forget`), at once.
- *
- * Its settings are the host's (api/v1.mjs): the project's URL and its service role key, which only this
- * function holds; the table allows nothing to anyone else (schema.sql turns row-level security on with no
- * policy). `fetch` is handed in, so the tests need no network.
+ * Studio's own Postgres table, Supabase over PostgREST so only `fetch` (handed in for tests) is
+ * needed. Rows are keyed by event id, so a resent batch adds nothing; the country is kept, never the
+ * IP. Only this function holds the service role key, and RLS with no policy shuts everyone else out.
  */
 
 export const SETTINGS = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
@@ -89,11 +81,9 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
         headers: { prefer: "return=minimal" },
       });
     },
-    // The numbers page's rows (page.mjs) from `since` (`YYYY-MM-DD`) on: the two daily views; how many AI
-    // turns failed, counted by the database, and the failed turns themselves (the AI, the model or the
-    // reason, with the install id, the first 1000 of each); and which version each launch ran
-    // (`client.connected`), the version and install id alone, read a page at a time since the database
-    // answers 1000 rows a call.
+    // Rows for page.mjs from `since` (`YYYY-MM-DD`): the daily views, failed-turn counts and the first
+    // 1000 failed turns, and each launch's version (`client.connected`), read a page at a time since the
+    // database answers 1000 rows a call.
     async numbers(since) {
       const view = (name, order) =>
         call(`${url}/rest/v1/${name}?day=gte.${since}&order=${order}`).then((answer) =>

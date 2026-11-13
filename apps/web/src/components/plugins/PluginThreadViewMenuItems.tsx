@@ -1,7 +1,6 @@
 import { pluginViewsWithEntrypoint } from "@t3tools/client-runtime/state/plugins";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { PuzzleIcon } from "lucide-react";
-import { useMemo } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
@@ -17,10 +16,7 @@ export function PluginThreadViewMenuItems(props: {
   const list = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: props.environmentId, input: {} }),
   );
-  const views = useMemo(
-    () => pluginViewsWithEntrypoint(list.data?.plugins ?? [], "thread"),
-    [list.data],
-  );
+  const views = pluginViewsWithEntrypoint(list.data?.plugins ?? [], "thread");
   if (views.length === 0) return null;
   return (
     <>

@@ -9,11 +9,9 @@ const onAttachBox = (target: EventTarget) =>
   target instanceof Element && target.closest("[data-attach-drop]") !== null;
 
 /**
- * Drop files or a folder anywhere on Studio's Home or Projects to import them: what lands opens
- * Import on the projects it makes (`ImportDialog.tsx`); on a project's Overview (`into`), they are
- * added to that project (`onPaths`, `useImportIntoProject`). A box that attaches what is dropped on
- * it (`data-attach-drop`, Home's start box) takes its own drops. Where there is no desktop app,
- * nothing here takes a drop.
+ * Drops on Home or Projects open Import on the projects they make; with `into`, they are added to
+ * that project instead. A box marked `data-attach-drop` takes its own drops. Without the desktop
+ * app nothing here takes a drop.
  */
 export function ImportDropZone(props: {
   readonly children: ReactNode;

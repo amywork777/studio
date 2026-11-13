@@ -1,13 +1,6 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { PanelRightCloseIcon } from "lucide-react";
-import {
-  type ReactElement,
-  type RefObject,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
@@ -44,21 +37,10 @@ import { useProjectKinds } from "./useLeadPart";
 import { useToolboxJobs } from "./useToolboxJobs";
 
 /**
- * The Toolbox, down the right of the workspace panel beside the part, the same in AI and CAD: every
- * job the enabled skills can do (`useToolboxJobs`), as Analysis, Manufacturing and Documents
- * (`toolboxGroups`, `MENU_WORDS`), a tab each, like SolidWorks' CommandManager; the tab left open is
- * remembered on this device. Every job in a group is a tile like every other, nothing folded and
- * none hidden: the group's purpose over one even grid of tiles, each section's name over its first.
- * The jobs are for the part in front, else the project's (`usePartForJobs`). A job that does not
- * fit that file (a board's on a part) keeps its tile, dimmed as NX greys a command out, and says
- * what it works on (`toolboxWorksOn`); with no file yet, every tile does. Where the project holds
- * nothing the job works on and New makes it (`toolboxStart`: a board job in a project with no
- * board), the tile's press opens New on that start instead, the way to make what the job needs.
- * A tile press sends its job in the chat for that part, or adds it after a draft being written
- * there for the person to send (`handToChat`). It folds to an edge of the groups' icons, as chosen
- * on this device, and on a narrow panel (`toolboxNarrowRem`: in CAD, one beside a chat) starts
- * folded so the model keeps the room; a group's icon there, in its jobs' color, opens it on that
- * group's tab, and the tab it would open on sits on a filled tile, as the sidebar's active row.
+ * Every job the enabled skills can do, a tab per group and each job an equal tile, none folded or
+ * hidden, for the part in front else the project's (`usePartForJobs`). A job that does not fit the
+ * file stays dimmed and says what it works on; one whose input New can make opens New instead. It
+ * starts folded on a narrow panel (`toolboxNarrowRem`) so the model keeps the room.
  */
 export function StudioToolbox(props: {
   readonly threadRef: ScopedThreadRef;
@@ -75,7 +57,7 @@ export function StudioToolbox(props: {
     projectKinds === null ? null : toolboxStart(action, projectKinds);
   const start = (template: NewTemplate) =>
     useNewDialogStore.getState().ask(template.discipline, template.id);
-  const groups = useMemo(() => toolboxGroups(jobs.menus), [jobs.menus]);
+  const groups = toolboxGroups(jobs.menus);
 
   const navigate = useNavigate();
   const router = useRouter();
@@ -240,6 +222,7 @@ function useFolding(rootRef: RefObject<HTMLDivElement | null>) {
   const folded = useToolboxFold(selectToolboxFolded);
   const setFolded = useToolboxFold((state) => state.setFolded);
   const setNarrow = useToolboxFold((state) => state.setNarrow);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- observes the panel body's width and keeps the fold store's narrow flag in step with it
   useLayoutEffect(() => {
     // The panel's body, the surface and the Toolbox side by side (`RightPanelTabs`' aside).
     const body = rootRef.current?.closest("[data-right-panel-body]");

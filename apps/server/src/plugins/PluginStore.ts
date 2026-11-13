@@ -1,15 +1,8 @@
 /**
- * What plugins this environment has: the marketplaces it reads, what is
- * installed and on, and what each plugin's servers listed when they last ran.
- *
- * Everything lives under `<stateDir>/plugins`, never in `~/.claude` or
- * `~/.codex`: `installed.json` (the registry), `marketplaces/<id>` (shallow
- * clones of git marketplaces, fetched in the background when older than six
- * hours), and `cache/<market>/<plugin>/<commit>` (installed copies, one folder
- * per commit). A plugin from a folder marketplace is used in place.
- *
- * A catalog read never waits on the network: a marketplace being fetched says
- * so (`fetching`) and its plugins arrive on a later read.
+ * The plugins this environment has, all under `<stateDir>/plugins` (never `~/.claude` or `~/.codex`):
+ * `installed.json`, `marketplaces/<id>` (shallow clones, refetched in the background after six hours)
+ * and `cache/<market>/<plugin>/<commit>`; a folder marketplace is used in place. A catalog read never
+ * waits on the network: a marketplace being fetched says `fetching`.
  */
 import {
   type InstalledPlugin,

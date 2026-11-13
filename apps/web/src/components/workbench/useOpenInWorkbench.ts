@@ -1,7 +1,6 @@
 import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { useCallback } from "react";
 
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
@@ -15,11 +14,9 @@ import { knownModelTitle } from "./useFolderModels";
 import { sameFile, surfaceFile } from "./sameFile";
 
 /**
- * Opens a file beside a thread: a model, board or drawing in the plugin view that claims it (a
- * STEP in the CAD view, never as text), anything else as a document, at its line, and remembers
- * it for Home's Recent (`recentFiles.ts`). Takes a path in the thread's folder, or a full path,
- * or a cadgen 0.8 model's document id, which opens in the CAD view (`openDocumentInPanel`).
- * Says whether a plugin view shows it: the one open already, or the one the plugins list for it.
+ * A file goes to the plugin view that claims it (a STEP in the CAD view, never as text), anything
+ * else to a document at its line. Takes a path in the thread's folder, a full path, or a cadgen 0.8
+ * document id. Says whether a plugin view shows it.
  */
 export function openInPanel(
   plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
@@ -123,24 +120,15 @@ export function openDocumentInPanel(
   return false;
 }
 
-/**
- * Opens a file a chat link or file chip names: a model, board or drawing in
- * the plugin view that claims it (a STEP in the CAD view, never as text),
- * anything else in the file preview at its line. Takes a path in the thread's
- * folder, or a full path; without a thread it opens nothing. Says whether a
- * plugin view shows it (`openInPanel`).
- */
+/** For a chat link or file chip; without a thread it opens nothing (`openInPanel`). */
 export function useOpenChatFile(threadRef: ScopedThreadRef | null) {
   const plugins = useEnvironmentQuery(
     threadRef === null
       ? null
       : pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
-  return useCallback(
-    (path: string, line?: number) =>
-      threadRef !== null && openInPanel(plugins, threadRef, path, line),
-    [plugins, threadRef],
-  );
+  return (path: string, line?: number) =>
+    threadRef !== null && openInPanel(plugins, threadRef, path, line);
 }
 
 /**
@@ -152,10 +140,7 @@ export function useOpenInWorkbench(threadRef: ScopedThreadRef) {
   const plugins = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
-  return useCallback(
-    (path: string) => openPartInCad(plugins, threadRef, path),
-    [plugins, threadRef],
-  );
+  return (path: string) => openPartInCad(plugins, threadRef, path);
 }
 
 /** `useOpenInWorkbench` for the Overview, whose files open at the panel's width (`openFromOverview`). */
@@ -163,8 +148,5 @@ export function useOpenFromOverview(threadRef: ScopedThreadRef) {
   const plugins = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
-  return useCallback(
-    (path: string) => openFromOverview(plugins, threadRef, path),
-    [plugins, threadRef],
-  );
+  return (path: string) => openFromOverview(plugins, threadRef, path);
 }

@@ -27,6 +27,7 @@ export function useShowProjectPart(input: {
     opening ? pluginEnvironment.list({ environmentId, input: {} }) : null,
   ).data?.plugins;
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens the project's part in the panel store once its files and plugins arrive from the server
   useEffect(() => {
     if (!opening || threadRef === null || plugins === undefined) return;
     const viewer = plugins.some(

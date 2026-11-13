@@ -1,9 +1,7 @@
 /**
- * Studio's usage counts for what an engineer does in a CAD view: the `cad_http` routes that change
- * or open something, named by a fixed event and nothing of the request (no paths, files or sizes).
- * Reads and the build-state long poll are not counted, and neither is a request still being answered
- * (a document still reading answers 202, and is asked again). One the CAD server refuses or fails
- * counts as `cad.action.failed`, named by the action it was.
+ * Usage counts for CAD view actions: `cad_http` routes that change or open something, named by a
+ * fixed event and nothing of the request. Reads, the build-state long poll and pending answers (202)
+ * are not counted; a refused or failed one counts as `cad.action.failed` with its action.
  */
 import { isRecord } from "@t3tools/plugins";
 

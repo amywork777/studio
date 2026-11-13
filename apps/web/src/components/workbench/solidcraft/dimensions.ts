@@ -1,11 +1,7 @@
 /**
- * A SolidCraft sketch's dimensions as the editor draws them on the model: for
- * each driving dimension, its lines (extension lines and the dimension line)
- * and where its value sits, in world coordinates, offset away from the
- * sketch's geometry the way a drawing places them. The shapes are SolidCraft's
- * own (`inspect_design {"sketches": true}`): a dimension names its parameter
- * (`d1`), its expression and value, and what it measures by index, a curve
- * (`l`, `c`), two points (`p`, `q`) or two lines (`a`, `b`).
+ * Shapes are SolidCraft's own (`inspect_design {"sketches": true}`): a dimension names its
+ * parameter (`d1`) and what it measures by index, a curve (`l`, `c`), two points (`p`, `q`) or two
+ * lines (`a`, `b`). Output is in world coordinates, offset off the sketch as a drawing places them.
  */
 
 export type Vec2 = readonly [number, number];

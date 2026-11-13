@@ -1,16 +1,8 @@
 /**
- * Studio's one layout rule, on Tailwind's 4px grid, for every page, the Toolbox and Settings:
- *
- * - Frame: `WorkspacePageContainer`, one left edge, one max width and one title position.
- * - Title: `PageTitle`, 24px.
- * - Spacing: `gap-6` (24px) between sections; `gap-3` (12px) between a section's label and its
- *   content and between groups; `gap-2` (8px) between sibling controls and tiles; `p-3` (12px)
- *   inside cards and rows.
- * - Controls: `size="sm"` or `"icon-sm"`, 28px at desktop. A control nested in another one, or in a
- *   line of text, stays smaller.
- * - Corners: `rounded-lg` on cards, tiles, inputs and buttons; `rounded-md` only inside one of them.
- * - Type: title 24px; section label `MODULE_HEADING`; a group within a section `GROUP_LABEL`; body
- *   14px (`text-sm`); secondary 12px (`text-xs`). Nothing smaller but the rail's count.
+ * Every page: `WorkspacePageContainer`, `PageTitle` 24px; `gap-6` between sections, `gap-3` label to
+ * content, `gap-2` between siblings, `p-3` inside cards. Controls `size="sm"`/`"icon-sm"` (28px);
+ * `rounded-lg` outside, `rounded-md` only inside. Type: `MODULE_HEADING`, `GROUP_LABEL`, body
+ * `text-sm`, secondary `text-xs`; nothing smaller but the rail's count.
  */
 
 /** A section's label, on every page and in Settings. */

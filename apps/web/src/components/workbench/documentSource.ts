@@ -1,9 +1,8 @@
 /**
- * Where each editable piece of a Studio document sits in its Markdown file, so a document is edited
- * where it reads (`StudioDocumentSurface`): a remark plugin marks every heading, paragraph, list
- * item and table cell with its words' place in the file (`data-src="start:end"`, and
- * `data-src-plain` when it is plain words, which are edited in place); an edit puts the new words
- * back at that place, the rest of the file as it was.
+ * Where each editable piece of a document sits in its Markdown file: a remark plugin marks
+ * headings, paragraphs, list items and table cells with `data-src="start:end"`, plus
+ * `data-src-plain` for plain words, which are edited in place. An edit writes back at that place
+ * and leaves the rest of the file as it was.
  */
 
 interface SourceNode {

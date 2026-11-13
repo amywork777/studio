@@ -1,15 +1,10 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
 /**
- * Hardware first, code second (`brand.json` `"focus": "hardware"`). The
- * workbench groups a part's jobs the way CAD tools do: Evaluate (simulations,
- * fit, motion, mass), Manufacture by way of making it (a way's check and its
- * outputs together, the project's own way first), and Document. Each menu
- * keeps its everyday jobs in titled sections and the rest in a submenu each.
- * Every job is one the agent already knows through one of text-to-cad's
- * skills, offered only while an enabled plugin has that skill and only on the
- * kinds of file it applies to. A pick writes the job into the composer,
- * naming the part, to edit before sending.
+ * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
+ * own way first) and Document. Each job is one the agent knows through a text-to-cad skill, offered
+ * only while an enabled plugin has that skill and only on the kinds of file it applies to. A pick
+ * writes the job into the composer, naming the part, to edit before sending.
  */
 export const HARDWARE_FOCUS = import.meta.env.VITE_APP_FOCUS === "hardware";
 

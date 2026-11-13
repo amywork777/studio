@@ -1,6 +1,6 @@
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
 import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { create } from "zustand";
 
 import { useThreadShell } from "~/state/entities";
@@ -53,25 +53,20 @@ export function useEnvironmentCadGet(environmentId: EnvironmentId | null): CadGe
   const viewer = plugins === undefined ? undefined : pluginFileHandlers(plugins, "part.step")[0];
   const pluginId = viewer?.pluginId ?? null;
   const server = viewer?.view.server ?? null;
-  const get = useCallback<CadGet>(
-    async (url) => {
-      if (environmentId === null || pluginId === null || server === null) return null;
-      const result = await request({
-        environmentId,
-        input: {
-          threadId: null,
-          pluginId,
-          server,
-          method: "tools/call",
-          params: { name: "cad_http", arguments: cadHttpArguments(url) },
-        },
-      });
-      return result._tag === "Success"
-        ? readTunnelJson(result.value.result).catch(() => null)
-        : null;
-    },
-    [environmentId, pluginId, request, server],
-  );
+  const get: CadGet = async (url) => {
+    if (environmentId === null || pluginId === null || server === null) return null;
+    const result = await request({
+      environmentId,
+      input: {
+        threadId: null,
+        pluginId,
+        server,
+        method: "tools/call",
+        params: { name: "cad_http", arguments: cadHttpArguments(url) },
+      },
+    });
+    return result._tag === "Success" ? readTunnelJson(result.value.result).catch(() => null) : null;
+  };
   return environmentId === null || pluginId === null || server === null ? null : get;
 }
 
@@ -88,25 +83,20 @@ function useCadPost(
   const server = viewer?.view.server ?? null;
   const threadId = scope?.threadId ?? null;
   const asked = scope !== null;
-  const post = useCallback<CadPost>(
-    async (path, body) => {
-      if (environmentId === null || pluginId === null || server === null || !asked) return null;
-      const result = await request({
-        environmentId,
-        input: {
-          threadId,
-          pluginId,
-          server,
-          method: "tools/call",
-          params: { name: "cad_http", arguments: cadHttpArguments(path, body) },
-        },
-      });
-      return result._tag === "Success"
-        ? readTunnelJson(result.value.result).catch(() => null)
-        : null;
-    },
-    [asked, environmentId, pluginId, request, server, threadId],
-  );
+  const post: CadPost = async (path, body) => {
+    if (environmentId === null || pluginId === null || server === null || !asked) return null;
+    const result = await request({
+      environmentId,
+      input: {
+        threadId,
+        pluginId,
+        server,
+        method: "tools/call",
+        params: { name: "cad_http", arguments: cadHttpArguments(path, body) },
+      },
+    });
+    return result._tag === "Success" ? readTunnelJson(result.value.result).catch(() => null) : null;
+  };
   return pluginId === null || server === null || !asked ? null : post;
 }
 
@@ -133,6 +123,7 @@ export function usePartVersions(input: {
   const { post, folder, path, mutationId } = input;
   const [state, setState] = useState<(VersionsState & { readonly key: string }) | null>(null);
   const key = `${folder}\n${path ?? ""}`;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads the file's versions from the CAD service again on every workspace change
   useEffect(() => {
     if (post === null || path === null) return;
     let cancelled = false;
@@ -200,6 +191,7 @@ export function useComparison(input: {
   const [state, setState] = useState<(ComparisonState & { readonly key: string }) | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = [folder, path, older ?? "", newer ?? "", model ?? "", texts].join("\n");
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- polls the CAD service's comparison on a timer while it is still working
   useEffect(() => {
     if (post === null || older === null || newer === null) return;
     let cancelled = false;
@@ -231,7 +223,7 @@ export function useComparison(input: {
       if (timer !== undefined) clearTimeout(timer);
     };
   }, [attempt, folder, key, model, newer, older, path, post, texts]);
-  const retry = useCallback(() => setAttempt((count) => count + 1), []);
+  const retry = () => setAttempt((count) => count + 1);
   return { state: state !== null && state.key === key ? state : null, retry };
 }
 

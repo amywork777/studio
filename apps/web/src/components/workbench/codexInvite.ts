@@ -1,11 +1,10 @@
 import type { ProviderInstallState, ProviderInstanceConfig } from "@t3tools/contracts";
 
 /**
- * An invite code lets a friend use Studio's Codex on Amy's OpenAI account: Codex sends its requests
- * to the invite server with the code as its key, and the server checks the code and sends them on
- * with Amy's key (the studio-invite server, on Amy's Vercel). In settings it is a Codex
- * instance in "existing" setup mode, run from the Codex that Studio installed, with the server as
- * its provider in launch arguments and the code as a sensitive instance variable.
+ * An invite code lets a friend use Studio's Codex on Amy's OpenAI account: Codex sends requests to
+ * the invite server with the code as its key, and the server forwards them with Amy's key. It is a
+ * Codex instance in "existing" setup mode with the server as provider in its launch arguments and
+ * the code as a sensitive instance variable.
  */
 export const STUDIO_INVITE_SERVER = "https://studio-invite.vercel.app/v1";
 export const STUDIO_INVITE_CODE_ENV = "STUDIO_INVITE_CODE";

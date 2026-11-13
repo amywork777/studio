@@ -38,11 +38,9 @@ export function useOpenLibrary() {
 }
 
 /**
- * Studio's places, in the sidebar's own column (Amy, 2026-10-29: one Home, not four tabs): Home at
- * its top, with how many chats wait on the person, the Library under it, and Trash and Settings at
- * its foot. Home holds the projects, the examples and the Start box; Cmd+K finds a project, a part
- * or a chat; the Chats and Projects pages stay a link away there. Home's All examples stays: it is
- * that list's own way to the rest of it.
+ * Studio's places in the sidebar column: Home on top with how many chats wait on the person, the
+ * Library under it, Trash and Settings at the foot. The Chats and Projects pages stay a link away
+ * from Home.
  */
 export function StudioHomeLink(props: { readonly environmentId: EnvironmentId }) {
   const waiting = waitingChats(useAllChats(props.environmentId).chats).length;

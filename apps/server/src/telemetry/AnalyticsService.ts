@@ -1,15 +1,8 @@
 /**
- * Product analytics: Studio's anonymous usage counts, sent the way text-to-cad and Backplane send theirs.
- *
- * Events go to Studio's usage receiver (`infra/usage`, which keeps them in Studio's own table) only when the app was
- * built with its address (`T3CODE_USAGE_URL`, which a Studio app bundle sets), the person has been told
- * by the first-launch notice (`usageDataAnswered`) and has left `shareUsageData` on, and neither
- * `DO_NOT_TRACK` nor `CI` is set. Otherwise `record` drops every event. They go under a random install id,
- * never one derived from an account, and carry counts, kinds and provider names, never prompts, file names
- * or geometry. Turning `shareUsageData` off asks the receiver to delete everything sent under the id, and
- * that deletion is owed, across restarts, until the receiver takes it.
- *
- * @module AnalyticsService
+ * Studio's anonymous usage counts, sent only when built with `T3CODE_USAGE_URL`, the person has seen
+ * the notice (`usageDataAnswered`) and kept `shareUsageData` on, and neither `DO_NOT_TRACK` nor `CI`
+ * is set; under a random install id, never prompts, file names or geometry. Turning sharing off owes
+ * the receiver a delete request, kept across restarts until it is taken.
  */
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
@@ -131,7 +124,7 @@ export class AnalyticsService extends Context.Service<
   );
 }
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const telemetryConfig = yield* TelemetryEnvConfig;
   const version = yield* appVersion;
@@ -377,5 +370,3 @@ export const make = Effect.gen(function* () {
 });
 
 export const layer = Layer.effect(AnalyticsService, make);
-
-const layerTest = AnalyticsService.layerTest;

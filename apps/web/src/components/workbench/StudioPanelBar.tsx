@@ -1,11 +1,11 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { selectActiveRightPanelSurface, useRightPanelStore } from "~/rightPanelStore";
 import { ImportDialogHost } from "./ImportDialog";
 import { ImportMenu } from "./ImportMenu";
-import { useImportIntoProject } from "./importIntoProject";
+import { importIntoProject } from "./importIntoProject";
 import { useOpenFromOverview } from "./useOpenInWorkbench";
 import { useImportActions } from "./useImportActions";
 import { CadToolsButton } from "./CadToolsButton";
@@ -52,20 +52,17 @@ export function usePartInFront(
   const shownPath = shown?.part.path ?? null;
   const shownKind = shown?.part.kind ?? null;
   const shownName = shown?.part.name ?? null;
-  const part = useMemo(
-    () =>
-      frontKind !== "plugin-app"
-        ? null
-        : shownPath !== null && shownKind !== null
-          ? { path: shownPath, kind: shownKind, ...(shownName === null ? {} : { name: shownName }) }
-          : frontFile === null
-            ? null
-            : {
-                path: frontFile,
-                kind: studyMeshKind(frontFile, folder) ?? partName(frontFile)?.kind ?? "Part",
-              },
-    [folder, frontFile, frontKind, shownKind, shownName, shownPath],
-  );
+  const part =
+    frontKind !== "plugin-app"
+      ? null
+      : shownPath !== null && shownKind !== null
+        ? { path: shownPath, kind: shownKind, ...(shownName === null ? {} : { name: shownName }) }
+        : frontFile === null
+          ? null
+          : {
+              path: frontFile,
+              kind: studyMeshKind(frontFile, folder) ?? partName(frontFile)?.kind ?? "Part",
+            };
   return { part, process, shown };
 }
 
@@ -95,12 +92,9 @@ export function usePartForJobs(
 }
 
 /**
- * The workspace panel's toolbar, at the right end of its tab row (`RightPanelTabs`' `toolbar`), what
- * can be done: Hide CAD tools (or Show) where the viewer in front has its CAD tools (`CadToolsButton` over
- * `simpleView.ts`, the person's choice, which every CAD view takes from its host context), the one way between
- * them; and Import (`ImportMenu`, Studio's one Import) and New, always
- * there, last (`StudioNew`), where Home has them. A part's jobs are in the
- * Toolbox (`StudioToolbox`). ⌘K's and the Toolbox's jobs are for the same part (`usePartForJobs`).
+ * The workspace panel's toolbar, at the right end of its tab row: Hide or Show CAD tools where the
+ * viewer in front has them (`CadToolsButton`, the one way between them), then Import and New,
+ * always last. ⌘K's and the Toolbox's jobs are for the same part (`usePartForJobs`).
  */
 export function StudioPanelBar(props: {
   readonly folder: string | null;
@@ -129,11 +123,7 @@ export function StudioPanelBar(props: {
   const addPart = useAddPart(threadRef, folder);
   // Import beside New, as on Home: files brought into this project's folder.
   const openImported = useOpenFromOverview(threadRef);
-  const importer = useImportIntoProject(
-    folder,
-    studio?.project.name ?? "the project",
-    openImported,
-  );
+  const importer = importIntoProject(folder, studio?.project.name ?? "the project", openImported);
   // The same Import menu as Home's: here Files or a folder copies into this project, and Scan this
   // computer opens the scan, which makes new projects.
   const scanner = useImportActions();
@@ -156,6 +146,7 @@ export function StudioPanelBar(props: {
   const subjectPath = subject?.path ?? null;
   const subjectKind = subject?.kind ?? null;
   const subjectName = subject?.name ?? null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers this workspace with the open-workspace store for ⌘K while mounted, cleared on unmount
   useEffect(() => {
     if (folder === null) return;
     setWorkspace({

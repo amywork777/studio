@@ -14,11 +14,8 @@ export interface ShownCheck {
 }
 
 /**
- * The checks about the file the viewer shows (`shown`, its full path, or a
- * cadgen 0.8 model's document id): a part's own results, which the title block
- * lists beside it, and, when what is shown is a check's result (an FEA study's
- * picture), the part it checked, by its full path or its model's id, to go
- * back to.
+ * `shown` is a full path or a cadgen 0.8 model's document id. When what is shown is a check's
+ * result, also returns the part it checked, to go back to.
  */
 export function shownChecks(
   folders: ReadonlyArray<FolderChecks>,

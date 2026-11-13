@@ -86,11 +86,9 @@ export function Choice(props: {
 }
 
 /**
- * Back up, from the project's menu (`ProjectSwitcher`). A project is already a folder on this Mac
- * with its versions in it; a backup puts a copy somewhere else: GitHub (a private repository the
- * server's `StudioSync` makes for it, then each backup sent with every version, as the account the
- * source control settings are signed in as), or a folder that syncs (a Google Drive, Dropbox or
- * iCloud folder, or a drive; the desktop app copies only what changed, `backUp`).
+ * Back up a project, which is already a folder with its versions, to GitHub (a private repository
+ * `StudioSync` makes, pushed as the signed-in source control account) or to a syncing folder, where
+ * the desktop app copies only what changed (`backUp`).
  */
 export function BackupDialog(props: {
   readonly open: boolean;

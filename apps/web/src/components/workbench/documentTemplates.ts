@@ -1,5 +1,4 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useCallback } from "react";
 
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
@@ -71,19 +70,19 @@ export function useDocumentTemplates(environmentId: EnvironmentId): {
       .filter((entry) => entry.kind === "file")
       .map((entry) => entry.path),
   );
-  const add = useCallback(async () => {
+  const add = async () => {
     if (bridge === null || folder === null) return;
     const picked = await bridge.pick();
     if (picked.length === 0) return;
     await bridge.copy(picked, folder);
     listing.refresh();
-  }, [bridge, folder, listing]);
-  const show = useCallback(async () => {
+  };
+  const show = async () => {
     if (folder === null) return;
     // Made first, empty, so there is a folder to open and drop templates into.
     if (bridge !== null) await bridge.copy([], folder);
     await openInEditor({ environmentId, input: { cwd: folder, editor: "file-manager" } });
-  }, [bridge, environmentId, folder, openInEditor]);
+  };
   return {
     folder,
     templates: folder === null ? [] : files.map((file) => fileTemplate(`${folder}/${file}`)),

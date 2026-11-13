@@ -1,6 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { BoxIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { MODULE_HEADING, SECTION_STACK } from "./studioLayout";
@@ -76,12 +76,9 @@ function Facts(props: { readonly title: string; readonly lines: ReadonlyArray<st
 }
 
 /**
- * What changed in a part between two of its versions, as Fixture's What changed shows it: the
- * part as one model (unchanged see-through grey, added material blue, removed magenta) or the two
- * side by side, the named sizes of its script that changed, its volume and size, how its checks
- * went at each, and the script's own lines on request. The solids are compared by the CAD service
- * (`cadgen/edit/solid_diff.py`), a model's as each version builds it; Open in 3D shows the
- * comparison, or the newer version, in the viewer.
+ * What changed in a part between two versions: one overlaid model (unchanged grey, added blue,
+ * removed magenta) or both side by side, plus changed sizes, volume, checks and script lines. The
+ * solids are compared by the CAD service (`cadgen/edit/solid_diff.py`).
  */
 export function WhatChanged(props: {
   readonly environmentId: EnvironmentId;
@@ -127,23 +124,19 @@ export function WhatChanged(props: {
     diff ??
     (comparison === null || /\.py$/i.test(comparison.files.newer) ? null : comparison.files.newer);
   const pictures = usePictures({ environmentId: props.environmentId, cwd: props.folder, paths });
-  const sizes = useMemo(() => {
-    const changes = sizeChanges(
-      comparison?.script?.olderSizes ?? null,
-      comparison?.script?.newerSizes ?? null,
-      comparison?.script,
-    );
-    return changes === null ? null : changes.map((change) => sizeLine(change, props.units));
-  }, [comparison, props.units]);
-  const checks = useMemo(
-    () =>
-      comparison === null
-        ? []
-        : checkChanges(checksAt(comparison, "older"), checksAt(comparison, "newer")).map(
-            ({ check, line }) => `${check}: ${line}`,
-          ),
-    [comparison],
+  const changedSizes = sizeChanges(
+    comparison?.script?.olderSizes ?? null,
+    comparison?.script?.newerSizes ?? null,
+    comparison?.script,
   );
+  const sizes =
+    changedSizes === null ? null : changedSizes.map((change) => sizeLine(change, props.units));
+  const checks =
+    comparison === null
+      ? []
+      : checkChanges(checksAt(comparison, "older"), checksAt(comparison, "newer")).map(
+          ({ check, line }) => `${check}: ${line}`,
+        );
   const shapeLines =
     shape === null ? [] : [volumeLine(shape), extentLine(shape)].filter((line) => line !== null);
   if (shape?.status === "done" && shape.older.bodies !== shape.newer.bodies) {

@@ -1,16 +1,7 @@
 /**
- * Plugin tools on T3's MCP server: every enabled plugin's MCP tools, named
- * `<plugin>__<tool>`, so Claude, Codex and every other provider reach a
- * plugin through the one `t3-code` server they already have. A call runs in
- * the calling thread's own plugin processes (`PluginService.callAgentTool`),
- * the same ones its views use. Tools a server marks for its UI alone
- * (`ui.visibility: ["app"]`) are not listed.
- *
- * The list follows installs, updates and toggles: a tool is registered when it
- * first appears or its definition changes, and listed only while its plugin
- * offers it. Only thread callers may
- * call one; an outside MCP client has no thread for the processes to run in.
- * McpHttpServer passes in its `addTool`, the one place registrations happen.
+ * Every enabled plugin's MCP tools on T3's MCP server, named `<plugin>__<tool>`, run in the calling
+ * thread's own plugin processes. App-only tools (`ui.visibility: ["app"]`) are not listed. Only
+ * thread callers may call one: an outside MCP client has no thread for the processes to run in.
  */
 import { McpSchema } from "effect/ai";
 import type { McpServer } from "effect/ai";

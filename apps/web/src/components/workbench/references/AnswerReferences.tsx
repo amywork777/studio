@@ -1,7 +1,7 @@
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { BotIcon, GlobeIcon } from "lucide-react";
-import { memo, useCallback, type MouseEvent } from "react";
+import { memo, type MouseEvent } from "react";
 
 import { useOpenLink } from "~/browser/useOpenLink";
 import { cn } from "~/lib/utils";
@@ -70,35 +70,32 @@ function useOpenReference({
   const files = listing?.paths ?? null;
   const readFile = useAtomQueryRunner(projectEnvironment.readFile, { reportFailure: false });
   const openLink = useOpenLink(threadRef);
-  const open = useCallback<ReferenceOpener>(
-    (target, event) => {
-      if (threadRef === null) return;
-      const modifiers = { metaKey: event.metaKey, ctrlKey: event.ctrlKey };
-      const read = async (relativePath: string) => {
-        if (root === undefined) return null;
-        const result = await readFile({ environmentId, input: { cwd: root, relativePath } });
-        return result._tag === "Success" ? result.value.contents : null;
-      };
-      void pressReference(target, {
-        root: root ?? null,
-        files,
-        read,
-        openFile,
-        openLink: (url) => openLink(url, { event: modifiers }),
-        threadKey: scopedThreadKey(threadRef),
-        simpleView: useSimpleViewStore.getState().on,
-        failed: (title, cause) =>
-          toastManager.add(
-            stackedThreadToast({
-              type: "error",
-              title,
-              description: cause instanceof Error ? cause.message : "An error occurred.",
-            }),
-          ),
-      });
-    },
-    [environmentId, files, openFile, openLink, readFile, root, threadRef],
-  );
+  const open: ReferenceOpener = (target, event) => {
+    if (threadRef === null) return;
+    const modifiers = { metaKey: event.metaKey, ctrlKey: event.ctrlKey };
+    const read = async (relativePath: string) => {
+      if (root === undefined) return null;
+      const result = await readFile({ environmentId, input: { cwd: root, relativePath } });
+      return result._tag === "Success" ? result.value.contents : null;
+    };
+    void pressReference(target, {
+      root: root ?? null,
+      files,
+      read,
+      openFile,
+      openLink: (url) => openLink(url, { event: modifiers }),
+      threadKey: scopedThreadKey(threadRef),
+      simpleView: useSimpleViewStore.getState().on,
+      failed: (title, cause) =>
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title,
+            description: cause instanceof Error ? cause.message : "An error occurred.",
+          }),
+        ),
+    });
+  };
   return threadRef === null ? null : open;
 }
 

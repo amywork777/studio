@@ -7,7 +7,7 @@ import {
   SquareIcon,
   TypeIcon,
 } from "lucide-react";
-import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, type PointerEvent, useRef, useState } from "react";
 
 import { Button } from "../ui/button";
 import {
@@ -242,7 +242,7 @@ export function SketchDialog({
   }
 
   // Shows the shape under the pointer before it is dropped, without touching the undo steps.
-  const shown = useMemo(() => {
+  const shown = (() => {
     if (!drag) return shapes;
     if (tool === "select") {
       return shapes.map((shape, index) =>
@@ -259,7 +259,7 @@ export function SketchDialog({
     }
     const shape = sketchShapeFromDrag(tool, drag.start, drag.now);
     return shape ? [...shapes, shape] : shapes;
-  }, [drag, selected, shapes, tool]);
+  })();
 
   return (
     <Dialog

@@ -40,18 +40,10 @@ function offerOnce(threadKey: string): boolean {
 }
 
 /**
- * In the workbench layout a thread opens on its project or its viewer. While
- * the engineering surfaces are on, every thread, a new one included, is offered
- * the project page once (the pinned Project tab), and the viewer waits for a
- * model: the agent's `cad_open` (which `cad_show` asks for when no viewer is
- * open), a model it writes, or a part the person opens brings it forward, so
- * the first message does not cover the project page with an empty viewer.
- * Without them, a thread the agent works in is offered the thread view of the
- * first enabled plugin that has one (text-to-cad's CAD tab), in front, so the
- * agent's `cad_show` has a viewer to switch. Each offer is made once per thread,
- * remembered apart from the panel's own state (which forgets a thread whose
- * last tab closed), so what the user closed stays closed; the panel's "+" menu
- * brings it back.
+ * With the engineering surfaces on, each thread is offered the project page once and the viewer
+ * waits for a model; without them, a started thread is offered the first plugin thread view, so
+ * `cad_show` has a viewer to switch. Offers are remembered apart from the panel's state (which
+ * forgets a thread whose last tab closed), so what the user closed stays closed.
  */
 export function useWorkbenchViewer(input: {
   readonly enabled: boolean;
@@ -70,6 +62,7 @@ export function useWorkbenchViewer(input: {
   );
   const plugins = list.data?.plugins;
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- offers the project page or plugin view in the right panel store once per thread, as plugins arrive
   useEffect(() => {
     if (!enabled || threadRef === null) return;
     const threadKey = scopedThreadKey(threadRef);

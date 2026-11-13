@@ -3,11 +3,9 @@ import { inSentence } from "./partNames";
 import type { ProjectFile } from "./projectFiles";
 
 /**
- * A part's versions and what changed between two of them, as the Overview's Versions shows them
- * (`PartVersions.tsx`, `WhatChanged.tsx`). The versions are the project's checkpoints: every chat
- * turn ends with one, a commit kept under `refs/t3/orchestration-v2/checkpoints/<scope>/ordinal/<n>`,
- * read through the CAD service (`text-to-cad/.../cadgen/edit/versions.py`). The lines follow
- * Fixture's What changed (`apps/web/src/compare/`), in Studio's words.
+ * Versions are the project's checkpoints, commits under
+ * `refs/t3/orchestration-v2/checkpoints/<scope>/ordinal/<n>`, read through the CAD service
+ * (`cadgen/edit/versions.py`). The lines follow Fixture's What changed (`apps/web/src/compare/`).
  */
 
 /** One version of a file: the checkpoint where its contents changed, or `now`, the file on disk. */

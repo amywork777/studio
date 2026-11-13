@@ -26,11 +26,9 @@ export function readBrandStarters(json: string | undefined): BrandStarter[] {
 export const BRAND_STARTERS = readBrandStarters(import.meta.env.VITE_APP_STARTERS);
 
 /**
- * The brand's starters that the enabled plugins can do, in the brand's order:
- * a starter that needs a skill (text-to-cad's `fea`, `cam`, `pcb`) shows only
- * while an enabled plugin has it, so a new thread never offers a job the
- * agent has no skill for. Null when the brand has none, and the plugins'
- * own starters stand.
+ * A starter that needs a skill shows only while an enabled plugin has it, so a new thread never
+ * offers a job the agent has no skill for. Null when the brand has none, so the plugins' own
+ * starters stand.
  */
 export function brandStarterPrompts(
   starters: ReadonlyArray<BrandStarter>,
