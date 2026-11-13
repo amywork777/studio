@@ -19,7 +19,7 @@ import {
   setProjectFileQueryData,
   useProjectFileQuery,
 } from "../files/projectFilesQueryState";
-import { useFileSaveCoordinator } from "../files/useFileSaveCoordinator";
+import { changeFileSaveSession, useFileSaveSession } from "../files/fileSaveSessions";
 import { Skeleton } from "../ui/skeleton";
 import { OverviewModule, ShowAll, useFoldedModules } from "./OverviewModules";
 import { MODULE_HEADING, MODULE_NOTE, SECTION_STACK } from "./studioLayout";
@@ -303,12 +303,8 @@ export function ReadmeOverview(props: {
   const { environmentId, cwd } = props;
   // Read with the person's unsaved typing in it, as the file view reads a file.
   const readme = useProjectFileQuery(environmentId, cwd, README);
-  const saveCoordinator = useFileSaveCoordinator({
-    environmentId,
-    cwd,
-    relativePath: README,
-    onPendingChange: noPending,
-  });
+  const saveTarget = { environmentId, cwd, relativePath: README };
+  useFileSaveSession(saveTarget, noPending);
   // A change that could not be placed puts the piece's old words back (a new key, a fresh piece).
   const [refused, setRefused] = useState(0);
   const save = (before: string, after: string) => {
@@ -321,7 +317,7 @@ export function ReadmeOverview(props: {
       return;
     }
     setProjectFileQueryData(environmentId, cwd, README, next);
-    saveCoordinator.change(next);
+    changeFileSaveSession(saveTarget, next);
   };
   useWorkspaceMutationRefresh({
     mutationId: props.mutationId,

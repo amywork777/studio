@@ -310,18 +310,18 @@ it.effect("checkpoint recovery discovers nested HEAD independently of inherited 
 );
 
 // A person's own git settings, for a test: a config of the test's, where their filters live.
+const replaceGlobalGitConfig = (file: string) => {
+  const saved = process.env.GIT_CONFIG_GLOBAL;
+  process.env.GIT_CONFIG_GLOBAL = file;
+  return () => {
+    if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = saved;
+  };
+};
 const withGlobalGitConfig = (file: string) =>
   Effect.acquireRelease(
-    Effect.sync(() => {
-      const saved = process.env.GIT_CONFIG_GLOBAL;
-      process.env.GIT_CONFIG_GLOBAL = file;
-      return saved;
-    }),
-    (saved) =>
-      Effect.sync(() => {
-        if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
-        else process.env.GIT_CONFIG_GLOBAL = saved;
-      }),
+    Effect.sync(() => replaceGlobalGitConfig(file)),
+    (restore) => Effect.sync(restore),
   );
 
 it.effect("checkpoint capture still fails when a person's clean filter rejects a file", () =>
@@ -1167,6 +1167,8 @@ it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
         "rev-parse",
         "rev-parse",
         "rev-parse",
+        "config",
+        // The folder's own filter settings, blanked for the steps after it.
         "config",
         "rev-parse",
         "read-tree",

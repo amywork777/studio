@@ -8,6 +8,7 @@ import {
 } from "@t3tools/contracts";
 import { newProjectFolderName } from "@t3tools/shared/path";
 import * as Cause from "effect/Cause";
+import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
@@ -255,7 +256,11 @@ const make = Effect.gen(function* () {
   const projects = yield* ProjectService.ProjectService;
   const random = yield* SecureRandom.SecureRandom;
   // A fork that names itself (VITE_APP_BASE_NAME, as its web and desktop builds read it) is not T3 Code.
-  const creditT3 = !process.env.VITE_APP_BASE_NAME?.trim();
+  const forkName = yield* Config.String("VITE_APP_BASE_NAME").pipe(
+    Config.withDefault(""),
+    Effect.orElseSucceed(() => ""),
+  );
+  const creditT3 = forkName.trim() === "";
 
   // Non-recursive mkdir atomically claims a name; racers move on after AlreadyExists.
   const claimFreeFolder = Effect.fnUntraced(function* <E>(

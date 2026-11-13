@@ -504,6 +504,8 @@ describe("server state projection", () => {
           otlpTracesEnabled: false,
           otlpMetricsEnabled: false,
           otlpLogsEnabled: false,
+          usageDataAvailable: true,
+          usageId: null,
         };
         yield* Effect.scoped(
           Effect.gen(function* () {

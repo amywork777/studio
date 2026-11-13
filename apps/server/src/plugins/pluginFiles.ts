@@ -19,6 +19,7 @@ import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
 import { type PluginFolder, PluginReadError } from "@t3tools/plugins";
+import * as Schema from "effect/Schema";
 
 const isDirectory = (target: string) =>
   NodeFS.statSync(target, { throwIfNoEntry: false })?.isDirectory() ?? false;
@@ -75,9 +76,10 @@ export const isInside = (parent: string, child: string) => {
 const GIT_TIMEOUT_MS = 180_000;
 
 /** A git command that failed, with git's own last words (no URL or credential). */
-export class GitError extends Error {
-  override readonly name = "GitError";
-}
+export class GitError extends Schema.TaggedError<GitError>()("GitError", {
+  message: Schema.String,
+  cause: Schema.Defect(),
+}) {}
 
 function git(args: ReadonlyArray<string>, cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -110,7 +112,7 @@ function git(args: ReadonlyArray<string>, cwd?: string): Promise<string> {
               : error.killed
                 ? `git ${args[0]} took longer than ${GIT_TIMEOUT_MS / 1000} s`
                 : said || `git ${args[0]} failed`;
-          reject(new GitError(why, { cause: error }));
+          reject(new GitError({ message: why, cause: error }));
           return;
         }
         resolve(String(stdout).trim());

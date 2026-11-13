@@ -59,6 +59,8 @@ export const CODE_SETTINGS_ROWS: ReadonlySet<string> = new Set<SettingsSearchIte
   "archive-confirmation",
   "delete-confirmation",
   "add-project-starts-in",
+  // The thread details card it sets up is left out of the engineering interface (`ChatView`).
+  "thread-details-items",
   // Programmer settings. Each keeps its stored value and default; the code interfaces still show
   // them, and the Interface switch (Settings, Advanced, Interface) is the way there.
   "code-font",

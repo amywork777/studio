@@ -100,6 +100,8 @@ function useWorkbenchPanelSize(
     return {
       width,
       edge: "left",
+      // The widest and narrowest the panel can be: the dock at its floor, and at its cap.
+      bounds: { min: panelFor(0), max: panelFor(row) },
       resize(value) {
         const next = panelFor(value);
         host?.style.setProperty(RESIZABLE_WIDTH_PROPERTY, `${next}px`);
@@ -120,7 +122,7 @@ function useWorkbenchPanelSize(
         if (!committed) host?.style.setProperty(RESIZABLE_WIDTH_PROPERTY, `${width}px`);
       },
     };
-  }, CHAT_DOCK_WIDTH_STORAGE_KEY);
+  });
 
   // The row is measured above, from `container`, so the panel host has nothing to observe.
   return { width, handlers, observeRow: () => () => {} };

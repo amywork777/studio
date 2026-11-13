@@ -222,7 +222,7 @@ export function ComposerControlsBar(props: {
         composerControlsCollapsed ? "min-w-13 shrink text-xs!" : "min-w-13",
       )}
       triggerSuffix={engineering ? undefined : effort.suffix}
-      triggerDetail={engineering ? undefined : effort.detail}
+      triggerDetail={engineering ? null : effort.detail}
       triggerShortcuts={
         pickerOwnsModeShortcut ? "composer.effort composer.mode" : "composer.effort"
       }

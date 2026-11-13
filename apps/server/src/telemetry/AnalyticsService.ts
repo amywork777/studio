@@ -73,6 +73,9 @@ export function retryDelayMs(failures: number, random: number): number {
   return Math.round(ceiling / 2 + (ceiling / 2) * random);
 }
 
+/** `record` when nothing may be sent: the event is dropped where it is made. */
+const recordNothing = Effect.fn("AnalyticsService.record")(() => Effect.void);
+
 const TelemetryEnvConfig = Config.all({
   // Studio's usage receiver (`infra/usage`); a build without it sends nothing.
   usageUrl: Config.String("T3CODE_USAGE_URL").pipe(Config.withDefault("")),
@@ -122,7 +125,7 @@ export class AnalyticsService extends Context.Service<
   static readonly layerTest = Layer.succeed(
     AnalyticsService,
     AnalyticsService.of({
-      record: () => Effect.void,
+      record: recordNothing,
       flush: Effect.void,
     }),
   );
@@ -138,14 +141,14 @@ export const make = Effect.gen(function* () {
     Option.isSome(policy) && ManagedPolicy.deniedBy(policy.value, "telemetry") !== undefined;
   if (!canSend(telemetryConfig) || policyDenies) {
     return AnalyticsService.of({
-      record: () => Effect.void,
+      record: recordNothing,
       flush: Effect.void,
     });
   }
   const install = yield* getInstallId;
   if (install === null) {
     return AnalyticsService.of({
-      record: () => Effect.void,
+      record: recordNothing,
       flush: Effect.void,
     });
   }
@@ -362,8 +365,8 @@ export const make = Effect.gen(function* () {
 
   yield* Effect.forever(
     Effect.sleep(FLUSH_INTERVAL_MS).pipe(
-      Effect.flatMap(() => forgetWhenOwed),
-      Effect.flatMap(() => flushWhenDue),
+      Effect.andThen(forgetWhenOwed),
+      Effect.andThen(flushWhenDue),
     ),
     { disableYield: true },
   ).pipe(Effect.forkScoped);

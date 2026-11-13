@@ -158,6 +158,10 @@ import * as SqlitePersistence from "./persistence/Sqlite.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
 import * as ProjectEnrichment from "./project/ProjectEnrichmentService.ts";
 import * as ProjectService from "./project/ProjectService.ts";
+import * as PluginService from "./plugins/PluginService.ts";
+import * as StudioGitHubSignIn from "./studio/StudioGitHubSignIn.ts";
+import * as StudioProjects from "./studio/StudioProjects.ts";
+import * as StudioSync from "./studio/StudioSync.ts";
 import {
   layerWsRpc,
   resolveOpenDiscoveryForConfig,
@@ -824,6 +828,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(PairingGrantStore.PairingGrantStore)({}),
   Layer.mock(PeerLinks.PeerLinks)({}),
   Layer.mock(PeerLinkRequests.PeerLinkRequests)({}),
+  Layer.mock(PluginService.PluginService)({}),
   Layer.mock(PortScanner.PortDiscovery)({ trackAgent: () => () => undefined }),
   Layer.mock(PreviewManager.PreviewManager)({}),
   Layer.mock(ProcessDiagnostics.ProcessDiagnostics)({}),
@@ -856,6 +861,9 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(SessionStore.SessionStore)({ cookieName: "config-test", legacyCookieName: undefined }),
   Layer.mock(SourceControlDiscovery.SourceControlDiscovery)({}),
   Layer.mock(SourceControlRepositoryService.SourceControlRepositoryService)({}),
+  Layer.mock(StudioGitHubSignIn.StudioGitHubSignIn)({}),
+  Layer.mock(StudioProjects.StudioProjects)({}),
+  Layer.mock(StudioSync.StudioSync)({}),
   Layer.mock(SourceControlSignIn.SourceControlSignIn)({}),
   Layer.mock(StorageCleanup.StorageCleanup)({}),
   Layer.mock(DatabaseStorage.DatabaseStorage)({}),

@@ -96,9 +96,10 @@ const refusal = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
 }) => {
   const error = squashAtomCommandFailure(result);
-  return new McpAppHostRefusal(
-    error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
-  );
+  return new McpAppHostRefusal({
+    message:
+      error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
+  });
 };
 
 /**
@@ -348,9 +349,12 @@ export function PluginViewFrame(props: {
     };
     const ask = async (message: string) => {
       const approved = await requestConfirmDialog(message);
-      if (approved === undefined)
-        throw new McpAppHostRefusal(`${APP_BASE_NAME} could not ask for approval here.`);
-      if (approved !== true) throw new McpAppHostRefusal("Declined by the user.");
+      if (approved === undefined) {
+        throw new McpAppHostRefusal({
+          message: `${APP_BASE_NAME} could not ask for approval here.`,
+        });
+      }
+      if (approved !== true) throw new McpAppHostRefusal({ message: "Declined by the user." });
     };
     const csp = readMcpAppCsp(document_.csp);
     const host = makeMcpAppHost({
@@ -388,13 +392,13 @@ export function PluginViewFrame(props: {
       readResource: ({ uri }) => call("resources/read", { uri }),
       openLink: async (url) => {
         if (document.activeElement !== frameRef.current || !navigator.userActivation?.isActive) {
-          throw new McpAppHostRefusal("Links open only from a click in the view.");
+          throw new McpAppHostRefusal({ message: "Links open only from a click in the view." });
         }
         window.open(url, "_blank", "noopener,noreferrer");
       },
       sendMessage: async (text) => {
         const send = latest.current.props.onSendMessage;
-        if (send === undefined) throw new McpAppHostRefusal("Messages need a thread.");
+        if (send === undefined) throw new McpAppHostRefusal({ message: "Messages need a thread." });
         const { target: current } = latest.current.props;
         const atItsPress = sendsWithoutAsking({
           studio: hasEngineeringSurfaces(),
@@ -408,7 +412,7 @@ export function PluginViewFrame(props: {
       updateModelContext: async (context) => {
         const add = latest.current.props.onAddContext;
         if (add === undefined) {
-          throw new McpAppHostRefusal("Plugin views cannot add model context here.");
+          throw new McpAppHostRefusal({ message: "Plugin views cannot add model context here." });
         }
         const content = context.content ?? [];
         if (content.length === 0) return;
@@ -430,7 +434,7 @@ export function PluginViewFrame(props: {
             openFile: async (path: string) => {
               const open = latest.current.props.onOpenFile;
               if (open === undefined)
-                throw new McpAppHostRefusal("Files open only beside a thread.");
+                throw new McpAppHostRefusal({ message: "Files open only beside a thread." });
               open(path);
             },
           }),
@@ -448,7 +452,7 @@ export function PluginViewFrame(props: {
             requestEditLayout: async (layout: "manual" | "ai") => {
               if (layout === "ai") return;
               if (frontViewBusy(useViewerEditState.getState().byView, editKey)) {
-                throw new McpAppHostRefusal("Finish or cancel the command first");
+                throw new McpAppHostRefusal({ message: "Finish or cancel the command first" });
               }
               setSimpleView(false);
             },
@@ -481,9 +485,11 @@ export function PluginViewFrame(props: {
             const declared = (content as { readonly mimeType?: unknown } | undefined)?.mimeType;
             if (typeof declared === "string") mimeType = declared;
           }
-          if (bytes === undefined) throw new McpAppHostRefusal(`${file.name} has no contents.`);
+          if (bytes === undefined) {
+            throw new McpAppHostRefusal({ message: `${file.name} has no contents.` });
+          }
           if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-            throw new McpAppHostRefusal(`${file.name} is too large to save.`);
+            throw new McpAppHostRefusal({ message: `${file.name} is too large to save.` });
           }
           saveBlob(new Blob([bytes.slice()], { type: mimeType }), file.name);
         }

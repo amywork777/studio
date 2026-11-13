@@ -18,6 +18,7 @@ function bannerDescription(resetAt: Date, timestampFormat: TimestampFormat) {
     recovery: null,
     timestampFormat,
     onChange: async () => {},
+    onUseAnotherModel: () => {},
   }).description;
 }
 

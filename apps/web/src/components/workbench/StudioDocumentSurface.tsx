@@ -1,8 +1,8 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
+import { setMarkdownTaskChecked } from "@t3tools/shared/markdownTaskList";
 import { type KeyboardEvent, type MouseEvent, useRef } from "react";
 
 import { FileMarkdownPreview } from "../files/FileMarkdownPreview";
-import { setMarkdownTaskChecked } from "../files/filePreviewMode";
 import {
   getOptimisticProjectFileQueryData,
   setProjectFileQueryData,

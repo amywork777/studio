@@ -482,18 +482,20 @@ it.effect("keeps a named project and reports why when Git cannot commit", () =>
   ),
 );
 
-it.effect("says Git is not installed when a named project cannot start Git", () =>
+// Studio keeps the project when Git is missing, as the starter-files test below does; T3 fails the create.
+it.effect("keeps a named project, and says why it has no history, when Git is not installed", () =>
   withScratch(
     () =>
       Effect.gen(function* () {
         const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
 
-        const failure = yield* Effect.flip(folders.createNamedProject({ name: "T3Code Test" }));
+        const result = yield* folders.createNamedProject({ name: "T3Code Test" });
 
-        assert.strictEqual(
-          failure.message,
-          "Git isn't installed on this machine. Install Git to create a project.",
-        );
+        assert.include(result.commitError ?? "", "Failed to spawn Git process.");
+        assert.isTrue(yield* fileSystem.exists(path.join(result.workspaceRoot, "README.md")));
+        assert.isFalse(yield* fileSystem.exists(path.join(result.workspaceRoot, ".git")));
       }),
     {
       git: GitVcsDriver.layer.pipe(
@@ -759,14 +761,14 @@ it.effect("keeps the history and the files, and reports why, when Git cannot com
         const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        yield* fileSystem.writeFileString(
-          path.join(baseDir, "no-identity.gitconfig"),
-          "[user]\n\tuseConfigOnly = true\n",
-        );
-        process.env.GIT_CONFIG_GLOBAL = path.join(baseDir, "no-identity.gitconfig");
+        const noIdentity = path.join(baseDir, "no-identity.gitconfig");
+        yield* fileSystem.writeFileString(noIdentity, "[user]\n\tuseConfigOnly = true\n");
         const folder = yield* writeImportedFolder(baseDir);
 
-        const result = yield* folders.startHistory({ cwd: folder });
+        const result = yield* withGitEnv(
+          { GIT_CONFIG_GLOBAL: noIdentity },
+          folders.startHistory({ cwd: folder }),
+        );
 
         assert.include(result.commitError ?? "", "no name or email");
         assert.isTrue(yield* fileSystem.exists(path.join(folder, ".git")));

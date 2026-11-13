@@ -140,454 +140,447 @@ const parseRefs = (output: string) =>
     }),
   );
 
-const make = (maxFileBytes: number) =>
-  Effect.gen(function* () {
-    const fileSystem = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const processRunner = yield* ProcessRunner.ProcessRunner;
-    const credentials = yield* GitHubCredentials.GitHubCredentials;
-    const repositories = yield* SourceControlRepositoryService.SourceControlRepositoryService;
+const make = Effect.fn("StudioSync.make")(function* (maxFileBytes: number) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const processRunner = yield* ProcessRunner.ProcessRunner;
+  const credentials = yield* GitHubCredentials.GitHubCredentials;
+  const repositories = yield* SourceControlRepositoryService.SourceControlRepositoryService;
 
-    const SENT_REFS = [`${CHECKPOINT_REFS_PREFIX}/*`, `${KEPT_REFS_PREFIX}/*`];
+  const SENT_REFS = [`${CHECKPOINT_REFS_PREFIX}/*`, `${KEPT_REFS_PREFIX}/*`];
 
-    // `-C` rather than a spawn cwd: a missing folder is then git's error, not a spawn failure
-    // that looks like git is missing. LC_ALL so a refused push reads the same in any language.
-    const runGit = (
-      cwd: string,
-      args: ReadonlyArray<string>,
-      options: {
-        readonly env?: Readonly<Record<string, string>>;
-        readonly stdin?: string;
-        readonly timeout?: Duration.Input;
-      } = {},
-    ) =>
-      processRunner.run({
-        command: "git",
-        args: ["-C", cwd, ...args],
-        env: { LC_ALL: "C", ...options.env },
-        timeout: options.timeout ?? "60 seconds",
-        timeoutBehavior: "timedOutResult",
-        maxOutputBytes: MAX_LIST_BYTES,
-        ...(options.stdin === undefined ? {} : { stdin: options.stdin }),
-      });
+  // `-C` rather than a spawn cwd: a missing folder is then git's error, not a spawn failure
+  // that looks like git is missing. LC_ALL so a refused push reads the same in any language.
+  const runGit = (
+    cwd: string,
+    args: ReadonlyArray<string>,
+    options: {
+      readonly env?: Readonly<Record<string, string>>;
+      readonly stdin?: string;
+      readonly timeout?: Duration.Input;
+    } = {},
+  ) =>
+    processRunner.run({
+      command: "git",
+      args: ["-C", cwd, ...args],
+      env: { LC_ALL: "C", ...options.env },
+      timeout: options.timeout ?? "60 seconds",
+      timeoutBehavior: "timedOutResult",
+      maxOutputBytes: MAX_LIST_BYTES,
+      ...(options.stdin === undefined ? {} : { stdin: options.stdin }),
+    });
 
-    /** Git's stdout, or `failure` when it does not finish cleanly. */
-    const gitOrFail = (
-      cwd: string,
-      args: ReadonlyArray<string>,
-      failure: "prepare" | "receive",
-      options?: Parameters<typeof runGit>[2],
-    ) =>
-      runGit(cwd, args, options).pipe(
-        Effect.mapError((cause) => new StudioSyncError({ failure, cwd, cause })),
-        Effect.flatMap((result) =>
-          result.code === 0
-            ? Effect.succeed(result.stdout)
-            : Effect.fail(
-                new StudioSyncError({
-                  failure,
-                  cwd,
-                  ...(result.code === null ? {} : { exitCode: result.code }),
-                }),
-              ),
+  /** Git's stdout, or `failure` when it does not finish cleanly. */
+  const gitOrFail = (
+    cwd: string,
+    args: ReadonlyArray<string>,
+    failure: "prepare" | "receive",
+    options?: Parameters<typeof runGit>[2],
+  ) =>
+    runGit(cwd, args, options).pipe(
+      Effect.mapError((cause) => new StudioSyncError({ failure, cwd, cause })),
+      Effect.flatMap((result) =>
+        result.code === 0
+          ? Effect.succeed(result.stdout)
+          : Effect.fail(
+              new StudioSyncError({
+                failure,
+                cwd,
+                ...(result.code === null ? {} : { exitCode: result.code }),
+              }),
+            ),
+      ),
+    );
+
+  /** Git's trimmed output, or undefined when it fails or prints nothing. */
+  const gitValue = (cwd: string, args: ReadonlyArray<string>) =>
+    runGit(cwd, args).pipe(
+      Effect.map((result) => (result.code === 0 ? result.stdout.trim() : "")),
+      Effect.orElseSucceed(() => ""),
+      Effect.map((output) => (output === "" ? undefined : output)),
+    );
+
+  /**
+   * The folder's own history, not a parent folder's: `git -C` would walk up into any repository
+   * the folder happens to sit in.
+   */
+  const hasHistory = (cwd: string) =>
+    fileSystem.exists(path.join(cwd, ".git")).pipe(Effect.orElseSucceed(() => false));
+
+  const originOf = (cwd: string) => gitValue(cwd, ["config", "--get", `remote.${REMOTE}.url`]);
+  const headOf = (cwd: string) => gitValue(cwd, ["rev-parse", "--verify", "--quiet", "HEAD"]);
+
+  /** The environment for one git process that talks to `remote`. */
+  const remoteEnv = (remote: string, cwd: string) => {
+    const host = httpsHost(remote);
+    if (host === undefined) return Effect.succeed({ GIT_TERMINAL_PROMPT: "0" });
+    return credentials.get(host).pipe(
+      Effect.map(({ token }) => githubGitEnv(remote, token)),
+      Effect.mapError((cause) => new StudioSyncError({ failure: "sign-in", cwd, cause })),
+    );
+  };
+
+  /** Adds what `NEVER_SENT` needs to `.gitignore`, keeping every line already there. */
+  const addIgnores = Effect.fnUntraced(function* (cwd: string) {
+    const file = path.join(cwd, ".gitignore");
+    const prepareFailed = (cause: unknown) =>
+      new StudioSyncError({ failure: "prepare", cwd, cause });
+    const existing = yield* fileSystem.readFileString(file).pipe(
+      Effect.catchTags({
+        PlatformError: (cause) =>
+          cause.reason._tag === "NotFound" ? Effect.succeed("") : Effect.fail(prepareFailed(cause)),
+      }),
+    );
+    const present = new Set(existing.split(/\r?\n/).map(ignoreKey));
+    const missing = NEVER_SENT.map((entry) => entry.ignore).filter(
+      (line) => !present.has(ignoreKey(line)),
+    );
+    if (missing.length === 0) return;
+    const separator = existing === "" || existing.endsWith("\n") ? "" : "\n";
+    yield* fileSystem
+      .writeFileString(file, `${existing}${separator}${missing.join("\n")}\n`)
+      .pipe(Effect.mapError(prepareFailed));
+  });
+
+  /** Stops tracking what `NEVER_SENT` names. The files stay on disk. */
+  const untrackNeverSent = (cwd: string) =>
+    gitOrFail(
+      cwd,
+      [
+        "rm",
+        "-r",
+        "--cached",
+        "--quiet",
+        "--ignore-unmatch",
+        "--",
+        ...NEVER_SENT.map((entry) => entry.tracked),
+      ],
+      "prepare",
+    );
+
+  /** Fails on the largest file a commit would add that is over the limit. */
+  const checkWorkingFiles = Effect.fnUntraced(function* (cwd: string) {
+    const listed = yield* gitOrFail(
+      cwd,
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      "prepare",
+    );
+    const sizes = yield* Effect.forEach(
+      listed.split("\0").filter((file) => file !== ""),
+      (file) =>
+        fileSystem.stat(path.join(cwd, ...file.split("/"))).pipe(
+          Effect.map((info) => ({
+            file,
+            bytes: info.type === "File" ? Number(info.size) : 0,
+          })),
+          // Listed but deleted since: the commit records that, so it has no size to check.
+          Effect.orElseSucceed(() => ({ file, bytes: 0 })),
         ),
-      );
-
-    /** Git's trimmed output, or undefined when it fails or prints nothing. */
-    const gitValue = (cwd: string, args: ReadonlyArray<string>) =>
-      runGit(cwd, args).pipe(
-        Effect.map((result) => (result.code === 0 ? result.stdout.trim() : "")),
-        Effect.orElseSucceed(() => ""),
-        Effect.map((output) => (output === "" ? undefined : output)),
-      );
-
-    /**
-     * The folder's own history, not a parent folder's: `git -C` would walk up into any repository
-     * the folder happens to sit in.
-     */
-    const hasHistory = (cwd: string) =>
-      fileSystem.exists(path.join(cwd, ".git")).pipe(Effect.orElseSucceed(() => false));
-
-    const originOf = (cwd: string) => gitValue(cwd, ["config", "--get", `remote.${REMOTE}.url`]);
-    const headOf = (cwd: string) => gitValue(cwd, ["rev-parse", "--verify", "--quiet", "HEAD"]);
-
-    /** The environment for one git process that talks to `remote`. */
-    const remoteEnv = (remote: string, cwd: string) => {
-      const host = httpsHost(remote);
-      if (host === undefined) return Effect.succeed({ GIT_TERMINAL_PROMPT: "0" });
-      return credentials.get(host).pipe(
-        Effect.map(({ token }) => githubGitEnv(remote, token)),
-        Effect.mapError((cause) => new StudioSyncError({ failure: "sign-in", cwd, cause })),
-      );
-    };
-
-    /** Adds what `NEVER_SENT` needs to `.gitignore`, keeping every line already there. */
-    const addIgnores = Effect.fnUntraced(function* (cwd: string) {
-      const file = path.join(cwd, ".gitignore");
-      const prepareFailed = (cause: unknown) =>
-        new StudioSyncError({ failure: "prepare", cwd, cause });
-      const existing = yield* fileSystem.readFileString(file).pipe(
-        Effect.catchTags({
-          PlatformError: (cause) =>
-            cause.reason._tag === "NotFound"
-              ? Effect.succeed("")
-              : Effect.fail(prepareFailed(cause)),
-        }),
-      );
-      const present = new Set(existing.split(/\r?\n/).map(ignoreKey));
-      const missing = NEVER_SENT.map((entry) => entry.ignore).filter(
-        (line) => !present.has(ignoreKey(line)),
-      );
-      if (missing.length === 0) return;
-      const separator = existing === "" || existing.endsWith("\n") ? "" : "\n";
-      yield* fileSystem
-        .writeFileString(file, `${existing}${separator}${missing.join("\n")}\n`)
-        .pipe(Effect.mapError(prepareFailed));
-    });
-
-    /** Stops tracking what `NEVER_SENT` names. The files stay on disk. */
-    const untrackNeverSent = (cwd: string) =>
-      gitOrFail(
+      { concurrency: 16 },
+    );
+    const largest = sizes.reduce((a, b) => (b.bytes > a.bytes ? b : a), { file: "", bytes: 0 });
+    if (largest.bytes > maxFileBytes) {
+      return yield* new StudioSyncError({
+        failure: "too-large",
         cwd,
-        [
-          "rm",
-          "-r",
-          "--cached",
-          "--quiet",
-          "--ignore-unmatch",
-          "--",
-          ...NEVER_SENT.map((entry) => entry.tracked),
-        ],
-        "prepare",
-      );
+        file: largest.file,
+        bytes: largest.bytes,
+        limitBytes: maxFileBytes,
+      });
+    }
+  });
 
-    /** Fails on the largest file a commit would add that is over the limit. */
-    const checkWorkingFiles = Effect.fnUntraced(function* (cwd: string) {
-      const listed = yield* gitOrFail(
+  /**
+   * Fails on the largest file in anything already recorded. Versions go whole, and one file over
+   * the limit in any of them blocks the send, so the files on disk are not enough to check.
+   */
+  const checkVersions = Effect.fnUntraced(function* (cwd: string) {
+    if ((yield* headOf(cwd)) === undefined) return;
+    const objects = yield* gitOrFail(
+      cwd,
+      ["rev-list", "--objects", "HEAD", ...SENT_REFS.map((ref) => `--glob=${ref}`)],
+      "prepare",
+    );
+    const sizes = yield* gitOrFail(
+      cwd,
+      ["cat-file", "--batch-check=%(objecttype) %(objectsize) %(rest)"],
+      "prepare",
+      { stdin: objects },
+    );
+    let largest = { file: "", bytes: 0 };
+    for (const line of sizes.split("\n")) {
+      const [type, size, ...file] = line.split(" ");
+      const bytes = Number(size);
+      if (type === "blob" && bytes > largest.bytes) largest = { file: file.join(" "), bytes };
+    }
+    if (largest.bytes > maxFileBytes) {
+      return yield* new StudioSyncError({
+        failure: "too-large-version",
         cwd,
-        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-        "prepare",
-      );
-      const sizes = yield* Effect.forEach(
-        listed.split("\0").filter((file) => file !== ""),
-        (file) =>
-          fileSystem.stat(path.join(cwd, ...file.split("/"))).pipe(
-            Effect.map((info) => ({
-              file,
-              bytes: info.type === "File" ? Number(info.size) : 0,
-            })),
-            // Listed but deleted since: the commit records that, so it has no size to check.
-            Effect.orElseSucceed(() => ({ file, bytes: 0 })),
-          ),
-        { concurrency: 16 },
-      );
-      const largest = sizes.reduce((a, b) => (b.bytes > a.bytes ? b : a), { file: "", bytes: 0 });
-      if (largest.bytes > maxFileBytes) {
-        return yield* new StudioSyncError({
-          failure: "too-large",
-          cwd,
-          file: largest.file,
-          bytes: largest.bytes,
-          limitBytes: maxFileBytes,
-        });
-      }
-    });
+        file: largest.file,
+        bytes: largest.bytes,
+        limitBytes: maxFileBytes,
+      });
+    }
+  });
 
-    /**
-     * Fails on the largest file in anything already recorded. Versions go whole, and one file over
-     * the limit in any of them blocks the send, so the files on disk are not enough to check.
-     */
-    const checkVersions = Effect.fnUntraced(function* (cwd: string) {
-      if ((yield* headOf(cwd)) === undefined) return;
-      const objects = yield* gitOrFail(
+  /** The folder's online copy, made and recorded when it has none. */
+  const ensureOrigin = Effect.fnUntraced(function* (input: StudioSyncSendInput) {
+    const { cwd, repository } = input;
+    const origin = yield* originOf(cwd);
+    if (origin !== undefined) return origin;
+    const made = yield* repositories
+      .createRepository({
         cwd,
-        ["rev-list", "--objects", "HEAD", ...SENT_REFS.map((ref) => `--glob=${ref}`)],
-        "prepare",
-      );
-      const sizes = yield* gitOrFail(
-        cwd,
-        ["cat-file", "--batch-check=%(objecttype) %(objectsize) %(rest)"],
-        "prepare",
-        { stdin: objects },
-      );
-      let largest = { file: "", bytes: 0 };
-      for (const line of sizes.split("\n")) {
-        const [type, size, ...file] = line.split(" ");
-        const bytes = Number(size);
-        if (type === "blob" && bytes > largest.bytes) largest = { file: file.join(" "), bytes };
-      }
-      if (largest.bytes > maxFileBytes) {
-        return yield* new StudioSyncError({
-          failure: "too-large-version",
-          cwd,
-          file: largest.file,
-          bytes: largest.bytes,
-          limitBytes: maxFileBytes,
-        });
-      }
-    });
+        provider: GITHUB_PROVIDER,
+        repository,
+        visibility: "private",
+        remoteName: REMOTE,
+        protocol: "https",
+      })
+      .pipe(Effect.mapError((cause) => new StudioSyncError({ failure: "make-copy", cwd, cause })));
+    return made.remoteUrl;
+  });
 
-    /** The folder's online copy, made and recorded when it has none. */
-    const ensureOrigin = Effect.fnUntraced(function* (input: StudioSyncSendInput) {
-      const { cwd, repository } = input;
-      const origin = yield* originOf(cwd);
-      if (origin !== undefined) return origin;
-      const made = yield* repositories
-        .createRepository({
-          cwd,
-          provider: GITHUB_PROVIDER,
-          repository,
-          visibility: "private",
-          remoteName: REMOTE,
-          protocol: "https",
-        })
-        .pipe(
-          Effect.mapError((cause) => new StudioSyncError({ failure: "make-copy", cwd, cause })),
-        );
-      return made.remoteUrl;
-    });
+  /** Records every working change on the current line; nothing changed makes no commit. */
+  const commitWork = Effect.fnUntraced(function* (cwd: string) {
+    yield* gitOrFail(cwd, ["add", "--all"], "prepare", { timeout: "10 minutes" });
+    const staged = yield* runGit(cwd, ["diff", "--cached", "--quiet"]).pipe(
+      Effect.mapError((cause) => new StudioSyncError({ failure: "prepare", cwd, cause })),
+    );
+    if (staged.code === 0) return;
+    const identified = (yield* gitValue(cwd, ["config", "user.email"])) !== undefined;
+    yield* gitOrFail(
+      cwd,
+      [
+        // A signing prompt has nobody to answer it here.
+        "-c",
+        "commit.gpgsign=false",
+        ...(identified ? [] : FALLBACK_IDENTITY),
+        "commit",
+        "--quiet",
+        "--message",
+        "Backed up from Studio",
+      ],
+      "prepare",
+    );
+  });
 
-    /** Records every working change on the current line; nothing changed makes no commit. */
-    const commitWork = Effect.fnUntraced(function* (cwd: string) {
-      yield* gitOrFail(cwd, ["add", "--all"], "prepare", { timeout: "10 minutes" });
-      const staged = yield* runGit(cwd, ["diff", "--cached", "--quiet"]).pipe(
-        Effect.mapError((cause) => new StudioSyncError({ failure: "prepare", cwd, cause })),
-      );
-      if (staged.code === 0) return;
-      const identified = (yield* gitValue(cwd, ["config", "user.email"])) !== undefined;
+  /** Pushes all three ref sets, reporting whether anything moved. */
+  const push = Effect.fnUntraced(function* (cwd: string, env: Readonly<Record<string, string>>) {
+    const result = yield* runGit(
+      cwd,
+      [
+        "push",
+        "--porcelain",
+        REMOTE,
+        `HEAD:${MAIN_REF}`,
+        `+${CHECKPOINT_REFS_PREFIX}/*:${CHECKPOINT_REFS_PREFIX}/*`,
+        `${KEPT_REFS_PREFIX}/*:${KEPT_REFS_PREFIX}/*`,
+      ],
+      { env, timeout: TRANSFER_TIMEOUT },
+    ).pipe(Effect.mapError((cause) => new StudioSyncError({ failure: "send", cwd, cause })));
+    const refs = result.stdout.split("\n").filter((line) => /^[ *+=!-]\t/.test(line));
+    if (result.code === 0) return refs.some((line) => !line.startsWith("="));
+    if (refs.some((line) => line.startsWith("!\t") && line.includes("[rejected]"))) {
+      return yield* new StudioSyncError({ failure: "changed-elsewhere", cwd });
+    }
+    const refused = /authentication failed|could not read username|terminal prompts disabled/i;
+    return yield* new StudioSyncError({
+      failure: refused.test(result.stderr) ? "sign-in" : "send",
+      cwd,
+      ...(result.code === null ? {} : { exitCode: result.code }),
+    });
+  });
+
+  const send: StudioSync["Service"]["send"] = Effect.fn("StudioSync.send")(function* (input) {
+    const { cwd, repository } = input;
+    if (!(yield* hasHistory(cwd))) {
+      return yield* new StudioSyncError({ failure: "no-history", cwd });
+    }
+    // A folder with an online copy of its own is left to it, whatever the client asked.
+    const existing = yield* originOf(cwd);
+    if (existing !== undefined && !remoteIs(existing, repository)) {
+      return yield* new StudioSyncError({ failure: "other-copy", cwd });
+    }
+    yield* addIgnores(cwd);
+    yield* untrackNeverSent(cwd);
+    yield* checkWorkingFiles(cwd);
+    yield* checkVersions(cwd);
+    const origin = yield* ensureOrigin(input);
+    // Recorded before the transfer: a first send that fails leaves the folder with a remote,
+    // and without this the next try would take it for a repository of someone else's.
+    yield* gitOrFail(cwd, ["config", MADE_FOR_KEY, repository], "prepare");
+    const env = yield* remoteEnv(origin, cwd);
+    yield* commitWork(cwd);
+    if ((yield* headOf(cwd)) === undefined) {
+      return yield* new StudioSyncError({ failure: "no-history", cwd });
+    }
+    return { repository, sent: yield* push(cwd, env) };
+  });
+
+  const isSynced = Effect.fnUntraced(function* (cwd: string, origin: string) {
+    const head = yield* headOf(cwd);
+    if (head === undefined) return false;
+    const changes = yield* gitOrFail(
+      cwd,
+      ["status", "--porcelain", "--ignore-submodules=dirty"],
+      "prepare",
+    );
+    if (changes.trim() !== "") return false;
+    const local = parseRefs(
       yield* gitOrFail(
         cwd,
         [
-          // A signing prompt has nobody to answer it here.
-          "-c",
-          "commit.gpgsign=false",
-          ...(identified ? [] : FALLBACK_IDENTITY),
-          "commit",
-          "--quiet",
-          "--message",
-          "Backed up from Studio",
+          "for-each-ref",
+          "--format=%(objectname) %(refname)",
+          CHECKPOINT_REFS_PREFIX,
+          KEPT_REFS_PREFIX,
         ],
         "prepare",
-      );
-    });
+      ),
+    );
+    const online = parseRefs(
+      yield* gitOrFail(cwd, ["ls-remote", REMOTE, MAIN_REF, ...SENT_REFS], "prepare", {
+        env: yield* remoteEnv(origin, cwd),
+        timeout: "20 seconds",
+      }),
+    );
+    return (
+      online.get(MAIN_REF) === head && [...local].every(([ref, sha]) => online.get(ref) === sha)
+    );
+  });
 
-    /** Pushes all three ref sets, reporting whether anything moved. */
-    const push = Effect.fnUntraced(function* (cwd: string, env: Readonly<Record<string, string>>) {
-      const result = yield* runGit(
-        cwd,
+  const status: StudioSync["Service"]["status"] = Effect.fn("StudioSync.status")(function* (input) {
+    const { cwd } = input;
+    if (!(yield* hasHistory(cwd))) return { repository: null, synced: false };
+    const repository = (yield* gitValue(cwd, ["config", "--get", MADE_FOR_KEY])) ?? null;
+    const origin = yield* originOf(cwd);
+    if (origin === undefined) return { repository, synced: false };
+    const synced = yield* isSynced(cwd, origin).pipe(Effect.orElseSucceed(() => false));
+    return { repository, synced };
+  });
+
+  const receive: StudioSync["Service"]["receive"] = Effect.fn("StudioSync.receive")(
+    function* (input) {
+      const { remote, folder } = input;
+      const parent = path.dirname(folder);
+      yield* fileSystem
+        .makeDirectory(parent, { recursive: true })
+        .pipe(
+          Effect.mapError(
+            (cause) => new StudioSyncError({ failure: "receive", cwd: folder, cause }),
+          ),
+        );
+      const env = yield* remoteEnv(remote, folder);
+      yield* gitOrFail(parent, ["clone", "--quiet", remote, folder], "receive", {
+        env,
+        timeout: TRANSFER_TIMEOUT,
+      });
+      yield* gitOrFail(
+        folder,
         [
-          "push",
-          "--porcelain",
+          "fetch",
+          "--quiet",
+          "--no-tags",
           REMOTE,
-          `HEAD:${MAIN_REF}`,
           `+${CHECKPOINT_REFS_PREFIX}/*:${CHECKPOINT_REFS_PREFIX}/*`,
           `${KEPT_REFS_PREFIX}/*:${KEPT_REFS_PREFIX}/*`,
         ],
+        "receive",
         { env, timeout: TRANSFER_TIMEOUT },
-      ).pipe(Effect.mapError((cause) => new StudioSyncError({ failure: "send", cwd, cause })));
-      const refs = result.stdout.split("\n").filter((line) => /^[ *+=!-]\t/.test(line));
-      if (result.code === 0) return refs.some((line) => !line.startsWith("="));
-      if (refs.some((line) => line.startsWith("!\t") && line.includes("[rejected]"))) {
-        return yield* new StudioSyncError({ failure: "changed-elsewhere", cwd });
-      }
-      const refused = /authentication failed|could not read username|terminal prompts disabled/i;
-      return yield* new StudioSyncError({
-        failure: refused.test(result.stderr) ? "sign-in" : "send",
-        cwd,
-        ...(result.code === null ? {} : { exitCode: result.code }),
-      });
+      );
+    },
+  );
+
+  /**
+   * The project in a folder someone picked: the folder itself, or the one folder inside it.
+   * `backUp` writes `<chosen>/<project>/<folder>`, and a person may pick any of those.
+   */
+  const projectIn = (folder: string, levels: number): Effect.Effect<string | undefined> =>
+    Effect.gen(function* () {
+      if (yield* hasHistory(folder)) return folder;
+      if (levels === 0) return undefined;
+      const names = yield* fileSystem
+        .readDirectory(folder)
+        .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
+      const inside = yield* Effect.filter(
+        names.filter((name) => !name.startsWith(".")).map((name) => path.join(folder, name)),
+        (entry) =>
+          fileSystem.stat(entry).pipe(
+            Effect.map((info) => info.type === "Directory"),
+            Effect.orElseSucceed(() => false),
+          ),
+      );
+      const only = inside.length === 1 ? inside[0] : undefined;
+      return only === undefined ? undefined : yield* projectIn(only, levels - 1);
     });
 
-    const send: StudioSync["Service"]["send"] = Effect.fn("StudioSync.send")(function* (input) {
-      const { cwd, repository } = input;
-      if (!(yield* hasHistory(cwd))) {
-        return yield* new StudioSyncError({ failure: "no-history", cwd });
-      }
-      // A folder with an online copy of its own is left to it, whatever the client asked.
-      const existing = yield* originOf(cwd);
-      if (existing !== undefined && !remoteIs(existing, repository)) {
-        return yield* new StudioSyncError({ failure: "other-copy", cwd });
-      }
-      yield* addIgnores(cwd);
-      yield* untrackNeverSent(cwd);
-      yield* checkWorkingFiles(cwd);
-      yield* checkVersions(cwd);
-      const origin = yield* ensureOrigin(input);
-      // Recorded before the transfer: a first send that fails leaves the folder with a remote,
-      // and without this the next try would take it for a repository of someone else's.
-      yield* gitOrFail(cwd, ["config", MADE_FOR_KEY, repository], "prepare");
-      const env = yield* remoteEnv(origin, cwd);
-      yield* commitWork(cwd);
-      if ((yield* headOf(cwd)) === undefined) {
-        return yield* new StudioSyncError({ failure: "no-history", cwd });
-      }
-      return { repository, sent: yield* push(cwd, env) };
-    });
-
-    const isSynced = Effect.fnUntraced(function* (cwd: string, origin: string) {
-      const head = yield* headOf(cwd);
-      if (head === undefined) return false;
-      const changes = yield* gitOrFail(
-        cwd,
-        ["status", "--porcelain", "--ignore-submodules=dirty"],
-        "prepare",
-      );
-      if (changes.trim() !== "") return false;
-      const local = parseRefs(
-        yield* gitOrFail(
-          cwd,
-          [
-            "for-each-ref",
-            "--format=%(objectname) %(refname)",
-            CHECKPOINT_REFS_PREFIX,
-            KEPT_REFS_PREFIX,
-          ],
-          "prepare",
-        ),
-      );
-      const online = parseRefs(
-        yield* gitOrFail(cwd, ["ls-remote", REMOTE, MAIN_REF, ...SENT_REFS], "prepare", {
-          env: yield* remoteEnv(origin, cwd),
-          timeout: "20 seconds",
+  /** A new empty folder under `root`, with `-2`, `-3`, ... when the name is taken. */
+  const claimFolder = Effect.fnUntraced(function* (root: string, name: string) {
+    const failed = (cause: unknown) =>
+      new StudioSyncError({ failure: "receive", cwd: root, cause });
+    yield* fileSystem.makeDirectory(root, { recursive: true }).pipe(Effect.mapError(failed));
+    const base = newProjectFolderName(name);
+    for (let attempt = 1; attempt <= MAX_FOLDER_ATTEMPTS; attempt += 1) {
+      const folder = path.join(root, attempt === 1 ? base : `${base}-${attempt}`);
+      const claimed = yield* fileSystem.makeDirectory(folder).pipe(
+        Effect.as(true),
+        Effect.catchTags({
+          PlatformError: (cause) =>
+            cause.reason._tag === "AlreadyExists"
+              ? Effect.succeed(false)
+              : Effect.fail(failed(cause)),
         }),
       );
-      return (
-        online.get(MAIN_REF) === head && [...local].every(([ref, sha]) => online.get(ref) === sha)
-      );
-    });
-
-    const status: StudioSync["Service"]["status"] = Effect.fn("StudioSync.status")(
-      function* (input) {
-        const { cwd } = input;
-        if (!(yield* hasHistory(cwd))) return { repository: null, synced: false };
-        const repository = (yield* gitValue(cwd, ["config", "--get", MADE_FOR_KEY])) ?? null;
-        const origin = yield* originOf(cwd);
-        if (origin === undefined) return { repository, synced: false };
-        const synced = yield* isSynced(cwd, origin).pipe(Effect.orElseSucceed(() => false));
-        return { repository, synced };
-      },
-    );
-
-    const receive: StudioSync["Service"]["receive"] = Effect.fn("StudioSync.receive")(
-      function* (input) {
-        const { remote, folder } = input;
-        const parent = path.dirname(folder);
-        yield* fileSystem
-          .makeDirectory(parent, { recursive: true })
-          .pipe(
-            Effect.mapError(
-              (cause) => new StudioSyncError({ failure: "receive", cwd: folder, cause }),
-            ),
-          );
-        const env = yield* remoteEnv(remote, folder);
-        yield* gitOrFail(parent, ["clone", "--quiet", remote, folder], "receive", {
-          env,
-          timeout: TRANSFER_TIMEOUT,
-        });
-        yield* gitOrFail(
-          folder,
-          [
-            "fetch",
-            "--quiet",
-            "--no-tags",
-            REMOTE,
-            `+${CHECKPOINT_REFS_PREFIX}/*:${CHECKPOINT_REFS_PREFIX}/*`,
-            `${KEPT_REFS_PREFIX}/*:${KEPT_REFS_PREFIX}/*`,
-          ],
-          "receive",
-          { env, timeout: TRANSFER_TIMEOUT },
-        );
-      },
-    );
-
-    /**
-     * The project in a folder someone picked: the folder itself, or the one folder inside it.
-     * `backUp` writes `<chosen>/<project>/<folder>`, and a person may pick any of those.
-     */
-    const projectIn = (folder: string, levels: number): Effect.Effect<string | undefined> =>
-      Effect.gen(function* () {
-        if (yield* hasHistory(folder)) return folder;
-        if (levels === 0) return undefined;
-        const names = yield* fileSystem
-          .readDirectory(folder)
-          .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
-        const inside = yield* Effect.filter(
-          names.filter((name) => !name.startsWith(".")).map((name) => path.join(folder, name)),
-          (entry) =>
-            fileSystem.stat(entry).pipe(
-              Effect.map((info) => info.type === "Directory"),
-              Effect.orElseSucceed(() => false),
-            ),
-        );
-        const only = inside.length === 1 ? inside[0] : undefined;
-        return only === undefined ? undefined : yield* projectIn(only, levels - 1);
-      });
-
-    /** A new empty folder under `root`, with `-2`, `-3`, ... when the name is taken. */
-    const claimFolder = Effect.fnUntraced(function* (root: string, name: string) {
-      const failed = (cause: unknown) =>
-        new StudioSyncError({ failure: "receive", cwd: root, cause });
-      yield* fileSystem.makeDirectory(root, { recursive: true }).pipe(Effect.mapError(failed));
-      const base = newProjectFolderName(name);
-      for (let attempt = 1; attempt <= MAX_FOLDER_ATTEMPTS; attempt += 1) {
-        const folder = path.join(root, attempt === 1 ? base : `${base}-${attempt}`);
-        const claimed = yield* fileSystem.makeDirectory(folder).pipe(
-          Effect.as(true),
-          Effect.catchTags({
-            PlatformError: (cause) =>
-              cause.reason._tag === "AlreadyExists"
-                ? Effect.succeed(false)
-                : Effect.fail(failed(cause)),
-          }),
-        );
-        if (claimed) return folder;
-      }
-      return yield* failed(new Error("Every folder name is taken."));
-    });
-
-    const restore: StudioSync["Service"]["restore"] = Effect.fn("StudioSync.restore")(
-      function* (input) {
-        const { name, root, source } = input;
-        if (source.kind === "github" && !REPOSITORY_NAME.test(source.repository)) {
-          return yield* new StudioSyncError({ failure: "no-copy", cwd: root });
-        }
-        const backup = source.kind === "folder" ? yield* projectIn(source.folder, 2) : undefined;
-        if (source.kind === "folder" && backup === undefined) {
-          return yield* new StudioSyncError({ failure: "no-backup", cwd: source.folder });
-        }
-        const folder = yield* claimFolder(root, name);
-        const bring =
-          source.kind === "github"
-            ? receive({ remote: `https://github.com/${source.repository}`, folder }).pipe(
-                Effect.andThen(
-                  gitOrFail(folder, ["config", MADE_FOR_KEY, source.repository], "receive"),
-                ),
-              )
-            : fileSystem
-                .copy(backup!, folder, { overwrite: true, preserveTimestamps: true })
-                .pipe(
-                  Effect.mapError(
-                    (cause) => new StudioSyncError({ failure: "receive", cwd: folder, cause }),
-                  ),
-                );
-        yield* bring.pipe(
-          Effect.onError(() =>
-            fileSystem.remove(folder, { recursive: true, force: true }).pipe(Effect.ignore),
-          ),
-        );
-        // A backup from before briefs, or a file someone broke, restores with an empty brief.
-        const brief = yield* fileSystem
-          .readFileString(path.join(folder, ...STUDIO_BACKUP_BRIEF_FILE.split("/")))
-          .pipe(
-            Effect.flatMap(decodeBrief),
-            Effect.orElseSucceed(() => null),
-          );
-        return { folder, brief };
-      },
-    );
-
-    return StudioSync.of({ send, status, receive, restore });
+      if (claimed) return folder;
+    }
+    return yield* failed(new Error("Every folder name is taken."));
   });
+
+  const restore: StudioSync["Service"]["restore"] = Effect.fn("StudioSync.restore")(
+    function* (input) {
+      const { name, root, source } = input;
+      if (source.kind === "github" && !REPOSITORY_NAME.test(source.repository)) {
+        return yield* new StudioSyncError({ failure: "no-copy", cwd: root });
+      }
+      const backup = source.kind === "folder" ? yield* projectIn(source.folder, 2) : undefined;
+      if (source.kind === "folder" && backup === undefined) {
+        return yield* new StudioSyncError({ failure: "no-backup", cwd: source.folder });
+      }
+      const folder = yield* claimFolder(root, name);
+      const bring =
+        source.kind === "github"
+          ? receive({ remote: `https://github.com/${source.repository}`, folder }).pipe(
+              Effect.andThen(
+                gitOrFail(folder, ["config", MADE_FOR_KEY, source.repository], "receive"),
+              ),
+            )
+          : fileSystem
+              .copy(backup!, folder, { overwrite: true, preserveTimestamps: true })
+              .pipe(
+                Effect.mapError(
+                  (cause) => new StudioSyncError({ failure: "receive", cwd: folder, cause }),
+                ),
+              );
+      yield* bring.pipe(
+        Effect.onError(() =>
+          fileSystem.remove(folder, { recursive: true, force: true }).pipe(Effect.ignore),
+        ),
+      );
+      // A backup from before briefs, or a file someone broke, restores with an empty brief.
+      const brief = yield* fileSystem
+        .readFileString(path.join(folder, ...STUDIO_BACKUP_BRIEF_FILE.split("/")))
+        .pipe(
+          Effect.flatMap(decodeBrief),
+          Effect.orElseSucceed(() => null),
+        );
+      return { folder, brief };
+    },
+  );
+
+  return StudioSync.of({ send, status, receive, restore });
+});
 
 /** The service with its own limit on one file, for a test that needs no big fixture. */
 export const layerWithFileLimit = (maxFileBytes: number) =>

@@ -30,6 +30,19 @@ const GIT_KEYS = [
   "GIT_CONFIG_NOSYSTEM",
 ] as const;
 
+/** Sets git's variables to `values` for a test, and answers how to put them back. */
+const replaceGitEnv = (values: Readonly<Record<string, string>>) => {
+  const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
+  for (const key of GIT_KEYS) delete process.env[key];
+  Object.assign(process.env, values);
+  return () => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+};
+
 type Git = (cwd: string, ...args: ReadonlyArray<string>) => Effect.Effect<string>;
 
 interface Fixture {
@@ -74,19 +87,10 @@ const withProject = <A, E>(
         : "[user]\n\tuseConfigOnly = true\n",
     );
     yield* Effect.acquireRelease(
-      Effect.sync(() => {
-        const saved = GIT_KEYS.map((key) => [key, process.env[key]] as const);
-        for (const key of GIT_KEYS) delete process.env[key];
-        Object.assign(process.env, { GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1" });
-        return saved;
-      }),
-      (saved) =>
-        Effect.sync(() => {
-          for (const [key, value] of saved) {
-            if (value === undefined) delete process.env[key];
-            else process.env[key] = value;
-          }
-        }),
+      Effect.sync(() =>
+        replaceGitEnv({ GIT_CONFIG_GLOBAL: globalConfig, GIT_CONFIG_NOSYSTEM: "1" }),
+      ),
+      (restore) => Effect.sync(restore),
     );
 
     const runner = yield* Effect.provide(ProcessRunner.ProcessRunner, ProcessRunner.layer);

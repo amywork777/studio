@@ -96,8 +96,10 @@ export const layerFailureAnalytics = Layer.effect(
   Effect.gen(function* () {
     const analytics = yield* AnalyticsService.AnalyticsService;
     return {
-      recordFailure: (properties: Readonly<Record<string, unknown>>) =>
-        analytics.record("provider.turn.failed", properties),
+      recordFailure: Effect.fn("ProviderTurnFailureAnalytics.recordFailure")(
+        (properties: Readonly<Record<string, unknown>>) =>
+          analytics.record("provider.turn.failed", properties),
+      ),
     };
   }),
 );

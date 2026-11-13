@@ -138,6 +138,7 @@ import { FILE_HEADERS_ONLY, formatPatch, structuredPatch } from "diff";
 import * as Cause from "effect/Cause";
 import * as Predicate from "effect/Predicate";
 import * as Clock from "effect/Clock";
+import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
@@ -11876,7 +11877,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               }
               // A fork that names itself (Studio, by VITE_APP_BASE_NAME) keeps the conversation
               // whole without asking: the agent's token bookkeeping is not the person's question.
-              if (process.env.VITE_APP_BASE_NAME?.trim()) {
+              const forkName = yield* Config.String("VITE_APP_BASE_NAME").pipe(
+                Config.withDefault(""),
+                Effect.orElseSucceed(() => ""),
+              );
+              if (forkName.trim() !== "") {
                 return { behavior: "completed" as const, result: "continue" as const };
               }
               const idleCompaction = Option.isSome(serverSettings)

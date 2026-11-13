@@ -113,6 +113,8 @@ describe("TelemetryExportSettings", () => {
         otlpTracesEnabled: true,
         otlpMetricsEnabled: false,
         otlpLogsEnabled: false,
+        usageDataAvailable: true,
+        usageId: null,
       },
     };
     await using screen = await render(<TelemetryExportSettings />);

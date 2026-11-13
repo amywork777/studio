@@ -14,8 +14,8 @@ import {
   type StudioGitHubSignInCheckResult,
   type StudioGitHubSignInStartResult,
 } from "@t3tools/contracts";
-import { readSourceControlHostSettings } from "@t3tools/source-control-core/client/definition";
-import * as GitHubClient from "@t3tools/source-control-github/client/definition";
+import { readSourceControlHostSettings } from "@t3tools/source-control-core/shared/definition";
+import * as GitHubClient from "@t3tools/source-control-github/shared/definition";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -113,7 +113,7 @@ const make = Effect.gen(function* () {
         expiresInSeconds: body.expires_in,
       })),
     ),
-    check: ({ deviceCode }) =>
+    check: Effect.fn("StudioGitHubSignIn.check")(({ deviceCode }) =>
       post(
         TOKEN_URL,
         { client_id: CLIENT_ID, device_code: deviceCode, grant_type: DEVICE_GRANT },
@@ -137,6 +137,7 @@ const make = Effect.gen(function* () {
           }
         }),
       ),
+    ),
   });
 });
 

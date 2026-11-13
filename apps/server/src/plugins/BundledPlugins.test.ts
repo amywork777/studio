@@ -8,7 +8,6 @@ import { assert, describe, it } from "@effect/vitest";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 
 import * as ServerConfig from "../config.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
@@ -51,7 +50,7 @@ const layerThreads = Layer.mergeAll(
   Layer.succeed(
     ProjectStore.ProjectStoreV2,
     ProjectStore.ProjectStoreV2.of({
-      get: () => Effect.succeed(Option.none()),
+      get: () => Effect.succeedNone,
     } as unknown as ProjectStore.ProjectStoreV2["Service"]),
   ),
 );
