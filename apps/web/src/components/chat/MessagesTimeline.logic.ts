@@ -991,8 +991,8 @@ export function timelineEntryStartsResponse(entry: TimelineEntry): boolean {
 /** How long a working turn may show nothing new before its header says so. */
 export const QUIET_TURN_MS = 20 * 60_000;
 
-// A message counts from when it began: streaming text changes it without changing the rows
-// (replaceStreamingMessageRows), and a reply that streams is not a quiet turn anyway.
+// Anything still streaming (a reply, a thought, a plan) counts from when it began: its text
+// changes skip the rows (replaceStreamingMessageRows), and a streaming turn is not quiet anyway.
 function entryChangedAtMs(entry: TimelineEntry): number {
   const projected =
     entry.kind === "work"
@@ -1000,7 +1000,8 @@ function entryChangedAtMs(entry: TimelineEntry): number {
       : entry.kind === "event"
         ? entry.projectedItem
         : undefined;
-  const changedAt = projected?.item.updatedAt;
+  const item = projected?.item;
+  const changedAt = item && !("streaming" in item && item.streaming) ? item.updatedAt : undefined;
   return changedAt ? DateTime.toEpochMillis(changedAt) : Date.parse(entry.createdAt);
 }
 
