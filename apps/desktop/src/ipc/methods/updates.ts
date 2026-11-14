@@ -57,6 +57,16 @@ export const installUpdate = DesktopIpc.makeIpcMethod({
   }),
 });
 
+export const setChatsWorking = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.UPDATE_SET_CHATS_WORKING_CHANNEL,
+  payload: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  result: Schema.Void,
+  handler: Effect.fn("desktop.ipc.updates.setChatsWorking")(function* (count) {
+    const updates = yield* DesktopUpdates.DesktopUpdates;
+    yield* updates.setChatsWorking(count);
+  }),
+});
+
 export const checkForUpdate = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_CHECK_CHANNEL,
   payload: Schema.Void,

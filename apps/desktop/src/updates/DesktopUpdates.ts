@@ -93,6 +93,12 @@ const DesktopUpdateInstallRecord = Schema.fromJsonString(
 );
 const decodeInstallRecord = Schema.decodeUnknownEffect(DesktopUpdateInstallRecord);
 const encodeInstallRecord = Schema.encodeEffect(DesktopUpdateInstallRecord);
+export const DESKTOP_UPDATE_WINDOWLESS_RELAUNCH_FILE = "desktop-update-windowless-relaunch.json";
+const WindowlessRelaunch = Schema.fromJsonString(Schema.Struct({ installedAt: Schema.Number }));
+const decodeWindowlessRelaunch = Schema.decodeUnknownEffect(WindowlessRelaunch);
+const encodeWindowlessRelaunch = Schema.encodeEffect(WindowlessRelaunch);
+// Long enough for the installer to swap the app and start it; an older mark is from an install that never ran.
+const WINDOWLESS_RELAUNCH_TTL_MS = 5 * 60_000;
 
 const decodeAppUpdateYmlConfig = Schema.decodeUnknownEffect(AppUpdateYmlConfig);
 const decodeUpdateInfo = Schema.decodeUnknownEffect(UpdateInfo);
@@ -223,6 +229,16 @@ export class DesktopUpdates extends Context.Service<
     readonly installPrepared: (
       expectedVersion: string,
     ) => Effect.Effect<DesktopPreparedUpdateInstallResult>;
+    /** How many of this machine's chats are working, as the app's window last saw them. */
+    readonly setChatsWorking: (count: number) => Effect.Effect<void>;
+    /**
+     * A Mac keeps running with its windows closed, so an update left for the next quit can wait
+     * for days. Closing the last window installs a downloaded one when no chat is working, and the
+     * app comes back as it was left, with no window (`takeWindowlessRelaunch`).
+     */
+    readonly installWithWindowsClosed: Effect.Effect<boolean>;
+    /** Whether this launch is the restart from `installWithWindowsClosed`; asking clears it. */
+    readonly takeWindowlessRelaunch: Effect.Effect<boolean>;
   }
 >()("@t3tools/desktop/updates/DesktopUpdates") {}
 
@@ -721,6 +737,25 @@ export const make = Effect.gen(function* () {
     .remove(installRecordPath, { force: true })
     .pipe(Effect.ignore);
 
+  const windowlessRelaunchPath = environment.path.join(
+    updateRestartMarkerDir,
+    DESKTOP_UPDATE_WINDOWLESS_RELAUNCH_FILE,
+  );
+  const writeWindowlessRelaunch = DateTime.now.pipe(
+    Effect.flatMap((now) => encodeWindowlessRelaunch({ installedAt: DateTime.toEpochMillis(now) })),
+    Effect.flatMap((text) => fileSystem.writeFileString(windowlessRelaunchPath, text)),
+    Effect.catch((error) =>
+      logUpdaterWarning("Could not mark the update restart as windowless.", {
+        errorTag: error._tag,
+      }),
+    ),
+  );
+  const removeWindowlessRelaunch = fileSystem
+    .remove(windowlessRelaunchPath, { force: true })
+    .pipe(Effect.ignore);
+  // Null until the window says; an unknown count never installs.
+  const chatsWorkingRef = yield* Ref.make<number | null>(null);
+
   const readNotAppliedInstallVersion = fileSystem.readFileString(installRecordPath).pipe(
     Effect.flatMap(decodeInstallRecord),
     Effect.option,
@@ -775,6 +810,7 @@ export const make = Effect.gen(function* () {
     yield* Ref.set(desktopState.quitting, false);
     yield* removeUpdateRestartMarker;
     yield* removeUpdateInProgressMarker;
+    yield* removeWindowlessRelaunch;
     yield* removeInstallRecord;
     yield* Effect.gen(function* () {
       const runningInstances = yield* Ref.getAndSet(installRunningBackendsRef, []);
@@ -1370,6 +1406,35 @@ export const make = Effect.gen(function* () {
     installPrepared: Effect.fn("DesktopUpdates.installPrepared")(function (expectedVersion) {
       return installWithExpectedVersion(expectedVersion);
     }),
+    setChatsWorking: Effect.fn("DesktopUpdates.setChatsWorking")(function* (count) {
+      yield* Ref.set(chatsWorkingRef, count);
+    }),
+    installWithWindowsClosed: Effect.gen(function* () {
+      if (environment.platform !== "darwin") return false;
+      const state = yield* Ref.get(updateStateRef);
+      if (state.status !== "downloaded" || state.downloadedVersion === null) return false;
+      const working = yield* Ref.get(chatsWorkingRef);
+      if (working !== 0) {
+        yield* logUpdaterInfo("leaving the update for the next quit while chats work", {
+          working,
+        });
+        return false;
+      }
+      yield* writeWindowlessRelaunch;
+      const result = yield* installDownloadedUpdate(state.downloadedVersion);
+      const installing = result.accepted && !result.failed;
+      if (!installing) yield* removeWindowlessRelaunch;
+      return installing;
+    }).pipe(Effect.withSpan("desktop.updates.installWithWindowsClosed")),
+    takeWindowlessRelaunch: Effect.gen(function* () {
+      const mark = yield* fileSystem
+        .readFileString(windowlessRelaunchPath)
+        .pipe(Effect.flatMap(decodeWindowlessRelaunch), Effect.option);
+      if (Option.isNone(mark)) return false;
+      yield* removeWindowlessRelaunch;
+      const now = DateTime.toEpochMillis(yield* DateTime.now);
+      return now - mark.value.installedAt < WINDOWLESS_RELAUNCH_TTL_MS;
+    }).pipe(Effect.withSpan("desktop.updates.takeWindowlessRelaunch")),
   });
 });
 

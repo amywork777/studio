@@ -713,6 +713,84 @@ describe("DesktopUpdates", () => {
     }),
   );
 
+  it.effect("installs on a Mac whose last window closed only when no chat is working", () => {
+    const harness = makeHarness();
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        yield* TestClock.setTime(1_000);
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        harness.emit("update-downloaded", { version: "1.2.4" });
+        yield* flushCallbacks;
+
+        // Before the window reports its chats, and while one works, the update waits.
+        assert.isFalse(yield* updates.installWithWindowsClosed);
+        yield* updates.setChatsWorking(1);
+        assert.isFalse(yield* updates.installWithWindowsClosed);
+        assert.equal(harness.quitAndInstalls(), 0);
+        assert.isUndefined(harness.windowlessRelaunchMarker());
+
+        yield* updates.setChatsWorking(0);
+        assert.isTrue(yield* updates.installWithWindowsClosed);
+        assert.equal(harness.quitAndInstalls(), 1);
+        assert.deepEqual(JSON.parse(harness.windowlessRelaunchMarker() ?? "null"), {
+          installedAt: 1_000,
+        });
+
+        // The restarted app starts without a window, once.
+        assert.isTrue(yield* updates.takeWindowlessRelaunch);
+        assert.isUndefined(harness.windowlessRelaunchMarker());
+        assert.isFalse(yield* updates.takeWindowlessRelaunch);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
+  it.effect(
+    "leaves no windowless restart when the window-closed install fails or is not a Mac",
+    () => {
+      const failing = makeHarness({
+        quitAndInstall: Effect.fail(
+          new ElectronUpdater.ElectronUpdaterQuitAndInstallError({
+            channel: "latest",
+            isSilent: true,
+            isForceRunAfter: true,
+            cause: new Error("installer refused"),
+          }),
+        ),
+      });
+      const windows = makeHarness({ platform: "win32" });
+      const closeWithUpdate = Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        yield* updates.setChatsWorking(0);
+        return updates;
+      });
+
+      return Effect.gen(function* () {
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            const updates = yield* closeWithUpdate;
+            failing.emit("update-downloaded", { version: "1.2.4" });
+            yield* flushCallbacks;
+            assert.isFalse(yield* updates.installWithWindowsClosed);
+            assert.isUndefined(failing.windowlessRelaunchMarker());
+          }),
+        ).pipe(Effect.provide(Layer.merge(TestClock.layer(), failing.layer)));
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            const updates = yield* closeWithUpdate;
+            windows.emit("update-downloaded", { version: "1.2.4" });
+            yield* flushCallbacks;
+            // Windows quits when its last window closes, and installs then.
+            assert.isFalse(yield* updates.installWithWindowsClosed);
+            assert.equal(windows.quitAndInstalls(), 0);
+          }),
+        ).pipe(Effect.provide(Layer.merge(TestClock.layer(), windows.layer)));
+      });
+    },
+  );
+
   it.effect("keeps windows and restarts backends when quitAndInstall fails", () => {
     const harness = makeHarness({
       quitAndInstall: Effect.fail(

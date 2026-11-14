@@ -1159,6 +1159,8 @@ export interface DesktopBridge {
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   /** With a version, installs only that downloaded build. */
   installUpdate: (expectedVersion?: string) => Promise<DesktopUpdateActionResult>;
+  /** How many chats this machine is working on, so a Mac with its windows closed updates only when none are. */
+  setChatsWorking: (count: number) => Promise<void>;
   onUpdateState: (listener: (state: DesktopUpdateState) => void) => () => void;
   cliCommand: {
     getState: () => Promise<DesktopCliCommandState>;

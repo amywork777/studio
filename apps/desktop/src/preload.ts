@@ -328,6 +328,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   downloadUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_DOWNLOAD_CHANNEL),
   installUpdate: (expectedVersion) =>
     ipcRenderer.invoke(IpcChannels.UPDATE_INSTALL_CHANNEL, expectedVersion),
+  setChatsWorking: (count) =>
+    ipcRenderer.invoke(IpcChannels.UPDATE_SET_CHATS_WORKING_CHANNEL, count),
   cliCommand: {
     getState: () => ipcRenderer.invoke(IpcChannels.CLI_COMMAND_GET_STATE_CHANNEL),
     install: () => ipcRenderer.invoke(IpcChannels.CLI_COMMAND_INSTALL_CHANNEL),

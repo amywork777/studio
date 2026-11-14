@@ -137,7 +137,8 @@ jobs:
 
       - name: Studio's desktop app
         working-directory: apps/desktop
-        run: vp test run src/studio
+        # src/updates: how a running Studio downloads and installs the next release.
+        run: vp test run src/studio src/updates
 
       - name: The usage receiver
         run: node --test infra/usage/src/*.test.mjs

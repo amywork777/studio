@@ -263,6 +263,8 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
         ? (installRecords.get(path) ?? previousInstallRecord)
         : undefined;
       if (installRecord !== undefined) return Effect.succeed(installRecord);
+      const marker = updateMarkerContents.get(path);
+      if (marker !== undefined) return Effect.succeed(marker);
       return path === "/missing/resources/package-type" && options.packageType !== undefined
         ? Effect.succeed(options.packageType)
         : Effect.fail(
@@ -327,6 +329,10 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     updateRestartMarkers,
     updateInProgressMarker: () =>
       [...updateMarkerContents].find(([path]) => path.endsWith("/desktop-update-in-progress"))?.[1],
+    windowlessRelaunchMarker: () =>
+      [...updateMarkerContents].find(([path]) =>
+        path.endsWith(DesktopUpdates.DESKTOP_UPDATE_WINDOWLESS_RELAUNCH_FILE),
+      )?.[1],
     installRecords,
     previousInstallRecord: () => previousInstallRecord,
     downloadCount: () => downloadCount,

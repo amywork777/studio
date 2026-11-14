@@ -148,6 +148,7 @@ it.effect.each([false, true])(
           }),
           Effect.provideService(DesktopUpdates.DesktopUpdates, {
             configure: Effect.void,
+            takeWindowlessRelaunch: Effect.succeed(false),
           } as unknown as DesktopUpdates.DesktopUpdates["Service"]),
           Effect.provideService(DesktopLinuxUrlHandler.DesktopLinuxUrlHandler, {
             register: Deferred.succeed(registrationStarted, undefined).pipe(
