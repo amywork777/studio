@@ -212,9 +212,13 @@ const bootstrap = Effect.gen(function* () {
     ),
   );
 
+  // The restart from an update installed with every window closed comes back with none open.
+  const windowless = yield* (yield* DesktopUpdates.DesktopUpdates).takeWindowlessRelaunch;
+  if (windowless) yield* desktopWindow.stayWindowless;
+
   if (!settings.localEnvironmentEnabled) {
     yield* logBootstrapInfo("bootstrap skipping local environment (disabled in settings)");
-    if (!(yield* Ref.get(state.quitting))) {
+    if (!windowless && !(yield* Ref.get(state.quitting))) {
       yield* desktopWindow.createMainIfBackendReady;
     }
     return;
@@ -292,7 +296,8 @@ const bootstrap = Effect.gen(function* () {
       !environment.isDevelopment &&
       !settings.wslOnly &&
       Option.isSome(config) &&
-      Option.isNone(config.value.preflightFailure)
+      Option.isNone(config.value.preflightFailure) &&
+      !windowless
     ) {
       yield* desktopWindow.ensureMain;
     }
@@ -377,6 +382,12 @@ const startup = Effect.gen(function* () {
   yield* previewPasskeys.configure;
   yield* applicationMenu.configure;
   yield* updates.configure;
+  if (environment.platform === "darwin") {
+    const runUpdates = Effect.runPromiseWith(yield* Effect.context<never>());
+    yield* electronApp.on("window-all-closed", () => {
+      void runUpdates(updates.installWithWindowsClosed);
+    });
+  }
   yield* DesktopRemoteUpdates.listen;
   yield* DesktopStartupRecovery.listen;
   // Portal identity is prepared pre-ready; MIME helpers must not gate the backend or window.

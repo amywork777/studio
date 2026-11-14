@@ -77,6 +77,9 @@ const layerDesktopUpdates = Layer.succeed(DesktopUpdates.DesktopUpdates, {
   download: Effect.die("unexpected download"),
   install: Effect.die("unexpected install"),
   installPrepared: () => Effect.die("unexpected installPrepared"),
+  setChatsWorking: () => Effect.die("unexpected setChatsWorking"),
+  installWithWindowsClosed: Effect.die("unexpected installWithWindowsClosed"),
+  takeWindowlessRelaunch: Effect.die("unexpected takeWindowlessRelaunch"),
 } satisfies DesktopUpdates.DesktopUpdates["Service"]);
 
 const layerDesktopWindow = (selectedAction: Deferred.Deferred<string>) =>
@@ -86,6 +89,7 @@ const layerDesktopWindow = (selectedAction: Deferred.Deferred<string>) =>
     revealOrCreateMain: Effect.die("unexpected revealOrCreateMain"),
     activate: Effect.void,
     createMainIfBackendReady: Effect.void,
+    stayWindowless: Effect.void,
     showConnectingSplash: Effect.void,
     handleBackendReady: () => Effect.void,
     handleBackendNotReady: Effect.void,

@@ -127,6 +127,8 @@ export class DesktopWindow extends Context.Service<
     readonly revealOrCreateMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
     readonly activate: Effect.Effect<void, DesktopWindowError>;
     readonly createMainIfBackendReady: Effect.Effect<void, DesktopWindowError>;
+    /** Starts with no window, as if it was closed during startup: activating the app opens one. */
+    readonly stayWindowless: Effect.Effect<void>;
     readonly showConnectingSplash: Effect.Effect<void>;
     readonly handleBackendReady: (httpBaseUrl: URL) => Effect.Effect<void, DesktopWindowError>;
     readonly handleBackendNotReady: Effect.Effect<void>;
@@ -1156,6 +1158,11 @@ export const make = Effect.gen(function* () {
       yield* createMainIfBackendReady;
     }).pipe(Effect.withSpan("desktop.window.activate")),
     createMainIfBackendReady,
+    stayWindowless: Effect.sync(() => {
+      mainClosedDuringStartup = true;
+      // The installer's relaunch brings the app forward; hand focus back to what the person was using.
+      if (environment.platform === "darwin") Electron.app.hide();
+    }).pipe(Effect.withSpan("desktop.window.stayWindowless")),
     showConnectingSplash,
     handleBackendReady: Effect.fn("desktop.window.handleBackendReady")(function* (httpBaseUrl) {
       backendHasStarted = true;
