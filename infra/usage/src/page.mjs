@@ -1,6 +1,6 @@
 /**
- * The numbers page at `/`, behind a password: installs per day, event counts, failed AI turns by AI,
- * model and reason, and installs per version. It counts install ids but never shows one, nor any
+ * The numbers page at `/`, behind a password: installs per day, whether installs come back, event counts,
+ * failed AI turns by AI, model and reason, and installs per version. It counts install ids but never shows one, nor any
  * other property or country. Plain HTML and CSS, no script, `no-store`.
  */
 import { PROPERTIES } from "./events.mjs";
@@ -78,6 +78,33 @@ export function versionsOf(launches) {
   return [...byVersion]
     .map(([version, installs]) => ({ version, installs: installs.size }))
     .sort((a, b) => newerFirst(a.version, b.version));
+}
+
+/**
+ * Whether installs come back, from the span's launches by UTC day. An install's first day is its first
+ * launch in the span. `weekLater` counts the `weekOld` installs (first day a week or more ago) that
+ * opened Studio again a week or more after it.
+ * @param {{ install: string, at?: string }[]} launches
+ */
+export function returningOf(launches, now = Date.now()) {
+  const daysOf = new Map();
+  for (const { install, at } of launches) {
+    const day = Math.floor(Date.parse(at) / DAY_MS);
+    if (!Number.isFinite(day)) continue;
+    const days = daysOf.get(install) ?? new Set();
+    days.add(day);
+    daysOf.set(install, days);
+  }
+  const today = Math.floor(now / DAY_MS);
+  const result = { seen: daysOf.size, cameBack: 0, weekOld: 0, weekLater: 0 };
+  for (const days of daysOf.values()) {
+    if (days.size > 1) result.cameBack += 1;
+    const first = Math.min(...days);
+    if (today - first < 7) continue;
+    result.weekOld += 1;
+    if (Math.max(...days) - first >= 7) result.weekLater += 1;
+  }
+  return result;
 }
 
 const escape = (text) =>
@@ -205,6 +232,7 @@ nav a[aria-current] { color: var(--ink); background: var(--blue); }
 h2 { margin: 32px 0 12px; font-size: var(--small); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); }
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; margin-top: 24px;
   background: var(--rule); border: 1px solid var(--rule); border-radius: var(--radius-surface); overflow: hidden; }
+.figures.under { margin-top: 0; }
 .figure { background: var(--surface); padding: 14px 16px; }
 .figure b { display: block; font-size: var(--figure); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .figure span { color: var(--ink-muted); font-size: var(--small); }
@@ -285,6 +313,22 @@ export function pageOf({
           : `<p class="sub">From the first ${count(launches.rows.length)} launches of these days.</p>`
       }`
     : `<p class="quiet">No launches were counted in these ${days} days.</p>`;
+  const back = returningOf(launches.rows, now);
+  const backSection = back.seen
+    ? `<h2>Coming back</h2><section class="figures under" aria-label="Coming back">
+<div class="figure"><b>${count(back.seen)}</b><span>installs opened Studio</span></div>
+<div class="figure"><b>${count(back.cameBack)}</b><span>opened it on two days or more</span></div>
+${
+  back.weekOld
+    ? `<div class="figure"><b>${count(back.weekLater)} of ${count(back.weekOld)}</b><span>still opening it a week after their first day</span></div>`
+    : `<div class="figure"><b>–</b><span>a week later: no install's first day is a week old yet</span></div>`
+}
+</section>${
+        launches.complete
+          ? ""
+          : `<p class="sub">From the first ${count(launches.rows.length)} launches of these days.</p>`
+      }`
+    : "";
   const label = (event) => LABELS[event] ?? event;
   const nav = SPANS.map(
     (span) =>
@@ -347,6 +391,7 @@ ${figure(summary.cadFailures, "CAD actions failed")}
 ${figure(summary.edits, "hand edits")}
 ${figure(summary.projects, "projects made")}
 </section>
+${backSection}
 ${failedSection}
 <h2>Installs each day</h2>
 <div class="chart"><div class="bars" role="img" aria-label="Installs each day, newest on the right">${bars}</div>
@@ -356,7 +401,7 @@ ${features}
 <h2>Versions in use</h2>
 ${versionTable}
 ${daysList ? `<h2>Day by day</h2>${daysList}` : ""}
-<footer>Counts are on once the first-launch notice has told the person, unless they turn them off there or in Settings, About, which deletes what was sent. Before Studio 0.1.10 only installs whose person pressed Share were counted. Studio (Dev) and copies built without the receiver's address send nothing. An install is one copy of Studio on one computer, under a random id this page never shows.</footer>
+<footer>Counts are on once the first-launch notice has told the person, unless they turn them off there or in Settings, About, which deletes what was sent. Before Studio 0.1.10 only installs whose person pressed Share were counted. Studio (Dev) and copies built without the receiver's address send nothing. An install is one copy of Studio on one computer, under a random id this page never shows. Coming back counts days an install opened Studio in this span, from its first launch in the span.</footer>
 </main>
 </body>
 </html>`;
