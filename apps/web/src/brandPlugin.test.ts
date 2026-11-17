@@ -60,7 +60,7 @@ describe("brand plugin", () => {
     // Settings → Agents → New chats is where the engineering interface picks a model; its name must show.
     const rules = [...css.matchAll(/([^{}]*\[data-chat-provider-model-picker-label\][^{}]*)\{/g)];
     expect(rules.length).toBeGreaterThan(0);
-    for (const [, selector] of rules) {
+    for (const [, selector = ""] of rules) {
       expect(selector.replace(/\s+/g, " ")).toContain(
         "[data-chat-composer-form] [data-chat-provider-model-picker-label]",
       );
