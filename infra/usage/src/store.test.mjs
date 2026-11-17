@@ -113,8 +113,8 @@ NodeTest.test(
       `${rest}usage_events?select=id&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04`,
       `${rest}usage_events?select=install,provider:properties->>provider,model:properties->>model&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04&order=id&limit=1000`,
       `${rest}usage_events?select=install,provider:properties->>provider,reason:properties->>reason&event=eq.provider.turn.failed&at=gte.2026-11-04&order=id&limit=1000`,
-      `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
-      `${rest}usage_events?select=version,install&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=1000`,
+      `${rest}usage_events?select=version,install,at&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
+      `${rest}usage_events?select=version,install,at&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=1000`,
     ]);
     NodeAssert.deepEqual(numbers.installs, [{ day: "2026-11-10", installs: 1 }]);
     NodeAssert.equal(numbers.failedTurns, 4);

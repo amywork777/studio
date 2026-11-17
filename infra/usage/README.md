@@ -27,6 +27,7 @@ receiver's address, and only the receiver holds the database key.
   from text-to-cad); past that it answers `429` with `Retry-After`.
 - `GET /` (the site's root, `?days=7`, `14`, `30` or `90`): the numbers page: what the two views below
   say (installs per day, and how often each event happened, failed CAD actions among them), how many
+  installs opened Studio on two days or more and how many were still opening it a week after their first day, how many
   AI turns failed, and how many installs opened each version, which shows whether updates reach
   people. It counts install ids and never shows one, and shows no other property and no country. The browser asks for its password (any user name), which is the
   sensitive variable `NUMBERS_PASSWORD` on the Vercel project; without it the page answers `503`. Each
