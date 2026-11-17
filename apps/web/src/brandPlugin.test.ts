@@ -49,6 +49,12 @@ describe("brand plugin", () => {
     expect(brand.starters.every((starter) => starter.skill !== null)).toBe(true);
   });
 
+  it("keeps the Welcome page's agent setup terminal when it hides terminal drawers", () => {
+    const css = NodeFS.readFileSync(NodePath.join(studioBrand, "theme.css"), "utf8");
+    // Without the exemption, Install and Sign in on the Welcome page open a terminal nobody sees.
+    expect(css).toMatch(/\[data-thread-terminal-drawer\]:not\([^)]*\[data-agent-setup-terminal\]/);
+  });
+
   it("says which folder lacks brand.json", () => {
     expect(() => readBrand(import.meta.dirname)).toThrow(/has no brand\.json/);
   });

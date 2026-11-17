@@ -1339,8 +1339,12 @@ function AgentInstallTerminal({
   ]);
 
   return (
+    // Studio's engineering interface hides terminal drawers; this marker keeps the setup one shown,
+    // and it scrolls into view because it opens below the agent list, out of sight.
     <div
+      ref={revealOnMount}
       data-thread-terminal-drawer
+      data-agent-setup-terminal
       className="mt-4 overflow-hidden rounded-lg border border-border/70 bg-background text-foreground"
     >
       <div className="flex items-center justify-between border-b border-border/60 bg-background/60 px-3 py-1.5">
