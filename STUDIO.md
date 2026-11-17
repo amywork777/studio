@@ -723,7 +723,9 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   selectors by where they are, never their numbers (the top face's outer edges:
   `tray.faces().sort_by(bd.Axis.Z)[-1].outer_wire().edges()`), and the line reads back as a new
   feature, selected, with its inputs to change like any other; a line that does not run, or picks
-  something other than the selection, is not written. Undo takes a command's line back. The agent
+  something other than the selection, is not written. Undo takes a command's line back. A custom feature (`@feature` from `cad.build123d`, Onshape's FeatureScript for build123d) reads as one
+  row by its own name, whatever it makes inside, its declared parameters the inputs Edit Parameters changes
+  ([Custom features and implicits](docs/internals/custom-features-and-implicits.md)). The agent
   hears of each change with the next message (a Hand edit note queued in the composer), never by a
   message of its own. Edit Feature reopens a feature's dialog, Suppress sets one aside, and the
   rollback bar (dragged in the design tree, or put under a feature by Rollback) shows the part as it was above a feature, new features going in there. An assembly
