@@ -204,8 +204,9 @@ html[data-studio-focus="hardware"]
     [data-thread-details-card] [aria-label="Project actions"],
     [data-thread-details-card] [aria-label="Add project script"],
     [data-thread-details-card] [data-thread-panel-run-context],
-    /* Not the setup wizard's: installing or signing in to an agent runs in a terminal there. */
-    [data-thread-terminal-drawer]:not([data-slot="dialog-popup"] *),
+    /* Not the setup wizard's or the Welcome page's: installing or signing in to an agent runs in a
+       terminal there. */
+    [data-thread-terminal-drawer]:not([data-slot="dialog-popup"] *, [data-agent-setup-terminal]),
     [data-sidebar-branch],
     [data-pull-request-badge],
     [data-testid^="thread-worktree-"],
@@ -281,9 +282,12 @@ html[data-studio-focus="hardware"]
 
 /*
  * Which model runs the chat is a setting, not a line of the chat box: the box shows the agent's
- * mark, and its menu names the model.
+ * mark, and its menu names the model. Only the chat box's: Settings' pickers (the model new chats
+ * start on) must still say which model they hold.
  */
-html[data-studio-focus="hardware"] [data-chat-provider-model-picker-label] {
+html[data-studio-focus="hardware"]
+  [data-chat-composer-form]
+  [data-chat-provider-model-picker-label] {
   width: 0;
   flex: none;
 }

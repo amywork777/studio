@@ -82,7 +82,7 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
       });
     },
     // Rows for page.mjs from `since` (`YYYY-MM-DD`): the daily views, failed-turn counts and the first
-    // 1000 failed turns, and each launch's version (`client.connected`), read a page at a time since the
+    // 1000 failed turns, and each launch's version, install and time (`client.connected`), read a page at a time since the
     // database answers 1000 rows a call.
     async numbers(since) {
       const view = (name, order) =>
@@ -109,7 +109,7 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
         const rows = [];
         for (let page = 0; page < LAUNCH_PAGES; page += 1) {
           const answer = await call(
-            `${rest}?select=version,install&event=eq.client.connected&at=gte.${since}&order=id&limit=${PAGE_ROWS}&offset=${page * PAGE_ROWS}`,
+            `${rest}?select=version,install,at&event=eq.client.connected&at=gte.${since}&order=id&limit=${PAGE_ROWS}&offset=${page * PAGE_ROWS}`,
           );
           const found = await answer.json();
           rows.push(...found);

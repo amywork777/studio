@@ -1,7 +1,16 @@
 import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
 
-import { EVENT_NAMES, LABELS, pageOf, sinceOf, spanOf, summaryOf, versionsOf } from "./page.mjs";
+import {
+  EVENT_NAMES,
+  LABELS,
+  pageOf,
+  returningOf,
+  sinceOf,
+  spanOf,
+  summaryOf,
+  versionsOf,
+} from "./page.mjs";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
 
@@ -135,6 +144,47 @@ NodeTest.test("lists failed turns by AI and model, and by why, counting installs
     now: NOW,
   });
   NodeAssert.match(before, /sent from Studio 0\.1\.11 on/);
+});
+
+NodeTest.test("counts installs that come back, and those still opening it a week later", () => {
+  const launch = (install, at) => ({ version: "0.1.10", install, at });
+  const rows = [
+    launch("a", "2026-11-01T09:00:00Z"),
+    launch("a", "2026-11-01T18:00:00Z"),
+    launch("a", "2026-11-09T09:00:00Z"),
+    launch("b", "2026-11-02T09:00:00Z"),
+    launch("b", "2026-11-05T09:00:00Z"),
+    launch("c", "2026-11-03T09:00:00Z"),
+    launch("d", "2026-11-08T09:00:00Z"),
+    launch("d", "2026-11-10T09:00:00Z"),
+  ];
+  NodeAssert.deepEqual(returningOf(rows, NOW), {
+    seen: 4,
+    cameBack: 3,
+    weekOld: 3,
+    weekLater: 1,
+  });
+  const html = pageOf({
+    days: 30,
+    installs: [],
+    events: [],
+    launches: { rows, complete: true },
+    now: NOW,
+  });
+  NodeAssert.match(html, /<b>3<\/b><span>opened it on two days or more/);
+  NodeAssert.match(html, /<b>1 of 3<\/b><span>still opening it a week after/);
+  const fresh = pageOf({
+    days: 7,
+    installs: [],
+    events: [],
+    launches: { rows: [launch("d", "2026-11-08T09:00:00Z")], complete: true },
+    now: NOW,
+  });
+  NodeAssert.match(fresh, /no install's first day is a week old yet/);
+  NodeAssert.doesNotMatch(
+    pageOf({ days: 7, installs: [], events: [], now: NOW }),
+    /<h2>Coming back/,
+  );
 });
 
 NodeTest.test("escapes what the database hands it", () => {
