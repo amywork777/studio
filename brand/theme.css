@@ -282,9 +282,12 @@ html[data-studio-focus="hardware"]
 
 /*
  * Which model runs the chat is a setting, not a line of the chat box: the box shows the agent's
- * mark, and its menu names the model.
+ * mark, and its menu names the model. Only the chat box's: Settings' pickers (the model new chats
+ * start on) must still say which model they hold.
  */
-html[data-studio-focus="hardware"] [data-chat-provider-model-picker-label] {
+html[data-studio-focus="hardware"]
+  [data-chat-composer-form]
+  [data-chat-provider-model-picker-label] {
   width: 0;
   flex: none;
 }

@@ -55,6 +55,18 @@ describe("brand plugin", () => {
     expect(css).toMatch(/\[data-thread-terminal-drawer\]:not\([^)]*\[data-agent-setup-terminal\]/);
   });
 
+  it("collapses the model name only in the chat box, not in Settings' model pickers", () => {
+    const css = NodeFS.readFileSync(NodePath.join(studioBrand, "theme.css"), "utf8");
+    // Settings → Agents → New chats is where the engineering interface picks a model; its name must show.
+    const rules = [...css.matchAll(/([^{}]*\[data-chat-provider-model-picker-label\][^{}]*)\{/g)];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const [, selector] of rules) {
+      expect(selector.replace(/\s+/g, " ")).toContain(
+        "[data-chat-composer-form] [data-chat-provider-model-picker-label]",
+      );
+    }
+  });
+
   it("says which folder lacks brand.json", () => {
     expect(() => readBrand(import.meta.dirname)).toThrow(/has no brand\.json/);
   });
