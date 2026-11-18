@@ -3349,7 +3349,10 @@ export default function ChatView(props: ChatViewProps) {
             ? addPullRequestsSurfaceStable
             : undefined,
       }}
-      issuesSupported={serverConfig?.environment.capabilities.issues === true}
+      issuesSupported={
+        serverConfig?.environment.capabilities.issues === true &&
+        !studioChat.t3FeatureHidden("issues")
+      }
       files={{
         projectId: activeProject?.id,
         projectName: activeProject?.title ?? null,
