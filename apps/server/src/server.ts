@@ -64,10 +64,7 @@ import * as PullRequestReviewGuides from "./persistence/PullRequestReviewGuides.
 import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewGuideService.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as DelegatedTaskAnalytics from "./telemetry/DelegatedTaskAnalytics.ts";
-import * as AppUpdated from "./telemetry/AppUpdated.ts";
-import * as ClaudeSignIn from "./telemetry/ClaudeSignIn.ts";
-import * as StudioAnalytics from "./telemetry/StudioAnalytics.ts";
-import * as TurnFailure from "./telemetry/TurnFailure.ts";
+import * as StudioServerLayers from "./studio/StudioServerLayers.ts";
 import * as ProviderUsageAnalytics from "./telemetry/ProviderUsageAnalytics.ts";
 import * as ModelManifest from "./provider/ModelManifest.ts";
 import * as ResetCreditCoordinator from "./provider/resetCreditCoordinator.ts";
@@ -92,12 +89,6 @@ import * as ProviderInstanceRegistryHydration from "./provider/ProviderInstanceR
 import * as ProjectSettingsOverrideSweep from "./provider/ProjectSettingsOverrideSweep.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import * as McpHttpServer from "./mcp/McpHttpServer.ts";
-import * as PluginService from "./plugins/PluginService.ts";
-import * as StudioProjects from "./studio/StudioProjects.ts";
-import * as StudioGitHubSignIn from "./studio/StudioGitHubSignIn.ts";
-import * as StudioSync from "./studio/StudioSync.ts";
-import * as BundledPlugins from "./plugins/BundledPlugins.ts";
-import * as PluginToolSessions from "./plugins/PluginToolSessions.ts";
 import * as PeerForwarding from "./peer/PeerForwarding.ts";
 import * as RemoteDelegation from "./peer/RemoteDelegation.ts";
 import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
@@ -156,7 +147,6 @@ import * as ReviewService from "./review/ReviewService.ts";
 import * as SourceControlProviderRegistry from "./sourceControl/SourceControlProviderRegistry.ts";
 import * as PullRequestReadCache from "./pullRequest/PullRequestReadCache.ts";
 import * as SourceControlRateLimit from "@t3tools/source-control-core/server/SourceControlRateLimit";
-import * as GitHubCredentials from "@t3tools/source-control-github/server/GitHubCredentials";
 import * as SourceControlRepositoryService from "./sourceControl/SourceControlRepositoryService.ts";
 import * as WorktreeSetupTracker from "./project/WorktreeSetupTracker.ts";
 import * as Observability from "./observability/Observability.ts";
@@ -490,13 +480,6 @@ const layerProjectCloneTracker = ProjectCloneTracker.layer.pipe(
   Layer.provide(layerSourceControlRepositoryService),
 );
 
-// The repository service carries the source control host that GitHub's credentials read.
-const layerStudioSync = StudioSync.layer.pipe(
-  Layer.provide(ProcessRunner.layer),
-  Layer.provide(GitHubCredentials.layer),
-  Layer.provide(layerSourceControlRepositoryService),
-);
-
 const layerKnownWorkspaces = KnownWorkspaces.layer.pipe(
   Layer.provide(ProjectStore.layer),
   Layer.provide(GitVcsDriver.layer),
@@ -557,8 +540,6 @@ const layerDevice = DeviceService.layer.pipe(
   Layer.provide(ProcessRunner.layer),
   Layer.provide(NetService.layer),
 );
-
-const layerStudioProjects = StudioProjects.layer.pipe(Layer.provide(ProcessRunner.layer));
 
 const layerWorkspaceEntries = WorkspaceEntries.layer.pipe(Layer.provide(WorkspacePaths.layer));
 
@@ -630,7 +611,7 @@ const layerOrchestrationV2Runtime = RuntimeLayer.layerProduction.pipe(
   Layer.provide(UsageLimitSources.layerResetFallback),
   Layer.provide(layerScheduledTaskWebhookOrigin),
   Layer.provide(ProviderUsageAnalytics.layer),
-  Layer.provide(TurnFailure.layerFailureAnalytics),
+  Layer.provide(StudioServerLayers.layerTurnFailureAnalytics),
   Layer.provide(layerCheckpointStore),
   Layer.provide(layerGitWorkflow),
   Layer.provide(
@@ -745,16 +726,11 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     }),
   ).pipe(Layer.provide(DelegatedTaskQuestionReactor.layer), Layer.provide(ProjectionStoreV2.layer)),
   ProviderUsageLimitsIngestion.layer,
-  // One plugin host for the WebSocket views and the agents' MCP tools.
-  PluginService.layer,
   layerProviderInstallationRefresh,
   ProviderInstallation.layer,
-  // Counts a Claude sign-in when an instance's auth status turns authenticated.
-  ClaudeSignIn.layer,
-  // Counts a launch of another release than the one that ran last.
-  AppUpdated.layer,
   ReplayMarkers.layer,
   Layer.effectDiscard(ProjectSettingsOverrideSweep.sweep),
+  StudioServerLayers.layerCoreServices,
 ).pipe(
   Layer.provideMerge(layerOrchestrationApplication),
   Layer.provideMerge(RuntimeLayer.layerEventInfrastructure),
@@ -764,13 +740,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   // Above the settings it writes when a theme is applied.
   Layer.provideMerge(EnvironmentTheme.layer),
   Layer.provideMerge(layerServerSettings),
-  // pipe takes 20 at most; a second one keeps the same order.
-).pipe(
-  // Below the orchestration runtime so a turn reads its thread's Studio project;
-  // the WebSocket lists and saves them.
-  Layer.provideMerge(layerStudioProjects),
-  Layer.provideMerge(layerStudioSync),
-  Layer.provideMerge(StudioGitHubSignIn.layer),
+  Layer.provideMerge(StudioServerLayers.layerProjects(layerSourceControlRepositoryService)),
   Layer.provideMerge(layerSourceControlProviderRegistry),
   Layer.provideMerge(layerGit),
   Layer.provideMerge(layerVcs),
@@ -798,8 +768,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
 );
 
 const layerRuntimeCoreDependencies = layerRuntimeCoreDependenciesBase.pipe(
-  // Installed plugins: provider adapters load their skills, routes and MCP serve their tools.
-  Layer.provideMerge(BundledPlugins.storeLayer),
+  Layer.provideMerge(StudioServerLayers.layerPluginStore),
   Layer.provideMerge(layerPtyAdapter),
   Layer.provideMerge(AcpRegistrySupport.layerFromHost.pipe(Layer.provide(ProviderHostLive.layer))),
   Layer.provideMerge(
@@ -843,21 +812,15 @@ const layerRuntimeCoreDependencies = layerRuntimeCoreDependenciesBase.pipe(
   ),
 );
 
-const layerRuntimeDependencies = Layer.mergeAll(
-  // Offers the app's bundled plugins once the plugin service is up.
-  BundledPlugins.layer,
-  // Provider sessions open again once idle when the plugin tools agents see change.
-  PluginToolSessions.layer,
-).pipe(
+const layerRuntimeDependencies = StudioServerLayers.layerPluginRuntime.pipe(
   Layer.provideMerge(layerRuntimeCoreDependencies),
   Layer.provideMerge(layerUsage),
   Layer.provideMerge(layerBackground),
   Layer.provideMerge(layerResourceDiagnostics),
   Layer.provideMerge(TraceDiagnostics.layer),
   Layer.provideMerge(TriageService.layer.pipe(Layer.provide(GitVcsDriver.layer))),
-  // Studio's usage counts in place of T3's analytics; reads the usage-data setting on each event,
-  // and the settings layer carries the managed policy too.
-  Layer.provideMerge(StudioAnalytics.layer.pipe(Layer.provide(layerServerSettings))),
+  // The settings layer carries the managed policy too.
+  Layer.provideMerge(StudioServerLayers.layerAnalytics.pipe(Layer.provide(layerServerSettings))),
   Layer.provideMerge(ExternalLauncher.layer),
   Layer.provideMerge(RemoteOpenTargets.layer),
   Layer.provideMerge(DirectEndpoints.layer.pipe(Layer.provide(layerServerEnvironment))),

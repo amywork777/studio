@@ -73,5 +73,14 @@ it("never wires T3's own analytics sender", () => {
   });
   assert.deepEqual(wiring, [], "these files use T3's analytics sender in place of StudioAnalytics");
   const server = NodeFS.readFileSync(NodePath.join(SERVER_SOURCE, "server.ts"), "utf8");
-  assert.include(server, "StudioAnalytics.layer", "server.ts provides Studio's usage counts");
+  const studioLayers = NodeFS.readFileSync(
+    NodePath.join(SERVER_SOURCE, "studio", "StudioServerLayers.ts"),
+    "utf8",
+  );
+  assert.include(server, "StudioServerLayers.layerAnalytics", "server.ts provides Studio's layer");
+  assert.match(
+    studioLayers,
+    /\blayerAnalytics = StudioAnalytics\.layer\b/u,
+    "Studio's analytics layer is StudioAnalytics",
+  );
 });

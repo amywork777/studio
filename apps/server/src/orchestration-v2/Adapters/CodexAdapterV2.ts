@@ -131,6 +131,7 @@ import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/
 import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as PluginStore from "../../plugins/PluginStore.ts";
+import * as CodexStudio from "../../studio/codexStudio.ts";
 import {
   MCP_APP_EXTENSION_ID,
   MCP_APP_MIME_TYPE,
@@ -786,21 +787,6 @@ function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
   }
 }
 
-/**
- * A workspace-write sandbox also lets the agent write the thread's other
- * Studio project folders. Read-only and full-access sandboxes are left alone:
- * one writes nowhere, the other everywhere.
- */
-function withWritableRoots(
-  sandboxPolicy: CodexSchema.V2TurnStartParams__SandboxPolicy | null,
-  roots: ReadonlyArray<string> | undefined,
-): CodexSchema.V2TurnStartParams__SandboxPolicy | null {
-  if (sandboxPolicy?.type !== "workspaceWrite" || roots === undefined || roots.length === 0) {
-    return sandboxPolicy;
-  }
-  return { ...sandboxPolicy, writableRoots: [...(sandboxPolicy.writableRoots ?? []), ...roots] };
-}
-
 const isCodexCyberAccessProgram = Schema.is(CodexSchema.V2TurnStartParams__CyberAccessProgram);
 
 function codexCyberAccess(
@@ -835,7 +821,7 @@ export const buildCodexTurnStartParams = Effect.fn("CodexAdapterV2.buildCodexTur
       input.runtimePolicy.approvalPolicy === undefined
         ? runtimeModeDefaults.approvalPolicy
         : yield* decodeTurnApprovalPolicy(input.runtimePolicy.approvalPolicy);
-    const sandboxPolicy = withWritableRoots(
+    const sandboxPolicy = CodexStudio.withWritableRoots(
       input.runtimePolicy.sandboxPolicy === undefined
         ? runtimeModeDefaults.sandboxPolicy
         : yield* decodeTurnSandboxPolicy(input.runtimePolicy.sandboxPolicy),
@@ -875,16 +861,7 @@ export const buildCodexTurnStartParams = Effect.fn("CodexAdapterV2.buildCodexTur
             },
           )
         : undefined;
-    // The Studio project's context goes in with or without T3's MCP server.
-    const projectContext =
-      input.runtimePolicy.projectContext === undefined
-        ? undefined
-        : {
-            t3_code_project: {
-              kind: "application" as const,
-              value: input.runtimePolicy.projectContext,
-            },
-          };
+    const projectContext = CodexStudio.projectAdditionalContext(input.runtimePolicy);
     const additionalContext =
       t3Context === undefined &&
       projectContext === undefined &&
@@ -1528,17 +1505,6 @@ export const CODEX_THREAD_CONFIG = {
   "features.concurrent_reasoning_summaries": true,
 } as const;
 
-/**
- * A Studio project's thread works only with Studio's tools: the person's own
- * Codex plugins and apps are off, and so is each MCP server in their Codex
- * config (`personalMcpServers`, from `config/read`). The thread's config only
- * adds to theirs, so each is switched off by name.
- */
-const CODEX_STUDIO_THREAD_CONFIG = {
-  "features.plugins": false,
-  "features.apps": false,
-} as const;
-
 // request_secret can wait an hour; keep Codex's MCP timeout above that.
 const CODEX_T3_MCP_TOOL_TIMEOUT_SEC = 65 * 60;
 // Holds T3 tools Codex must call directly, never from Code Mode. Calls arrive as
@@ -1559,7 +1525,6 @@ export function codexThreadRuntimeParams(input: {
   readonly config: Readonly<Record<string, Schema.Json>>;
 } {
   const { mcpSession } = input;
-  const studio = input.runtimePolicy?.projectContext !== undefined;
   const t3Server =
     mcpSession === undefined
       ? undefined
@@ -1573,15 +1538,10 @@ export function codexThreadRuntimeParams(input: {
     ...(input.modelSelection === undefined ? {} : { model: input.modelSelection.model }),
     config: {
       ...CODEX_THREAD_CONFIG,
-      ...(studio ? CODEX_STUDIO_THREAD_CONFIG : {}),
-      // Leaf keys, so each of the person's own servers keeps its config and is only switched off.
-      ...(studio
-        ? Object.fromEntries(
-            (input.personalMcpServers ?? [])
-              .filter((name) => name !== "t3-code" && name !== CODEX_T3_DIRECT_MCP_SERVER)
-              .map((name) => [`mcp_servers.${name}.enabled`, false]),
-          )
-        : {}),
+      ...CodexStudio.studioThreadConfig(input.runtimePolicy, input.personalMcpServers, [
+        "t3-code",
+        CODEX_T3_DIRECT_MCP_SERVER,
+      ]),
       // One app-server serves many threads, so the id goes in per-thread shell config, not its env.
       ...(input.threadId === null
         ? {}
@@ -1601,13 +1561,6 @@ export function codexThreadRuntimeParams(input: {
           }),
     },
   };
-}
-
-/** The MCP servers a Codex `config/read` names, from its effective config. */
-export function codexConfigMcpServers(config: unknown): ReadonlyArray<string> {
-  if (typeof config !== "object" || config === null) return [];
-  const servers = (config as { readonly mcp_servers?: unknown }).mcp_servers;
-  return typeof servers === "object" && servers !== null ? Object.keys(servers) : [];
 }
 
 const decodeCodexResumeMetadata = Schema.decodeUnknownEffect(
@@ -2117,33 +2070,17 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }
             yield* client.notify("initialized", undefined);
-            const pluginSkillRoots = yield* PluginStore.codexSkillRoots(pluginStore);
-            if (pluginSkillRoots.length > 0) {
-              yield* client
-                .request("skills/extraRoots/set", { extraRoots: pluginSkillRoots })
-                .pipe(Effect.ignore);
-            }
+            yield* CodexStudio.loadPluginSkills(pluginStore, (extraRoots) =>
+              client.request("skills/extraRoots/set", { extraRoots }),
+            );
             yield* Ref.set(initialized, true);
           }),
         );
         // A failed open is discarded, so the next turn spawns the updated binary.
         if (adapterOptions.compatibility !== undefined) yield* ensureInitialized;
-        // A Studio project's threads start without the person's own Codex MCP servers
-        // (`codexThreadRuntimeParams`), named from the effective config, read once for this
-        // app-server. A config that cannot be read turns none off.
-        const personalMcpServers = yield* Effect.cached(
-          ensureInitialized.pipe(
-            Effect.andThen(client.request("config/read", {})),
-            Effect.map((response) => codexConfigMcpServers(response.config)),
-            Effect.orElseSucceed((): ReadonlyArray<string> => []),
-          ),
+        const personalMcpServersFor = yield* CodexStudio.personalMcpServersFor(
+          ensureInitialized.pipe(Effect.andThen(client.request("config/read", {}))),
         );
-        const personalMcpServersFor = (
-          runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy | undefined,
-        ) =>
-          runtimePolicy?.projectContext === undefined
-            ? Effect.succeed<ReadonlyArray<string>>([])
-            : personalMcpServers;
         const now = yield* DateTime.now;
         const session = providerSession({
           providerSessionId: input.providerSessionId,

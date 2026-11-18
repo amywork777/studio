@@ -141,7 +141,6 @@ import { FILE_HEADERS_ONLY, formatPatch, structuredPatch } from "diff";
 import * as Cause from "effect/Cause";
 import * as Predicate from "effect/Predicate";
 import * as Clock from "effect/Clock";
-import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
@@ -227,6 +226,7 @@ import {
 import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as PluginStore from "../../plugins/PluginStore.ts";
+import * as ClaudeStudio from "../../studio/claudeStudio.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import {
   makeProviderFailure,
@@ -2333,12 +2333,7 @@ export function makeClaudeQueryOptions(input: {
       : {}),
     ...(input.environment === undefined ? {} : { env: input.environment }),
     ...(input.mcpServers === undefined ? {} : { mcpServers: input.mcpServers }),
-    // A Studio project's thread leaves out the person's own Claude settings (their plugins,
-    // MCP servers and CLAUDE.md in ~/.claude), as its Codex thread does; Studio's plugins come
-    // through the `plugins` option (`PluginStore.withClaudePlugins`), not from there.
-    ...(input.projectContext === undefined
-      ? {}
-      : { settingSources: ["project" as const, "local" as const] }),
+    ...ClaudeStudio.projectSettingSources(input.projectContext),
     systemPrompt: {
       type: "preset" as const,
       preset: "claude_code" as const,
@@ -12635,13 +12630,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               if (request.dialogKind !== "resume_return") {
                 return { behavior: "cancelled" as const };
               }
-              // A fork that names itself (Studio, by VITE_APP_BASE_NAME) keeps the conversation
-              // whole without asking: the agent's token bookkeeping is not the person's question.
-              const forkName = yield* Config.String("VITE_APP_BASE_NAME").pipe(
-                Config.withDefault(""),
-                Effect.orElseSucceed(() => ""),
-              );
-              if (forkName.trim() !== "") {
+              if (yield* ClaudeStudio.continuesWithoutAsking) {
                 return { behavior: "completed" as const, result: "continue" as const };
               }
               const idleCompaction = Option.isSome(serverSettings)
@@ -12945,12 +12934,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             ...(resumeSessionAt === undefined ? {} : { resumeSessionAt }),
             cwd: turnInput.runtimePolicy.cwd,
             attachmentsDir,
-            ...(turnInput.runtimePolicy.additionalDirectories === undefined
-              ? {}
-              : { additionalDirectories: turnInput.runtimePolicy.additionalDirectories }),
-            ...(turnInput.runtimePolicy.projectContext === undefined
-              ? {}
-              : { projectContext: turnInput.runtimePolicy.projectContext }),
+            ...ClaudeStudio.projectQueryInput(turnInput.runtimePolicy),
             settings: adapterOptions.settings,
             // Delegated threads have no one typing, so they never ask for suggestions.
             promptSuggestions:
