@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import { brandCopy, namesT3 } from "@t3tools/shared/studioBrandCopy";
+import { engineeringWords } from "./engineeringWords";
 
 export * from "gt-react";
 
@@ -28,10 +29,14 @@ type MessagesFunction = (
   options?: Parameters<GTFunction>[1],
 ) => string | null | undefined;
 
-export const gtFallback: typeof realGtFallback = (message, options) =>
-  realGtFallback(typeof message === "string" ? brandCopy(message) : message, options);
+/** T3's English with Studio's name, and the engineering interface's words where it has its own. */
+const studioCopy = (text: string) => brandCopy(engineeringWords(text));
 
-export const mFallback = ((message, options) => {
+export const gtFallback: typeof realGtFallback = (message, options) =>
+  realGtFallback(typeof message === "string" ? studioCopy(message) : message, options);
+
+export const mFallback = ((t3Message, options) => {
+  const message = typeof t3Message === "string" ? engineeringWords(t3Message) : t3Message;
   if (typeof message !== "string" || !namesT3(message)) return realMFallback(message, options);
   const decoded = decodeOptions(message);
   return typeof decoded?.$_source === "string"
@@ -47,7 +52,7 @@ const brandedMessages = new WeakMap<GTFunction, MessagesFunction>();
 const brandGT = (gt: GTFunction): GTFunction => {
   let branded = brandedGT.get(gt);
   if (branded === undefined) {
-    branded = (message, options) => gt(brandCopy(message), options);
+    branded = (message, options) => gt(studioCopy(message), options);
     brandedGT.set(gt, branded);
   }
   return branded;

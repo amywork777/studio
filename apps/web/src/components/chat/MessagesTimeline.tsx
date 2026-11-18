@@ -1541,21 +1541,13 @@ function TimelineHistoryControl(props: MessagesTimelineHistoryControls) {
           <button
             type="button"
             disabled={props.loading}
-            aria-label={
-              isEngineeringInterface() ? gt("Show earlier messages") : gt("Load earlier turns")
-            }
+            aria-label={gt("Load earlier turns")}
             onClick={() => props.onLoadEarlier()}
             className="flex w-full cursor-pointer items-center gap-3 py-1.5 text-muted-foreground text-xs hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
           >
             <span aria-hidden="true" className="h-px flex-1 bg-border/70" />
             <span className="shrink-0">
-              {isEngineeringInterface()
-                ? props.loading
-                  ? gt("Showing earlier messages…")
-                  : gt("Show earlier messages")
-                : props.loading
-                  ? gt("Loading earlier turns…")
-                  : gt("Load earlier turns")}
+              {props.loading ? gt("Loading earlier turns…") : gt("Load earlier turns")}
             </span>
             <span aria-hidden="true" className="h-px flex-1 bg-border/70" />
           </button>

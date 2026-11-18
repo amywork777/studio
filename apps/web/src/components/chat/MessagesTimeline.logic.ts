@@ -1,12 +1,4 @@
-import {
-  engineeringChatWords,
-  engineeringFilesLabel,
-  engineeringGroupLabel,
-  engineeringStepLabel,
-  engineeringToolLabel,
-} from "../workbench/engineeringLabels";
-import { isEngineeringInterface } from "../workbench/studioInterface";
-import { turnReferences, type AnswerReference } from "../workbench/references/turnReferences";
+import * as studio from "../workbench/studioTimeline";
 import * as DateTime from "effect/DateTime";
 import { msg } from "gt-react";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
@@ -111,33 +103,12 @@ function workEntryIsActiveTurnActivity(entry: WorkLogEntry): boolean {
   );
 }
 
-/** A group's summary, in an engineer's words in the engineering interface, naming the parts it changed. */
-const engineeringSummary = (summary: string, entries: ReadonlyArray<WorkLogEntry>) =>
-  isEngineeringInterface()
-    ? engineeringGroupLabel(
-        summary,
-        entries.flatMap((entry) => entry.changedFiles ?? []),
-      )
-    : summary;
-
-/** A step on T3's own tools, its threads read as chats in the engineering interface. */
-const t3ToolName = (name: string) => (isEngineeringInterface() ? engineeringChatWords(name) : name);
-
-/** A plugin tool's step in an engineer's words ("Showed the model"), in the engineering interface. */
-function engineeringToolStep(entry: WorkLogEntry) {
-  if (!isEngineeringInterface()) return null;
-  const item = entry.structuredPayload;
-  return engineeringToolLabel(
-    (item?.type === "dynamic_tool" ? item.toolName : null) ?? entry.toolTitle ?? entry.label,
-  );
-}
-
 function singleToolCallLabel(entry: WorkLogEntry, resolve: MessageResolver): string {
   if (entry.itemType === "reasoning") {
     return entry.detail?.trim().replace(/\s+/g, " ") || resolve(msg("Thought"));
   }
   const toolPresentation = resolveWorkEntryToolPresentation(entry, "completed", resolve);
-  if (toolPresentation) return t3ToolName(toolPresentation.displayName);
+  if (toolPresentation) return studio.toolName(toolPresentation.displayName);
   const item = entry.structuredPayload;
   const title =
     item?.type === "dynamic_tool"
@@ -185,29 +156,25 @@ export function workEntryDisplayLabel(
     return thought || entry.label;
   }
   const toolPresentation = resolveWorkEntryToolPresentation(entry, undefined, resolve);
-  if (toolPresentation) return t3ToolName(toolPresentation.displayName);
-  const toolStep = engineeringToolStep(entry);
+  if (toolPresentation) return studio.toolName(toolPresentation.displayName);
+  const toolStep = studio.toolStep(entry);
   if (toolStep) return toolStep.done;
-  if (entry.command?.trim()) {
-    // The engineering interface says what a command did to the design, not the command line.
-    return isEngineeringInterface()
-      ? engineeringStepLabel(entry.command).done
-      : commandDisplayText(entry.command);
-  }
+  if (entry.command?.trim())
+    return studio.commandLabel(entry.command) ?? commandDisplayText(entry.command);
   const action = toolGroupAction(entry);
   if (action === "code-search" || action === "search") {
     const searchLabel =
       entry.itemType === "file_search"
         ? entry.label
         : formatSearchToolLabel(workEntryToolDataRecord(entry), resolve);
-    if (searchLabel) {
-      return isEngineeringInterface() ? resolve(msg("Searched the project")) : searchLabel;
-    }
+    if (searchLabel) return studio.searchLabel(resolve) ?? searchLabel;
   }
   const readPaths = action === "read" ? workEntryReadPaths(entry, workspaceRoot) : [];
   if (action === "read" && readPaths[0]) {
-    if (isEngineeringInterface()) return engineeringFilesLabel("Looked at", readPaths);
-    return formatReadToolLabel(readPaths[0], readPaths.length - 1, resolve);
+    return (
+      studio.filesLabel("Looked at", readPaths) ??
+      formatReadToolLabel(readPaths[0], readPaths.length - 1, resolve)
+    );
   }
   const providerRetry =
     entry.projectedItem?.item.type === "error" && entry.projectedItem.item.retry !== undefined;
@@ -225,7 +192,8 @@ export function workEntryDisplayLabel(
   }
   const [firstPath] = entry.changedFiles ?? [];
   if (firstPath) {
-    if (isEngineeringInterface()) return engineeringFilesLabel("Updated", entry.changedFiles!);
+    const updated = studio.filesLabel("Updated", entry.changedFiles!);
+    if (updated) return updated;
     const path = formatWorkspaceRelativePath(firstPath, workspaceRoot);
     return entry.changedFiles!.length === 1
       ? path
@@ -307,19 +275,10 @@ export function liveWorkEntryLabel(
     undefined,
     resolve,
   );
-  if (toolPresentation) return t3ToolName(toolPresentation.displayName);
+  if (toolPresentation) return studio.toolName(toolPresentation.displayName);
   const command = entry.command?.trim();
-  const step =
-    command && isEngineeringInterface()
-      ? engineeringStepLabel(command)
-      : engineeringToolStep(entry);
-  if (step) {
-    return status === "inProgress"
-      ? step.doing
-      : status === "completed" || status === null || status === undefined
-        ? step.done
-        : `${step.done} (${status})`;
-  }
+  const step = studio.liveStepLabel(entry, command, status);
+  if (step) return step;
   if (command) {
     const program = commandProgramName(command);
     if (program == null) {
@@ -609,16 +568,13 @@ type MessagesTimelineRowContent =
       active: boolean;
       thought?: WorkLogEntry;
     }
-  | {
+  | ({
       kind: "working";
       id: string;
       createdAt: string | null;
       /** A running compaction owns the working row, so its divider appears only once it ends. */
       compacting?: true;
-      /** When the turn last showed something new, and its latest step (latestTurnActivity). */
-      quietSince?: string;
-      lastStep?: string;
-    }
+    } & studio.QuietTurnRow)
   | {
       kind: "thinking";
       id: string;
@@ -694,7 +650,7 @@ type MessagesTimelineRowContent =
       showAssistantCopyButton: boolean;
       assistantCopyStreaming: boolean;
       assistantTurnDiffSummary?: TurnDiffSummary | undefined;
-      references?: ReadonlyArray<AnswerReference>;
+      references?: ReadonlyArray<studio.AnswerReference>;
       revertTurnCount?: number | undefined;
       /** Another of your messages follows directly, so the two sit closer together. */
       groupedWithNext?: boolean;
@@ -1032,43 +988,6 @@ export function timelineEntryStartsResponse(entry: TimelineEntry): boolean {
     (entry.kind === "message" && entry.message.role === "user" && !timelineEntryIsSteer(entry)) ||
     (entry.kind === "work" && entry.entry.itemType === "notification")
   );
-}
-
-/** How long a working turn may show nothing new before its header says so. */
-export const QUIET_TURN_MS = 20 * 60_000;
-
-// Anything still streaming (a reply, a thought, a plan) counts from when it began: its text
-// changes skip the rows (replaceStreamingMessageRows), and a streaming turn is not quiet anyway.
-function entryChangedAtMs(entry: TimelineEntry): number {
-  const projected =
-    entry.kind === "work"
-      ? entry.entry.projectedItem
-      : entry.kind === "event"
-        ? entry.projectedItem
-        : undefined;
-  const item = projected?.item;
-  const changedAt = item && !("streaming" in item && item.streaming) ? item.updatedAt : undefined;
-  return changedAt ? DateTime.toEpochMillis(changedAt) : Date.parse(entry.createdAt);
-}
-
-/**
- * When the working turn last showed something new (an item started, changed or finished), and the
- * latest step it took, so a header can say "nothing new for 20m" instead of only counting up.
- */
-export function latestTurnActivity(
-  entries: ReadonlyArray<TimelineEntry>,
-  fromIndex: number,
-  turnStartedAt: string | null,
-): { at: string; step: string | null } | null {
-  let latestMs = turnStartedAt ? Date.parse(turnStartedAt) : Number.NaN;
-  let step: string | null = null;
-  for (let index = Math.max(0, fromIndex); index < entries.length; index += 1) {
-    const entry = entries[index]!;
-    const at = entryChangedAtMs(entry);
-    if (Number.isFinite(at) && !(at < latestMs)) latestMs = at;
-    if (entry.kind === "work") step = entry.entry.toolTitle ?? entry.entry.label;
-  }
-  return Number.isFinite(latestMs) ? { at: new Date(latestMs).toISOString(), step } : null;
 }
 
 function timelineEntryEnd(entry: TimelineEntry): string {
@@ -1700,7 +1619,6 @@ export function deriveMessagesTimelineRows(
     activeTurnStartedAt?: string | null;
     turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
     supportsConversationRollback: boolean;
-    /** The thread's folder, which the files an answer lists must lie in. */
     workspaceRoot?: string | undefined;
     threadStartCheckpointAvailable?: boolean;
     availableRevertTurnCounts?: ReadonlySet<number> | undefined;
@@ -1972,11 +1890,6 @@ export function deriveMessagesTimelineRows(
   const appendWorkingRow = () => {
     if (compactionOnlyRunFinished || zenAnswerLanded) return;
     if (runningCompactionRunId !== null && activeCompactionRunId === null) return;
-    const activity = latestTurnActivity(
-      timelineEntries,
-      activeTurnHeaderIndex - 1,
-      input.activeTurnStartedAt ?? null,
-    );
     nextRows.push({
       kind: "working",
       id: "working-indicator-row",
@@ -1985,8 +1898,11 @@ export function deriveMessagesTimelineRows(
         input.activeTurnStartedAt ??
         null,
       ...(activeCompactionRunId !== null ? { compacting: true as const } : {}),
-      ...(activity ? { quietSince: activity.at } : {}),
-      ...(activity?.step ? { lastStep: activity.step } : {}),
+      ...studio.quietTurnRow(
+        timelineEntries,
+        activeTurnHeaderIndex - 1,
+        input.activeTurnStartedAt ?? null,
+      ),
     });
   };
   let hasActivityRow = false;
@@ -2074,9 +1990,7 @@ export function deriveMessagesTimelineRows(
         createdAt: supersededFold.createdAt,
         runId: supersededFold.runId,
         attemptId: supersededFold.attemptId,
-        label: isEngineeringInterface()
-          ? resolve(msg("Stopped to read your message"))
-          : resolve(msg("Superseded attempt")),
+        label: resolve(msg("Superseded attempt")),
         expanded: input.expandedAttemptIds?.has(supersededFold.attemptId) ?? false,
       });
     }
@@ -2230,7 +2144,7 @@ export function deriveMessagesTimelineRows(
             isExpandedToolGroup: false,
             displayLabel:
               toolGroupAction(singleEntry) === "edit"
-                ? engineeringSummary(
+                ? studio.groupSummary(
                     summarizeToolGroup(visibleGroupedEntries, resolve).summary,
                     visibleGroupedEntries,
                   )
@@ -2270,7 +2184,7 @@ export function deriveMessagesTimelineRows(
             summary:
               singleEntry !== null && !workLogEntryIsToolLike(singleEntry)
                 ? singleEntry.label
-                : engineeringSummary(
+                : studio.groupSummary(
                     summarizeToolGroup(visibleGroupedEntries, resolve).summary,
                     visibleGroupedEntries,
                   ),
@@ -2402,20 +2316,6 @@ export function deriveMessagesTimelineRows(
       terminalAssistantMessageIds.has(timelineEntry.message.id) &&
       !assistantResponseStillInProgress;
 
-    // The run's settled final answer lists what it cites, in the engineering interface. The list
-    // reads every entry of the chat, not the rows: a collapsed turn hides rows, not what the agent
-    // opened.
-    const references =
-      isEngineeringInterface() && showAssistantMeta && !timelineEntry.message.streaming
-        ? turnReferences({
-            id: timelineEntry.message.id,
-            answer: timelineEntry.message.text,
-            runId: timelineEntry.message.runId,
-            entries: input.timelineEntries,
-            root: input.workspaceRoot ?? null,
-          })
-        : [];
-
     nextRows.push({
       kind: "message",
       id: timelineEntry.id,
@@ -2435,7 +2335,7 @@ export function deriveMessagesTimelineRows(
         timelineEntry.message.role === "assistant"
           ? turnDiffSummaryByAssistantMessageId.get(timelineEntry.message.id)
           : undefined,
-      ...(references.length === 0 ? {} : { references }),
+      ...studio.answerReferences(timelineEntry.message, showAssistantMeta, input),
       revertTurnCount:
         timelineEntry.message.role === "user"
           ? revertTurnCountByUserMessageId.get(timelineEntry.message.id)
@@ -2878,15 +2778,12 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
   if (a.kind !== b.kind || a.id !== b.id) return false;
 
   switch (a.kind) {
-    case "working": {
-      const bw = b as typeof a;
+    case "working":
       return (
-        a.createdAt === bw.createdAt &&
-        a.compacting === bw.compacting &&
-        a.quietSince === bw.quietSince &&
-        a.lastStep === bw.lastStep
+        a.createdAt === (b as typeof a).createdAt &&
+        a.compacting === (b as typeof a).compacting &&
+        studio.quietTurnRowUnchanged(a, b as typeof a)
       );
-    }
     case "thinking": {
       const bt = b as typeof a;
       return (
