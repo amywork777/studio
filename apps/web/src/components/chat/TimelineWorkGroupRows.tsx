@@ -365,7 +365,7 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
       Working for <WorkingTimer createdAt={row.createdAt} />
     </T>
   ) : (
-    <T>Working…</T>
+    <T>Working...</T>
   );
   return (
     <div className="border-b border-border/60 pb-2 pt-1">
