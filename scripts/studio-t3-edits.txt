@@ -128,9 +128,7 @@ apps/server/src/mcp/toolkits/pullRequests/tools.ts
 apps/server/src/mcp/toolkits/toolSearch/tools.ts
 apps/server/src/mcp/WorktreeMcpService.ts
 apps/server/src/observability/RpcInstrumentation.ts
-apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts
 apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts
-apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.test.ts
 apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.ts
 apps/server/src/orchestration-v2/CheckpointService.ts
 apps/server/src/orchestration-v2/ContextHandoffService.ts
@@ -145,9 +143,7 @@ apps/server/src/orchestration-v2/pullRequestWatch.ts
 apps/server/src/orchestration-v2/PullRequestWatchReactor.ts
 apps/server/src/orchestration-v2/RestartBackgroundNote.ts
 apps/server/src/orchestration-v2/RestartContinuation.ts
-apps/server/src/orchestration-v2/RuntimePolicy.test.ts
 apps/server/src/orchestration-v2/RuntimePolicy.ts
-apps/server/src/orchestration-v2/UsageLimitRecoveryWorker.test.ts
 apps/server/src/orchestration-v2/UserFacingErrors.ts
 apps/server/src/os-jank.test.ts
 apps/server/src/os-jank.ts
