@@ -39,22 +39,39 @@ export const mFallback = ((message, options) => {
     : realGtFallback(brandCopy(message), options);
 }) as typeof realMFallback;
 
-export function useGT(...args: Parameters<typeof useT3GT>): GTFunction {
-  const gt = useT3GT(...args);
-  const branded: GTFunction = (message, options) => gt(brandCopy(message), options);
+// One branded function per gt-react function, so each keeps gt-react's identity across renders:
+// components hand them to effects and memoized values, which a new function each render would rerun.
+const brandedGT = new WeakMap<GTFunction, GTFunction>();
+const brandedMessages = new WeakMap<GTFunction, MessagesFunction>();
+
+const brandGT = (gt: GTFunction): GTFunction => {
+  let branded = brandedGT.get(gt);
+  if (branded === undefined) {
+    branded = (message, options) => gt(brandCopy(message), options);
+    brandedGT.set(gt, branded);
+  }
   return branded;
+};
+
+export function useGT(...args: Parameters<typeof useT3GT>): GTFunction {
+  return brandGT(useT3GT(...args));
 }
 
 // gt-react's own useMessages, over the useGT above.
 export function useMessages(...args: Parameters<typeof useT3GT>) {
-  const gt = useGT(...args);
-  const messages: MessagesFunction = (message, options = {}) => {
-    if (message == null) return message;
-    const decoded = decodeOptions(message);
-    return typeof decoded?.$_source === "string"
-      ? gt(decoded.$_source, decoded)
-      : gt(message, options);
-  };
+  const realGT = useT3GT(...args);
+  let messages = brandedMessages.get(realGT);
+  if (messages === undefined) {
+    const gt = brandGT(realGT);
+    messages = (message, options = {}) => {
+      if (message == null) return message;
+      const decoded = decodeOptions(message);
+      return typeof decoded?.$_source === "string"
+        ? gt(decoded.$_source, decoded)
+        : gt(message, options);
+    };
+    brandedMessages.set(realGT, messages);
+  }
   return messages as ReturnType<typeof realUseMessages>;
 }
 

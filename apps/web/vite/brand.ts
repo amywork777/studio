@@ -136,19 +136,20 @@ const brandIcon = (brand: Brand, urlPath: string): string | null => {
   return NodeFS.existsSync(file) ? file : null;
 };
 
-export function brandPlugin(dir = process.env.T3CODE_BRAND_DIR?.trim()): Plugin | null {
+export function brandPlugin(dir = process.env.T3CODE_BRAND_DIR?.trim()): Plugin[] | null {
   const brand = readBrand(dir);
   if (brand === null) return null;
+  return [brandCopyPlugin(), brandFilesPlugin(brand)];
+}
+
+/**
+ * Sends T3's English through Studio's name (`components/workbench/i18n`). Ahead of Vite's own
+ * resolver, which would otherwise find the real gt-react first.
+ */
+function brandCopyPlugin(): Plugin {
   return {
-    name: "t3code:brand",
-    config: () => ({
-      define: {
-        "import.meta.env.VITE_APP_MARK_URL": JSON.stringify(brand.markUrl ?? ""),
-        "import.meta.env.VITE_APP_LAYOUT": JSON.stringify(brand.layout ?? ""),
-        "import.meta.env.VITE_APP_FOCUS": JSON.stringify(brand.focus ?? ""),
-        "import.meta.env.VITE_APP_STARTERS": JSON.stringify(JSON.stringify(brand.starters)),
-      },
-    }),
+    name: "t3code:brand-copy",
+    enforce: "pre",
     resolveId(source, importer) {
       const wrapper = GT_WRAPPERS[source];
       if (wrapper === undefined || importer === undefined) return null;
@@ -162,6 +163,20 @@ export function brandPlugin(dir = process.env.T3CODE_BRAND_DIR?.trim()): Plugin 
       const config = JSON.parse(NodeFS.readFileSync(GT_CONFIG, "utf8")) as Record<string, unknown>;
       return JSON.stringify({ ...config, locales: [] });
     },
+  };
+}
+
+function brandFilesPlugin(brand: Brand): Plugin {
+  return {
+    name: "t3code:brand",
+    config: () => ({
+      define: {
+        "import.meta.env.VITE_APP_MARK_URL": JSON.stringify(brand.markUrl ?? ""),
+        "import.meta.env.VITE_APP_LAYOUT": JSON.stringify(brand.layout ?? ""),
+        "import.meta.env.VITE_APP_FOCUS": JSON.stringify(brand.focus ?? ""),
+        "import.meta.env.VITE_APP_STARTERS": JSON.stringify(JSON.stringify(brand.starters)),
+      },
+    }),
     // Ahead of Vite's own static files, so the brand's icons win over public/.
     configureServer(server) {
       // `theme.css` is inlined into the page, so an edit to it reloads the page rather than waiting for a restart.
