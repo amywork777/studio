@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { brandCopy, namesT3 } from "./brandCopy";
+import { brandCopy, namesT3 } from "@t3tools/shared/studioBrandCopy";
 
 export * from "gt-react";
 
