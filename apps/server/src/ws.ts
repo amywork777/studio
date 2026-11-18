@@ -1,7 +1,6 @@
 import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- A synchronous digest inside the pure provider mapping.
 import * as NodeCrypto from "node:crypto";
-import * as Config from "effect/Config";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as NodeHttpServerRequest from "@effect/platform-node/NodeHttpServerRequest";
@@ -121,10 +120,7 @@ import * as ExternalLauncher from "./process/externalLauncher.ts";
 import * as ThreadManagementService from "./orchestration-v2/ThreadManagementService.ts";
 import * as CommandOutputHub from "./orchestration-v2/CommandOutputHub.ts";
 import * as McpAppRequests from "./mcpApps/McpAppRequests.ts";
-import * as PluginService from "./plugins/PluginService.ts";
-import * as StudioProjects from "./studio/StudioProjects.ts";
-import * as StudioGitHubSignIn from "./studio/StudioGitHubSignIn.ts";
-import * as StudioSync from "./studio/StudioSync.ts";
+import * as StudioWs from "./studio/StudioWs.ts";
 import * as ProviderSessionManager from "./orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadLaunchService from "./orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadMessageIntake from "./orchestration-v2/ThreadMessageIntake.ts";
@@ -214,7 +210,6 @@ import { parseBase64DataUrl } from "./imageMime.ts";
 import { deletePendingAttachment, issueAttachmentUploadUrl } from "./assets/AttachmentUpload.ts";
 import * as PortScanner from "./preview/PortScanner.ts";
 import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
-import * as StudioSamples from "./studio/StudioSamples.ts";
 import * as KnownWorkspaces from "./workspace/KnownWorkspaces.ts";
 import * as WorkspaceFileSystem from "./workspace/WorkspaceFileSystem.ts";
 import { readWorkflowScript } from "./orchestration-v2/workflowScriptQuery.ts";
@@ -249,9 +244,8 @@ import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
 import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
-import * as SkillUse from "./telemetry/SkillUse.ts";
-import * as StudioAnalytics from "./telemetry/StudioAnalytics.ts";
-import * as PluginUsageEvents from "./plugins/usageEvents.ts";
+import { commandFeatureUsage, featureUsage } from "./telemetry/FeatureUsage.ts";
+import type { TelemetryOwner } from "./telemetry/Identify.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
 import * as TriageService from "./triage/TriageService.ts";
@@ -283,6 +277,7 @@ import {
   SOCKET_FRAME_PARTS_QUERY_PARAM,
   splitLargeSocketFrames,
 } from "@t3tools/shared/socketFrameParts";
+import { isTelemetryIdHash } from "@t3tools/shared/telemetryId";
 import {
   sameUsageLimitCommandCoverage,
   withUsageLimitsCommands,
@@ -858,6 +853,28 @@ function readClientAnalyticsProps(request: HttpServerRequest.HttpServerRequest) 
     ...(hasDeviceModel ? { deviceModel, clientDeviceModel: deviceModel } : {}),
     ...(isClientConnectionMethod(connectionMethod) ? { connectionMethod } : {}),
   };
+}
+
+/**
+ * Owners a connecting client reports: its hashed T3 Connect account and its
+ * hashed device id. Only hashes are accepted, so a raw id never reaches analytics.
+ */
+function readClientOwners(
+  request: HttpServerRequest.HttpServerRequest,
+): ReadonlyArray<TelemetryOwner> {
+  const url = requestUrl(request);
+  if (Option.isNone(url)) {
+    return [];
+  }
+  const params = url.value.searchParams;
+  return (
+    [
+      ["connect", params.get("clientOwner")],
+      ["device", params.get("clientDevice")],
+    ] as const
+  ).flatMap(([source, ownerId]) =>
+    ownerId !== null && isTelemetryIdHash(ownerId) ? [{ source, ownerId }] : [],
+  );
 }
 
 const enrichProjectShells = Effect.fn("ws.orchestrationV2.enrichProjectShells")(
@@ -1441,28 +1458,25 @@ export const layerWsRpc = (
 
       const providerSessionsV2 = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const mcpAppRequests = yield* McpAppRequests.McpAppRequests;
-      const plugins = yield* PluginService.PluginService;
-      const studioProjects = yield* StudioProjects.StudioProjects;
-      const studioSync = yield* StudioSync.StudioSync;
-      const studioGitHubSignIn = yield* StudioGitHubSignIn.StudioGitHubSignIn;
       const analytics = yield* AnalyticsService.AnalyticsService;
       const originProps = clientAnalyticsProps;
-      // Which of Studio's skills and jobs a message asked for, by names from a closed list only.
-      const recordSkillsUsed = (text: string) =>
-        Effect.forEach(
-          SkillUse.skillsUsed(text),
-          (use) => analytics.record("studio.skill.used", { ...use }).pipe(Effect.ignore),
-          { discard: true },
-        );
       const recordClientCommandAnalytics = (command: OrchestrationV2Command) => {
-        switch (command.type) {
-          case "message.dispatch":
-            return analytics
-              .record("client.turn.requested", originProps)
-              .pipe(Effect.ignore, Effect.andThen(recordSkillsUsed(command.text)));
-          default:
-            return Effect.void;
-        }
+        const usage = commandFeatureUsage(command);
+        return Effect.all(
+          [
+            command.type === "message.dispatch"
+              ? analytics.record("client.turn.requested", originProps)
+              : Effect.void,
+            usage === undefined
+              ? Effect.void
+              : analytics.record("feature.used", {
+                  ...usage,
+                  ...(originProps.surface === undefined ? {} : { surface: originProps.surface }),
+                }),
+            StudioWs.recordCommandSkills(analytics, command),
+          ],
+          { discard: true },
+        ).pipe(Effect.ignore);
       };
       const threadLaunch = yield* ThreadLaunchService.ThreadLaunchService;
       const commandOutputHub = yield* CommandOutputHub.CommandOutputHub;
@@ -1829,13 +1843,7 @@ export const layerWsRpc = (
         const auth = yield* serverAuth.getDescriptor();
         const scratchWorkspaceRoot = yield* managedFolders.scratchRoot;
         const lastEventLoopStall = yield* eventLoopMonitor.latestNoticeableStall;
-        // The finished sample projects an app built on T3 ships (Studio's examples).
-        const samplesDir = yield* Config.String("T3CODE_SAMPLES_DIR").pipe(
-          Config.withDefault(""),
-          Config.map((folder) => folder.trim()),
-          Effect.orElseSucceed(() => ""),
-        );
-        const samples = samplesDir === "" ? [] : yield* StudioSamples.readSamples(samplesDir);
+        const studioSamples = yield* StudioWs.configSamples;
         const discovery = yield* resolveOpenDiscoveryForConfig({
           editors: externalLauncher.resolveAvailableEditors(),
           fileManagerRevealKind: externalLauncher.resolveFileManagerRevealKind(),
@@ -1884,10 +1892,7 @@ export const layerWsRpc = (
                 }
               : {}),
             otlpLogsEnabled: config.otlpLogsUrl !== undefined,
-            usageDataAvailable: yield* StudioAnalytics.usageDataAvailable.pipe(
-              Effect.orElseSucceed(() => false),
-            ),
-            usageId: yield* StudioAnalytics.usageId.pipe(Effect.orElseSucceed(() => null)),
+            ...(yield* StudioWs.configObservability),
           },
           settings,
           ...(serverSettings.managedPolicy === undefined
@@ -1910,7 +1915,7 @@ export const layerWsRpc = (
           }),
           newProjectsRoot: managedFolders.namedProjectsRoot,
           ...(lastEventLoopStall === undefined ? {} : { lastEventLoopStall }),
-          ...(samples.length === 0 ? {} : { samples }),
+          ...studioSamples,
           serverTime: DateTime.formatIso(yield* DateTime.now),
         };
       });
@@ -1972,7 +1977,9 @@ export const layerWsRpc = (
         return yield* mutateProjectWithClone(projectService, projectCloneTracker, mutation);
       });
 
+      const studioHandlers = yield* StudioWs.makeHandlers(analytics, refreshGitStatus);
       const handlers = ServerWsRpcGroup.of({
+        ...studioHandlers,
         [WS_METHODS.issuesList]: (input) => issues.list(input),
         [WS_METHODS.issuesDetail]: (input) => issues.detail(input),
         [WS_METHODS.issuesComments]: (input) => issues.comments(input),
@@ -2229,23 +2236,11 @@ export const layerWsRpc = (
                   Effect.tap((result) =>
                     result.resumed
                       ? Effect.void
-                      : // The AI a new chat starts with, by its kind (Claude, Codex and the rest).
-                        providerInstances.getInstance(input.modelSelection.instanceId).pipe(
-                          Effect.map((instance) => instance?.driverKind ?? "unknown"),
-                          Effect.orElseSucceed(() => "unknown"),
-                          Effect.flatMap((provider) =>
-                            analytics.record("client.thread.started", { ...originProps, provider }),
-                          ),
-                          Effect.andThen(
-                            input.initialMessage === undefined
-                              ? Effect.void
-                              : analytics
-                                  .record("client.turn.requested", originProps)
-                                  .pipe(
-                                    Effect.andThen(recordSkillsUsed(input.initialMessage.text)),
-                                  ),
-                          ),
-                          Effect.ignore,
+                      : StudioWs.recordThreadStarted(
+                          analytics,
+                          providerInstances,
+                          originProps,
+                          input,
                         ),
                   ),
                   Effect.map((result) => ({
@@ -2569,100 +2564,6 @@ export const layerWsRpc = (
                 }),
             };
           }),
-        [WS_METHODS.pluginsCatalog]: (input) => plugins.catalog(input),
-        [WS_METHODS.pluginsList]: () => plugins.list,
-        [WS_METHODS.pluginsInstall]: (input) => plugins.install(input.key),
-        [WS_METHODS.pluginsSetEnabled]: (input) =>
-          plugins.setEnabled(input.pluginId, input.enabled),
-        [WS_METHODS.pluginsUninstall]: (input) =>
-          plugins.uninstall(input.pluginId).pipe(Effect.as({})),
-        [WS_METHODS.pluginsUpdate]: (input) => plugins.update(input.pluginId),
-        [WS_METHODS.pluginsSkillRead]: (input) => plugins.readSkill(input),
-        [WS_METHODS.pluginsSkillCreate]: (input) => plugins.createSkill(input),
-        [WS_METHODS.pluginsSkillSave]: (input) => plugins.saveSkill(input),
-        [WS_METHODS.pluginsSkillCopy]: (input) => plugins.copySkill(input),
-        [WS_METHODS.pluginsSkillRemove]: (input) =>
-          plugins.removeSkill(input.skill).pipe(Effect.as({})),
-        [WS_METHODS.pluginsOpenView]: (input) => plugins.openView(input),
-        [WS_METHODS.pluginsRequest]: (input) =>
-          plugins.request(input).pipe(
-            Effect.tap(({ result }) => {
-              const usage = PluginUsageEvents.cadUsageEvent(input.method, input.params, result);
-              return usage === null
-                ? Effect.void
-                : analytics.record(usage.event, usage.properties).pipe(Effect.ignore);
-            }),
-          ),
-        [WS_METHODS.pluginsModelPictures]: (input) => plugins.modelPictures(input),
-        [WS_METHODS.studioProjectsList]: () => studioProjects.list,
-        [WS_METHODS.studioProjectsSave]: (input) =>
-          studioProjects.save(input).pipe(
-            // A new project counts by its starter's id (blank, sheet metal, an example) and how it
-            // came to be (made, imported, restored, copied), no name.
-            Effect.tap(() => {
-              if (input.id !== null) return Effect.void;
-              const { template } = input.project;
-              return analytics
-                .record("studio.project.created", {
-                  template:
-                    template !== null && /^[a-z0-9-]{1,40}$/.test(template) ? template : "none",
-                  origin: input.origin ?? "new",
-                })
-                .pipe(Effect.ignore);
-            }),
-          ),
-        [WS_METHODS.studioProjectsTrash]: (input) =>
-          studioProjects[input.action](input.id).pipe(
-            // Moving a project to Trash, back, or out for good counts by the action alone.
-            Effect.tap(() =>
-              (input.action === "trash"
-                ? analytics.record("studio.project.trashed")
-                : input.action === "restore"
-                  ? analytics.record("studio.project.restored")
-                  : analytics.record("studio.project.deleted")
-              ).pipe(Effect.ignore),
-            ),
-          ),
-        [WS_METHODS.studioSyncSend]: (input) =>
-          studioSync.send(input).pipe(
-            // A Sync counts by how it ended, never by the project or its online copy.
-            Effect.tap((result) =>
-              analytics
-                .record("studio.sync.sent", { outcome: result.sent ? "sent" : "unchanged" })
-                .pipe(Effect.ignore),
-            ),
-            Effect.tapError(() =>
-              analytics.record("studio.sync.sent", { outcome: "failed" }).pipe(Effect.ignore),
-            ),
-            // A failed first send can still have linked the online copy, so both ways refresh.
-            Effect.ensuring(
-              repositoryIdentityResolver
-                .resolve(input.cwd, { refresh: true })
-                .pipe(Effect.andThen(refreshGitStatus(input.cwd)), Effect.ignore({ log: true })),
-            ),
-          ),
-        [WS_METHODS.studioSyncRestore]: (input) =>
-          managedFolders.newProjectsRoot.pipe(
-            Effect.flatMap((root) => studioSync.restore({ ...input, root })),
-            Effect.tap(() =>
-              analytics.record("studio.sync.restored", { outcome: "restored" }).pipe(Effect.ignore),
-            ),
-            Effect.tapError(() =>
-              analytics.record("studio.sync.restored", { outcome: "failed" }).pipe(Effect.ignore),
-            ),
-          ),
-        [WS_METHODS.studioSyncStatus]: (input) => studioSync.status(input),
-        [WS_METHODS.studioGitHubSignInStart]: () => studioGitHubSignIn.start,
-        [WS_METHODS.studioGitHubSignInCheck]: (input) =>
-          studioGitHubSignIn
-            .check(input)
-            .pipe(
-              Effect.tap(({ state }) =>
-                state === "signed-in"
-                  ? analytics.record("studio.github.connected").pipe(Effect.ignore)
-                  : Effect.void,
-              ),
-            ),
         [WS_METHODS.mcpAppsCallTool]: (input) => mcpAppRequests.callTool(input),
         [WS_METHODS.mcpAppsToolInfo]: (input) => mcpAppRequests.toolInfo(input),
         [WS_METHODS.mcpAppsUpdateModelContext]: (input) => mcpAppRequests.updateModelContext(input),
@@ -3037,13 +2938,6 @@ export const layerWsRpc = (
                 (cause) => new OrchestrationDispatchCommandError({ message: cause.message, cause }),
               ),
             ),
-        [WS_METHODS.projectsStartHistory]: (input) =>
-          managedFolders.startHistory(input).pipe(
-            Effect.tap(() => refreshGitStatus(input.cwd)),
-            Effect.mapError(
-              (cause) => new OrchestrationDispatchCommandError({ message: cause.message, cause }),
-            ),
-          ),
         [WS_METHODS.projectCloneCancel]: (input) =>
           projectCloneTracker.cancel(input.projectId).pipe(Effect.map((applied) => ({ applied }))),
         [WS_METHODS.projectCloneRetry]: (input) =>
@@ -3730,6 +3624,7 @@ export const layer = Layer.unwrap(
         }
         const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
         const sessions = yield* SessionStore.SessionStore;
+        const analytics = yield* AnalyticsService.AnalyticsService;
         const session = yield* serverAuth.authenticateWebSocketUpgrade(request, "rpc").pipe(
           Effect.catchIf(EnvironmentAuth.isServerAuthCredentialError, (error) =>
             failEnvironmentAuthInvalid(
@@ -3748,17 +3643,32 @@ export const layer = Layer.unwrap(
           ];
         }
         const clientAnalyticsProps = readClientAnalyticsProps(request);
-        // Studio still counts connections (README's "Usage data"), reconnects included.
-        yield* AnalyticsService.AnalyticsService.pipe(
-          Effect.flatMap((analytics) => analytics.record("client.connected", clientAnalyticsProps)),
-        );
+        yield* analytics.recordOwners(readClientOwners(request), "client");
+        yield* StudioWs.recordConnected(analytics, clientAnalyticsProps);
         const reportProfiles = yield* serverBrowser.profileReporter;
         const rpcWebSocketHttpEffect = yield* Effect.gen(function* () {
           const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
           yield* RpcServer.make(ServerWsRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
             Effect.provideService(RpcServer.Protocol, withOutputWindow(protocol)),
             Effect.provide(
-              Layer.merge(RpcAuthorization.layer(session.scopes), rpcInstrumentationLayer),
+              Layer.merge(
+                RpcAuthorization.layer(session.scopes, (method, payload) => {
+                  // Anonymous product signal: the feature and its enum variant,
+                  // credited to the connecting client's surface only.
+                  const usage = featureUsage(method, payload);
+                  return usage === undefined
+                    ? Effect.void
+                    : analytics
+                        .record("feature.used", {
+                          ...usage,
+                          ...(clientAnalyticsProps.surface === undefined
+                            ? {}
+                            : { surface: clientAnalyticsProps.surface }),
+                        })
+                        .pipe(Effect.ignore);
+                }),
+                rpcInstrumentationLayer,
+              ),
             ),
             Effect.forkScoped,
           );
