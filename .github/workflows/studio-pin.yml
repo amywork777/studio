@@ -1,0 +1,41 @@
+name: Studio pin
+
+# Every hour, moves the text-to-cad pin to the head of studio-base and merges that once its checks
+# pass (scripts/studio-pin-studio-base.sh), so a change merged on the fork needs no review here.
+# It stops with a notice until the repository has the STUDIO_BUMP_TOKEN secret (STUDIO.md, Releasing).
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Move the pin to studio-base
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # As in studio-text-to-cad-bump.yml: only the script, without actions/checkout's submodule cleanup.
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic $auth" fetch --no-tags --depth=1 --filter=blob:none origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/scripts/'
+          git -c http.extraheader="AUTHORIZATION: basic $auth" checkout --detach FETCH_HEAD
+
+      - name: Move it
+        env:
+          STUDIO_BUMP_TOKEN: ${{ secrets.STUDIO_BUMP_TOKEN }}
+        run: bash scripts/studio-pin-studio-base.sh
