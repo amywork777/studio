@@ -41,6 +41,12 @@ export function applyStudioAppBundle(input: {
     setDefault(env, "STUDIO_TEXT_TO_CAD_VERSION", settings.textToCad);
   }
   setDefault(env, "T3CODE_DESKTOP_PROFILE", settings.profile);
+  // New projects go somewhere a person sees; the server makes the folder on first use.
+  setDefault(
+    env,
+    "STUDIO_NEW_PROJECTS_DIR",
+    NodePath.join(input.homeDirectory, "Documents", "Studio"),
+  );
   setDefault(env, "T3CODE_DEFAULT_PLUGINS", settings.plugins.join(","));
   // A build made with a usage receiver sends anonymous usage counts there, which Settings can turn off.
   if (settings.usageUrl !== undefined) setDefault(env, "T3CODE_USAGE_URL", settings.usageUrl);

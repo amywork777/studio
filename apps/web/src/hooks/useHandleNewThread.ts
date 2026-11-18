@@ -20,7 +20,11 @@ import {
   getProjectOrderKey,
   selectProjectGroupingSettings,
 } from "@t3tools/client-runtime/state/project-grouping";
-import { resolveNewThreadEnvMode, resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import {
+  newProjectsFolderOf,
+  resolveNewThreadEnvMode,
+  resolveProjectSettings,
+} from "@t3tools/shared/projectSettings";
 import {
   readProject,
   readProjects,
@@ -211,7 +215,9 @@ export function createNewThreadHandler(router: AnyRouter) {
           projectFile,
         ),
         workspaceRoot: project?.workspaceRoot ?? null,
-        newProjectsRoot: environmentServerConfigs.get(projectRef.environmentId)?.newProjectsRoot,
+        newProjectsRoot: newProjectsFolderOf(
+          environmentServerConfigs.get(projectRef.environmentId),
+        ),
         projectHasThreads:
           readThreadShells().some(
             (thread) =>

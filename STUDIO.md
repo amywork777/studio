@@ -232,7 +232,10 @@ TEXT_TO_CAD_DEV=1 vpr studio:desktop    # the Electron app (what run-studio.sh r
 `scripts/studio.ts` reads the checkout as a plugin marketplace and turns its `text-to-cad` plugin on
 at first start, brands the app from `brand/`, and keeps state in `~/.text-to-cad-studio` (never in
 T3 Code's `~/.t3`). `TEXT_TO_CAD_ROOT` points at another checkout; `TEXT_TO_CAD_STUDIO_HOME` moves
-the state and `STUDIO_PROJECTS_DIR` the projects (`~/studio-projects`). Every checkout's engine
+the state and `STUDIO_PROJECTS_DIR` the project records (`~/studio-projects`, each project's
+`project.json`). A new project's own folder goes in `~/Documents/Studio` (made when missing;
+`STUDIO_NEW_PROJECTS_DIR` moves it), or the one New's Location or Settings' New projects folder
+names. Existing projects keep their folders wherever they are, older ones in the state's `projects`. Every checkout's engine
 takes port 3346, so a second checkout's Studio beside a running one also needs
 `TEXT_TO_CAD_STUDIO_ENGINE_PORT` (another free port): without it the `text-to-cad` plugin's CAD
 server fails to start, `port 3346 is held by another CAD engine`.

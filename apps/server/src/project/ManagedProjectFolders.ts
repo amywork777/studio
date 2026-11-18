@@ -7,6 +7,8 @@ import {
   type ThreadId,
   VcsProcessSpawnError,
 } from "@t3tools/contracts";
+import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { newProjectFolderName } from "@t3tools/shared/path";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
@@ -26,6 +28,7 @@ import * as Schema from "effect/Schema";
 
 import * as ServerConfig from "../config.ts";
 import * as GitWorkflow from "../git/GitWorkflowService.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as ProjectService from "./ProjectService.ts";
 
@@ -129,13 +132,19 @@ export class ManagedProjectFolders extends Context.Service<
       readonly threadId: ThreadId;
       readonly text: string;
     }) => Effect.Effect<Option.Option<string>, ScratchFolderError>;
+    /** The built-in folder new projects go in, when the `newProjectsFolder` setting is empty. */
     readonly namedProjectsRoot: string;
+    /** Where a new project goes now: the `newProjectsFolder` setting, else `namedProjectsRoot`. */
+    readonly newProjectsRoot: Effect.Effect<string>;
     /**
-     * Removes failed/cancelled creations' folders only while no project owns them. Without a
-     * working Git (none installed, no identity, a signing prompt) the project and its files are
-     * kept, and `commitError` says why it has no first commit.
+     * Makes `<parentFolder or newProjectsRoot>/<name>`, removing failed creations' folders while no
+     * project owns them. Without a working Git the files are kept and `commitError` says why. In a
+     * chosen folder inside a repository no history is started: the files join it uncommitted.
      */
-    readonly createNamedProject: (input: { readonly name: string }) => Effect.Effect<
+    readonly createNamedProject: (input: {
+      readonly name: string;
+      readonly parentFolder?: string;
+    }) => Effect.Effect<
       {
         readonly projectId: ProjectId;
         readonly workspaceRoot: string;
@@ -253,6 +262,9 @@ const make = Effect.gen(function* () {
   const git = yield* GitVcsDriver.GitVcsDriver;
   const projects = yield* ProjectService.ProjectService;
   const random = yield* SecureRandom.SecureRandom;
+  const settings = yield* ServerSettings.ServerSettingsService;
+  const home = yield* HostProcess.HomeDirectory;
+  const studioNewProjectsDir = (yield* HostProcess.Environment).STUDIO_NEW_PROJECTS_DIR?.trim();
   // A fork that names itself (VITE_APP_BASE_NAME, as its web and desktop builds read it) is not T3 Code.
   const forkName = yield* Config.String("VITE_APP_BASE_NAME").pipe(
     Config.withDefault(""),
@@ -418,36 +430,55 @@ const make = Effect.gen(function* () {
     );
   });
 
-  const namedProjectsRoot = path.resolve(config.baseDir, "projects");
+  // Studio sets a visible one (`studioAppBundle.ts`); T3 Code keeps its data directory's.
+  const namedProjectsRoot = studioNewProjectsDir
+    ? path.resolve(expandHomePath(studioNewProjectsDir, home))
+    : path.resolve(config.baseDir, "projects");
+
+  /** A chosen folder as a full path, `~` expanded; a relative one is refused, not read against cwd. */
+  const chosenFolder = (folder: string) => {
+    const expanded = expandHomePath(folder.trim(), home);
+    return path.isAbsolute(expanded)
+      ? Effect.succeed(path.resolve(expanded))
+      : Effect.fail(
+          new NamedProjectFolderError({
+            folder,
+            cause: `"${folder}" is not a full path to a folder.`,
+          }),
+        );
+  };
+
+  const configuredRoot = settings.getSettings.pipe(
+    Effect.map((current) => current.newProjectsFolder.trim() || namedProjectsRoot),
+    Effect.orElseSucceed(() => namedProjectsRoot),
+  );
+
+  const newProjectsRoot: ManagedProjectFolders["Service"]["newProjectsRoot"] = configuredRoot.pipe(
+    Effect.flatMap(chosenFolder),
+    Effect.orElseSucceed(() => namedProjectsRoot),
+  );
 
   const claimNamedFolder = Effect.fn("ManagedProjectFolders.claimNamedFolder")(function* (
     name: string,
+    parentFolder: string | undefined,
   ) {
+    const root = yield* chosenFolder(parentFolder ?? (yield* configuredRoot));
     yield* fileSystem
-      .makeDirectory(namedProjectsRoot, { recursive: true })
-      .pipe(
-        Effect.mapError(
-          (cause) => new NamedProjectFolderError({ folder: namedProjectsRoot, cause }),
-        ),
-      );
+      .makeDirectory(root, { recursive: true })
+      .pipe(Effect.mapError((cause) => new NamedProjectFolderError({ folder: root, cause })));
     const folderName = newProjectFolderName(name);
     const claimed = yield* claimFreeFolder(
       (attempt) =>
         Effect.succeed(
           attempt > MAX_NAMED_FOLDER_ATTEMPTS
             ? Option.none()
-            : Option.some(
-                path.join(
-                  namedProjectsRoot,
-                  attempt === 1 ? folderName : `${folderName}-${attempt}`,
-                ),
-              ),
+            : Option.some(path.join(root, attempt === 1 ? folderName : `${folderName}-${attempt}`)),
         ),
       (folder, cause) => new NamedProjectFolderError({ folder, cause }),
     );
-    if (Option.isSome(claimed)) return claimed.value;
+    if (Option.isSome(claimed)) return { root, workspaceRoot: claimed.value };
     return yield* new NamedProjectFolderError({
-      folder: path.join(namedProjectsRoot, folderName),
+      folder: path.join(root, folderName),
       cause: `Every folder name for "${folderName}" is taken.`,
     });
   });
@@ -492,6 +523,7 @@ const make = Effect.gen(function* () {
   const scaffoldRepository = Effect.fn("ManagedProjectFolders.scaffoldRepository")(function* (
     cwd: string,
     name: string,
+    insideRepository: boolean,
   ) {
     yield* fileSystem.writeFileString(
       path.join(cwd, "README.md"),
@@ -502,6 +534,8 @@ const make = Effect.gen(function* () {
       path.join(cwd, "assets", "icon.svg"),
       namedProjectIconSvg(name),
     );
+    // A nested repository would hide the project from the person's own history and versions.
+    if (insideRepository) return undefined;
     // Force explicit filenames so global ignore rules (say `*.svg`) cannot drop them.
     return yield* initWithFirstCommit(
       cwd,
@@ -521,10 +555,17 @@ const make = Effect.gen(function* () {
   const createNamedProject: ManagedProjectFolders["Service"]["createNamedProject"] = Effect.fn(
     "ManagedProjectFolders.createNamedProject",
   )(function* (input) {
-    const workspaceRoot = yield* claimNamedFolder(input.name);
+    const { root, workspaceRoot } = yield* claimNamedFolder(input.name, input.parentFolder);
     const removeFolder = fileSystem.remove(workspaceRoot, { recursive: true }).pipe(Effect.ignore);
+    // Only a folder the person chose: the built-in one sits in a checkout in development.
+    const insideRepository =
+      root !== namedProjectsRoot &&
+      (yield* gitWorkflow.repositoryRoot(root).pipe(
+        Effect.map((repository) => repository !== null),
+        Effect.orElseSucceed(() => false),
+      ));
     const prepared = yield* Effect.all([
-      scaffoldRepository(workspaceRoot, input.name).pipe(
+      scaffoldRepository(workspaceRoot, input.name, insideRepository).pipe(
         Effect.mapError((cause) => new NamedProjectFolderError({ folder: workspaceRoot, cause })),
       ),
       random
@@ -591,6 +632,7 @@ const make = Effect.gen(function* () {
     isScratchProject,
     folderForThread,
     namedProjectsRoot,
+    newProjectsRoot,
     createNamedProject,
     startHistory,
   });

@@ -164,6 +164,7 @@ import {
   isUnsupportedWindowsProjectPath,
   resolveProjectPathForDispatch,
 } from "@t3tools/client-runtime/state/projects";
+import { newProjectsFolderOf } from "@t3tools/shared/projectSettings";
 import { resolvePastedPath } from "@t3tools/shared/path";
 import {
   dispatchCommandPalette,
@@ -1043,8 +1044,9 @@ function OpenCommandPaletteDialog(props: {
   };
 
   const newProjectsRootFor = (environmentId: EnvironmentId | null): string | null =>
-    environments.find((environment) => environment.environmentId === environmentId)?.serverConfig
-      ?.newProjectsRoot ?? null;
+    newProjectsFolderOf(
+      environments.find((environment) => environment.environmentId === environmentId)?.serverConfig,
+    ) ?? null;
 
   const offeredProvidersFor = (environmentId: EnvironmentId | null) =>
     environments.find((environment) => environment.environmentId === environmentId)?.serverConfig

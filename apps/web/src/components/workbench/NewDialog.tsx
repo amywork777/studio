@@ -34,6 +34,7 @@ import { SeeTheExample } from "./library/SeeTheExample";
 import type { Availability } from "./library/skillAvailability";
 import { useEntryExample } from "./library/useSampleProject";
 import { partLabel } from "./partNames";
+import { ProjectLocationInput, useNewProjectsFolder } from "./ProjectLocation";
 import { useEngineeringInterface } from "./studioInterface";
 import { useStudioProjectAt } from "./useStudioProjects";
 import {
@@ -71,6 +72,8 @@ export interface NewJob {
   readonly units: "mm" | "in";
   /** The job for the agent (`newWorkPrompt`). */
   readonly prompt: string;
+  /** For a new project, the folder it is made in; null is the environment's own. */
+  readonly location?: string | null;
 }
 
 /** New's Part, made at once rather than handed on: its name and folder, in a project. */
@@ -249,6 +252,13 @@ export function NewDialog(props: {
   const [part, setPart] = useState<string | null>(props.parts[0] ?? null);
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const newProjectsFolder = useNewProjectsFolder(props.environmentId);
+  // Null follows the saved folder; one chosen here is also saved, so the next New starts there.
+  const [location, setLocation] = useState<string | null>(null);
+  const chooseLocation = (folder: string) => {
+    setLocation(folder);
+    newProjectsFolder.choose(folder);
+  };
 
   const pick = (template: NewTemplate) => {
     setSelected(template);
@@ -295,6 +305,7 @@ export function NewDialog(props: {
           template: selected,
           name,
           units,
+          location: props.newProject ? location : null,
           prompt: newWorkPrompt({
             template: selected,
             name,
@@ -526,6 +537,15 @@ export function NewDialog(props: {
                     />
                   </Field>
                 )}
+                {props.newProject && !isPart ? (
+                  <Field label="Location" htmlFor={`${id}-location`}>
+                    <ProjectLocationInput
+                      id={`${id}-location`}
+                      value={location ?? newProjectsFolder.folder ?? ""}
+                      onChange={chooseLocation}
+                    />
+                  </Field>
+                ) : null}
                 {/* A part's file is the next name free in its folder, known once it is made. */}
                 {plainWords || !named || isPart || name.trim() === "" ? null : (
                   <p className="text-xs text-muted-foreground">

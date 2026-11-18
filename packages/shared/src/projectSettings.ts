@@ -179,6 +179,24 @@ function resolveProjectOverrides(
   return { settings: effective as ServerSettings, sources, overrides };
 }
 
+/**
+ * Where a new project's folder is made: the `newProjectsFolder` setting, else the server's own
+ * (`newProjectsRoot`). Undefined on a server that makes none.
+ */
+export function newProjectsFolderOf(
+  config:
+    | {
+        readonly newProjectsRoot?: string | undefined;
+        // Absent from an older server's settings.
+        readonly settings: { readonly newProjectsFolder?: string | undefined };
+      }
+    | null
+    | undefined,
+): string | undefined {
+  if (config?.newProjectsRoot === undefined) return undefined;
+  return config.settings.newProjectsFolder?.trim() || config.newProjectsRoot;
+}
+
 /** New name-only projects use their checkout until the first thread, even when the default is worktree. */
 export function resolveNewThreadEnvMode(input: {
   readonly projectSettings: ResolvedProjectSettings<ResolvedServerSettings>;

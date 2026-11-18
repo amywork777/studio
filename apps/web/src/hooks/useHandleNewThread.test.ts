@@ -175,6 +175,7 @@ vi.mock("@t3tools/shared/projectSettings", () => ({
   resolveNewThreadEnvMode: (input: {
     projectSettings: { settings: { defaultThreadEnvMode: "local" | "worktree" } };
   }) => input.projectSettings.settings.defaultThreadEnvMode,
+  newProjectsFolderOf: () => undefined,
 }));
 vi.mock("@tanstack/react-router", () => ({
   useParams: () => null,

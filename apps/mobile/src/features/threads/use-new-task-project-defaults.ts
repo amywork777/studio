@@ -3,7 +3,11 @@ import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import type { ProjectReadFileResult } from "@t3tools/contracts";
 import { DEFAULT_SERVER_SETTINGS, T3_PROJECT_FILE_NAME } from "@t3tools/contracts";
-import { resolveNewThreadEnvMode, resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import {
+  newProjectsFolderOf,
+  resolveNewThreadEnvMode,
+  resolveProjectSettings,
+} from "@t3tools/shared/projectSettings";
 import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
 
 import { useEnvironmentServerConfig } from "../../state/entities";
@@ -64,7 +68,7 @@ export function useNewTaskProjectDefaults(project: EnvironmentProject | null) {
     : resolveNewThreadEnvMode({
         projectSettings,
         workspaceRoot: project?.workspaceRoot ?? null,
-        newProjectsRoot: serverConfig?.newProjectsRoot,
+        newProjectsRoot: newProjectsFolderOf(serverConfig),
         projectHasThreads,
       });
   // While t3.json loads, the environment default is provisional; t3.json may replace it.

@@ -2594,7 +2594,8 @@ export const layerWsRpc = (
             ),
           ),
         [WS_METHODS.studioSyncRestore]: (input) =>
-          studioSync.restore({ ...input, root: managedFolders.namedProjectsRoot }).pipe(
+          managedFolders.newProjectsRoot.pipe(
+            Effect.flatMap((root) => studioSync.restore({ ...input, root })),
             Effect.tap(() =>
               analytics.record("studio.sync.restored", { outcome: "restored" }).pipe(Effect.ignore),
             ),
