@@ -17,6 +17,7 @@ import { type ComposerThreadTarget, useComposerDraftStore } from "~/composerDraf
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { configuredHostedAppUrl } from "~/hostedPairing";
 import { draftModelSelectionApplies } from "~/lib/chatThreadActions";
+import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { msg } from "gt-react";
@@ -31,6 +32,7 @@ export function promptLinkFor(
     readonly model: string | null;
   },
 ): string | null {
+  if (t3FeatureHidden("promptLinks")) return null;
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
   if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
   return buildNewThreadLink({ prompt: trimmed, ...context, origin: configuredHostedAppUrl() });

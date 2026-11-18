@@ -6,6 +6,7 @@ import type { MouseEvent } from "react";
 import { readIssueListPreferences } from "../components/issue/issueListPreferences";
 import { ISSUES_PANEL_REF, PULL_REQUESTS_PANEL_REF, useRightPanelStore } from "../rightPanelStore";
 import { useProjects, useServerConfigs } from "../state/entities";
+import { t3FeatureHidden } from "../components/workbench/hiddenT3Features";
 
 /**
  * Opens an issue link beside the thread, and says whether it did. Anything else — a host no
@@ -28,7 +29,7 @@ export function useOpenIssueLink(
   const serverConfigs = useServerConfigs();
   const navigate = useNavigate();
   return (event, targetUrl, targetEnvironmentId) => {
-    if (event.metaKey || event.ctrlKey) return false;
+    if (event.metaKey || event.ctrlKey || t3FeatureHidden("issues")) return false;
     const resolvedPanelRef = panelRef ?? threadRef;
     // A list page's panel ref is a placeholder, not an environment; the link names its own.
     const environmentId = threadRef?.environmentId ?? targetEnvironmentId;

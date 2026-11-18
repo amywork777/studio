@@ -55,6 +55,10 @@
       "types": "./src/studioImport.ts",
       "import": "./src/studioImport.ts"
     },
+    "./studioBrandCopy": {
+      "types": "./src/studioBrandCopy.ts",
+      "import": "./src/studioBrandCopy.ts"
+    },
     "./textDirection": {
       "types": "./src/textDirection.ts",
       "import": "./src/textDirection.ts"
