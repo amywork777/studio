@@ -2377,7 +2377,7 @@ export default function ChatView(props: ChatViewProps) {
     showScrollToBottom,
   ]);
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(activeThreadRef);
-  const activeThreadReferenceCopyTarget =
+  const activeThreadReferenceCopyTarget = studioChat.withoutT3ThreadLink(
     activeThreadRef === null || !isServerThread
       ? null
       : resolveThreadReferenceCopyTarget(
@@ -2390,7 +2390,8 @@ export default function ChatView(props: ChatViewProps) {
             hostedAppUrl: configuredHostedAppUrl(),
           },
           messages,
-        );
+        ),
+  );
   const copyActiveThreadReference = () => {
     if (activeThreadReferenceCopyTarget === null) return;
     void copyThreadReference(activeThreadReferenceCopyTarget);

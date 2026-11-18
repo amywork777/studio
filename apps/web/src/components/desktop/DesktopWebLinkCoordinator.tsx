@@ -37,6 +37,7 @@ import { allReachableShellsLiveAtom } from "../../state/shell";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { stackedThreadToast, toastManager } from "../ui/toast";
+import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
 /** A link handed over by the OS is a plain click: nothing about it asks for the browser. */
 const externalClick = {
@@ -208,7 +209,7 @@ export function DesktopWebLinkCoordinator() {
   const openLink = useEffectEvent(async (url: string) => {
     const pairingUrl = readPairingAppLink(url);
     if (pairingUrl !== null) {
-      await pairFromLink(pairingUrl);
+      if (!t3FeatureHidden("remoteAccess")) await pairFromLink(pairingUrl);
       return;
     }
     const appPath = promptLinkAppPath(url);

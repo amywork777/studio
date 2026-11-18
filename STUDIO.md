@@ -316,11 +316,15 @@ Everything else is upstream T3 Code plus the fork's plugins (`FORK.md` on `main`
   (the desktop's menus and dialogs too).
 - **None of T3's own products.** A Studio user never sees T3 Code's products and services: the
   Issues page, T3 Connect (its relay and tunnels, T3 Chat, the phone app, guest links), SnapShots,
-  the GitHub star prompt, prompt links to app.t3.codes, triage and T3's docs. One list decides
+  the GitHub star prompt, prompt and thread links to app.t3.codes (Copy thread), triage, T3's docs,
+  the `t3` command, and remote access: Studio runs on one machine, so Environments, Sharing &
+  access, linked environments, pairing links and the guest and agent sign-in pages are hidden,
+  while its window still signs in to its own server through the same pairing. One list decides
   (`components/workbench/hiddenT3Features.ts`, with `apps/desktop/src/studio/hiddenT3Features.ts`),
-  and each T3 file that offers one asks it in a line: `/issues` opens Home, the SnapShots settings
-  open General, and no sidebar, settings search or link leads to them. `brandCopy.test.ts`
-  fails on any English sentence of T3's that still names T3 outside them, so a T3 merge that brings
+  and each T3 file that offers one asks it in a line: `/issues`, `/guest`, `/connect-agent` and a
+  link to pair another computer open Home, their settings open General, and no sidebar, settings
+  search, menu or link leads to them. `brandCopy.test.ts` fails on any English sentence of T3's
+  that still names T3, a `t3` command or a `t3/` example outside them, so a T3 merge that brings
   one either hides its feature there or rewords it in `studioBrandCopy.ts`.
 
 ## Hardware first

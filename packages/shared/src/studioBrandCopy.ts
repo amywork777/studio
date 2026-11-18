@@ -26,6 +26,49 @@ const REWORDED_WHOLE: ReadonlyMap<string, (name: string) => string> = new Map([
     "See your agents, import projects, and set up your phone.",
     () => "See your agents and import projects.",
   ],
+  // Settings, Worktrees and Threads: no `t3` in the example, and no file named for T3.
+  [
+    "For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.",
+    (name: string) => {
+      const prefix = name.toLowerCase().replaceAll(" ", "-");
+      return `For example, ${prefix} or ${prefix}/ produces ${prefix}/add-search. Leave empty for no prefix.`;
+    },
+  ],
+  [
+    "Where new threads start. Projects and their t3.json can override it.",
+    () => "Where new threads start. Each project can override it.",
+  ],
+  [
+    "How new worktrees populate git submodules. Projects and their t3.json can override it.",
+    () => "How new worktrees populate git submodules. Each project can override it.",
+  ],
+  // The desktop's startup errors when another server holds the data folder (`DesktopHomeOwner.ts`):
+  // T3's `t3` command and pairing over SSH are not Studio's, so the way out is to quit that one.
+  [
+    "Another T3 Code server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `t3 update`. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command. Then reopen T3 Code. You can also set a separate T3CODE_HOME and pair with the running server.",
+    (name: string) =>
+      `Another ${name} is using this data folder. Quit it, or end its server in Activity Monitor or Task Manager, then reopen ${name}.`,
+  ],
+  [
+    "The T3 Code background service is using this T3 home (PID {pid}, port {port}, version {version}). Stop it with `t3 service uninstall`, passing `--base-dir` with this T3 home, and reopen T3 Code. You can also set a separate T3CODE_HOME and pair with the running server.",
+    (name: string) =>
+      `A ${name} background service is using this data folder (PID {pid}, port {port}, version {version}). End process {pid} in Activity Monitor or Task Manager, then reopen ${name}.`,
+  ],
+  [
+    "The T3 Code background service is using this T3 home (PID {pid}, port {port}). Stop it with `t3 service uninstall`, passing `--base-dir` with this T3 home, and reopen T3 Code. You can also set a separate T3CODE_HOME and pair with the running server.",
+    (name: string) =>
+      `A ${name} background service is using this data folder (PID {pid}, port {port}). End process {pid} in Activity Monitor or Task Manager, then reopen ${name}.`,
+  ],
+  [
+    "Another T3 Code server (for example `t3 serve`, or one started over SSH) is using this T3 home (PID {pid}, port {port}, version {version}). If a T3 Code app on another machine started it over SSH, that app restarts it: remove or disconnect that SSH environment there, or quit that app. Then stop the server, and reopen T3 Code. You can also set a separate T3CODE_HOME and pair with the running server.",
+    (name: string) =>
+      `Another ${name} is using this data folder (PID {pid}, port {port}, version {version}). Quit it, or end process {pid} in Activity Monitor or Task Manager, then reopen ${name}.`,
+  ],
+  [
+    "Another T3 Code server (for example `t3 serve`, or one started over SSH) is using this T3 home (PID {pid}, port {port}). If a T3 Code app on another machine started it over SSH, that app restarts it: remove or disconnect that SSH environment there, or quit that app. Then stop the server, and reopen T3 Code. You can also set a separate T3CODE_HOME and pair with the running server.",
+    (name: string) =>
+      `Another ${name} is using this data folder (PID {pid}, port {port}). Quit it, or end process {pid} in Activity Monitor or Task Manager, then reopen ${name}.`,
+  ],
 ]);
 
 const T3_NAME = "T3 Code";

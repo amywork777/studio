@@ -75,7 +75,6 @@ apps/desktop/src/app/DesktopUserData.test.ts
 apps/desktop/src/app/DesktopUserData.ts
 apps/desktop/src/backend/DesktopBackendPool.test.ts
 apps/desktop/src/backend/DesktopBackendPool.ts
-apps/desktop/src/backend/DesktopHomeOwner.ts
 apps/desktop/src/backend/DesktopLocalEnvironmentAuth.ts
 apps/desktop/src/boot.ts
 apps/desktop/src/electron/ElectronProtocol.ts
@@ -230,6 +229,7 @@ apps/web/src/components/ChatView.logic.test.ts
 apps/web/src/components/ChatView.logic.ts
 apps/web/src/components/ChatView.tsx
 apps/web/src/components/CommandPalette.tsx
+apps/web/src/components/desktop/DesktopWebLinkCoordinator.tsx
 apps/web/src/components/desktop/RunningThreadKeepAlive.tsx
 apps/web/src/components/desktopUpdate.logic.test.ts
 apps/web/src/components/desktopUpdate.logic.ts
@@ -344,6 +344,9 @@ apps/web/src/routes/_chat.issues.tsx
 apps/web/src/routes/_chat.pull-requests.tsx
 apps/web/src/routes/_chat.settings.tsx
 apps/web/src/routes/_chat.usage.tsx
+apps/web/src/routes/connect-agent.tsx
+apps/web/src/routes/guest.tsx
+apps/web/src/routes/pair.tsx
 apps/web/src/routeTree.gen.ts
 apps/web/src/rpc/requestLatencyState.ts
 apps/web/src/session-logic.ts

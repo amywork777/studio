@@ -516,7 +516,7 @@ function OpenCommandPaletteDialog(props: {
   const canShareActiveThreadWithGuest = useAtomValue(
     canShareWithGuestAtom(activeThread?.environmentId ?? ("" as EnvironmentId)),
   );
-  const activeThreadReferenceCopyTarget =
+  const activeThreadReferenceCopyTarget = studioPalette.withoutT3ThreadLink(
     referenceThreadRef === null || (pathname === "/pull-requests" && !openPanelPullRequestUrl)
       ? null
       : resolveThreadReferenceCopyTarget(
@@ -530,7 +530,8 @@ function OpenCommandPaletteDialog(props: {
             hostedAppUrl: configuredHostedAppUrl(),
           },
           messages,
-        );
+        ),
+  );
   const copyActiveThreadReference = async () => {
     if (activeThreadReferenceCopyTarget === null) return;
     await copyThreadReference(activeThreadReferenceCopyTarget);

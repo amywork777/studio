@@ -53,7 +53,7 @@ import { useWorkbenchViewer } from "./useWorkbenchViewer";
 import { addViewContextToComposer, handEditNoteShown } from "./viewContext";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
-export { t3FeatureHidden } from "./hiddenT3Features";
+export { t3FeatureHidden, withoutT3ThreadLink } from "./hiddenT3Features";
 
 const PluginViewPanel = lazy(() => import("../plugins/PluginViewPanel"));
 

@@ -16,6 +16,16 @@ export type T3Feature =
   | "starPrompt"
   /** Links to a prompt on T3's hosted app, app.t3.codes. */
   | "promptLinks"
+  /** Copy thread: a link to the thread on T3's hosted app, app.t3.codes. */
+  | "threadLinks"
+  /**
+   * Reaching this computer from others, or others from it: Environments and Sharing & access in
+   * Settings, linked environments, pairing links and the guest and agent sign-in pages. Studio runs
+   * on one machine. Its own window still signs in to its own server through the same pairing.
+   */
+  | "remoteAccess"
+  /** T3 Code's `t3` command on the PATH. */
+  | "cli"
   /** Triage, where an agent files an issue on T3's repository; Studio's is Report a problem. */
   | "triage"
   /** T3's own docs and FAQ. */
@@ -28,6 +38,9 @@ const HIDDEN_T3_FEATURES: ReadonlySet<T3Feature> = new Set<T3Feature>([
   "snapShot",
   "starPrompt",
   "promptLinks",
+  "threadLinks",
+  "remoteAccess",
+  "cli",
   "triage",
   "docs",
 ]);
@@ -39,11 +52,31 @@ export function t3FeatureHidden(feature: T3Feature): boolean {
 /** Settings pages that are a hidden feature's: left out of the sidebar and search, and redirected. */
 const T3_SETTINGS_SECTIONS: ReadonlyMap<string, T3Feature> = new Map([
   ["/settings/snap-shot", "snapShot"],
+  ["/settings/connections", "remoteAccess"],
+  ["/settings/access", "remoteAccess"],
 ]);
 
 export function t3SettingsSectionHidden(path: string): boolean {
   const feature = T3_SETTINGS_SECTIONS.get(path);
   return feature !== undefined && t3FeatureHidden(feature);
+}
+
+/** Settings rows on other pages that are a hidden feature's, by their search id. */
+const T3_SETTINGS_ROWS: ReadonlyMap<string, T3Feature> = new Map([
+  ["linked-environments-beta", "remoteAccess"],
+  ["cli-command", "cli"],
+]);
+
+export function t3SettingsRowHidden(id: string): boolean {
+  const feature = T3_SETTINGS_ROWS.get(id);
+  return feature !== undefined && t3FeatureHidden(feature);
+}
+
+/** A copy target, or null where it would copy a thread's link on T3's hosted app. */
+export function withoutT3ThreadLink<Target extends { readonly kind: string }>(
+  target: Target | null,
+): Target | null {
+  return target?.kind === "thread" && t3FeatureHidden("threadLinks") ? null : target;
 }
 
 /**
