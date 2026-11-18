@@ -14,18 +14,11 @@ import {
 } from "./auth.ts";
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
 import { WS_METHODS } from "./rpc.ts";
+import { STUDIO_CLIENT_GUARDED_RPC_SCOPES } from "./studioRpc.ts";
 
 /** Incremental client enforcement; the server still authorizes every request. */
 export const CLIENT_GUARDED_RPC_SCOPES = {
-  // Plugins run code on this environment for every provider.
-  [WS_METHODS.pluginsInstall]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSetEnabled]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsUninstall]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsUpdate]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillCreate]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillSave]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillCopy]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillRemove]: AuthProvidersManageScope,
+  ...STUDIO_CLIENT_GUARDED_RPC_SCOPES,
   [WS_METHODS.providerAuthRemoveMethod]: AuthProvidersManageScope,
   [WS_METHODS.previewClose]: AuthPreviewOperateScope,
   // Stopping a server signals its processes, as closing a terminal does.
@@ -62,10 +55,6 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.projectsCreateFromThread]: AuthOrchestrationOperateScope,
   [WS_METHODS.sourceControlCloneRepository]: AuthSourceControlWriteScope,
   [WS_METHODS.sourceControlPublishRepository]: AuthSourceControlWriteScope,
-  [WS_METHODS.studioSyncSend]: AuthSourceControlWriteScope,
-  [WS_METHODS.studioSyncRestore]: AuthSourceControlWriteScope,
-  [WS_METHODS.studioGitHubSignInStart]: AuthSourceControlWriteScope,
-  [WS_METHODS.studioGitHubSignInCheck]: AuthSourceControlWriteScope,
   [WS_METHODS.sourceControlStar]: AuthSourceControlWriteScope,
   // Signing in replaces the server's GitHub credential, as saving a token in Settings does.
   [WS_METHODS.sourceControlSignInStart]: AuthSettingsWriteScope,

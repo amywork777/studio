@@ -269,3 +269,15 @@ export class StudioSyncError extends Schema.TaggedError<StudioSyncError>()("Stud
     }
   }
 }
+
+/** A project folder that keeps no history yet, to start one in as a new project's folder has. */
+export const ProjectStartHistoryInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+});
+export type ProjectStartHistoryInput = typeof ProjectStartHistoryInput.Type;
+
+export const ProjectStartHistoryResult = Schema.Struct({
+  /** Why the first commit failed. The folder keeps a history either way. */
+  commitError: Schema.optionalKey(TrimmedNonEmptyString),
+});
+export type ProjectStartHistoryResult = typeof ProjectStartHistoryResult.Type;

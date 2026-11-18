@@ -280,8 +280,6 @@ import {
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
-  ProjectStartHistoryInput,
-  ProjectStartHistoryResult,
   ProjectWriteFileError,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
@@ -438,48 +436,8 @@ import {
   SourceControlSignInResult,
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
-import {
-  InstalledPlugin,
-  PluginCatalogInput,
-  PluginCatalogResult,
-  PluginIdInput,
-  PluginInstallInput,
-  PluginListResult,
-  PluginModelPicturesInput,
-  PluginModelPicturesResult,
-  PluginOpenViewInput,
-  PluginOperationError,
-  PluginRequestInput,
-  PluginRequestResult,
-  PluginSetEnabledInput,
-  PluginViewDocument,
-  PluginSkillContent,
-  PluginSkillCreateInput,
-  PluginSkillInput,
-  PluginSkillReadInput,
-  PluginSkillResult,
-  PluginSkillSaveInput,
-} from "./plugins.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
-import {
-  StudioProjectsError,
-  StudioProjectsListInput,
-  StudioProjectsListResult,
-  StudioProjectsSaveInput,
-  StudioProjectsSaveResult,
-  StudioProjectsTrashInput,
-  StudioGitHubSignInCheckInput,
-  StudioGitHubSignInCheckResult,
-  StudioGitHubSignInError,
-  StudioGitHubSignInStartResult,
-  StudioSyncError,
-  StudioSyncRestoreInput,
-  StudioSyncRestoreResult,
-  StudioSyncSendInput,
-  StudioSyncSendResult,
-  StudioSyncStatusInput,
-  StudioSyncStatusResult,
-} from "./studioProjects.ts";
+import { STUDIO_RPCS, STUDIO_WS_METHODS } from "./studioRpc.ts";
 
 export const WS_METHODS = {
   projectsListEntries: "projects.listEntries",
@@ -491,7 +449,6 @@ export const WS_METHODS = {
   projectsMutate: "projects.mutate",
   projectsEnsureScratch: "projects.ensureScratch",
   projectsCreateNew: "projects.createNew",
-  projectsStartHistory: "projects.startHistory",
   projectsCreateFromThread: "projects.createFromThread",
 
   shellOpenInEditor: "shell.openInEditor",
@@ -594,28 +551,6 @@ export const WS_METHODS = {
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
-  pluginsCatalog: "plugins.catalog",
-  pluginsList: "plugins.list",
-  pluginsInstall: "plugins.install",
-  pluginsSetEnabled: "plugins.setEnabled",
-  pluginsUninstall: "plugins.uninstall",
-  pluginsUpdate: "plugins.update",
-  pluginsSkillRead: "plugins.skillRead",
-  pluginsSkillCreate: "plugins.skillCreate",
-  pluginsSkillSave: "plugins.skillSave",
-  pluginsSkillCopy: "plugins.skillCopy",
-  pluginsSkillRemove: "plugins.skillRemove",
-  pluginsOpenView: "plugins.openView",
-  pluginsRequest: "plugins.request",
-  pluginsModelPictures: "plugins.modelPictures",
-  studioProjectsList: "studioProjects.list",
-  studioProjectsSave: "studioProjects.save",
-  studioProjectsTrash: "studioProjects.trash",
-  studioSyncSend: "studioSync.send",
-  studioSyncRestore: "studioSync.restore",
-  studioSyncStatus: "studioSync.status",
-  studioGitHubSignInStart: "studioGitHub.signInStart",
-  studioGitHubSignInCheck: "studioGitHub.signInCheck",
   serverCheckSecretSource: "server.checkSecretSource",
   serverSearchAcpRegistry: "server.searchAcpRegistry",
   serverPrepareAcpRegistryAgent: "server.prepareAcpRegistryAgent",
@@ -734,6 +669,7 @@ export const WS_METHODS = {
   subscribeServerLifecycle: "subscribeServerLifecycle",
   subscribeAuthAccess: "subscribeAuthAccess",
   subscribeResourceTelemetry: "subscribeResourceTelemetry",
+  ...STUDIO_WS_METHODS,
 } as const;
 
 const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -990,139 +926,6 @@ const WsServerDiscoverSourceControlRpc = Rpc.make(WS_METHODS.serverDiscoverSourc
   payload: Schema.Struct({}),
   success: SourceControlDiscoveryResult,
   error: EnvironmentAuthorizationError,
-});
-
-// No union with EnvironmentAuthorizationError on the plugin and projects RPCs: the group's
-// RpcScopeAuthorization middleware adds it to every RPC's error.
-const WsPluginsCatalogRpc = Rpc.make(WS_METHODS.pluginsCatalog, {
-  payload: PluginCatalogInput,
-  success: PluginCatalogResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsListRpc = Rpc.make(WS_METHODS.pluginsList, {
-  payload: Schema.Struct({}),
-  success: PluginListResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsInstallRpc = Rpc.make(WS_METHODS.pluginsInstall, {
-  payload: PluginInstallInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsSetEnabledRpc = Rpc.make(WS_METHODS.pluginsSetEnabled, {
-  payload: PluginSetEnabledInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsUninstallRpc = Rpc.make(WS_METHODS.pluginsUninstall, {
-  payload: PluginIdInput,
-  success: Schema.Struct({}),
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillReadRpc = Rpc.make(WS_METHODS.pluginsSkillRead, {
-  payload: PluginSkillReadInput,
-  success: PluginSkillContent,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillCreateRpc = Rpc.make(WS_METHODS.pluginsSkillCreate, {
-  payload: PluginSkillCreateInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillSaveRpc = Rpc.make(WS_METHODS.pluginsSkillSave, {
-  payload: PluginSkillSaveInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillCopyRpc = Rpc.make(WS_METHODS.pluginsSkillCopy, {
-  payload: PluginSkillInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillRemoveRpc = Rpc.make(WS_METHODS.pluginsSkillRemove, {
-  payload: PluginSkillResult,
-  success: Schema.Struct({}),
-  error: PluginOperationError,
-});
-
-const WsPluginsUpdateRpc = Rpc.make(WS_METHODS.pluginsUpdate, {
-  payload: PluginIdInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsOpenViewRpc = Rpc.make(WS_METHODS.pluginsOpenView, {
-  payload: PluginOpenViewInput,
-  success: PluginViewDocument,
-  error: PluginOperationError,
-});
-
-const WsPluginsRequestRpc = Rpc.make(WS_METHODS.pluginsRequest, {
-  payload: PluginRequestInput,
-  success: PluginRequestResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsModelPicturesRpc = Rpc.make(WS_METHODS.pluginsModelPictures, {
-  payload: PluginModelPicturesInput,
-  success: PluginModelPicturesResult,
-  error: PluginOperationError,
-});
-
-const WsStudioProjectsListRpc = Rpc.make(WS_METHODS.studioProjectsList, {
-  payload: StudioProjectsListInput,
-  success: StudioProjectsListResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioProjectsSaveRpc = Rpc.make(WS_METHODS.studioProjectsSave, {
-  payload: StudioProjectsSaveInput,
-  success: StudioProjectsSaveResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioProjectsTrashRpc = Rpc.make(WS_METHODS.studioProjectsTrash, {
-  payload: StudioProjectsTrashInput,
-  success: StudioProjectsSaveResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioGitHubSignInStartRpc = Rpc.make(WS_METHODS.studioGitHubSignInStart, {
-  payload: Schema.Struct({}),
-  success: StudioGitHubSignInStartResult,
-  error: StudioGitHubSignInError,
-});
-
-const WsStudioGitHubSignInCheckRpc = Rpc.make(WS_METHODS.studioGitHubSignInCheck, {
-  payload: StudioGitHubSignInCheckInput,
-  success: StudioGitHubSignInCheckResult,
-  error: StudioGitHubSignInError,
-});
-
-const WsStudioSyncSendRpc = Rpc.make(WS_METHODS.studioSyncSend, {
-  payload: StudioSyncSendInput,
-  success: StudioSyncSendResult,
-  error: StudioSyncError,
-});
-
-const WsStudioSyncRestoreRpc = Rpc.make(WS_METHODS.studioSyncRestore, {
-  payload: StudioSyncRestoreInput,
-  success: StudioSyncRestoreResult,
-  error: StudioSyncError,
-});
-
-const WsStudioSyncStatusRpc = Rpc.make(WS_METHODS.studioSyncStatus, {
-  payload: StudioSyncStatusInput,
-  success: StudioSyncStatusResult,
 });
 
 const WsServerCheckSecretSourceRpc = Rpc.make(WS_METHODS.serverCheckSecretSource, {
@@ -1757,13 +1560,6 @@ const WsProjectsEnsureScratchRpc = Rpc.make(WS_METHODS.projectsEnsureScratch, {
 const WsProjectsCreateNewRpc = Rpc.make(WS_METHODS.projectsCreateNew, {
   payload: ProjectCreateNewInput,
   success: ProjectCreateNewResult,
-  error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
-});
-
-// Starts a history in a project folder that has none: what is there is its first commit.
-const WsProjectsStartHistoryRpc = Rpc.make(WS_METHODS.projectsStartHistory, {
-  payload: ProjectStartHistoryInput,
-  success: ProjectStartHistoryResult,
   error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
 });
 
@@ -2502,28 +2298,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsPeerLinksUnlinkRpc,
   WsPeerLinksAnswerRequestRpc,
   WsServerDiscoverSourceControlRpc,
-  WsPluginsCatalogRpc,
-  WsPluginsListRpc,
-  WsPluginsInstallRpc,
-  WsPluginsSetEnabledRpc,
-  WsPluginsUninstallRpc,
-  WsPluginsUpdateRpc,
-  WsPluginsSkillReadRpc,
-  WsPluginsSkillCreateRpc,
-  WsPluginsSkillSaveRpc,
-  WsPluginsSkillCopyRpc,
-  WsPluginsSkillRemoveRpc,
-  WsPluginsOpenViewRpc,
-  WsPluginsRequestRpc,
-  WsPluginsModelPicturesRpc,
-  WsStudioProjectsListRpc,
-  WsStudioProjectsSaveRpc,
-  WsStudioProjectsTrashRpc,
-  WsStudioSyncSendRpc,
-  WsStudioSyncRestoreRpc,
-  WsStudioSyncStatusRpc,
-  WsStudioGitHubSignInStartRpc,
-  WsStudioGitHubSignInCheckRpc,
   WsServerCheckSecretSourceRpc,
   WsServerSearchAcpRegistryRpc,
   WsServerPrepareAcpRegistryAgentRpc,
@@ -2615,7 +2389,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsSearchEntriesRpc,
   WsProjectsEnsureScratchRpc,
   WsProjectsCreateNewRpc,
-  WsProjectsStartHistoryRpc,
   WsProjectsCreateFromThreadRpc,
   WsProjectsWriteFileRpc,
   WsProjectsMutateRpc,
@@ -2709,4 +2482,5 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2SubscribeThreadRpc,
   WsOrchestrationV2SubscribeCommandOutputRpc,
   WsOrchestrationV2SubscribePromptSuggestionRpc,
+  ...STUDIO_RPCS,
 ).middleware(RpcScopeAuthorization);
