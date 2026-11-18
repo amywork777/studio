@@ -75,13 +75,11 @@ import {
   MessageSquareIcon,
   PaletteIcon,
   RotateCcwIcon,
-  LayoutGridIcon,
   SettingsIcon,
   MonitorIcon,
   PinIcon,
   PinOffIcon,
   PlugIcon,
-  PuzzleIcon,
   SquarePenIcon,
   TextSearchIcon,
   UserPlusIcon,
@@ -123,8 +121,6 @@ import { configuredHostedAppUrl } from "../hostedPairing";
 import { desktopLocalBackendId } from "../connection/desktopLocal";
 import { filesystemEnvironment, useFilesystemReadAccess } from "../state/filesystem";
 import { projectEnvironment } from "../state/projects";
-import { withoutTrashedFolders } from "./workbench/trash/trash";
-import { useTrashHiddenFolderKeys } from "./workbench/trash/useTrash";
 import { useEnvironmentQuery } from "../state/query";
 import { serverEnvironment } from "../state/server";
 import { threadEnvironment } from "../state/threads";
@@ -281,14 +277,8 @@ import { stackedThreadToast, toastManager } from "./ui/toast";
 import { suggestAppAccessForRemote } from "./sourceControlAppAccessToast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { ComposerHandleContext, useComposerHandleContext } from "../composerHandleContext";
-import {
-  hasEngineeringSurfaces,
-  isEngineeringInterface,
-  STUDIO_INTERFACE_AVAILABLE,
-  settingsSectionLabel,
-} from "./workbench/studioInterface";
-import { StudioQuickFind } from "./workbench/StudioQuickFind";
-import { hasCloudPublicConfig } from "../cloud/publicConfig";
+import * as studioPalette from "./workbench/studioCommandPalette";
+import { isEngineeringInterface, settingsSectionLabel } from "./workbench/studioInterface";
 import type { ChatComposerHandle } from "./chat/ChatComposer";
 import { pickableProjectGroups } from "@t3tools/client-runtime/state/project-grouping";
 import { buildSidebarProjectPickerEntries } from "../sidebarProjectGrouping";
@@ -357,22 +347,15 @@ export function CommandPalette({ children }: { children: ReactNode }) {
         <div className="contents" inert={state.open}>
           {children}
         </div>
-        {/* Studio's engineering interface finds projects, parts and jobs instead. */}
-        {isEngineeringInterface() ? (
-          <StudioQuickFind
-            query={state.openIntent?.kind === "search" ? state.openIntent.query : ""}
-            setOpen={setOpen}
-          />
-        ) : (
-          <CommandPaletteDialog
-            mode={state.mode}
-            session={state.session}
-            openIntent={state.openIntent}
-            setOpen={setOpen}
-            openChildSearch={openChildSearch}
-            initialContext={state.restoredSearch}
-          />
-        )}
+        <studioPalette.StudioPaletteDialog
+          dialog={CommandPaletteDialog}
+          mode={state.mode}
+          session={state.session}
+          openIntent={state.openIntent}
+          setOpen={setOpen}
+          openChildSearch={openChildSearch}
+          initialContext={state.restoredSearch}
+        />
       </CommandDialog>
     </ComposerHandleContext>
   );
@@ -562,12 +545,9 @@ function OpenCommandPaletteDialog(props: {
         delegatedUnderParent,
       ),
   );
-  // Folders only projects in Trash hold, with their threads, stay out of the palette.
-  const trashHiddenFolders = useTrashHiddenFolderKeys();
-  const { projects, threads } = withoutTrashedFolders(
+  const { projects, threads } = studioPalette.usePaletteScope(
     allProjects,
     allThreads,
-    trashHiddenFolders,
     primaryEnvironmentId,
   );
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -1411,8 +1391,7 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  // Triage files issues on T3 Code's repository; Studio's go to Report a problem in Settings.
-  if (!STUDIO_INTERFACE_AVAILABLE && triageEnvironmentId !== null && canTriage) {
+  if (triageEnvironmentId !== null && canTriage) {
     actionItems.push({
       kind: "action",
       value: "action:triage",
@@ -1736,35 +1715,33 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  if (hasCloudPublicConfig()) {
-    actionItems.push({
-      kind: "action",
-      value: "action:use-in-another-app",
-      searchTerms: [
-        "mcp",
-        "connector",
-        "another app",
-        "poke",
-        "claude",
-        "chatgpt",
-        "grok",
-        "muse",
-        "instinct",
-        "openclaw",
-        "hermes",
-      ],
-      title: gt("Use T3 Code in another app (MCP)"),
-      icon: <PlugIcon className={ITEM_ICON_CLASS} />,
-      run: async () => {
-        openUseInAnotherApp(
-          currentProjectEnvironmentId ??
-            (paletteRouteTarget?.kind === "server"
-              ? paletteRouteTarget.threadRef.environmentId
-              : null),
-        );
-      },
-    });
-  }
+  actionItems.push({
+    kind: "action",
+    value: "action:use-in-another-app",
+    searchTerms: [
+      "mcp",
+      "connector",
+      "another app",
+      "poke",
+      "claude",
+      "chatgpt",
+      "grok",
+      "muse",
+      "instinct",
+      "openclaw",
+      "hermes",
+    ],
+    title: gt("Use T3 Code in another app (MCP)"),
+    icon: <PlugIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      openUseInAnotherApp(
+        currentProjectEnvironmentId ??
+          (paletteRouteTarget?.kind === "server"
+            ? paletteRouteTarget.threadRef.environmentId
+            : null),
+      );
+    },
+  });
 
   actionItems.push({
     kind: "action",
@@ -1804,30 +1781,8 @@ function OpenCommandPaletteDialog(props: {
       await navigate({ to: "/settings" });
     },
   });
+  studioPalette.addPaletteActions(actionItems, gt, navigate);
 
-  actionItems.push({
-    kind: "action",
-    value: "action:plugins",
-    searchTerms: ["plugins", "extensions", "marketplace", "install", "mcp", "apps", "skills"],
-    title: gt("Open plugins"),
-    icon: <PuzzleIcon className={ITEM_ICON_CLASS} />,
-    run: async () => {
-      await navigate({ to: "/settings/plugins" });
-    },
-  });
-
-  if (hasEngineeringSurfaces()) {
-    actionItems.push({
-      kind: "action",
-      value: "action:studio-projects",
-      searchTerms: ["projects", "project", "home", "new project", "open project"],
-      title: gt("Open projects"),
-      icon: <LayoutGridIcon className={ITEM_ICON_CLASS} />,
-      run: async () => {
-        await navigate({ to: "/projects" });
-      },
-    });
-  }
   // Every group, so an archived project's thread still opens its own settings.
   const currentProjectGroup =
     (contextualProjectRef
