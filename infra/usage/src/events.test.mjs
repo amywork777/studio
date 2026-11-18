@@ -84,11 +84,15 @@ const serverCode = (file, from) => {
 
 NodeTest.test("takes every property the server builds, and no other", () => {
   const client = namesIn(serverCode("ws.ts", "function readClientAnalyticsProps"));
-  const turn = namesIn(
-    serverCode("telemetry/ProviderUsageAnalytics.ts", "function providerTurnProperties"),
-  );
   NodeAssert.deepEqual(client.toSorted(), PROPERTIES["client.connected"].toSorted());
-  NodeAssert.deepEqual(turn.toSorted(), PROPERTIES["provider.turn.completed"].toSorted());
+  // The server cuts every event to this list before sending (`telemetry/StudioAnalytics.ts`).
+  const sent = JSON.parse(
+    NodeFS.readFileSync(
+      new URL("../../../apps/server/src/telemetry/studioUsageEvents.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  NodeAssert.deepEqual(sent, PROPERTIES);
 });
 
 NodeTest.test("keeps a model id with its context size", () => {

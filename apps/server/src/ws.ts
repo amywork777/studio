@@ -250,6 +250,7 @@ import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
 import * as HostResources from "./resourceTelemetry/HostResources.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import * as SkillUse from "./telemetry/SkillUse.ts";
+import * as StudioAnalytics from "./telemetry/StudioAnalytics.ts";
 import * as PluginUsageEvents from "./plugins/usageEvents.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
@@ -1883,10 +1884,10 @@ export const layerWsRpc = (
                 }
               : {}),
             otlpLogsEnabled: config.otlpLogsUrl !== undefined,
-            usageDataAvailable: yield* AnalyticsService.usageDataAvailable.pipe(
+            usageDataAvailable: yield* StudioAnalytics.usageDataAvailable.pipe(
               Effect.orElseSucceed(() => false),
             ),
-            usageId: yield* AnalyticsService.usageId.pipe(Effect.orElseSucceed(() => null)),
+            usageId: yield* StudioAnalytics.usageId.pipe(Effect.orElseSucceed(() => null)),
           },
           settings,
           ...(serverSettings.managedPolicy === undefined

@@ -1,4 +1,10 @@
 import type { OrchestrationV2ProviderFailure } from "@t3tools/contracts";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+
+import * as AnalyticsService from "./AnalyticsService.ts";
 
 /**
  * Why an AI turn failed, from a closed list. Only this word leaves the machine with
@@ -54,3 +60,44 @@ export function turnFailureReason(
   if (GAVE_UP.has(code)) return "gave_up";
   return "other";
 }
+
+type TerminalTurn = Extract<
+  ProviderAdapter.ProviderAdapterV2Event,
+  { readonly type: "turn.terminal" }
+>;
+
+/** Counts a failed turn once (`provider.turn.failed`), with its provider and reason only. */
+export class ProviderTurnFailureAnalytics extends Context.Reference<{
+  /** Called with each terminal turn the ingestor stored; only a failed one counts. */
+  readonly turnEnded: (providerInstanceId: string, event: TerminalTurn) => Effect.Effect<void>;
+}>("t3/orchestration-v2/ProviderTurnFailureAnalytics", {
+  defaultValue: () => ({ turnEnded: () => Effect.void }),
+}) {}
+
+export const layerFailureAnalytics = Layer.effect(
+  ProviderTurnFailureAnalytics,
+  Effect.gen(function* () {
+    const analytics = yield* AnalyticsService.AnalyticsService;
+    // A provider can report the same terminal turn more than once.
+    const counted = new Set<string>();
+    return {
+      turnEnded: Effect.fn("ProviderTurnFailureAnalytics.turnEnded")(function* (
+        providerInstanceId: string,
+        event: TerminalTurn,
+      ) {
+        if (event.status !== "failed") return;
+        const key = `${providerInstanceId}:${event.providerTurnId}`;
+        if (counted.has(key)) return;
+        counted.add(key);
+        if (counted.size > 4096) {
+          const oldest = counted.values().next().value;
+          if (oldest !== undefined) counted.delete(oldest);
+        }
+        yield* analytics.record("provider.turn.failed", {
+          provider: event.driver,
+          reason: turnFailureReason(event.failure),
+        });
+      }),
+    };
+  }),
+);

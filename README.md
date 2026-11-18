@@ -23,7 +23,7 @@ once the first launch has told you, nothing counted before that is sent, and **T
 CI run (`CI` set) sends nothing. Counts go under a random install id to Studio's own receiver,
 [`infra/usage`](infra/usage/README.md), which refuses anything outside this list and keeps the
 rest in Studio's own database, not an analytics service; a build sends nothing unless it was made with the receiver's address, so a copy
-you build yourself sends nothing. [`AnalyticsService.ts`](apps/server/src/telemetry/AnalyticsService.ts)
+you build yourself sends nothing. [`StudioAnalytics.ts`](apps/server/src/telemetry/StudioAnalytics.ts)
 sends them, and this is every event it can send (tests fail when the code, the receiver and this
 list differ):
 

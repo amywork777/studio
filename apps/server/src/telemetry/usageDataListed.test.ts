@@ -5,9 +5,11 @@ import * as NodePath from "node:path";
 import { assert, it } from "@effect/vitest";
 
 import { CAD_ACTION_FAILED, CAD_USAGE_EVENTS } from "../plugins/usageEvents.ts";
+import { USAGE_EVENT_PROPERTIES } from "./StudioAnalytics.ts";
 
 // Studio's law 9: the README names every usage event the app can send, so what a person is told
-// is what the code does. Adding, renaming or dropping an event means editing that list too.
+// is what the code does. Only the events `StudioAnalytics` lists go out (T3 Code's own call sites
+// record more, which it drops), so README's list is that list, and each is recorded somewhere.
 const SERVER_SOURCE = NodePath.join(import.meta.dirname, "..");
 const README = NodePath.join(import.meta.dirname, "../../../../README.md");
 
@@ -41,16 +43,35 @@ it("lists every usage event the server can send in the README", () => {
   const recorded = recordedEvents();
   const listed = listedEvents();
   assert.isAbove(recorded.length, 10, "the scan found the server's events");
-  for (const pattern of recorded) {
-    assert.isTrue(
-      listed.some((name) => matches(pattern, name)),
-      `${pattern} is sent but not listed under "Usage data" in README.md`,
-    );
-  }
+  assert.deepEqual(
+    listed.toSorted(),
+    [...USAGE_EVENT_PROPERTIES.keys()].toSorted(),
+    `README.md's "Usage data" and studioUsageEvents.json name different events`,
+  );
   for (const name of listed) {
     assert.isTrue(
       recorded.some((pattern) => matches(pattern, name)),
       `${name} is listed under "Usage data" in README.md but nothing sends it`,
     );
   }
+});
+
+// T3 Code's own `AnalyticsService.layer` sends everything to T3's PostHog. Studio keeps the file
+// as T3 wrote it (law 10) but must never run it: only `StudioAnalytics.layer` may provide the
+// service. A T3 merge that wires T3's layer in anywhere fails here.
+it("never wires T3's own analytics sender", () => {
+  const wiresT3 = [
+    /\bAnalyticsService\.(?:layer|make)\b/u,
+    /import\s*\{[^}]*\b(?:layer|make)\b[^}]*\}\s*from\s*["'][^"']*telemetry\/AnalyticsService/u,
+  ];
+  const files = NodeFS.readdirSync(SERVER_SOURCE, { recursive: true, encoding: "utf8" });
+  const wiring = files.filter((file) => {
+    if (!file.endsWith(".ts") || /\.test\.ts$/u.test(file)) return false;
+    if (file === NodePath.join("telemetry", "AnalyticsService.ts")) return false;
+    const source = NodeFS.readFileSync(NodePath.join(SERVER_SOURCE, file), "utf8");
+    return wiresT3.some((pattern) => pattern.test(source));
+  });
+  assert.deepEqual(wiring, [], "these files use T3's analytics sender in place of StudioAnalytics");
+  const server = NodeFS.readFileSync(NodePath.join(SERVER_SOURCE, "server.ts"), "utf8");
+  assert.include(server, "StudioAnalytics.layer", "server.ts provides Studio's usage counts");
 });
