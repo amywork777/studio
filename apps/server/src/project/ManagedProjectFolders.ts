@@ -264,6 +264,7 @@ const make = Effect.gen(function* () {
   const random = yield* SecureRandom.SecureRandom;
   const settings = yield* ServerSettings.ServerSettingsService;
   const home = yield* HostProcess.HomeDirectory;
+  const studioNewProjectsDir = (yield* HostProcess.Environment).STUDIO_NEW_PROJECTS_DIR?.trim();
   // A fork that names itself (VITE_APP_BASE_NAME, as its web and desktop builds read it) is not T3 Code.
   const forkName = yield* Config.String("VITE_APP_BASE_NAME").pipe(
     Config.withDefault(""),
@@ -429,7 +430,10 @@ const make = Effect.gen(function* () {
     );
   });
 
-  const namedProjectsRoot = path.resolve(config.baseDir, "projects");
+  // Studio sets a visible one (`studioAppBundle.ts`); T3 Code keeps its data directory's.
+  const namedProjectsRoot = studioNewProjectsDir
+    ? path.resolve(expandHomePath(studioNewProjectsDir, home))
+    : path.resolve(config.baseDir, "projects");
 
   /** A chosen folder as a full path, `~` expanded; a relative one is refused, not read against cwd. */
   const chosenFolder = (folder: string) => {

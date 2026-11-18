@@ -50,6 +50,10 @@ const cadEnv = {
     "utf8",
   ).trim(),
   PATH: studioPath(engineEnv.CAD_LAUNCHER_DIR, process.env.PATH),
+  // Where new projects go, as the built app's (`studioAppBundle.ts`).
+  STUDIO_NEW_PROJECTS_DIR:
+    process.env.STUDIO_NEW_PROJECTS_DIR?.trim() ||
+    NodePath.join(NodeOS.homedir(), "Documents", "Studio"),
 };
 // The checkout's development plugin: its skills and server on its .venv, its page built fresh.
 let marketplace = checkout;

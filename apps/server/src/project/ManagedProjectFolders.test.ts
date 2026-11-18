@@ -489,6 +489,37 @@ it.effect(
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
+it.effect(
+  "makes new projects in Studio's visible folder, made when missing, when it names one",
+  () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-studio-home-" });
+      const studioRoot = path.join(home, "Documents", "Studio");
+      yield* withScratch(() =>
+        withGitEnv(
+          TEST_IDENTITY,
+          Effect.gen(function* () {
+            const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+            assert.equal(folders.namedProjectsRoot, studioRoot);
+            assert.equal(yield* folders.newProjectsRoot, studioRoot);
+            assert.isFalse(yield* fileSystem.exists(studioRoot));
+            const created = yield* folders.createNamedProject({ name: "Phone Stand" });
+            assert.equal(created.workspaceRoot, path.join(studioRoot, "phone-stand"));
+            assert.isTrue(yield* fileSystem.exists(path.join(created.workspaceRoot, ".git")));
+          }),
+        ),
+      ).pipe(
+        Effect.provideService(HostProcess.HomeDirectory, home),
+        Effect.provideService(HostProcess.Environment, {
+          ...process.env,
+          STUDIO_NEW_PROJECTS_DIR: "~/Documents/Studio",
+        }),
+      );
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
 it.effect("gives concurrent named projects with the same name distinct folders", () =>
   withScratch(() =>
     withGitEnv(
