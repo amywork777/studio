@@ -62,7 +62,7 @@ import {
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
 import { formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
-import { QUIET_TURN_MS } from "./MessagesTimeline.logic";
+import { QUIET_TURN_MS } from "../workbench/quietTurn";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { isEngineeringInterface } from "../workbench/studioInterface";
 
