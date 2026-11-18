@@ -369,7 +369,6 @@ packages/client-runtime/src/mcpApps/host.ts
 packages/client-runtime/src/modelTraits.test.ts
 packages/client-runtime/src/modelTraits.ts
 packages/client-runtime/src/rpc/session.test.ts
-packages/client-runtime/src/state/commandPermissions.test.ts
 packages/client-runtime/src/state/peerPairingCode.ts
 packages/client-runtime/src/state/pendingUserInput.ts
 packages/client-runtime/src/state/projectCommands.ts
