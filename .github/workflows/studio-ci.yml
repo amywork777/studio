@@ -53,7 +53,7 @@ jobs:
             /scripts/
           sparse-checkout-cone-mode: false
 
-      - name: Check law 14
+      - name: Check law 10 for T3 Code
         run: bash scripts/studio-t3-edits.sh
 
   typecheck:

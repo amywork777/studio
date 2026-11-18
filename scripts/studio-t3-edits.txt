@@ -1,4 +1,4 @@
-# T3 Code files Studio changes or removes (law 14). Checked by scripts/studio-t3-edits.sh;
+# T3 Code files Studio changes or removes (law 10). Checked by scripts/studio-t3-edits.sh;
 # add a line only on purpose, and take one off when its change moves into Studio's own files.
 .coderabbit.config.ts
 .github/actions/ci-changes/action.yml

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { HARDWARE_ACTIONS } from "../hardwareActions";
 import { librarySkills } from "./libraryCatalog";
 
-// Studio's law 13 (AGENTS.md): every one of text-to-cad's skills is in the Toolbox, with Studio's own
+// Studio's law 12 (AGENTS.md): every one of text-to-cad's skills is in the Toolbox, with Studio's own
 // words for its tile and at least one job (its name, as its own files give it, is libraryCatalog.test.ts's
 // to check). Whether Studio's pin has all of Jake's skills is
 // .github/workflows/studio-jakes-skills.yml's to check, and the app build stops on one it leaves out.
@@ -55,7 +55,7 @@ const installed: InstalledPlugin = {
   error: null,
 };
 
-describe("every one of text-to-cad's skills in the Toolbox (law 13)", () => {
+describe("every one of text-to-cad's skills in the Toolbox (law 12)", () => {
   const tiles = librarySkills([installed]);
   const tileOf = (name: string) => tiles.find((tile) => tile.name === name);
 

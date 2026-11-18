@@ -8,7 +8,7 @@ Studio is three codebases, each kept where it can be told apart:
 
 | Layer | Where it lives | Whose |
 |---|---|---|
-| **T3 Code** | This repository, merged from [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (`upstream`) | T3's. Studio changes only the files in `scripts/studio-t3-edits.txt` (law 14) |
+| **T3 Code** | This repository, merged from [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (`upstream`) | T3's. Studio changes only the files in `scripts/studio-t3-edits.txt` (law 10) |
 | **Studio** | Its own files and folders here: `apps/web/src/components/workbench`, `studio-sample/`, `studio-plugins/`, `infra/usage`, `scripts/studio-*` | Studio's |
 | **text-to-cad** | The `text-to-cad/` submodule, pinned to `studio-base` on [amywork777/text-to-cad-upstream](https://github.com/amywork777/text-to-cad-upstream): Jake's releases with Studio's changes on top | Jake's, with Studio's commits on `studio-base` (law 10) |
 
@@ -175,6 +175,12 @@ short user name, so a long one comes near Windows's 260.
   pnpm then refuses to install over the mobile app's unused patches. GitHub's checkout includes it
   and installs only the desktop app's packages, as T3 Code's release does; locally, add
   `apps/mobile` to the sparse checkout and install with the same `--filter`s.
+
+## Look
+
+Text is set in the sans-serif face, and monospace is kept for code: a script, a command, a file's
+contents. A label, a value with its unit or a callout is text, however technical. The lint
+`t3code/studio-code-font` holds it over `components/workbench`.
 
 ## Releasing
 

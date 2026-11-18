@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Law 14: the T3 Code files Studio changes or removes, against the T3 commit Studio last merged, must
+# Law 10: the T3 Code files Studio changes or removes, against the T3 commit Studio last merged, must
 # be exactly the ones in scripts/studio-t3-edits.txt. A new one fails until a person adds it on
 # purpose; one Studio no longer changes fails until it comes off. So the list only shrinks unless
 # someone decides otherwise, and every T3 sync conflicts on no file the list doesn't name.
@@ -27,7 +27,7 @@ edits="$(git diff --name-only --no-renames --diff-filter=MD "$base" HEAD | sort)
 
 if [ "${1:-}" = "--write" ]; then
   {
-    echo "# T3 Code files Studio changes or removes (law 14). Checked by scripts/studio-t3-edits.sh;"
+    echo "# T3 Code files Studio changes or removes (law 10). Checked by scripts/studio-t3-edits.sh;"
     echo "# add a line only on purpose, and take one off when its change moves into Studio's own files."
     printf '%s\n' "$edits"
   } >"$LIST"
@@ -40,7 +40,7 @@ added="$(comm -23 <(printf '%s\n' "$edits") <(printf '%s\n' "$listed") | sed '/^
 gone="$(comm -13 <(printf '%s\n' "$edits") <(printf '%s\n' "$listed") | sed '/^$/d')"
 status=0
 if [ -n "$added" ]; then
-  echo "::error::Studio now changes T3 Code files the list doesn't name (law 14). Move the change into Studio's own files, or add them to $LIST on purpose:"
+  echo "::error::Studio now changes T3 Code files the list doesn't name (law 10). Move the change into Studio's own files, or add them to $LIST on purpose:"
   printf '  %s\n' $added
   status=1
 fi
