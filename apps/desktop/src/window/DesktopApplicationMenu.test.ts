@@ -17,6 +17,7 @@ import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
+import * as StudioMenu from "../studio/studioMenu.ts";
 import * as DesktopApplicationMenu from "./DesktopApplicationMenu.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -233,7 +234,7 @@ describe("DesktopApplicationMenu", () => {
         throw new Error("Expected Feedback on Discord to have a click handler.");
       }
       feedback.click({} as Electron.MenuItem, {} as Electron.BrowserWindow, {} as KeyboardEvent);
-      assert.equal(yield* Deferred.await(opened), DesktopApplicationMenu.FEEDBACK_URL);
+      assert.equal(yield* Deferred.await(opened), StudioMenu.FEEDBACK_URL);
     }),
   );
 

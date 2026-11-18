@@ -12,7 +12,10 @@ import * as Scope from "effect/Scope";
 
 import * as Electron from "electron";
 
-import { PLUGIN_VIEW_SCHEME } from "../plugins/pluginViewDocuments.ts";
+import {
+  PLUGIN_VIEW_SCHEME,
+  PLUGIN_VIEW_SCHEME_PRIVILEGES,
+} from "../plugins/pluginViewDocuments.ts";
 
 export const DESKTOP_HOST = "app";
 const DESKTOP_PRODUCTION_SCHEME = "t3code";
@@ -135,11 +138,7 @@ function registerDesktopSchemePrivilegesSync(): void {
         stream: true,
       },
     },
-    // Electron keeps only the last registration, so plugin views share this list.
-    {
-      scheme: PLUGIN_VIEW_SCHEME,
-      privileges: { standard: true, secure: true, supportFetchAPI: true },
-    },
+    PLUGIN_VIEW_SCHEME_PRIVILEGES,
   ]);
 }
 

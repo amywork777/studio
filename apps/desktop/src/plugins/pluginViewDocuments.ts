@@ -6,6 +6,12 @@
  */
 export const PLUGIN_VIEW_SCHEME = "mcp-app";
 
+/** The scheme's privileges, in the desktop's one `registerSchemesAsPrivileged` list. */
+export const PLUGIN_VIEW_SCHEME_PRIVILEGES = {
+  scheme: PLUGIN_VIEW_SCHEME,
+  privileges: { standard: true, secure: true, supportFetchAPI: true },
+};
+
 /** Documents the renderer may hold at once; one that never releases (a reload) cannot grow this. */
 export const MAX_STAGED_PLUGIN_VIEWS = 64;
 
