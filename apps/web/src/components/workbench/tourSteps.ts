@@ -43,10 +43,10 @@ export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
     body: "New starts a part, a board or a document. With a part open, the AI | CAD switch chooses between asking the agent and modeling the part yourself.",
   },
   {
-    // Open or folded to its icons, the Toolbox carries this.
-    target: "[data-studio-toolbox]",
+    // The Toolbox's button, the one way in, there whether the Toolbox is open or not.
+    target: "[data-right-panel-toggle]",
     title: "What to do with a part",
-    body: "The Toolbox has the part's jobs: Evaluate, Manufacture and Document. A press starts one in the chat. Fold it to its icons to give the model more room.",
+    body: "The Toolbox button, top right, has the part's jobs: Analysis, Manufacturing and Documents. A press on one starts it in the chat.",
   },
 ];
 

@@ -134,7 +134,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { PencilRulerIcon } from "lucide-react";
+import { PencilRulerIcon, ToolCaseIcon } from "lucide-react";
 import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { WorkspaceMutationIdContext } from "./chat/ChatMarkdownMedia";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -413,7 +413,7 @@ import { StudioPanelBar } from "./workbench/StudioPanelBar";
 import { handToChat, sendsAtOnce } from "./workbench/handToChat";
 import { plainFailure, TRY_AGAIN_PROMPT } from "./workbench/plainFailure";
 import { StudioToolbox } from "./workbench/StudioToolbox";
-import { selectToolboxFolded, useToolboxFold } from "./workbench/toolboxFold";
+import { useToolboxOpen } from "./workbench/toolboxOpen";
 import { ProjectPage } from "./workbench/ProjectPage";
 import { useProjectViewStore } from "./workbench/projectView";
 import { useStudioProjectsList } from "./workbench/useStudioProjects";
@@ -1153,7 +1153,7 @@ export default function ChatView(props: ChatViewProps) {
     activePreviewMiniPlayer?.source ?? null,
     renderedRightPanelSurface,
   );
-  // Studio has no maximize: its title-bar button opens and folds the Toolbox, the one there.
+  // Studio has no maximize: its title-bar button opens and shuts the Toolbox, the one there.
   const engineeringInterface = useEngineeringInterface();
   const engineeringSurfaces = useEngineeringSurfaces();
   const canMaximizeRightPanel = rightPanelOpen && !engineeringSurfaces;
@@ -2484,17 +2484,17 @@ export default function ChatView(props: ChatViewProps) {
     if (engineeringInterface && activeThreadRef) frontTab(activeThreadRef, surface);
     activateRightPanelSurfaceStable(surface);
   });
-  // Studio's right toggle is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox,
-  // with the panel when that is shut, and folds it again. The keybinding still shows or hides the panel.
-  const toolboxFolded = useToolboxFold(selectToolboxFolded);
+  // Studio's right toggle is the Toolbox's, the one way in: it opens the Toolbox's popup, with the
+  // panel when that is shut, and shuts it again. The keybinding still shows or hides the panel.
+  const toolboxOpen = useToolboxOpen((state) => state.open);
   const toggleToolboxStable = useStableCallback(() => {
     if (!activeThreadRef) return;
     if (!rightPanelOpen) {
-      useToolboxFold.getState().openWithPanel();
+      useToolboxOpen.getState().setOpen(true);
       useRightPanelStore.getState().toggleVisibility(activeThreadRef);
       return;
     }
-    useToolboxFold.getState().setFolded(!toolboxFolded);
+    useToolboxOpen.getState().setOpen(!toolboxOpen);
   });
   const chatBusy = isWorking || pendingUserInputs.length > 0;
   const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
@@ -3523,10 +3523,10 @@ export default function ChatView(props: ChatViewProps) {
     rightPanelAvailable: activeProject !== null,
     ...(engineeringSurfaces
       ? {
-          rightPanelOpen: rightPanelOpen && !toolboxFolded,
+          rightPanelOpen: rightPanelOpen && toolboxOpen,
           rightPanelShortcutLabel: null,
-          rightPanelLabel:
-            rightPanelOpen && !toolboxFolded ? "Fold the Toolbox" : "Open the Toolbox",
+          rightPanelLabel: rightPanelOpen && toolboxOpen ? "Close the Toolbox" : "Open the Toolbox",
+          rightPanelIcon: ToolCaseIcon,
         }
       : {
           rightPanelOpen,
@@ -4300,8 +4300,8 @@ export default function ChatView(props: ChatViewProps) {
                 ),
               }
             : {})}
-          // The Toolbox is the one place for a part's jobs, so it shows wherever the engineering
-          // surfaces do, with the code tools out too; folded to its edge on a narrow sheet (`toolbox.ts`).
+          // The Toolbox is the one place for a part's jobs, so it is there wherever the engineering
+          // surfaces are, with the code tools out too: a popup from the title bar's button.
           {...(engineeringSurfaces
             ? {
                 aside: (
