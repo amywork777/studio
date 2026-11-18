@@ -17,6 +17,7 @@ import {
   engineeringSettingsSearchItems,
   settingsRowHidden,
 } from "../workbench/engineeringSettings";
+import { t3SettingsSectionHidden } from "../workbench/hiddenT3Features";
 import {
   filterAvailableSettingsSearchItems,
   getThreadAutoSettlementSearchAvailability,
@@ -87,6 +88,7 @@ export function useAvailableSettingsSearchItems() {
     (item) =>
       item.id !== "mobile-app" &&
       !settingsRowHidden(item.id, false) &&
+      !t3SettingsSectionHidden(item.to) &&
       (STUDIO_INTERFACE_AVAILABLE || item.id !== "studio-interface"),
   );
   // The engineering interface searches only the sections and rows it shows, by their names there.
