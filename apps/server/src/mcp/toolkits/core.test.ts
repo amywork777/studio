@@ -26,6 +26,7 @@ import {
 import { pinOrderKeyBetween } from "@t3tools/shared/pinOrderKey";
 import * as DateTime from "effect/DateTime";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -415,9 +416,9 @@ it.effect("returns an HTML render reference that Codex and Claude tool rows both
   ),
 );
 
-// Studio's law 9: `mcp.tool.invoked` is not in README's "Usage data", so no tool call is counted.
-it.effect("records no usage event for a tool call, failed or not", () => {
-  const recorded: Array<string> = [];
+it.effect("records only failed calls of tools that hand off no work", () => {
+  // Recording runs detached from the tool response, so the first event is awaited.
+  const recorded = Deferred.makeUnsafe<{ event: string; properties: object }>();
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     const organize = (capabilities: McpInvocationContext.McpInvocationScope["capabilities"]) =>
@@ -432,7 +433,11 @@ it.effect("records no usage event for a tool call, failed or not", () => {
     expect(declaredFailure(yield* organize(new Set<never>()))).toMatchObject({
       code: "capability_denied",
     });
-    expect(recorded).toEqual([]);
+    // The successful call ran first, so it would be the first event if it were recorded.
+    expect(yield* Deferred.await(recorded)).toMatchObject({
+      event: "mcp.tool.invoked",
+      properties: { tool: "t3_thread_organize", outcome: "error" },
+    });
   }).pipe(
     Effect.provide(
       layerThreadToolkit.pipe(
@@ -453,8 +458,12 @@ it.effect("records no usage event for a tool call, failed or not", () => {
           Layer.succeed(
             AnalyticsService.AnalyticsService,
             AnalyticsService.AnalyticsService.of({
-              record: (event) => Effect.sync(() => void recorded.push(event)),
+              record: (event, properties) =>
+                Deferred.succeed(recorded, { event, properties: properties ?? {} }).pipe(
+                  Effect.asVoid,
+                ),
               flush: Effect.void,
+              recordOwners: () => Effect.void,
             }),
           ),
         ),
@@ -521,10 +530,9 @@ it.effect("t3_queue list and read load only the queued runs and their messages",
   );
 });
 
-// Studio's law 9: a tool call records no usage event, so handing off work reads no history for one.
-it.effect("a handoff records no usage event and reads no history for one", () => {
+it.effect("handoff analytics read only the caller's active run and its message", () => {
   const reads: Array<string> = [];
-  const recorded: Array<string> = [];
+  const recorded = Deferred.makeUnsafe<void>();
   return Effect.gen(function* () {
     const server = yield* McpServer.McpServer;
     yield* server
@@ -536,7 +544,7 @@ it.effect("a handoff records no usage event and reads no history for one", () =>
         Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
         Effect.provideService(McpSchema.McpServerClient, client),
       );
-    expect(recorded).toEqual([]);
+    yield* Deferred.await(recorded);
     expect(reads).toEqual([]);
   }).pipe(
     Effect.provide(
@@ -548,8 +556,9 @@ it.effect("a handoff records no usage event and reads no history for one", () =>
           Layer.succeed(
             AnalyticsService.AnalyticsService,
             AnalyticsService.AnalyticsService.of({
-              record: (event) => Effect.sync(() => void recorded.push(event)),
+              record: () => Deferred.succeed(recorded, undefined).pipe(Effect.asVoid),
               flush: Effect.void,
+              recordOwners: () => Effect.void,
             }),
           ),
         ),
