@@ -598,6 +598,37 @@ export default defineConfig({
           ],
         },
       },
+      // Registered always so a disable comment for intentional English counts as used.
+      // `vp run i18n:untranslated` counts what it flags.
+      {
+        files: ["apps/web/src/**", "apps/mobile/src/**", "packages/client-runtime/src/**"],
+        excludeFiles: [
+          "**/*.{test,spec,bench}.{ts,tsx}",
+          "**/{test,testkit,testing,fixtures}/**",
+          "**/*.test-fixtures.ts",
+          "**/{test-fixtures,*TestFixtures}.ts",
+          "apps/mobile/src/features/development/**",
+          "packages/client-runtime/src/rpc/**",
+        ],
+        rules: { "t3code/no-untranslated-copy": "error" },
+      },
+      {
+        // Studio ships English only, and its own screens are written in it.
+        files: [
+          "apps/web/src/components/workbench/**",
+          "apps/web/src/components/plugins/**",
+          "apps/web/src/components/desktopUpdate.hold.ts",
+          "apps/web/src/components/UsageDataNotice.tsx",
+          "apps/web/src/components/settings/{DefaultModelRow,GitHubSignIn}.tsx",
+          "apps/web/src/components/settings/{reportProblem,textToCadVersion,usageDataRestore}.ts",
+          "apps/web/src/hooks/useRefreshOnReturn.ts",
+          "apps/web/src/routes/_chat.{chats,needs-you,projects,trash,library}.tsx",
+          "apps/web/src/routes/_chat.{examples,library_.examples,settings.interface,settings.plugins}*.tsx",
+          "apps/web/src/state/{plugins,studioProjects}.ts",
+          "packages/client-runtime/src/state/{pluginFollow,plugins,studioProjects}.ts",
+        ],
+        rules: { "t3code/no-untranslated-copy": "off" },
+      },
       {
         // React Compiler owns memoization; upstream rules do not ban redundant useMemo/useCallback.
         files: ["apps/web/src/**/*.{ts,tsx}"],

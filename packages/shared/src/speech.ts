@@ -1,6 +1,4 @@
 import {
-  CLOUD_SPEECH_PROVIDER_NAMES,
-  type CloudSpeechProvider,
   SPEECH_MAX_OPTIONS_BYTES,
   type SpeechCustomWords,
   type SpeechBenchmarkTier,
@@ -8,8 +6,6 @@ import {
 } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import recommendationPolicy from "./speechRecommendationPolicy.json" with { type: "json" };
-
-import { appName } from "./appName.ts";
 
 const decodeOptions = Schema.decodeUnknownSync(Schema.fromJsonString(SpeechTranscriptionOptions));
 const encodeOptions = Schema.encodeSync(Schema.fromJsonString(SpeechTranscriptionOptions));
@@ -99,12 +95,6 @@ export function recommendSpeechModels(
     if (model && !roles.has(model.id)) roles.set(model.id, role);
   }
   return roles;
-}
-
-export function cloudSpeechDisclosure(provider: CloudSpeechProvider, environment: string) {
-  return provider === "openrouter"
-    ? `After you stop, ${environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. ${appName()} requests zero data retention; your OpenRouter account may allow safety retention.`
-    : `After you stop, ${environment} sends your recording and vocabulary hints, including project names, to ${CLOUD_SPEECH_PROVIDER_NAMES[provider]}.`;
 }
 
 // Only offer explicit hints understood by all cloud APIs; other languages can still be detected.

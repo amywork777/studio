@@ -10,7 +10,7 @@ describe("tour", () => {
     for (const platform of ["MacIntel", "Win32"]) {
       const steps = tourSteps(platform);
       expect(steps).toHaveLength(5);
-      expect(steps.at(-1)?.target).toBe("[data-studio-toolbox]");
+      expect(steps.at(-1)?.target).toBe("[data-right-panel-toggle]");
       expect(steps.every((step) => step.target !== "" && !step.body.includes("—"))).toBe(true);
     }
   });

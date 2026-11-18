@@ -1,5 +1,6 @@
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
 import type { UnifiedSettings } from "@t3tools/contracts";
+import { msg, useMessages } from "gt-react";
 import type { Dispatch } from "react";
 import type { ComposerThreadTarget, DraftSessionState } from "../../composerDraftStore";
 import { useStableCallback } from "../../hooks/useStableCallback";
@@ -83,6 +84,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
     setPendingServerThreadStartFromOriginByThreadId,
     scheduleComposerFocus,
   } = input;
+  const messages = useMessages();
   const navigate = useNavigate();
   const setStickyComposerModelSelection = useComposerDraftStore(
     (store) => store.setStickyModelSelection,
@@ -124,6 +126,7 @@ export function useComposerSelection(input: ComposerSelectionInput) {
           currentProviderInstanceId: runtimeProviderInstanceId,
         }
       : null,
+    messages,
   );
 
   const onProviderModelSelect = (
@@ -142,8 +145,10 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       if (options?.announceBlockedProvider !== true) return;
       toastManager.add({
         type: "warning",
-        title: "Start a new chat to switch providers",
-        description: "This thread does not support switching providers after it has started.",
+        title: messages(msg("Start a new chat to switch providers")),
+        description: messages(
+          msg("This thread does not support switching providers after it has started."),
+        ),
       });
     };
     const entry = providerStatuses.find((snapshot) => snapshot.instanceId === instanceId);

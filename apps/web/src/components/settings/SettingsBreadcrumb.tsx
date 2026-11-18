@@ -1,4 +1,4 @@
-import { msg, useMessages } from "gt-react";
+import { msg, useGT, useMessages } from "gt-react";
 
 import { WorkspaceBreadcrumb, WorkspaceBreadcrumbItem } from "../WorkspaceBreadcrumb";
 import { SETTINGS_SECTION_LABELS } from "./settingsSearch";
@@ -33,12 +33,13 @@ export function useSettingsPageLabel(pathname: string): string | null {
  * lives at the top of the page content, see `SettingsScopeSentence`.
  */
 export function SettingsBreadcrumb({ pathname }: { pathname: string }) {
+  const gt = useGT();
   const m = useMessages();
   const sectionLabel = useSettingsPageLabel(pathname);
   if (sectionLabel !== null) return null;
 
   return (
-    <WorkspaceBreadcrumb ariaLabel="Settings breadcrumb">
+    <WorkspaceBreadcrumb ariaLabel={gt("Settings breadcrumb")}>
       <WorkspaceBreadcrumbItem current className="truncate">
         {m(SETTINGS_LABEL)}
       </WorkspaceBreadcrumbItem>

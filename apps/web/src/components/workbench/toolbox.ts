@@ -55,7 +55,6 @@ export function pairLoneSections(
   return paired;
 }
 
-const FOLDED_KEY = "studio:toolbox-folded";
 const TAB_KEY = "studio:toolbox-tab";
 
 /** The group the Toolbox was left on, on this device; Evaluate when never chosen. */
@@ -72,24 +71,6 @@ export function readToolboxTab(): HardwareActionGroup {
 export function writeToolboxTab(group: HardwareActionGroup): void {
   try {
     globalThis.localStorage?.setItem(TAB_KEY, group);
-  } catch {
-    // Storage is full or off: the choice holds until the window closes.
-  }
-}
-
-/** Whether the Toolbox was left collapsed to its edge on this device; open when never chosen. */
-export function readToolboxFolded(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(FOLDED_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/** Remembers, for this device, whether the Toolbox is collapsed to its edge. */
-export function writeToolboxFolded(folded: boolean): void {
-  try {
-    globalThis.localStorage?.setItem(FOLDED_KEY, String(folded));
   } catch {
     // Storage is full or off: the choice holds until the window closes.
   }
@@ -165,25 +146,4 @@ export function toolboxLibraryLink(
   where: { readonly workspaceOpen: boolean; readonly from: string },
 ) {
   return libraryHref({ group, ...(where.workspaceOpen ? { from: where.from } : {}) });
-}
-
-/**
- * Whether the Toolbox shows as its edge. On a wide panel, as the person left it on this device; on
- * a narrow one (`toolboxNarrowRem`) folded, so the model keeps the room, until opened there.
- */
-export function toolboxFolded(input: {
-  readonly chosen: boolean;
-  readonly narrow: boolean;
-  readonly openedNarrow: boolean;
-}): boolean {
-  return input.narrow ? !input.openedNarrow : input.chosen;
-}
-
-/**
- * Under this width the workspace panel is narrow, and the Toolbox starts folded. In AI it writes
- * into the chat, so it stays out down to a small panel. In CAD the model is the work: beside a chat
- * the panel is about 1270px wide and the Toolbox folds, across the window (about 1800px) it stays out.
- */
-export function toolboxNarrowRem(simple: boolean): number {
-  return simple ? 40 : 84;
 }
