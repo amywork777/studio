@@ -1,6 +1,6 @@
 # T3 Code files Studio changes or removes (law 10). Checked by scripts/studio-t3-edits.sh;
 # add a line only on purpose, and take one off when its change moves into Studio's own files.
-# T3 base: 79daf43c1cab9c9e74733eaf7b95e1926f237d96
+# T3 base: 724f5c6bec1781c6d7d6ad09033030f198e4607d
 .coderabbit.config.ts
 .github/actions/ci-changes/action.yml
 .github/actions/setup-apt-mirrors/action.yml
