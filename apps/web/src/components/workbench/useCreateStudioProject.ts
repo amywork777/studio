@@ -28,6 +28,8 @@ export interface NewStudioProject {
   readonly process?: string;
   /** Folders the project starts with; none makes a new folder named after it. */
   readonly folders: ReadonlyArray<string>;
+  /** Where that new folder is made; unsaid is the environment's folder for new projects. */
+  readonly parentFolder?: string | null;
   /** How it came to be, for its usage count: unsaid is made in New. */
   readonly origin?: StudioProjectOrigin;
   /**
@@ -57,7 +59,10 @@ export function useCreateStudioProject(environmentId: EnvironmentId) {
     let firstProjectId: ProjectId | null =
       folders[0] === undefined ? null : (folderProject(knownFolders, folders[0])?.id ?? null);
     if (folders.length === 0) {
-      const created = await createNew({ environmentId: input.environmentId, input: { name } });
+      const created = await createNew({
+        environmentId: input.environmentId,
+        input: { name, ...(input.parentFolder ? { parentFolder: input.parentFolder } : {}) },
+      });
       if (created._tag !== "Success") {
         const error = squashAtomCommandFailure(created);
         toastManager.add({

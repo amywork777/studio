@@ -311,6 +311,8 @@ export type ProjectListEntriesResult = typeof ProjectListEntriesResult.Type;
 // are left out, so the list stays small enough to pick from.
 export const ProjectListIgnoredFilesInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
+  /** Case-insensitive path substring, applied before the listing cap. */
+  query: Schema.optionalKey(TrimmedString.check(Schema.isMaxLength(256))),
 });
 export type ProjectListIgnoredFilesInput = typeof ProjectListIgnoredFilesInput.Type;
 
@@ -532,6 +534,8 @@ export type ProjectEnsureScratchResult = typeof ProjectEnsureScratchResult.Type;
 
 export const ProjectCreateNewInput = Schema.Struct({
   name: TrimmedNonEmptyString.check(Schema.isMaxLength(200)),
+  /** The folder the project's own folder is made in; omitted uses the server's new projects folder. */
+  parentFolder: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type ProjectCreateNewInput = typeof ProjectCreateNewInput.Type;
 
@@ -542,18 +546,6 @@ export const ProjectCreateNewResult = Schema.Struct({
   commitError: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type ProjectCreateNewResult = typeof ProjectCreateNewResult.Type;
-
-/** A project folder that keeps no history yet, to start one in as a new project's folder has. */
-export const ProjectStartHistoryInput = Schema.Struct({
-  cwd: TrimmedNonEmptyString,
-});
-export type ProjectStartHistoryInput = typeof ProjectStartHistoryInput.Type;
-
-export const ProjectStartHistoryResult = Schema.Struct({
-  /** Why the first commit failed. The folder keeps a history either way. */
-  commitError: Schema.optionalKey(TrimmedNonEmptyString),
-});
-export type ProjectStartHistoryResult = typeof ProjectStartHistoryResult.Type;
 
 export const ProjectCreateFromThreadInput = Schema.Struct({
   threadId: ThreadId,

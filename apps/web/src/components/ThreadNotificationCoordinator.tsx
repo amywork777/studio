@@ -1,4 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { msg } from "gt-react";
+import { m } from "../i18n/messages";
 import {
   type EnvironmentThreadShell,
   type PendingSubagentRequest,
@@ -6,7 +8,7 @@ import {
 } from "@t3tools/client-runtime/state/models";
 import { isShownUnderParent } from "@t3tools/client-runtime/state/threads";
 import type { AnyRouter } from "@tanstack/react-router";
-import { threadKey } from "@t3tools/client-runtime/state/entities";
+import { parseThreadKey, threadKey } from "@t3tools/client-runtime/state/entities";
 import type { EnvironmentId, OrchestrationV2ThreadShell, ThreadId } from "@t3tools/contracts";
 import { monitorHoldsWakeCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import type { ClientSettings } from "@t3tools/contracts/settings";
@@ -36,6 +38,7 @@ import { resolveBackgroundThreadRequest } from "./backgroundThreadAnnouncement";
 import { resolveSidebarThreadStatus, type SidebarThreadStatus } from "./Sidebar.logic";
 import {
   createThreadNotificationGate,
+  isSnoozedForNotification,
   type ThreadNotificationKind,
   type ThreadNotificationObservation,
 } from "./ThreadNotificationCoordinator.logic";
@@ -82,7 +85,7 @@ export function startThreadNotifications(
     pending.set(notification.tag, { environmentId, threadId, notification });
     setNotificationBadge(pending.size);
   };
-  // Toast ids by thread key, so hiding or opening a thread can close its open toasts.
+  // Toast ids by thread key, so hiding or opening a thread, or removing its environment, closes them.
   const openToasts = new Map<string, Array<ToastId>>();
   const forgetToast = (key: string, toastId: ToastId) => {
     const remaining = (openToasts.get(key) ?? []).filter((id) => id !== toastId);
@@ -156,19 +159,19 @@ export function startThreadNotifications(
     const title =
       kind === "completion"
         ? engineering
-          ? "Chat finished"
-          : "Thread completed"
+          ? m(msg("Chat finished"))
+          : m(msg("Thread completed"))
         : status === "approval"
-          ? "Approval needed"
+          ? m(msg("Approval needed"))
           : status === "limited"
-            ? "Usage limit reached"
+            ? m(msg("Usage limit reached"))
             : status === "failed"
               ? engineering
-                ? "Chat failed"
-                : "Thread failed"
+                ? m(msg("Chat failed"))
+                : m(msg("Thread failed"))
               : status === "request"
-                ? "Guest request"
-                : "Input needed";
+                ? m(msg("Guest request"))
+                : m(msg("Input needed"));
     if (hasNotificationSound(mode)) {
       void playNotificationSound(kind, () =>
         hasNotificationSound(getClientSettings().notificationMode),
@@ -202,7 +205,7 @@ export function startThreadNotifications(
             ),
         },
         actionProps: {
-          children: engineering ? "Open chat" : "Open thread",
+          children: engineering ? m(msg("Open chat")) : m(msg("Open thread")),
           onClick: () => {
             toastManager.close(toastId);
             openChat();
@@ -310,10 +313,12 @@ export function startThreadNotifications(
     entry.reconnecting = false;
     entry.previous = next;
     entry.gate.retain(new Set(next.keys()));
+    const now = Date.now();
     for (const [prior, state] of changed) {
       entry.gate.observe(state.thread.id, prior, state, {
         archived: state.thread.archivedAt !== null,
         quiet: state.raw.latestRunStopRequested === true,
+        snoozed: isSnoozedForNotification(state.thread, state.completedAt, now),
       });
     }
   };
@@ -383,6 +388,7 @@ export function startThreadNotifications(
 
   const pruneRemovedEnvironments = () => {
     const activeIds = new Set(registry.get(environmentSummaries.environmentIdsAtom));
+    closeToasts((key) => !activeIds.has(parseThreadKey(key).environmentId));
     const count = pending.size;
     for (const [tag, entry] of pending) {
       if (activeIds.has(entry.environmentId)) continue;

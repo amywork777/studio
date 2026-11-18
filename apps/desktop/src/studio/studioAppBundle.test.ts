@@ -115,6 +115,7 @@ describe("applyStudioAppBundle", () => {
       T3CODE_DESKTOP_PROFILE: "studio",
       T3CODE_DEFAULT_PLUGINS: "text-to-cad",
       T3CODE_PLUGIN_MARKETPLACE: marketplace,
+      STUDIO_NEW_PROJECTS_DIR: NodePath.join(home, "Documents", "Studio"),
     });
     // Its CAD server keeps its state, cache, engine and port apart from a user's own.
     const cad = NodePath.join(studioHome, "cad");

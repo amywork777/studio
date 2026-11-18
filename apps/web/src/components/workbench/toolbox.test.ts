@@ -5,8 +5,6 @@ import {
   jobCount,
   pairLoneSections,
   readToolboxTab,
-  toolboxFolded,
-  toolboxNarrowRem,
   toolboxGroups,
   toolboxStart,
   toolboxLeftOut,
@@ -67,28 +65,6 @@ describe("toolboxGroups", () => {
     );
     expect(fromGroups.toSorted()).toEqual(fromMenus.toSorted());
     expect(new Set(fromGroups).size).toBe(fromGroups.length);
-  });
-});
-
-describe("toolboxFolded", () => {
-  it("keeps the choice made on this device on a wide panel", () => {
-    expect(toolboxFolded({ chosen: false, narrow: false, openedNarrow: false })).toBe(false);
-    expect(toolboxFolded({ chosen: true, narrow: false, openedNarrow: true })).toBe(true);
-  });
-
-  it("folds on a narrow panel until it is opened there", () => {
-    expect(toolboxFolded({ chosen: false, narrow: true, openedNarrow: false })).toBe(true);
-    expect(toolboxFolded({ chosen: true, narrow: true, openedNarrow: true })).toBe(false);
-  });
-});
-
-describe("toolboxNarrowRem", () => {
-  it("folds beside a chat in CAD and stays out across the window, and in AI down to a small panel", () => {
-    const narrow = (simple: boolean, width: number) => width < toolboxNarrowRem(simple) * 16;
-    expect(narrow(false, 1270)).toBe(true);
-    expect(narrow(false, 1800)).toBe(false);
-    expect(narrow(true, 1270)).toBe(false);
-    expect(narrow(true, 600)).toBe(true);
   });
 });
 

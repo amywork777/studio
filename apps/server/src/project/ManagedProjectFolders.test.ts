@@ -7,6 +7,7 @@ import {
   ProjectId,
   ThreadId,
   VcsProcessSpawnError,
+  VcsProcessTimeoutError,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
@@ -97,6 +98,7 @@ const withScratch = <A, E>(
     E,
     | ManagedProjectFolders.ManagedProjectFolders
     | ProjectService.ProjectService
+    | ServerSettings.ServerSettingsService
     | NodeServices.NodeServices
     | Scope.Scope
   >,
@@ -176,6 +178,44 @@ it.effect("offers a Scratch folder when Git is not installed", () =>
             }),
           ),
       }),
+    },
+  ),
+);
+
+it.effect("offers the Scratch folder once a Git check that timed out is asked again", () =>
+  withScratch(
+    ({ baseDir }) =>
+      Effect.gen(function* () {
+        const path = yield* Path.Path;
+        const scratch = yield* ManagedProjectFolders.ManagedProjectFolders;
+        assert.isTrue(Option.isNone(yield* scratch.scratchRoot));
+        assert.equal(yield* requireRoot, path.resolve(baseDir, "scratch"));
+      }),
+    {
+      vcsProcess: Layer.effect(
+        VcsProcess.VcsProcess,
+        Effect.map(VcsProcess.make, (real) => {
+          let timedOut = false;
+          return VcsProcess.VcsProcess.of({
+            run: (input) =>
+              Effect.suspend(() => {
+                if (timedOut) return real.run(input);
+                timedOut = true;
+                return Effect.fail(
+                  new VcsProcessTimeoutError({
+                    operation: input.operation,
+                    command: input.command,
+                    cwd: input.cwd,
+                    timeoutMs: 5_000,
+                  }),
+                );
+              }),
+          });
+        }),
+      ).pipe(
+        Layer.provide(ProcessRunner.layer),
+        Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+      ),
     },
   ),
 );
@@ -280,6 +320,15 @@ it.effect("gives each Scratch thread its own folder, named from its message", ()
       );
       assert.equal(path.dirname(pasted), root);
       assert.isAtMost(path.basename(pasted).length, 80);
+
+      const accented = Option.getOrThrow(
+        yield* scratch.folderForThread({
+          projectId,
+          threadId: ThreadId.make("thread-diacritics"),
+          text: "tìm kiếm skill",
+        }),
+      );
+      assert.match(path.basename(accented), /^\d{4}-\d{2}-\d{2}-tim-kiem-skill-/);
     }),
   ),
 );
@@ -426,6 +475,97 @@ it.effect("starts a named project as a committed repository, and suffixes a take
       }),
     ),
   ),
+);
+
+it.effect(
+  "makes a named project in the folder chosen for it, or the one set for new projects",
+  () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-named-home-" });
+      yield* withScratch(({ baseDir }) =>
+        withGitEnv(
+          TEST_IDENTITY,
+          Effect.gen(function* () {
+            const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+            const settings = yield* ServerSettings.ServerSettingsService;
+            assert.equal(yield* folders.newProjectsRoot, path.resolve(baseDir, "projects"));
+
+            const chosen = yield* folders.createNamedProject({
+              name: "Desk Lamp",
+              parentFolder: "~/work/cad",
+            });
+            assert.equal(chosen.workspaceRoot, path.join(home, "work", "cad", "desk-lamp"));
+            assert.equal(
+              yield* gitOutput(chosen.workspaceRoot, ["log", "--format=%s"]),
+              "Initial commit",
+            );
+
+            yield* settings.updateSettings({ newProjectsFolder: path.join(home, "parts") });
+            assert.equal(yield* folders.newProjectsRoot, path.join(home, "parts"));
+            const defaulted = yield* folders.createNamedProject({ name: "Desk Lamp" });
+            assert.equal(defaulted.workspaceRoot, path.join(home, "parts", "desk-lamp"));
+
+            const relative = yield* Effect.flip(
+              folders.createNamedProject({ name: "Loose", parentFolder: "work/cad" }),
+            );
+            assert.equal(relative._tag, "NamedProjectFolderError");
+            assert.isFalse(yield* fileSystem.exists(path.resolve("work", "cad", "loose")));
+
+            // Inside the person's own repository the project joins it, with no history of its own.
+            const repository = path.join(home, "rover");
+            yield* fileSystem.makeDirectory(repository);
+            yield* git(repository, ["init", "--quiet"]);
+            const inRepository = yield* folders.createNamedProject({
+              name: "Arm Bracket",
+              parentFolder: repository,
+            });
+            assert.equal(inRepository.workspaceRoot, path.join(repository, "arm-bracket"));
+            assert.isUndefined(inRepository.commitError);
+            assert.isTrue(
+              yield* fileSystem.exists(path.join(inRepository.workspaceRoot, "README.md")),
+            );
+            assert.isFalse(yield* fileSystem.exists(path.join(inRepository.workspaceRoot, ".git")));
+            assert.equal(
+              yield* gitOutput(repository, ["status", "--porcelain", "--untracked-files=all"]),
+              "?? arm-bracket/README.md\n?? arm-bracket/assets/icon.svg",
+            );
+          }),
+        ),
+      ).pipe(Effect.provideService(HostProcess.HomeDirectory, home));
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect(
+  "makes new projects in Studio's visible folder, made when missing, when it names one",
+  () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-studio-home-" });
+      const studioRoot = path.join(home, "Documents", "Studio");
+      yield* withScratch(() =>
+        withGitEnv(
+          TEST_IDENTITY,
+          Effect.gen(function* () {
+            const folders = yield* ManagedProjectFolders.ManagedProjectFolders;
+            assert.equal(folders.namedProjectsRoot, studioRoot);
+            assert.equal(yield* folders.newProjectsRoot, studioRoot);
+            assert.isFalse(yield* fileSystem.exists(studioRoot));
+            const created = yield* folders.createNamedProject({ name: "Phone Stand" });
+            assert.equal(created.workspaceRoot, path.join(studioRoot, "phone-stand"));
+            assert.isTrue(yield* fileSystem.exists(path.join(created.workspaceRoot, ".git")));
+          }),
+        ),
+      ).pipe(
+        Effect.provideService(HostProcess.HomeDirectory, home),
+        Effect.provideService(HostProcess.Environment, {
+          ...process.env,
+          STUDIO_NEW_PROJECTS_DIR: "~/Documents/Studio",
+        }),
+      );
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
 it.effect("gives concurrent named projects with the same name distinct folders", () =>

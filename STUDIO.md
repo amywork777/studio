@@ -4,17 +4,26 @@ T3 Code made into a hardware app: agents design parts with the text-to-cad plugi
 view follows their work beside the thread. It lives in this repository, on `main`.
 Studio's laws are at the top of [AGENTS.md](AGENTS.md).
 
-[text-to-cad](https://github.com/earthtojake/text-to-cad) is the `text-to-cad/` submodule, pinned
-to `studio-base` on [amywork777/text-to-cad-upstream](https://github.com/amywork777/text-to-cad-upstream):
-Jake's latest release, Amy's open text-to-cad PRs merged in, and Studio's Edit by hand on top
-(`packages/cad/src/cad/edit/` and `packages/ui/src/renderers/xbf/edit/`). Nothing else of
-Studio's lives there, so a new release or a PR's new commits come in by merging them into
-`studio-base`, keeping its suites green, pushing it, and moving the pin here:
+Studio is three codebases, each kept where it can be told apart:
 
-```sh
-git submodule update --remote text-to-cad
-git commit -m "text-to-cad: <what changed>" text-to-cad
-```
+| Layer | Where it lives | Whose |
+|---|---|---|
+| **T3 Code** | This repository, merged from [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (`upstream`) | T3's. Studio changes only the files in `scripts/studio-t3-edits.txt` (law 10) |
+| **Studio** | Its own files and folders here: `apps/web/src/components/workbench`, `studio-sample/`, `studio-plugins/`, `infra/usage`, `scripts/studio-*` | Studio's |
+| **text-to-cad** | The `text-to-cad/` submodule, pinned to `studio-base` on [amywork777/text-to-cad-upstream](https://github.com/amywork777/text-to-cad-upstream): Jake's releases with Studio's changes on top | Jake's, with Studio's commits on `studio-base` (law 10) |
+
+**Where a change goes.** Each is one review:
+
+| The change | Where | Then |
+|---|---|---|
+| A Studio feature or screen | This repository, in Studio's own files | Merged here |
+| A change to the CAD tools only Studio wants | A PR into `studio-base` on the fork, in new files where it can be (law 10) | The hourly pin moves Studio to it ([Releasing](#releasing)) |
+| A change every text-to-cad user would want | A PR to [earthtojake/text-to-cad](https://github.com/earthtojake/text-to-cad) | Comes in with his next release |
+| One that needs T3 Code's own code to change | The smallest hook in T3's file that calls Studio's code, and the file added to `scripts/studio-t3-edits.txt` | Merged here |
+| One every T3 Code user would want | A PR to [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | Comes in with the next T3 merge |
+
+T3 Code moves fast (well over a thousand commits a week), so merge `upstream` weekly; afterwards
+`scripts/studio-t3-edits.sh --write` brings the list up to date, and its diff shows what changed.
 
 The setup fetches it (`git submodule update --init text-to-cad`; not `--recurse-submodules`,
 which trips on the vendored `.repos` tree's gitlinks). Set it up on a Mac with
@@ -115,7 +124,7 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
     `xcrun notarytool store-credentials studio-notary --apple-id <Apple ID> --team-id <Team ID>`
     (it asks for the password, which stays in the keychain).
   - **Each release:** `STUDIO_SIGN=1 APPLE_KEYCHAIN_PROFILE=studio-notary RUSTUP_TOOLCHAIN=1.95
-scripts/build-studio-app.sh <version>`, then the draft line it prints (Releasing): the DMG
+    scripts/build-studio-app.sh <version>`, then the draft line it prints (Releasing): the DMG
     under its one name, and the zip, its blockmap and `latest-mac.yml` the updater reads. It needs
     about 10 GB free: the last release's files in `release/` and `build/studio-bundle` can go once
     it is published. 0.1.3 ran out on its last step (2026-10-22), which now moves the DMG and the
@@ -167,6 +176,12 @@ short user name, so a long one comes near Windows's 260.
   and installs only the desktop app's packages, as T3 Code's release does; locally, add
   `apps/mobile` to the sparse checkout and install with the same `--filter`s.
 
+## Look
+
+Text is set in the sans-serif face, and monospace is kept for code: a script, a command, a file's
+contents. A label, a value with its unit or a callout is text, however technical. The lint
+`t3code/studio-code-font` holds it over `components/workbench`.
+
 ## Releasing
 
 Studio is one app with one number, `0.MINOR.PATCH`. Its minor moves when Jake's does, and the rest
@@ -174,6 +189,12 @@ are patches. It names the text-to-cad it includes beside that number and never b
 from his. There is one channel, Latest. The app reads both from `studio.json`, written by the build:
 About and Report a problem name the text-to-cad, and saving a project writes it to
 `.studio/engine.json`, so every Version records what made it. An update never rewrites a project.
+
+Between releases, `.github/workflows/studio-pin.yml` runs `scripts/studio-pin-studio-base.sh`
+every hour. When `studio-base` has moved past the pin, it keeps one review, `pin/studio-base`, that
+moves only the pin, and merges it once every check on it has passed; a failed check leaves it open.
+So a change to the CAD tools is one review, on the fork (where `studio-base-test.yml` runs Jake's
+tests), and reaches `main` within the hour. It uses the bump's token.
 
 1. **The bump.** `.github/workflows/studio-text-to-cad-bump.yml` runs
    `scripts/studio-bump-text-to-cad.sh` every six hours. When Jake's latest release is newer than
@@ -212,7 +233,7 @@ About and Report a problem name the text-to-cad, and saving a project writes it 
    always whole.
 6. **Try it (Amy).** Install the draft's download and open an example.
 7. **Publish (Amy).** `gh release edit v<version> --repo amywork777/studio-download --draft=false
---latest`, then tag this repository `v<version>` and the fork `studio-v<version>`.
+   --latest`, then tag this repository `v<version>` and the fork `studio-v<version>`.
 
 **Rollback.** Stop the spread with `gh release edit v<good> --repo amywork777/studio-download
 --latest`: the updater and the download links read the latest release. Nobody already on the bad
@@ -232,7 +253,10 @@ TEXT_TO_CAD_DEV=1 vpr studio:desktop    # the Electron app (what run-studio.sh r
 `scripts/studio.ts` reads the checkout as a plugin marketplace and turns its `text-to-cad` plugin on
 at first start, brands the app from `brand/`, and keeps state in `~/.text-to-cad-studio` (never in
 T3 Code's `~/.t3`). `TEXT_TO_CAD_ROOT` points at another checkout; `TEXT_TO_CAD_STUDIO_HOME` moves
-the state and `STUDIO_PROJECTS_DIR` the projects (`~/studio-projects`). Every checkout's engine
+the state and `STUDIO_PROJECTS_DIR` the project records (`~/studio-projects`, each project's
+`project.json`). A new project's own folder goes in `~/Documents/Studio` (made when missing;
+`STUDIO_NEW_PROJECTS_DIR` moves it), or the one New's Location or Settings' New projects folder
+names. Existing projects keep their folders wherever they are, older ones in the state's `projects`. Every checkout's engine
 takes port 3346, so a second checkout's Studio beside a running one also needs
 `TEXT_TO_CAD_STUDIO_ENGINE_PORT` (another free port): without it the `text-to-cad` plugin's CAD
 server fails to start, `port 3346 is held by another CAD engine`.
@@ -337,7 +361,7 @@ as they were.
 
 - **The project's overview.** The Project tab (Overview, in Engineering) opens on it: the project's
   README in its folder first, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
-asked)`, or `by hand`; a decision written date first reads too), then every other section the
+  asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
   its first turn and the README has no words yet, the Overview shows Studio's loading bars;
   the words that end that wait then come in one by one, once, and later changes read as they are
@@ -379,7 +403,7 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   (`importIntoProject.ts`). The desktop app reads and copies (`apps/desktop/src/studio/`); what
   makes a project is decided in the web (`components/workbench/importPlan.ts`).
 - **Usage data.** Nothing about its use goes to T3:
-  `apps/server/src/telemetry/AnalyticsService.ts` sends only Studio's own anonymous counts, to
+  `apps/server/src/telemetry/StudioAnalytics.ts` sends only Studio's own anonymous counts, to
   Studio's receiver (`infra/usage`), once the person chose Share. The README's "Usage data" section
   lists every count, and the plain downloads the app makes.
 - **Design history.** A turn that changed files ends with one line of what it changed in the
@@ -423,7 +447,7 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   Overview's Sizes is every named size in the project's scripts in one table, as a CAD tool's global
   variables (`ProjectSizes.tsx`): the shared ones first, with the parts that use them, then each
   part's own. Shared sizes live in `sizes.py` beside the parts, which import them by name (`from
-sizes import WALL`); a script's imports resolve from its own folder, so that is where the file
+  sizes import WALL`); a script's imports resolve from its own folder, so that is where the file
   goes, the folder holding most of the parts (`text-to-cad/skills/cad/references/edit-mode.md` tells
   the agent). A number changes where it is written, a click away, and every part that imports its
   file builds again; a formula (`2 * WALL`) changes where its sizes are. Add shared size appends
@@ -723,7 +747,14 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   selectors by where they are, never their numbers (the top face's outer edges:
   `tray.faces().sort_by(bd.Axis.Z)[-1].outer_wire().edges()`), and the line reads back as a new
   feature, selected, with its inputs to change like any other; a line that does not run, or picks
-  something other than the selection, is not written. Undo takes a command's line back. The agent
+  something other than the selection, is not written. Undo takes a command's line back. A custom feature (`@feature` from `cad.build123d`, Onshape's FeatureScript for build123d) reads as one
+  row by its own name, whatever it makes inside. Edit Feature opens its own dialog, built from its declared
+  parameters (numbers with units, check boxes, choices, faces or edges picked on the model, in groups), the
+  Features tab's Custom menu (and S) offers each feature the project declares, then Studio's standard
+  ones (Bolt Circle, Vent Slots, Clearance Hole and Heat-set Insert Boss, sized from ISO 273 and
+  CNC Kitchen's insert table, in `cad.build123d.standard_features`), and a value outside a
+  parameter's bounds is refused in the feature's own words with that parameter marked
+  ([Custom features and implicits](docs/internals/custom-features-and-implicits.md)). The agent
   hears of each change with the next message (a Hand edit note queued in the composer), never by a
   message of its own. Edit Feature reopens a feature's dialog, Suppress sets one aside, and the
   rollback bar (dragged in the design tree, or put under a feature by Rollback) shows the part as it was above a feature, new features going in there. An assembly
@@ -807,18 +838,18 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
 - **The Toolbox.** Down the right of the workspace, in AI and in CAD, it is the one place for what
   a part can have done to it: Evaluate, Manufacture and Document, a tab each like SolidWorks'
   CommandManager (the tab left open is remembered on this device), three equal tiles of the
-  group's icon (the folded edge's, in its jobs' color) over its name, as the CAD toolbar's
+  group's icon (in its jobs' color) over its name, as the CAD toolbar's
   buttons are, each with a line on what it is
   for (`GROUP_PURPOSES`) over its sections' tiles, in one even grid (`StudioToolbox.tsx`).
   Manufacture keeps four sections, not one per process (3D printing, machining and molding, sheet
   metal and cutting, files and off-the-shelf parts), so no heading holds a lone tile that repeats
   it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
-  nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It
-  folds to its icons, and starts folded in a narrow panel, in CAD any panel beside a chat, so the
-  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. The title bar's right
-  button is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox, with the panel
-  if that is shut, and folds it again (`toolboxFold.ts`), and the Toolbox slides open and shut at
-  the sidebar's pace (Amy, 11/11); the Toolbox has no fold button of its own (Amy, 11/12). Every job the
+  nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It is
+  a popup under the title bar's right button, the Toolbox's one way in (Amy, 11/18: one button, not
+  one per group), opening on the tab used last: it takes none of the panel, so the model keeps all
+  of it. The button opens it, with the panel if that is shut, and shuts it (`toolboxOpen.ts`), as
+  do Escape and a press anywhere but the model; a press on the model leaves it open, so its tiles follow
+  the part picked there (`ToolboxPopup.tsx`), and a tile's press shuts it as it starts the job. Every job the
   enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
   board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
   and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.

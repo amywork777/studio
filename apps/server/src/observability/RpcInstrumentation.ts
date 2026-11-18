@@ -1,16 +1,19 @@
 import { ORCHESTRATION_V2_WS_METHODS, WS_METHODS, type WsRpcGroup } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as References from "effect/References";
 import type * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 
+import { STUDIO_RPC_AGGREGATES } from "../studio/studioRpc.ts";
 import { rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
 
 type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 
 // Trace queries and dashboards depend on these labels, including deviations from method prefixes.
 const RPC_AGGREGATES = {
+  ...STUDIO_RPC_AGGREGATES,
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: "orchestrationV2",
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: "orchestration",
   [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: "orchestration",
@@ -68,6 +71,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.peerLinksLink]: "peerLinks",
   [WS_METHODS.peerLinksUnlink]: "peerLinks",
   [WS_METHODS.peerLinksAnswerRequest]: "peerLinks",
+  [WS_METHODS.serverGetSettings]: "server",
   [WS_METHODS.serverUpdateSettings]: "server",
   [WS_METHODS.serverSearchAcpRegistry]: "server",
   [WS_METHODS.serverPrepareAcpRegistryAgent]: "server",
@@ -81,23 +85,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverDisableAcpRegistryProvider]: "server",
   [WS_METHODS.serverLogoutAcpRegistry]: "server",
   [WS_METHODS.serverDiscoverSourceControl]: "server",
-  [WS_METHODS.pluginsCatalog]: "server",
-  [WS_METHODS.pluginsList]: "server",
-  [WS_METHODS.pluginsInstall]: "server",
-  [WS_METHODS.pluginsSetEnabled]: "server",
-  [WS_METHODS.pluginsUninstall]: "server",
-  [WS_METHODS.pluginsUpdate]: "server",
-  [WS_METHODS.pluginsSkillRead]: "server",
-  [WS_METHODS.pluginsSkillCreate]: "server",
-  [WS_METHODS.pluginsSkillSave]: "server",
-  [WS_METHODS.pluginsSkillCopy]: "server",
-  [WS_METHODS.pluginsSkillRemove]: "server",
-  [WS_METHODS.pluginsOpenView]: "server",
-  [WS_METHODS.pluginsRequest]: "server",
-  [WS_METHODS.pluginsModelPictures]: "server",
-  [WS_METHODS.studioProjectsList]: "server",
-  [WS_METHODS.studioProjectsSave]: "server",
-  [WS_METHODS.studioProjectsTrash]: "server",
   [WS_METHODS.serverCheckSecretSource]: "server",
   [WS_METHODS.serverGetTraceDiagnostics]: "server",
   [WS_METHODS.serverGetProcessDiagnostics]: "server",
@@ -154,18 +141,27 @@ const RPC_AGGREGATES = {
   [WS_METHODS.pullRequestsInvalidate]: "pull-requests",
   [WS_METHODS.pullRequestsReportState]: "pull-requests",
   [WS_METHODS.pullRequestsSubscribeRefreshes]: "pull-requests",
+  [WS_METHODS.pullRequestsSubscribeLinkedThreadRefreshes]: "pull-requests",
   [WS_METHODS.pullRequestsReviewerCandidates]: "pull-requests",
   [WS_METHODS.pullRequestsRequestReviewers]: "pull-requests",
   [WS_METHODS.pullRequestsLabelCandidates]: "pull-requests",
   [WS_METHODS.pullRequestsSetLabels]: "pull-requests",
+  [WS_METHODS.issuesList]: "issues",
+  [WS_METHODS.issuesDetail]: "issues",
+  [WS_METHODS.issuesComments]: "issues",
+  [WS_METHODS.issuesTemplates]: "issues",
+  [WS_METHODS.issuesCandidates]: "issues",
+  [WS_METHODS.issuesCreate]: "issues",
+  [WS_METHODS.issuesComment]: "issues",
+  [WS_METHODS.issuesUpdate]: "issues",
+  [WS_METHODS.issuesSetState]: "issues",
+  [WS_METHODS.issuesReact]: "issues",
+  [WS_METHODS.issueTrackersList]: "issues",
+  [WS_METHODS.issueTrackersConnect]: "issues",
+  [WS_METHODS.issueTrackersBindProject]: "issues",
   [WS_METHODS.sourceControlLookupRepository]: "source-control",
   [WS_METHODS.sourceControlCloneRepository]: "source-control",
   [WS_METHODS.sourceControlPublishRepository]: "source-control",
-  [WS_METHODS.studioSyncSend]: "source-control",
-  [WS_METHODS.studioSyncRestore]: "source-control",
-  [WS_METHODS.studioSyncStatus]: "source-control",
-  [WS_METHODS.studioGitHubSignInStart]: "source-control",
-  [WS_METHODS.studioGitHubSignInCheck]: "source-control",
   [WS_METHODS.sourceControlSignInStart]: "source-control",
   [WS_METHODS.sourceControlSignInWait]: "source-control",
   [WS_METHODS.sourceControlSignInCancel]: "source-control",
@@ -184,7 +180,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.projectsWriteFile]: "workspace",
   [WS_METHODS.projectsEnsureScratch]: "orchestration",
   [WS_METHODS.projectsCreateNew]: "orchestration",
-  [WS_METHODS.projectsStartHistory]: "orchestration",
   [WS_METHODS.projectsCreateFromThread]: "orchestration",
   [WS_METHODS.shellOpenInEditor]: "workspace",
   [WS_METHODS.filesystemBrowse]: "workspace",
@@ -281,13 +276,25 @@ export const rpcInstrumentationLayer = Layer.succeed(RpcInstrumentation)((effect
   if (RPC_METHODS_WITH_TRACING_DISABLED.has(method)) {
     return measured.pipe(Effect.provideService(References.TracerEnabled, false));
   }
-  return measured.pipe(
-    Effect.withSpan(`${RPC_SPAN_PREFIX}.${method}`, {
-      attributes: {
-        ...DEFAULT_RPC_SPAN_ATTRIBUTES,
-        "rpc.method": method,
-        "rpc.aggregate": RPC_AGGREGATES[method as WsRpcMethod],
-      },
-    }),
+  // The ambient span is the socket's `GET /ws` request, open for the whole connection. Parenting
+  // every call to it grows one trace past the collector's per-trace limit, which then drops it.
+  return Effect.currentParentSpan.pipe(
+    Effect.option,
+    Effect.flatMap((connection) =>
+      measured.pipe(
+        Effect.withSpan(`${RPC_SPAN_PREFIX}.${method}`, {
+          root: true,
+          links: Option.match(connection, {
+            onNone: () => [],
+            onSome: (span) => [{ span, attributes: {} }],
+          }),
+          attributes: {
+            ...DEFAULT_RPC_SPAN_ATTRIBUTES,
+            "rpc.method": method,
+            "rpc.aggregate": RPC_AGGREGATES[method as WsRpcMethod],
+          },
+        }),
+      ),
+    ),
   );
 });

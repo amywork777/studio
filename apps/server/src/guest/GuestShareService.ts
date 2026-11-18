@@ -55,8 +55,10 @@ import {
   projectTurnItemForWire,
   threadStreamEventItem,
 } from "../orchestration-v2/WireProjection.ts";
+import * as DocumentText from "../provider/DocumentText.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import * as AnalyticsService from "../telemetry/AnalyticsService.ts";
 import { guestShareView, guestThreadModel } from "./guestView.ts";
 import {
   classifyGuestUploads,
@@ -225,6 +227,8 @@ const make = Effect.gen(function* () {
   const { attachmentsDir } = yield* ServerConfig.ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
   const random = yield* SecureRandom.SecureRandom;
+  const analytics = yield* AnalyticsService.AnalyticsService;
+  const documents = yield* DocumentText.DocumentText;
   const signer = yield* PayloadSigner.make(SIGNING_SECRET_NAME);
   /** A truncated HMAC keeps invite links short. 128 bits is still far beyond guessing range. */
   const inviteSignature = (shareId: string) =>
@@ -373,6 +377,8 @@ const make = Effect.gen(function* () {
       shareId: share.id,
       guestName: request.name,
     });
+    // Guests have no client connection, so their events carry no surface.
+    yield* analytics.record("feature.used", { feature: "guest_share.join" });
     const token = yield* signSession({ kind: "session", threadId: thread.id, shareId: share.id });
     return { token, shareId: share.id };
   });
@@ -389,7 +395,12 @@ const make = Effect.gen(function* () {
         const path = resolveAttachmentPath({ attachmentsDir, attachment });
         return path === null
           ? Effect.void
-          : fileSystem.remove(path, { force: true }).pipe(Effect.ignore);
+          : fileSystem
+              .remove(path, { force: true })
+              .pipe(
+                Effect.andThen(fileSystem.remove(`${path}.txt`, { force: true })),
+                Effect.ignore,
+              );
       },
       { discard: true },
     );
@@ -435,6 +446,7 @@ const make = Effect.gen(function* () {
           yield* fileSystem.makeDirectory(attachmentsDir, { recursive: true });
           yield* fileSystem.copyFile(uploads[index]!.path, path);
           stored.push(attachment);
+          yield* documents.ensure(path);
         }).pipe(Effect.mapError(() => uploadFailed)),
       { discard: true },
     ).pipe(Effect.onError(() => removeStored(stored)));
@@ -463,6 +475,10 @@ const make = Effect.gen(function* () {
       text: request.text,
       ...(attachments.length === 0 ? {} : { attachments }),
     }).pipe(Effect.onError(() => removeStored(attachments)));
+    yield* analytics.record("feature.used", {
+      feature: "guest_message.submit",
+      variant: attachments.length === 0 ? "text_only" : "with_files",
+    });
   });
 
   /** Completes once the session no longer opens its share, so open reads end with it. */
@@ -623,17 +639,26 @@ const make = Effect.gen(function* () {
     itemId: string,
   ) {
     const { thread } = yield* authorize(session, "session");
-    const item = yield* orchestrator
-      .getTurnItem({ threadId: thread.id, itemId: TurnItemId.make(itemId) })
-      .pipe(Effect.mapError(() => unavailable));
+    const id = TurnItemId.make(itemId);
+    const item =
+      (yield* orchestrator
+        .getTurnItem({ threadId: thread.id, itemId: id })
+        .pipe(Effect.mapError(() => unavailable))) ??
+      // A fork shows its source's earlier items, which stay in the source thread.
+      (thread.forkedFrom === null
+        ? null
+        : yield* orchestrator.getTimelinePage(thread.id, { itemId: id, limit: 1 }).pipe(
+            Effect.map((page) => page.items[0]?.item ?? null),
+            Effect.mapError(() => unavailable),
+          ));
     return item === null ? yield* unavailable : { thread, item };
   });
 
   const render = Effect.fn("GuestShareService.render")(function* (session: string, itemId: string) {
-    const { thread, item } = yield* threadItem(session, itemId);
+    const { item } = yield* threadItem(session, itemId);
     if (item.type !== "dynamic_tool") return yield* unavailable;
     const reference = htmlRenderFromToolItem(item);
-    const [attachmentId] = threadHtmlRenderAttachmentIds(thread.id, [item]);
+    const [attachmentId] = threadHtmlRenderAttachmentIds(item.threadId, [item]);
     const path =
       attachmentId === undefined
         ? null
@@ -669,9 +694,9 @@ const make = Effect.gen(function* () {
     session: string,
     itemId: string,
   ) {
-    const { thread, item } = yield* threadItem(session, itemId);
+    const { item } = yield* threadItem(session, itemId);
     if (item.type !== "command_execution") return yield* unavailable;
-    return commandOutputs.subscribe({ threadId: thread.id, itemId: item.id }).pipe(
+    return commandOutputs.subscribe({ threadId: item.threadId, itemId: item.id }).pipe(
       // A lost hub stream ends the output; the row reloads it when reopened.
       Stream.catchCause(() => Stream.empty),
       Stream.interruptWhen(untilRevoked(session)),

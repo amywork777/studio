@@ -53,7 +53,7 @@ normalization or building reports.
 ## Delivery
 
 A send can fail after the receiver has kept the batch, so every retry is a copy.
-[Delivery](../../apps/server/src/telemetry/AnalyticsService.ts) gives each event a
+[Delivery](../../apps/server/src/telemetry/StudioAnalytics.ts) gives each event a
 uuid when it is recorded, backs off after a failed send, and drops a batch after a
 few tries. Without these limits, one stuck batch was sent every second for days.
 

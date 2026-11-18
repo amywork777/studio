@@ -170,6 +170,30 @@ import {
 } from "./provider.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
 import {
+  IssueCandidates,
+  IssueCommentInput,
+  IssueCommentsPage,
+  IssueCommentsPageInput,
+  IssueCreateInput,
+  IssueCreateResult,
+  IssueDetail,
+  IssueListInput,
+  IssueListResult,
+  IssueOperationError,
+  IssueReactionInput,
+  IssueRef,
+  IssueScopeRef,
+  IssueSetStateInput,
+  IssueTemplateList,
+  IssueTrackerBindProjectInput,
+  IssueTrackerConnectInput,
+  IssueTrackerConnection,
+  IssueTrackerConnectionError,
+  IssueTrackerConnectionList,
+  IssueUnavailableError,
+  IssueUpdateInput,
+} from "./issue.ts";
+import {
   GuestShareCreateError,
   GuestShareCreateInput,
   GuestShareCreateResult,
@@ -256,8 +280,6 @@ import {
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
-  ProjectStartHistoryInput,
-  ProjectStartHistoryResult,
   ProjectWriteFileError,
   ProjectWriteFileInput,
   ProjectWriteFileResult,
@@ -365,7 +387,7 @@ import {
   DatabaseStorageStatus,
   ServerSettings,
   ServerSettingsError,
-  ServerSettingsPatch,
+  ClientServerSettingsPatch,
   ListTextGeneratorModelsInput,
   ListTextGeneratorModelsResult,
   TextGeneratorError,
@@ -414,48 +436,8 @@ import {
   SourceControlSignInResult,
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
-import {
-  InstalledPlugin,
-  PluginCatalogInput,
-  PluginCatalogResult,
-  PluginIdInput,
-  PluginInstallInput,
-  PluginListResult,
-  PluginModelPicturesInput,
-  PluginModelPicturesResult,
-  PluginOpenViewInput,
-  PluginOperationError,
-  PluginRequestInput,
-  PluginRequestResult,
-  PluginSetEnabledInput,
-  PluginViewDocument,
-  PluginSkillContent,
-  PluginSkillCreateInput,
-  PluginSkillInput,
-  PluginSkillReadInput,
-  PluginSkillResult,
-  PluginSkillSaveInput,
-} from "./plugins.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
-import {
-  StudioProjectsError,
-  StudioProjectsListInput,
-  StudioProjectsListResult,
-  StudioProjectsSaveInput,
-  StudioProjectsSaveResult,
-  StudioProjectsTrashInput,
-  StudioGitHubSignInCheckInput,
-  StudioGitHubSignInCheckResult,
-  StudioGitHubSignInError,
-  StudioGitHubSignInStartResult,
-  StudioSyncError,
-  StudioSyncRestoreInput,
-  StudioSyncRestoreResult,
-  StudioSyncSendInput,
-  StudioSyncSendResult,
-  StudioSyncStatusInput,
-  StudioSyncStatusResult,
-} from "./studioProjects.ts";
+import { STUDIO_RPCS, STUDIO_WS_METHODS } from "./studioRpc.ts";
 
 export const WS_METHODS = {
   projectsListEntries: "projects.listEntries",
@@ -467,7 +449,6 @@ export const WS_METHODS = {
   projectsMutate: "projects.mutate",
   projectsEnsureScratch: "projects.ensureScratch",
   projectsCreateNew: "projects.createNew",
-  projectsStartHistory: "projects.startHistory",
   projectsCreateFromThread: "projects.createFromThread",
 
   shellOpenInEditor: "shell.openInEditor",
@@ -567,30 +548,9 @@ export const WS_METHODS = {
   peerLinksLink: "peerLinks.link",
   peerLinksUnlink: "peerLinks.unlink",
   peerLinksAnswerRequest: "peerLinks.answerRequest",
+  serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
-  pluginsCatalog: "plugins.catalog",
-  pluginsList: "plugins.list",
-  pluginsInstall: "plugins.install",
-  pluginsSetEnabled: "plugins.setEnabled",
-  pluginsUninstall: "plugins.uninstall",
-  pluginsUpdate: "plugins.update",
-  pluginsSkillRead: "plugins.skillRead",
-  pluginsSkillCreate: "plugins.skillCreate",
-  pluginsSkillSave: "plugins.skillSave",
-  pluginsSkillCopy: "plugins.skillCopy",
-  pluginsSkillRemove: "plugins.skillRemove",
-  pluginsOpenView: "plugins.openView",
-  pluginsRequest: "plugins.request",
-  pluginsModelPictures: "plugins.modelPictures",
-  studioProjectsList: "studioProjects.list",
-  studioProjectsSave: "studioProjects.save",
-  studioProjectsTrash: "studioProjects.trash",
-  studioSyncSend: "studioSync.send",
-  studioSyncRestore: "studioSync.restore",
-  studioSyncStatus: "studioSync.status",
-  studioGitHubSignInStart: "studioGitHub.signInStart",
-  studioGitHubSignInCheck: "studioGitHub.signInCheck",
   serverCheckSecretSource: "server.checkSecretSource",
   serverSearchAcpRegistry: "server.searchAcpRegistry",
   serverPrepareAcpRegistryAgent: "server.prepareAcpRegistryAgent",
@@ -661,10 +621,26 @@ export const WS_METHODS = {
   pullRequestsInvalidate: "pullRequests.invalidate",
   pullRequestsReportState: "pullRequests.reportState",
   pullRequestsSubscribeRefreshes: "pullRequests.subscribeRefreshes",
+  pullRequestsSubscribeLinkedThreadRefreshes: "pullRequests.subscribeLinkedThreadRefreshes",
   pullRequestsReviewerCandidates: "pullRequests.reviewerCandidates",
   pullRequestsRequestReviewers: "pullRequests.requestReviewers",
   pullRequestsLabelCandidates: "pullRequests.labelCandidates",
   pullRequestsSetLabels: "pullRequests.setLabels",
+
+  // Issue tracking methods
+  issuesList: "issues.list",
+  issuesDetail: "issues.detail",
+  issuesComments: "issues.comments",
+  issuesTemplates: "issues.templates",
+  issuesCandidates: "issues.candidates",
+  issuesCreate: "issues.create",
+  issuesComment: "issues.comment",
+  issuesUpdate: "issues.update",
+  issuesSetState: "issues.setState",
+  issuesReact: "issues.react",
+  issueTrackersList: "issueTrackers.list",
+  issueTrackersConnect: "issueTrackers.connect",
+  issueTrackersBindProject: "issueTrackers.bindProject",
 
   sourceControlLookupRepository: "sourceControl.lookupRepository",
   sourceControlCloneRepository: "sourceControl.cloneRepository",
@@ -693,6 +669,7 @@ export const WS_METHODS = {
   subscribeServerLifecycle: "subscribeServerLifecycle",
   subscribeAuthAccess: "subscribeAuthAccess",
   subscribeResourceTelemetry: "subscribeResourceTelemetry",
+  ...STUDIO_WS_METHODS,
 } as const;
 
 const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -929,9 +906,16 @@ const WsPeerLinksAnswerRequestRpc = Rpc.make(WS_METHODS.peerLinksAnswerRequest, 
   error: Schema.Union([PeerLinkRequestError, EnvironmentAuthorizationError]),
 });
 
+// No in-tree caller; installed Swift TestFlight builds still request it.
+const WsServerGetSettingsRpc = Rpc.make(WS_METHODS.serverGetSettings, {
+  payload: Schema.Struct({}),
+  success: ServerSettings,
+  error: Schema.Union([ServerSettingsError, EnvironmentAuthorizationError]),
+});
+
 const WsServerUpdateSettingsRpc = Rpc.make(WS_METHODS.serverUpdateSettings, {
   payload: Schema.Struct({
-    patch: ServerSettingsPatch,
+    patch: ClientServerSettingsPatch,
     providerInstanceMutation: Schema.optionalKey(ProviderInstanceMutation),
   }),
   success: ServerSettings,
@@ -942,139 +926,6 @@ const WsServerDiscoverSourceControlRpc = Rpc.make(WS_METHODS.serverDiscoverSourc
   payload: Schema.Struct({}),
   success: SourceControlDiscoveryResult,
   error: EnvironmentAuthorizationError,
-});
-
-// No union with EnvironmentAuthorizationError on the plugin and projects RPCs: the group's
-// RpcScopeAuthorization middleware adds it to every RPC's error.
-const WsPluginsCatalogRpc = Rpc.make(WS_METHODS.pluginsCatalog, {
-  payload: PluginCatalogInput,
-  success: PluginCatalogResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsListRpc = Rpc.make(WS_METHODS.pluginsList, {
-  payload: Schema.Struct({}),
-  success: PluginListResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsInstallRpc = Rpc.make(WS_METHODS.pluginsInstall, {
-  payload: PluginInstallInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsSetEnabledRpc = Rpc.make(WS_METHODS.pluginsSetEnabled, {
-  payload: PluginSetEnabledInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsUninstallRpc = Rpc.make(WS_METHODS.pluginsUninstall, {
-  payload: PluginIdInput,
-  success: Schema.Struct({}),
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillReadRpc = Rpc.make(WS_METHODS.pluginsSkillRead, {
-  payload: PluginSkillReadInput,
-  success: PluginSkillContent,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillCreateRpc = Rpc.make(WS_METHODS.pluginsSkillCreate, {
-  payload: PluginSkillCreateInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillSaveRpc = Rpc.make(WS_METHODS.pluginsSkillSave, {
-  payload: PluginSkillSaveInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillCopyRpc = Rpc.make(WS_METHODS.pluginsSkillCopy, {
-  payload: PluginSkillInput,
-  success: PluginSkillResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsSkillRemoveRpc = Rpc.make(WS_METHODS.pluginsSkillRemove, {
-  payload: PluginSkillResult,
-  success: Schema.Struct({}),
-  error: PluginOperationError,
-});
-
-const WsPluginsUpdateRpc = Rpc.make(WS_METHODS.pluginsUpdate, {
-  payload: PluginIdInput,
-  success: InstalledPlugin,
-  error: PluginOperationError,
-});
-
-const WsPluginsOpenViewRpc = Rpc.make(WS_METHODS.pluginsOpenView, {
-  payload: PluginOpenViewInput,
-  success: PluginViewDocument,
-  error: PluginOperationError,
-});
-
-const WsPluginsRequestRpc = Rpc.make(WS_METHODS.pluginsRequest, {
-  payload: PluginRequestInput,
-  success: PluginRequestResult,
-  error: PluginOperationError,
-});
-
-const WsPluginsModelPicturesRpc = Rpc.make(WS_METHODS.pluginsModelPictures, {
-  payload: PluginModelPicturesInput,
-  success: PluginModelPicturesResult,
-  error: PluginOperationError,
-});
-
-const WsStudioProjectsListRpc = Rpc.make(WS_METHODS.studioProjectsList, {
-  payload: StudioProjectsListInput,
-  success: StudioProjectsListResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioProjectsSaveRpc = Rpc.make(WS_METHODS.studioProjectsSave, {
-  payload: StudioProjectsSaveInput,
-  success: StudioProjectsSaveResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioProjectsTrashRpc = Rpc.make(WS_METHODS.studioProjectsTrash, {
-  payload: StudioProjectsTrashInput,
-  success: StudioProjectsSaveResult,
-  error: StudioProjectsError,
-});
-
-const WsStudioGitHubSignInStartRpc = Rpc.make(WS_METHODS.studioGitHubSignInStart, {
-  payload: Schema.Struct({}),
-  success: StudioGitHubSignInStartResult,
-  error: StudioGitHubSignInError,
-});
-
-const WsStudioGitHubSignInCheckRpc = Rpc.make(WS_METHODS.studioGitHubSignInCheck, {
-  payload: StudioGitHubSignInCheckInput,
-  success: StudioGitHubSignInCheckResult,
-  error: StudioGitHubSignInError,
-});
-
-const WsStudioSyncSendRpc = Rpc.make(WS_METHODS.studioSyncSend, {
-  payload: StudioSyncSendInput,
-  success: StudioSyncSendResult,
-  error: StudioSyncError,
-});
-
-const WsStudioSyncRestoreRpc = Rpc.make(WS_METHODS.studioSyncRestore, {
-  payload: StudioSyncRestoreInput,
-  success: StudioSyncRestoreResult,
-  error: StudioSyncError,
-});
-
-const WsStudioSyncStatusRpc = Rpc.make(WS_METHODS.studioSyncStatus, {
-  payload: StudioSyncStatusInput,
-  success: StudioSyncStatusResult,
 });
 
 const WsServerCheckSecretSourceRpc = Rpc.make(WS_METHODS.serverCheckSecretSource, {
@@ -1437,6 +1288,17 @@ const WsPullRequestsSubscribeRefreshesRpc = Rpc.make(WS_METHODS.pullRequestsSubs
   stream: true,
 });
 
+// Separate from the refreshes above so linked-thread changes don't refetch forge-backed reads.
+const WsPullRequestsSubscribeLinkedThreadRefreshesRpc = Rpc.make(
+  WS_METHODS.pullRequestsSubscribeLinkedThreadRefreshes,
+  {
+    payload: Schema.Struct({}),
+    success: NonNegativeInt,
+    error: EnvironmentAuthorizationError,
+    stream: true,
+  },
+);
+
 // Fetch reviewer candidates only when the menu opens to avoid unused host requests.
 const WsPullRequestsReviewerCandidatesRpc = Rpc.make(WS_METHODS.pullRequestsReviewerCandidates, {
   payload: PullRequestReviewerCandidatesInput,
@@ -1460,6 +1322,102 @@ const WsPullRequestsSetLabelsRpc = Rpc.make(WS_METHODS.pullRequestsSetLabels, {
   payload: PullRequestLabelChangeInput,
   success: Schema.Void,
   error: PullRequestRpcError,
+});
+
+const IssueRpcError = Schema.Union([
+  IssueUnavailableError,
+  IssueOperationError,
+  EnvironmentAuthorizationError,
+]);
+
+const WsIssuesListRpc = Rpc.make(WS_METHODS.issuesList, {
+  payload: IssueListInput,
+  success: IssueListResult,
+  error: IssueRpcError,
+});
+
+const WsIssuesDetailRpc = Rpc.make(WS_METHODS.issuesDetail, {
+  payload: IssueRef,
+  success: IssueDetail,
+  error: IssueRpcError,
+});
+
+/** Older comments, one page at a time, past the cursor the detail handed over. */
+const WsIssuesCommentsRpc = Rpc.make(WS_METHODS.issuesComments, {
+  payload: IssueCommentsPageInput,
+  success: IssueCommentsPage,
+  error: IssueRpcError,
+});
+
+const WsIssuesTemplatesRpc = Rpc.make(WS_METHODS.issuesTemplates, {
+  payload: IssueScopeRef,
+  success: IssueTemplateList,
+  error: IssueRpcError,
+});
+
+/** Read when a label or assignee picker opens, not with every issue. */
+const WsIssuesCandidatesRpc = Rpc.make(WS_METHODS.issuesCandidates, {
+  payload: IssueScopeRef,
+  success: IssueCandidates,
+  error: IssueRpcError,
+});
+
+const WsIssuesCreateRpc = Rpc.make(WS_METHODS.issuesCreate, {
+  payload: IssueCreateInput,
+  success: IssueCreateResult,
+  error: IssueRpcError,
+});
+
+const WsIssuesCommentRpc = Rpc.make(WS_METHODS.issuesComment, {
+  payload: IssueCommentInput,
+  success: Schema.Void,
+  error: IssueRpcError,
+});
+
+const WsIssuesUpdateRpc = Rpc.make(WS_METHODS.issuesUpdate, {
+  payload: IssueUpdateInput,
+  success: Schema.Void,
+  error: IssueRpcError,
+});
+
+const WsIssuesSetStateRpc = Rpc.make(WS_METHODS.issuesSetState, {
+  payload: IssueSetStateInput,
+  success: Schema.Void,
+  error: IssueRpcError,
+});
+
+const WsIssuesReactRpc = Rpc.make(WS_METHODS.issuesReact, {
+  payload: IssueReactionInput,
+  success: Schema.Void,
+  error: IssueRpcError,
+});
+
+const IssueTrackerRpcError = Schema.Union([
+  IssueTrackerConnectionError,
+  EnvironmentAuthorizationError,
+]);
+
+/** Every standalone tracker this server ships, each with its connection probed afresh. */
+const WsIssueTrackersListRpc = Rpc.make(WS_METHODS.issueTrackersList, {
+  payload: Schema.Struct({}),
+  success: IssueTrackerConnectionList,
+  error: IssueTrackerRpcError,
+});
+
+/**
+ * Verifies the credential against the tracker before storing it; the result is the new status.
+ * A null token disconnects, which also unbinds every project that pointed at the tracker.
+ */
+const WsIssueTrackersConnectRpc = Rpc.make(WS_METHODS.issueTrackersConnect, {
+  payload: IssueTrackerConnectInput,
+  success: IssueTrackerConnection,
+  error: IssueTrackerRpcError,
+});
+
+const WsIssueTrackersBindProjectRpc = Rpc.make(WS_METHODS.issueTrackersBindProject, {
+  payload: IssueTrackerBindProjectInput,
+  success: Schema.Void,
+  error: IssueTrackerRpcError,
 });
 
 const WsSourceControlLookupRepositoryRpc = Rpc.make(WS_METHODS.sourceControlLookupRepository, {
@@ -1602,13 +1560,6 @@ const WsProjectsEnsureScratchRpc = Rpc.make(WS_METHODS.projectsEnsureScratch, {
 const WsProjectsCreateNewRpc = Rpc.make(WS_METHODS.projectsCreateNew, {
   payload: ProjectCreateNewInput,
   success: ProjectCreateNewResult,
-  error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
-});
-
-// Starts a history in a project folder that has none: what is there is its first commit.
-const WsProjectsStartHistoryRpc = Rpc.make(WS_METHODS.projectsStartHistory, {
-  payload: ProjectStartHistoryInput,
-  success: ProjectStartHistoryResult,
   error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
 });
 
@@ -2297,6 +2248,19 @@ export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthori
 ) {}
 
 export const WsRpcGroup = RpcGroup.make(
+  WsIssuesListRpc,
+  WsIssuesDetailRpc,
+  WsIssuesCommentsRpc,
+  WsIssuesTemplatesRpc,
+  WsIssuesCandidatesRpc,
+  WsIssuesCreateRpc,
+  WsIssuesCommentRpc,
+  WsIssuesUpdateRpc,
+  WsIssuesSetStateRpc,
+  WsIssuesReactRpc,
+  WsIssueTrackersListRpc,
+  WsIssueTrackersConnectRpc,
+  WsIssueTrackersBindProjectRpc,
   WsGuestShareCreateRpc,
   WsServerProbeRpc,
   WsServerGetConfigRpc,
@@ -2326,6 +2290,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
+  WsServerGetSettingsRpc,
   WsServerReclaimDatabaseSpaceRpc,
   WsServerUpdateSettingsRpc,
   WsPeerLinksListRpc,
@@ -2333,28 +2298,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsPeerLinksUnlinkRpc,
   WsPeerLinksAnswerRequestRpc,
   WsServerDiscoverSourceControlRpc,
-  WsPluginsCatalogRpc,
-  WsPluginsListRpc,
-  WsPluginsInstallRpc,
-  WsPluginsSetEnabledRpc,
-  WsPluginsUninstallRpc,
-  WsPluginsUpdateRpc,
-  WsPluginsSkillReadRpc,
-  WsPluginsSkillCreateRpc,
-  WsPluginsSkillSaveRpc,
-  WsPluginsSkillCopyRpc,
-  WsPluginsSkillRemoveRpc,
-  WsPluginsOpenViewRpc,
-  WsPluginsRequestRpc,
-  WsPluginsModelPicturesRpc,
-  WsStudioProjectsListRpc,
-  WsStudioProjectsSaveRpc,
-  WsStudioProjectsTrashRpc,
-  WsStudioSyncSendRpc,
-  WsStudioSyncRestoreRpc,
-  WsStudioSyncStatusRpc,
-  WsStudioGitHubSignInStartRpc,
-  WsStudioGitHubSignInCheckRpc,
   WsServerCheckSecretSourceRpc,
   WsServerSearchAcpRegistryRpc,
   WsServerPrepareAcpRegistryAgentRpc,
@@ -2421,6 +2364,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsPullRequestsInvalidateRpc,
   WsPullRequestsReportStateRpc,
   WsPullRequestsSubscribeRefreshesRpc,
+  WsPullRequestsSubscribeLinkedThreadRefreshesRpc,
   WsPullRequestsReviewerCandidatesRpc,
   WsPullRequestsRequestReviewersRpc,
   WsPullRequestsLabelCandidatesRpc,
@@ -2445,7 +2389,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsSearchEntriesRpc,
   WsProjectsEnsureScratchRpc,
   WsProjectsCreateNewRpc,
-  WsProjectsStartHistoryRpc,
   WsProjectsCreateFromThreadRpc,
   WsProjectsWriteFileRpc,
   WsProjectsMutateRpc,
@@ -2539,4 +2482,5 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2SubscribeThreadRpc,
   WsOrchestrationV2SubscribeCommandOutputRpc,
   WsOrchestrationV2SubscribePromptSuggestionRpc,
+  ...STUDIO_RPCS,
 ).middleware(RpcScopeAuthorization);

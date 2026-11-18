@@ -9,6 +9,7 @@ import { createModelSelection } from "./model.ts";
 import {
   clearProjectSettingsOverrides,
   hasProjectSettingsOverrides,
+  newProjectsFolderOf,
   resolveNewThreadEnvMode,
   resolveProjectSettings,
   resolveSendEnvMode,
@@ -254,6 +255,25 @@ describe("resolveNewThreadEnvMode", () => {
         ...newProject,
         workspaceRoot: "C:\\Data\\Projects\\Pinball-Stats",
         newProjectsRoot: "c:/data/projects",
+      }),
+    ).toBe("local");
+  });
+
+  it("finds a new project made in the folder set for new projects", () => {
+    const config = {
+      newProjectsRoot: "/data/projects",
+      settings: { ...DEFAULT_SERVER_SETTINGS, newProjectsFolder: "/work/cad" },
+    };
+    expect(newProjectsFolderOf(config)).toBe("/work/cad");
+    expect(newProjectsFolderOf({ ...config, settings: DEFAULT_SERVER_SETTINGS })).toBe(
+      "/data/projects",
+    );
+    expect(newProjectsFolderOf({ settings: config.settings })).toBeUndefined();
+    expect(
+      resolveNewThreadEnvMode({
+        ...newProject,
+        workspaceRoot: "/work/cad/pinball-stats",
+        newProjectsRoot: newProjectsFolderOf(config),
       }),
     ).toBe("local");
   });

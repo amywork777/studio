@@ -1,6 +1,6 @@
 import { defineRule, type ESTree } from "@oxlint/plugins";
 
-// Studio's law 11: text is set in the sans-serif face; monospace is only for code.
+// Studio's look (STUDIO.md): text is set in the sans-serif face; monospace is only for code.
 const CODE_ELEMENTS = new Set(["code", "kbd", "pre", "samp"]);
 const MONO_CLASS = /(?:^|[\s:])font-mono(?=$|[\s!])/u;
 
@@ -22,7 +22,7 @@ export default defineRule({
     type: "problem",
     docs: {
       description:
-        "Studio's law 11: font-mono only on <pre>, <code>, <kbd> or <samp>; everything else is sans-serif.",
+        "Studio's look (STUDIO.md): font-mono only on <pre>, <code>, <kbd> or <samp>; everything else is sans-serif.",
     },
   },
   create(context) {
@@ -37,7 +37,7 @@ export default defineRule({
           context.report({
             node: attribute,
             message:
-              "Monospace is only for code (Studio's law 11). Put code in <pre>, <code>, <kbd> or <samp>, and leave text sans-serif.",
+              "Monospace is only for code (Studio's look, STUDIO.md). Put code in <pre>, <code>, <kbd> or <samp>, and leave text sans-serif.",
           });
         }
       },

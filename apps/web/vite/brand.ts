@@ -121,15 +121,52 @@ export function brandHtml(html: string, brand: Brand): string {
   return out;
 }
 
+const WEB = NodePath.resolve(import.meta.dirname, "..");
+const STUDIO_I18N = NodePath.join(WEB, "src/components/workbench/i18n");
+// T3's text names T3 Code; these put the brand's name in it (`studioGtReact.tsx`).
+const GT_WRAPPERS: Record<string, string> = {
+  "gt-react": NodePath.join(STUDIO_I18N, "studioGtReact.tsx"),
+  "gt-i18n": NodePath.join(STUDIO_I18N, "studioGtI18n.ts"),
+};
+const GT_CONFIG = NodePath.join(WEB, "gt.config.json");
+
 const brandIcon = (brand: Brand, urlPath: string): string | null => {
   if (!(urlPath in ICONS)) return null;
   const file = NodePath.join(brand.dir, urlPath.slice(1));
   return NodeFS.existsSync(file) ? file : null;
 };
 
-export function brandPlugin(dir = process.env.T3CODE_BRAND_DIR?.trim()): Plugin | null {
+export function brandPlugin(dir = process.env.T3CODE_BRAND_DIR?.trim()): Plugin[] | null {
   const brand = readBrand(dir);
   if (brand === null) return null;
+  return [brandCopyPlugin(), brandFilesPlugin(brand)];
+}
+
+/**
+ * Sends T3's English through Studio's name (`components/workbench/i18n`). Ahead of Vite's own
+ * resolver, which would otherwise find the real gt-react first.
+ */
+function brandCopyPlugin(): Plugin {
+  return {
+    name: "t3code:brand-copy",
+    enforce: "pre",
+    resolveId(source, importer) {
+      const wrapper = GT_WRAPPERS[source];
+      if (wrapper === undefined || importer === undefined) return null;
+      const from = importer.split("?")[0] ?? "";
+      if (from.includes("/node_modules/") || from === wrapper) return null;
+      return wrapper;
+    },
+    // A brand ships English only: no other language is offered or followed from the system.
+    load(id) {
+      if (id.split("?")[0] !== GT_CONFIG) return null;
+      const config = JSON.parse(NodeFS.readFileSync(GT_CONFIG, "utf8")) as Record<string, unknown>;
+      return JSON.stringify({ ...config, locales: [] });
+    },
+  };
+}
+
+function brandFilesPlugin(brand: Brand): Plugin {
   return {
     name: "t3code:brand",
     config: () => ({

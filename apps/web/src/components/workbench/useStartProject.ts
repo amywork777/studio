@@ -81,11 +81,7 @@ export function useStartOnce(environmentId: EnvironmentId): {
   const start = async (work: ProjectStart) => {
     if (busy) return;
     setBusy(true);
-    try {
-      await startProject(work);
-    } finally {
-      setBusy(false);
-    }
+    await startProject(work).finally(() => setBusy(false));
   };
   return { busy, start };
 }
@@ -165,6 +161,7 @@ export function useStartProject(environmentId: EnvironmentId) {
       material: "",
       purpose: "",
       folders: [],
+      parentFolder: job.location ?? null,
       onFolder: (folder) => {
         setPendingStart(folder, { prompt: job.prompt, files: [] });
         nameFirstChatAfterProject(folder, name);

@@ -1,7 +1,12 @@
 # Product usage data
 
-Studio does not collect or send product usage data. T3 Code's usage reporting is switched off in
-this build and ships without a PostHog key, so there is nothing to opt out of.
+Studio counts which features get used, anonymously, and sends those counts only to Studio's own
+receiver, never to T3 Code or an analytics service. It never sends your prompts, file names or
+designs. Counting starts once the first launch has told you about it, and **Turn off** on that
+notice or **Settings → About → Share usage data** stops it and deletes what was sent.
+`DO_NOT_TRACK=1` turns it off for the whole machine, and a copy you build yourself sends nothing
+unless it was built with the receiver's address. The README's
+[Usage data](../../README.md#usage-data) section lists every event the app can send.
 
 ## Export diagnostics to your own receiver
 
