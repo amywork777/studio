@@ -55,3 +55,23 @@ it("lists every usage event the server can send in the README", () => {
     );
   }
 });
+
+// T3 Code's own `AnalyticsService.layer` sends everything to T3's PostHog. Studio keeps the file
+// as T3 wrote it (law 10) but must never run it: only `StudioAnalytics.layer` may provide the
+// service. A T3 merge that wires T3's layer in anywhere fails here.
+it("never wires T3's own analytics sender", () => {
+  const wiresT3 = [
+    /\bAnalyticsService\.(?:layer|make)\b/u,
+    /import\s*\{[^}]*\b(?:layer|make)\b[^}]*\}\s*from\s*["'][^"']*telemetry\/AnalyticsService/u,
+  ];
+  const files = NodeFS.readdirSync(SERVER_SOURCE, { recursive: true, encoding: "utf8" });
+  const wiring = files.filter((file) => {
+    if (!file.endsWith(".ts") || /\.test\.ts$/u.test(file)) return false;
+    if (file === NodePath.join("telemetry", "AnalyticsService.ts")) return false;
+    const source = NodeFS.readFileSync(NodePath.join(SERVER_SOURCE, file), "utf8");
+    return wiresT3.some((pattern) => pattern.test(source));
+  });
+  assert.deepEqual(wiring, [], "these files use T3's analytics sender in place of StudioAnalytics");
+  const server = NodeFS.readFileSync(NodePath.join(SERVER_SOURCE, "server.ts"), "utf8");
+  assert.include(server, "StudioAnalytics.layer", "server.ts provides Studio's usage counts");
+});
