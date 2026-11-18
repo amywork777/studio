@@ -245,7 +245,6 @@ apps/web/src/components/preview/fileExplorerLabel.ts
 apps/web/src/components/ProjectScriptsControl.tsx
 apps/web/src/components/promptLinks/copyPromptLink.ts
 apps/web/src/components/ProviderUpdateLaunchNotification.logic.ts
-apps/web/src/components/RightPanelTabs.test.tsx
 apps/web/src/components/RightPanelTabs.tsx
 apps/web/src/components/settings/AboutVersionTitle.tsx
 apps/web/src/components/settings/AcpSessionManagementSection.tsx
