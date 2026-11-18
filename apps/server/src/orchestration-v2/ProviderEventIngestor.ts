@@ -27,12 +27,11 @@ import * as SqlError from "effect/sql/SqlError";
 
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import { modelSelectionsEqual } from "@t3tools/shared/model";
-import * as AnalyticsService from "../telemetry/AnalyticsService.ts";
 import {
   ProviderTurnAnalytics,
   type ProviderTurnAnalyticsContext,
 } from "../telemetry/ProviderUsageAnalytics.ts";
-import { turnFailureReason } from "../telemetry/TurnFailure.ts";
+import { ProviderTurnFailureAnalytics } from "../telemetry/TurnFailure.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.ts";
 import { UsageLimitResetFallback } from "../usage/UsageLimitSources.ts";
@@ -86,26 +85,6 @@ export const ProviderEventIngestorV2Error = Schema.Union([
   ProviderEventPublishError,
 ]);
 export type ProviderEventIngestorV2Error = typeof ProviderEventIngestorV2Error.Type;
-
-/** Studio: why a turn failed (`provider.turn.failed`), as one word from a closed list. */
-export class ProviderTurnFailureAnalytics extends Context.Reference<{
-  readonly recordFailure: (properties: Readonly<Record<string, unknown>>) => Effect.Effect<void>;
-}>("t3/orchestration-v2/ProviderTurnFailureAnalytics", {
-  defaultValue: () => ({ recordFailure: () => Effect.void }),
-}) {}
-
-export const layerFailureAnalytics = Layer.effect(
-  ProviderTurnFailureAnalytics,
-  Effect.gen(function* () {
-    const analytics = yield* AnalyticsService.AnalyticsService;
-    return {
-      recordFailure: Effect.fn("ProviderTurnFailureAnalytics.recordFailure")(
-        (properties: Readonly<Record<string, unknown>>) =>
-          analytics.record("provider.turn.failed", properties),
-      ),
-    };
-  }),
-);
 
 type TodoListPlan = Extract<OrchestrationV2PlanArtifact, { readonly kind: "todo_list" }>;
 
@@ -882,20 +861,8 @@ export const layer: Layer.Layer<
               ),
               Effect.tap((storedEvents) =>
                 Effect.gen(function* () {
-                  if (
-                    storedEvents.length > 0 &&
-                    input.event.type === "turn.terminal" &&
-                    input.event.status === "failed"
-                  ) {
-                    const key = `failed:${input.providerInstanceId}:${input.event.providerTurnId}`;
-                    if (completedTurnAnalytics.has(key)) return;
-                    completedTurnAnalytics.add(key);
-                    yield* failureAnalytics.recordFailure({
-                      provider: input.event.driver,
-                      reason: turnFailureReason(input.event.failure),
-                    });
-                    return;
-                  }
+                  if (storedEvents.length > 0 && input.event.type === "turn.terminal")
+                    yield* failureAnalytics.turnEnded(input.providerInstanceId, input.event);
                   if (storedEvents.length === 0 || input.event.type !== "provider_turn.updated")
                     return;
                   const providerTurn = input.event.providerTurn;

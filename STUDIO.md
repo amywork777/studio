@@ -403,7 +403,7 @@ as they were.
   (`importIntoProject.ts`). The desktop app reads and copies (`apps/desktop/src/studio/`); what
   makes a project is decided in the web (`components/workbench/importPlan.ts`).
 - **Usage data.** Nothing about its use goes to T3:
-  `apps/server/src/telemetry/AnalyticsService.ts` sends only Studio's own anonymous counts, to
+  `apps/server/src/telemetry/StudioAnalytics.ts` sends only Studio's own anonymous counts, to
   Studio's receiver (`infra/usage`), once the person chose Share. The README's "Usage data" section
   lists every count, and the plain downloads the app makes.
 - **Design history.** A turn that changed files ends with one line of what it changed in the

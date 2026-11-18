@@ -37,7 +37,7 @@ NodeTest.test(
     NodeAssert.deepEqual(EVENTS_LIMIT, { limit: 120, windowMs: 60_000, size: 1000 });
     // What the allowance is counted from: Studio sends once every `FLUSH_INTERVAL_MS`.
     const sender = NodeFS.readFileSync(
-      new URL("../../../apps/server/src/telemetry/AnalyticsService.ts", import.meta.url),
+      new URL("../../../apps/server/src/telemetry/StudioAnalytics.ts", import.meta.url),
       "utf8",
     );
     const flushMs = Number(/\bFLUSH_INTERVAL_MS = ([\d_]+);/.exec(sender)?.[1].replaceAll("_", ""));

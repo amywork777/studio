@@ -5,9 +5,11 @@ import * as NodePath from "node:path";
 import { assert, it } from "@effect/vitest";
 
 import { CAD_ACTION_FAILED, CAD_USAGE_EVENTS } from "../plugins/usageEvents.ts";
+import { USAGE_EVENT_PROPERTIES } from "./StudioAnalytics.ts";
 
 // Studio's law 9: the README names every usage event the app can send, so what a person is told
-// is what the code does. Adding, renaming or dropping an event means editing that list too.
+// is what the code does. Only the events `StudioAnalytics` lists go out (T3 Code's own call sites
+// record more, which it drops), so README's list is that list, and each is recorded somewhere.
 const SERVER_SOURCE = NodePath.join(import.meta.dirname, "..");
 const README = NodePath.join(import.meta.dirname, "../../../../README.md");
 
@@ -41,12 +43,11 @@ it("lists every usage event the server can send in the README", () => {
   const recorded = recordedEvents();
   const listed = listedEvents();
   assert.isAbove(recorded.length, 10, "the scan found the server's events");
-  for (const pattern of recorded) {
-    assert.isTrue(
-      listed.some((name) => matches(pattern, name)),
-      `${pattern} is sent but not listed under "Usage data" in README.md`,
-    );
-  }
+  assert.deepEqual(
+    listed.toSorted(),
+    [...USAGE_EVENT_PROPERTIES.keys()].toSorted(),
+    `README.md's "Usage data" and studioUsageEvents.json name different events`,
+  );
   for (const name of listed) {
     assert.isTrue(
       recorded.some((pattern) => matches(pattern, name)),

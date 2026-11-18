@@ -133,7 +133,8 @@ const layerAnalytics = Layer.effectContext(
           record: (event, properties) =>
             Ref.update(recorded, (events) => [...events, { event, ...properties }]),
           flush: Effect.void,
-              }),
+          recordOwners: () => Effect.void,
+        }),
       ),
     );
   }),
@@ -208,13 +209,15 @@ it.effect("spends an invite once and ends the guest stream when the owner stops 
   }).pipe(Effect.provide(layerTest)),
 );
 
-// Studio's law 9: `feature.used` is not in README's "Usage data", so a guest sends nothing.
-it.effect("records no usage event when a guest joins and sends", () =>
+it.effect("counts a guest joining and sending, without their name or text", () =>
   Effect.gen(function* () {
     const { guestShares, credential } = yield* shareThread;
     const { token: session, shareId } = yield* guestShares.redeem({ credential, name: "Sam" });
     yield* guestShares.submit(session, { shareId, text: "Hello" }, []);
-    assert.deepEqual(yield* Ref.get(yield* RecordedAnalytics), []);
+    assert.deepEqual(yield* Ref.get(yield* RecordedAnalytics), [
+      { event: "feature.used", feature: "guest_share.join" },
+      { event: "feature.used", feature: "guest_message.submit", variant: "text_only" },
+    ]);
   }).pipe(Effect.provide(layerTest)),
 );
 

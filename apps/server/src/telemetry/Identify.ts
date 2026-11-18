@@ -338,12 +338,4 @@ export const getServerOwnersForHome = Effect.fn("getServerOwnersForHome")(functi
   );
 });
 
-/**
- * The random id this install's usage counts go under (`anonymous-id` in the state directory), made on first
- * use, and the one thing a deletion names. It is never derived from an account. Null when it cannot be read
- * or made, and then nothing is sent.
- */
-export const getInstallId = upsertAnonymousId.pipe(
-  Effect.tapError(logTelemetryIdentityError),
-  Effect.orElseSucceed(() => null),
-);
+export const getServerOwners = Effect.flatMap(HostProcess.HomeDirectory, getServerOwnersForHome);
