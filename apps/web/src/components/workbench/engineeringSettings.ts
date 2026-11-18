@@ -4,6 +4,7 @@ import {
   ADVANCED_SETTINGS_SECTIONS,
   CODE_SETTINGS_SECTIONS,
   settingsSectionLabel,
+  STUDIO_INTERFACE_AVAILABLE,
 } from "./studioInterface";
 
 /**
@@ -153,6 +154,16 @@ const ENGINEERING_RESTORE_LABELS: ReadonlyMap<string, string> = new Map([
 /** A label of Restore defaults' list, as the engineering interface says it. */
 export function engineeringRestoreLabel(label: string, engineering: boolean): string {
   return (engineering && ENGINEERING_RESTORE_LABELS.get(label)) || label;
+}
+
+// Studio ships English only, so it offers no language to pick.
+const STUDIO_HIDDEN_ROWS: ReadonlySet<string> = new Set<SettingsSearchItemId>(["language"]);
+
+/** Whether `SettingsRow` and settings search leave a row out in this interface. */
+export function settingsRowHidden(id: string | undefined, engineering: boolean): boolean {
+  if (id === undefined) return false;
+  if (STUDIO_INTERFACE_AVAILABLE && STUDIO_HIDDEN_ROWS.has(id)) return true;
+  return engineering && CODE_SETTINGS_ROWS.has(id);
 }
 
 /** A row's own words in the engineering interface, or null where the row keeps its own. */

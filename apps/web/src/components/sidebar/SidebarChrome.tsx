@@ -6,11 +6,12 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { T, useGT } from "gt-react";
 import { memo } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useAtomValue } from "@effect/atom-react";
-import { APP_BASE_NAME, APP_MARK_URL, APP_WORDMARK_SUFFIX } from "../../branding";
+import { APP_MARK_URL, APP_WORDMARK_SUFFIX } from "../../branding";
 import { useEngineeringInterface, useStudioInterface } from "../workbench/studioInterface";
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { shortcutLabelForCommand } from "../../keybindings";
@@ -60,6 +61,7 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   // A fork's mark stands in for T3's stage artwork; the stage shows as a pill instead.
   const environmentIdentificationMode =
     APP_MARK_URL !== null && identificationSetting === "artwork" ? "pill" : identificationSetting;
+  const gt = useGT();
   const backdropVariant = resolveSidebarStageBackdropVariant(
     stageLabel,
     environmentIdentificationMode,
@@ -81,7 +83,7 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
         <SidebarTrigger
           variant={backdropVariant ? "media-navigation" : "ghost"}
           className="relative top-auto translate-y-0"
-          aria-label="Toggle main sidebar"
+          aria-label={gt("Toggle main sidebar")}
         />
       </div>
       <div className="relative z-10 flex h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-x-2 overflow-hidden py-0.5">
@@ -142,7 +144,8 @@ function HistoryNavigationButton({
 }) {
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const enabled = useCanNavigateHistory(direction);
-  const label = direction === "back" ? "Go back" : "Go forward";
+  const gt = useGT();
+  const label = direction === "back" ? gt("Go back") : gt("Go forward");
   const shortcutLabel = shortcutLabelForCommand(
     keybindings,
     direction === "back" ? "navigation.back" : "navigation.forward",
@@ -178,9 +181,10 @@ function HistoryNavigationButton({
 function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
   // The engineering interface opens on Studio's Home (`routes/_chat.index.tsx`).
   const home = useEngineeringInterface();
+  const gt = useGT();
   return (
     <Link
-      aria-label={home ? "Go to Home" : `${APP_BASE_NAME} home`}
+      aria-label={home ? gt("Go to Home") : gt("T3 Code home")}
       className={cn(
         "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
         onBackdrop ? "text-white" : "text-foreground",
@@ -240,6 +244,7 @@ function SidebarUtilityItem({
 export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
+  const gt = useGT();
   const { isMobile, setOpenMobile } = useSidebar();
   const isOnUtilityPage = useLocation({
     select: (location) => isSidebarUtilityPage(location.pathname),
@@ -294,39 +299,45 @@ export const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         <SidebarMenuItem className="min-w-0 flex-1">
           <SidebarMenuButton onClick={handleBackClick}>
             <ArrowLeftIcon />
-            <span>Back</span>
+            <span>
+              <T>Back</T>
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       ) : (
         <>
           {engineering ? (
             // Home, as ⌘K and the project switcher name it: where Studio starts.
-            <SidebarUtilityItem icon={<HomeIcon />} label="Home" onClick={handleProjectsClick} />
+            <SidebarUtilityItem
+              icon={<HomeIcon />}
+              label={gt("Home")}
+              onClick={handleProjectsClick}
+            />
           ) : null}
           {studioPlaces ? null : (
             <SidebarUtilityItem
               icon={<SettingsIcon />}
-              label="Settings"
+              label={gt("Settings")}
               onClick={handleSettingsClick}
             />
           )}
           {pullRequestsSupported && !studioPlaces ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
-              label="Pull requests"
+              label={gt("Pull requests")}
               onClick={handlePullRequestsClick}
             />
           ) : null}
           {issuesSupported ? (
             <SidebarUtilityItem
               icon={<IssueGlyph.issue />}
-              label="Issues"
+              label={gt("Issues", { $context: "sidebar link to the list of issues" })}
               onClick={handleIssuesClick}
             />
           ) : null}
           <SidebarUtilityItem
             icon={<ChartNoAxesColumnIcon />}
-            label="Usage"
+            label={gt("Usage")}
             onClick={handleUsageClick}
           />
         </>

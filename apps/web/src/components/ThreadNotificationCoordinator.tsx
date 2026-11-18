@@ -1,4 +1,6 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { msg } from "gt-react";
+import { m } from "../i18n/messages";
 import {
   type EnvironmentThreadShell,
   type PendingSubagentRequest,
@@ -157,19 +159,19 @@ export function startThreadNotifications(
     const title =
       kind === "completion"
         ? engineering
-          ? "Chat finished"
-          : "Thread completed"
+          ? m(msg("Chat finished"))
+          : m(msg("Thread completed"))
         : status === "approval"
-          ? "Approval needed"
+          ? m(msg("Approval needed"))
           : status === "limited"
-            ? "Usage limit reached"
+            ? m(msg("Usage limit reached"))
             : status === "failed"
               ? engineering
-                ? "Chat failed"
-                : "Thread failed"
+                ? m(msg("Chat failed"))
+                : m(msg("Thread failed"))
               : status === "request"
-                ? "Guest request"
-                : "Input needed";
+                ? m(msg("Guest request"))
+                : m(msg("Input needed"));
     if (hasNotificationSound(mode)) {
       void playNotificationSound(kind, () =>
         hasNotificationSound(getClientSettings().notificationMode),
@@ -203,7 +205,7 @@ export function startThreadNotifications(
             ),
         },
         actionProps: {
-          children: engineering ? "Open chat" : "Open thread",
+          children: engineering ? m(msg("Open chat")) : m(msg("Open thread")),
           onClick: () => {
             toastManager.close(toastId);
             openChat();
