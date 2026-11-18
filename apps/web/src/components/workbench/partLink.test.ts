@@ -21,7 +21,7 @@ describe("a part's link in a job's message", () => {
 
   it("links a file as ever, by its own name", () => {
     expect(partLink({ path: "parts/STEP/l_bracket.step", name: "L bracket" })).toBe(
-      "[l_bracket.step](parts/STEP/l_bracket.step)",
+      "[l\\_bracket.step](parts/STEP/l_bracket.step)",
     );
   });
 });

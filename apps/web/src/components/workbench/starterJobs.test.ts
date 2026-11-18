@@ -21,7 +21,7 @@ describe("project starters", () => {
       "Post G-code for L bracket",
     ]);
     expect(starters[0]?.prompt).toBe(
-      "Tool: Check for CNC machining\n\nCheck [l_bracket.step](parts/STEP/l_bracket.step) for CNC machining: tool access, internal corners, thin walls and setups. Tell me what to change.",
+      "Tool: Check for CNC machining\n\nCheck [l\\_bracket.step](parts/STEP/l_bracket.step) for CNC machining: tool access, internal corners, thin walls and setups. Tell me what to change.",
     );
   });
 
