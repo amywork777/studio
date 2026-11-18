@@ -31,6 +31,7 @@ import {
   WS_METHODS,
   WsRpcGroup,
 } from "@t3tools/contracts";
+import { STUDIO_RPC_REQUIRED_SCOPES } from "../studio/studioRpc.ts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Layer from "effect/Layer";
@@ -40,6 +41,7 @@ type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 
 export const RPC_REQUIRED_SCOPES = {
   ...CLIENT_GUARDED_RPC_SCOPES,
+  ...STUDIO_RPC_REQUIRED_SCOPES,
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: AuthOrchestrationReadScope,
   [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: AuthOrchestrationReadScope,
@@ -106,25 +108,6 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.serverDisableAcpRegistryProvider]: AuthProvidersManageScope,
   [WS_METHODS.serverLogoutAcpRegistry]: AuthProvidersManageScope,
   [WS_METHODS.serverDiscoverSourceControl]: AuthOrchestrationReadScope,
-  [WS_METHODS.pluginsCatalog]: AuthOrchestrationReadScope,
-  [WS_METHODS.pluginsList]: AuthOrchestrationReadScope,
-  [WS_METHODS.pluginsInstall]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSetEnabled]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsUninstall]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsUpdate]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillRead]: AuthOrchestrationReadScope,
-  [WS_METHODS.pluginsSkillCreate]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillSave]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillCopy]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsSkillRemove]: AuthProvidersManageScope,
-  [WS_METHODS.pluginsOpenView]: AuthOrchestrationOperateScope,
-  [WS_METHODS.pluginsRequest]: AuthOrchestrationOperateScope,
-  [WS_METHODS.pluginsModelPictures]: AuthOrchestrationOperateScope,
-  // Projects are files on this machine; listing them reads like listing a folder.
-  [WS_METHODS.studioProjectsList]: AuthFilesystemReadScope,
-  [WS_METHODS.studioProjectsSave]: AuthOrchestrationOperateScope,
-  [WS_METHODS.studioProjectsTrash]: AuthOrchestrationOperateScope,
-  [WS_METHODS.studioSyncStatus]: AuthOrchestrationReadScope,
   [WS_METHODS.serverGetTraceDiagnostics]: AuthDiagnosticsReadScope,
   [WS_METHODS.serverGetProcessDiagnostics]: AuthDiagnosticsReadScope,
   // Thread load balancing reads host load, so it needs thread scope rather than diagnostics scope.
@@ -186,7 +169,6 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.projectsWriteFile]: AuthFilesystemWriteScope,
   [WS_METHODS.projectsEnsureScratch]: AuthOrchestrationOperateScope,
   [WS_METHODS.projectsCreateNew]: AuthOrchestrationOperateScope,
-  [WS_METHODS.projectsStartHistory]: AuthOrchestrationOperateScope,
   [WS_METHODS.shellOpenInEditor]: AuthOrchestrationOperateScope,
   [WS_METHODS.filesystemBrowse]: AuthFilesystemReadScope,
   [WS_METHODS.filesystemGetMetadata]: AuthFilesystemReadScope,

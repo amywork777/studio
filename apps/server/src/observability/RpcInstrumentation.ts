@@ -6,12 +6,14 @@ import * as References from "effect/References";
 import type * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 
+import { STUDIO_RPC_AGGREGATES } from "../studio/studioRpc.ts";
 import { rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
 
 type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 
 // Trace queries and dashboards depend on these labels, including deviations from method prefixes.
 const RPC_AGGREGATES = {
+  ...STUDIO_RPC_AGGREGATES,
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: "orchestrationV2",
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: "orchestration",
   [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: "orchestration",
@@ -83,23 +85,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverDisableAcpRegistryProvider]: "server",
   [WS_METHODS.serverLogoutAcpRegistry]: "server",
   [WS_METHODS.serverDiscoverSourceControl]: "server",
-  [WS_METHODS.pluginsCatalog]: "server",
-  [WS_METHODS.pluginsList]: "server",
-  [WS_METHODS.pluginsInstall]: "server",
-  [WS_METHODS.pluginsSetEnabled]: "server",
-  [WS_METHODS.pluginsUninstall]: "server",
-  [WS_METHODS.pluginsUpdate]: "server",
-  [WS_METHODS.pluginsSkillRead]: "server",
-  [WS_METHODS.pluginsSkillCreate]: "server",
-  [WS_METHODS.pluginsSkillSave]: "server",
-  [WS_METHODS.pluginsSkillCopy]: "server",
-  [WS_METHODS.pluginsSkillRemove]: "server",
-  [WS_METHODS.pluginsOpenView]: "server",
-  [WS_METHODS.pluginsRequest]: "server",
-  [WS_METHODS.pluginsModelPictures]: "server",
-  [WS_METHODS.studioProjectsList]: "server",
-  [WS_METHODS.studioProjectsSave]: "server",
-  [WS_METHODS.studioProjectsTrash]: "server",
   [WS_METHODS.serverCheckSecretSource]: "server",
   [WS_METHODS.serverGetTraceDiagnostics]: "server",
   [WS_METHODS.serverGetProcessDiagnostics]: "server",
@@ -177,11 +162,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.sourceControlLookupRepository]: "source-control",
   [WS_METHODS.sourceControlCloneRepository]: "source-control",
   [WS_METHODS.sourceControlPublishRepository]: "source-control",
-  [WS_METHODS.studioSyncSend]: "source-control",
-  [WS_METHODS.studioSyncRestore]: "source-control",
-  [WS_METHODS.studioSyncStatus]: "source-control",
-  [WS_METHODS.studioGitHubSignInStart]: "source-control",
-  [WS_METHODS.studioGitHubSignInCheck]: "source-control",
   [WS_METHODS.sourceControlSignInStart]: "source-control",
   [WS_METHODS.sourceControlSignInWait]: "source-control",
   [WS_METHODS.sourceControlSignInCancel]: "source-control",
@@ -200,7 +180,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.projectsWriteFile]: "workspace",
   [WS_METHODS.projectsEnsureScratch]: "orchestration",
   [WS_METHODS.projectsCreateNew]: "orchestration",
-  [WS_METHODS.projectsStartHistory]: "orchestration",
   [WS_METHODS.projectsCreateFromThread]: "orchestration",
   [WS_METHODS.shellOpenInEditor]: "workspace",
   [WS_METHODS.filesystemBrowse]: "workspace",
