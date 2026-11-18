@@ -115,7 +115,7 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
     `xcrun notarytool store-credentials studio-notary --apple-id <Apple ID> --team-id <Team ID>`
     (it asks for the password, which stays in the keychain).
   - **Each release:** `STUDIO_SIGN=1 APPLE_KEYCHAIN_PROFILE=studio-notary RUSTUP_TOOLCHAIN=1.95
-scripts/build-studio-app.sh <version>`, then the draft line it prints (Releasing): the DMG
+    scripts/build-studio-app.sh <version>`, then the draft line it prints (Releasing): the DMG
     under its one name, and the zip, its blockmap and `latest-mac.yml` the updater reads. It needs
     about 10 GB free: the last release's files in `release/` and `build/studio-bundle` can go once
     it is published. 0.1.3 ran out on its last step (2026-10-22), which now moves the DMG and the
@@ -212,7 +212,7 @@ About and Report a problem name the text-to-cad, and saving a project writes it 
    always whole.
 6. **Try it (Amy).** Install the draft's download and open an example.
 7. **Publish (Amy).** `gh release edit v<version> --repo amywork777/studio-download --draft=false
---latest`, then tag this repository `v<version>` and the fork `studio-v<version>`.
+   --latest`, then tag this repository `v<version>` and the fork `studio-v<version>`.
 
 **Rollback.** Stop the spread with `gh release edit v<good> --repo amywork777/studio-download
 --latest`: the updater and the download links read the latest release. Nobody already on the bad
@@ -337,7 +337,7 @@ as they were.
 
 - **The project's overview.** The Project tab (Overview, in Engineering) opens on it: the project's
   README in its folder first, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
-asked)`, or `by hand`; a decision written date first reads too), then every other section the
+  asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
   its first turn and the README has no words yet, the Overview shows Studio's loading bars;
   the words that end that wait then come in one by one, once, and later changes read as they are
@@ -423,7 +423,7 @@ asked)`, or `by hand`; a decision written date first reads too), then every othe
   Overview's Sizes is every named size in the project's scripts in one table, as a CAD tool's global
   variables (`ProjectSizes.tsx`): the shared ones first, with the parts that use them, then each
   part's own. Shared sizes live in `sizes.py` beside the parts, which import them by name (`from
-sizes import WALL`); a script's imports resolve from its own folder, so that is where the file
+  sizes import WALL`); a script's imports resolve from its own folder, so that is where the file
   goes, the folder holding most of the parts (`text-to-cad/skills/cad/references/edit-mode.md` tells
   the agent). A number changes where it is written, a click away, and every part that imports its
   file builds again; a formula (`2 * WALL`) changes where its sizes are. Add shared size appends
@@ -723,7 +723,12 @@ sizes import WALL`); a script's imports resolve from its own folder, so that is 
   selectors by where they are, never their numbers (the top face's outer edges:
   `tray.faces().sort_by(bd.Axis.Z)[-1].outer_wire().edges()`), and the line reads back as a new
   feature, selected, with its inputs to change like any other; a line that does not run, or picks
-  something other than the selection, is not written. Undo takes a command's line back. The agent
+  something other than the selection, is not written. Undo takes a command's line back. A custom feature (`@feature` from `cad.build123d`, Onshape's FeatureScript for build123d) reads as one
+  row by its own name, whatever it makes inside. Edit Feature opens its own dialog, built from its declared
+  parameters (numbers with units, check boxes, choices, faces or edges picked on the model, in groups), the
+  Features tab's Custom group (and S) offers each feature the project declares, and a value outside a
+  parameter's bounds is refused in the feature's own words with that parameter marked
+  ([Custom features and implicits](docs/internals/custom-features-and-implicits.md)). The agent
   hears of each change with the next message (a Hand edit note queued in the composer), never by a
   message of its own. Edit Feature reopens a feature's dialog, Suppress sets one aside, and the
   rollback bar (dragged in the design tree, or put under a feature by Rollback) shows the part as it was above a feature, new features going in there. An assembly
