@@ -49,6 +49,7 @@ import {
   inferProjectTitleFromPath,
   isWindowsPlatform,
 } from "@t3tools/client-runtime/state/projects";
+import { newProjectsFolderOf } from "@t3tools/shared/projectSettings";
 import { resolvePastedPath } from "@t3tools/shared/path";
 import {
   AuthOrchestrationOperateScope,
@@ -410,7 +411,7 @@ function useEnvironmentOptions(
         platform: platformFromOs(config?.environment.platform.os ?? null),
         machine: resolveEnvironmentMachineKind(config ?? null),
         baseDirectory: config?.settings.addProjectBaseDirectory ?? null,
-        newProjectsRoot: config?.newProjectsRoot ?? null,
+        newProjectsRoot: newProjectsFolderOf(config) ?? null,
         connectionState: runtime?.connectionState ?? "available",
         connectionError: runtime?.connectionError ?? null,
         connectionErrorTraceId: runtime?.connectionErrorTraceId ?? null,

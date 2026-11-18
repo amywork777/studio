@@ -532,6 +532,8 @@ export type ProjectEnsureScratchResult = typeof ProjectEnsureScratchResult.Type;
 
 export const ProjectCreateNewInput = Schema.Struct({
   name: TrimmedNonEmptyString.check(Schema.isMaxLength(200)),
+  /** The folder the project's own folder is made in; omitted uses the server's new projects folder. */
+  parentFolder: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type ProjectCreateNewInput = typeof ProjectCreateNewInput.Type;
 

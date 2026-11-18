@@ -77,13 +77,11 @@ import {
 import { useTextGenerationTargets } from "../../textGenerators";
 import { ensureLocalApi, readLocalApi } from "../../localApi";
 import { isMacPlatform } from "../../lib/utils";
-import {
-  useEnvironmentProviders,
-  usePrimaryEnvironmentId,
-} from "../../state/environments";
+import { useEnvironmentProviders, usePrimaryEnvironmentId } from "../../state/environments";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
+import { ProjectLocationInput } from "../workbench/ProjectLocation";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
@@ -794,7 +792,8 @@ export function GeneralSettingsPanel() {
                   label="project grouping"
                   onClick={() =>
                     updateSettings({
-                      sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
+                      sidebarProjectGroupingMode:
+                        DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
                     })
                   }
                 />
@@ -821,7 +820,9 @@ export function GeneralSettingsPanel() {
           />
           <SettingsRow
             {...setting("project-order")}
-            description={<T>Order of projects in the sidebar project picker and command palette.</T>}
+            description={
+              <T>Order of projects in the sidebar project picker and command palette.</T>
+            }
             resetAction={
               settings.sidebarProjectSortOrder !==
               DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder ? (
@@ -844,7 +845,11 @@ export function GeneralSettingsPanel() {
                   }
                 }}
               >
-                <SelectTrigger size="sm" className="w-full sm:w-56" aria-label={gt("Project order")}>
+                <SelectTrigger
+                  size="sm"
+                  className="w-full sm:w-56"
+                  aria-label={gt("Project order")}
+                >
                   <SelectValue>
                     {m(SIDEBAR_PROJECT_SORT_ORDER_LABELS[settings.sidebarProjectSortOrder])}
                   </SelectValue>
@@ -863,8 +868,8 @@ export function GeneralSettingsPanel() {
             {...setting("working-shelf")}
             description={
               <T>
-                Fold working and monitoring threads into a Working section. They return to the top of
-                the inbox when they need you. The boring sidebar in Labs has no Working section.
+                Fold working and monitoring threads into a Working section. They return to the top
+                of the inbox when they need you. The boring sidebar in Labs has no Working section.
               </T>
             }
             resetAction={
@@ -874,7 +879,8 @@ export function GeneralSettingsPanel() {
                   label="working section"
                   onClick={() =>
                     updateSettings({
-                      sidebarWorkingShelfEnabled: DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
+                      sidebarWorkingShelfEnabled:
+                        DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
                     })
                   }
                 />
@@ -924,7 +930,9 @@ export function GeneralSettingsPanel() {
           <SettingsRow
             {...setting("archive-confirmation")}
             description={
-              <T>Require a second click on the inline archive action before a thread is archived.</T>
+              <T>
+                Require a second click on the inline archive action before a thread is archived.
+              </T>
             }
             resetAction={
               settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
@@ -1739,6 +1747,7 @@ export function ThreadsSettingsPanel() {
     true,
   );
   const mixedAddProjectBaseDirectory = useScopedSettingsMixed(["addProjectBaseDirectory"]);
+  const mixedNewProjectsFolder = useScopedSettingsMixed(["newProjectsFolder"]);
   const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
   const engineering = useEngineeringInterface();
   const autoSettleDaysCopy = engineeringSettingCopy("days-before-auto-settle", engineering);
@@ -1746,66 +1755,93 @@ export function ThreadsSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      {/* The Add Project browser and clone folders are a coding tool's: Studio has neither. */}
-      {engineering ? null : (
-        <SettingsSection id="new-projects" title="New projects">
-          <SettingsRow
-            serverScoped
-            settingKeys={["addProjectBaseDirectory"]}
-            {...searchableSetting("add-project-starts-in")}
-            description='Leave empty to use "~/" when the Add Project browser opens.'
-            resetAction={
-              settings.addProjectBaseDirectory !==
-              DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
-                <SettingResetButton
-                  label="add project base directory"
-                  onClick={() =>
-                    updateSettings({
-                      addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
-                    })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <DraftInput
-                size="sm"
-                className="w-full sm:w-72"
-                value={mixedAddProjectBaseDirectory ? "" : settings.addProjectBaseDirectory}
-                onCommit={(next) => updateSettings({ addProjectBaseDirectory: next })}
-                normalizeDraft={resolvePastedPath}
-                placeholder={mixedAddProjectBaseDirectory ? "Mixed" : "~/"}
-                spellCheck={false}
-                aria-label="Add project base directory"
+      {/* Studio hides the Add Project browser and clone rows, a coding tool's (`CODE_SETTINGS_ROWS`). */}
+      <SettingsSection id="new-projects" title="New projects">
+        <SettingsRow
+          serverScoped
+          settingKeys={["newProjectsFolder"]}
+          {...searchableSetting("new-projects-folder")}
+          description="Where New makes a project's folder. The folder last chosen in New is saved here too."
+          resetAction={
+            settings.newProjectsFolder !== DEFAULT_UNIFIED_SETTINGS.newProjectsFolder ? (
+              <SettingResetButton
+                label="new projects folder"
+                onClick={() =>
+                  updateSettings({ newProjectsFolder: DEFAULT_UNIFIED_SETTINGS.newProjectsFolder })
+                }
               />
-            }
-          />
-          <SettingsRow
-            serverScoped
-            settingKeys={["ghqCloneLayout"]}
-            {...searchableSetting("ghq-clone-layout")}
-            description="Clones go to github.com/owner/repo under the folder above, like ghq."
-            resetAction={
-              settings.ghqCloneLayout !== DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout ? (
-                <SettingResetButton
-                  label="clone into host folders"
-                  onClick={() =>
-                    updateSettings({ ghqCloneLayout: DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout })
-                  }
-                />
-              ) : null
-            }
-            control={
-              <ScopedSwitch
-                settingKeys={["ghqCloneLayout"]}
-                checked={settings.ghqCloneLayout}
-                onCheckedChange={(checked) => updateSettings({ ghqCloneLayout: Boolean(checked) })}
-                aria-label="Clone into host folders"
+            ) : null
+          }
+          control={
+            <div className="w-full sm:w-96">
+              <ProjectLocationInput
+                value={mixedNewProjectsFolder ? "" : settings.newProjectsFolder}
+                placeholder={
+                  mixedNewProjectsFolder
+                    ? "Mixed"
+                    : (environment?.serverConfig?.newProjectsRoot ?? "")
+                }
+                onChange={(next) => updateSettings({ newProjectsFolder: next })}
               />
-            }
-          />
-        </SettingsSection>
-      )}
+            </div>
+          }
+        />
+        <SettingsRow
+          serverScoped
+          settingKeys={["addProjectBaseDirectory"]}
+          {...searchableSetting("add-project-starts-in")}
+          description='Leave empty to use "~/" when the Add Project browser opens.'
+          resetAction={
+            settings.addProjectBaseDirectory !==
+            DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory ? (
+              <SettingResetButton
+                label="add project base directory"
+                onClick={() =>
+                  updateSettings({
+                    addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <DraftInput
+              size="sm"
+              className="w-full sm:w-72"
+              value={mixedAddProjectBaseDirectory ? "" : settings.addProjectBaseDirectory}
+              onCommit={(next) => updateSettings({ addProjectBaseDirectory: next })}
+              normalizeDraft={resolvePastedPath}
+              placeholder={mixedAddProjectBaseDirectory ? "Mixed" : "~/"}
+              spellCheck={false}
+              aria-label="Add project base directory"
+            />
+          }
+        />
+        <SettingsRow
+          serverScoped
+          settingKeys={["ghqCloneLayout"]}
+          {...searchableSetting("ghq-clone-layout")}
+          description="Clones go to github.com/owner/repo under the folder above, like ghq."
+          resetAction={
+            settings.ghqCloneLayout !== DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout ? (
+              <SettingResetButton
+                label="clone into host folders"
+                onClick={() =>
+                  updateSettings({ ghqCloneLayout: DEFAULT_UNIFIED_SETTINGS.ghqCloneLayout })
+                }
+              />
+            ) : null
+          }
+          control={
+            <ScopedSwitch
+              settingKeys={["ghqCloneLayout"]}
+              checked={settings.ghqCloneLayout}
+              onCheckedChange={(checked) => updateSettings({ ghqCloneLayout: Boolean(checked) })}
+              aria-label="Clone into host folders"
+            />
+          }
+        />
+      </SettingsSection>
 
       <ProjectDefaultsSettings category="general" />
 
@@ -2247,7 +2283,10 @@ export function MaintenanceSettingsPanel() {
             control={
               <Button
                 render={
-                  <Link to="/settings/diagnostics" search={{ machine: environmentId ?? undefined }} />
+                  <Link
+                    to="/settings/diagnostics"
+                    search={{ machine: environmentId ?? undefined }}
+                  />
                 }
                 size="sm"
                 variant="outline"
