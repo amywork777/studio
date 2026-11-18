@@ -4,6 +4,7 @@ import {
   SquareMenuIcon,
   Maximize2Icon,
   Minimize2Icon,
+  type LucideIcon,
 } from "lucide-react";
 import { useGT } from "gt-react";
 import { memo, type ReactNode, useLayoutEffect, useRef } from "react";
@@ -36,6 +37,7 @@ export interface PanelLayoutControlsProps {
   rightPanelUnavailableLabel?: string;
   /** What the right toggle is called, where a host gives it its own job (Studio's Toolbox). */
   rightPanelLabel?: string;
+  rightPanelIcon?: LucideIcon;
   onToggleTerminal: () => void;
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
@@ -57,6 +59,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   rightPanelShortcutLabel,
   rightPanelUnavailableLabel,
   rightPanelLabel,
+  rightPanelIcon: RightPanelIcon = PanelRightIcon,
   onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
@@ -134,7 +137,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
               size="sm"
               disabled={!rightPanelAvailable}
             >
-              <PanelRightIcon className="size-4" />
+              <RightPanelIcon className="size-4" />
             </Toggle>
           </TooltipTrigger>
           <TooltipPopup side="bottom">

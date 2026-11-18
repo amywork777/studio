@@ -838,18 +838,18 @@ as they were.
 - **The Toolbox.** Down the right of the workspace, in AI and in CAD, it is the one place for what
   a part can have done to it: Evaluate, Manufacture and Document, a tab each like SolidWorks'
   CommandManager (the tab left open is remembered on this device), three equal tiles of the
-  group's icon (the folded edge's, in its jobs' color) over its name, as the CAD toolbar's
+  group's icon (in its jobs' color) over its name, as the CAD toolbar's
   buttons are, each with a line on what it is
   for (`GROUP_PURPOSES`) over its sections' tiles, in one even grid (`StudioToolbox.tsx`).
   Manufacture keeps four sections, not one per process (3D printing, machining and molding, sheet
   metal and cutting, files and off-the-shelf parts), so no heading holds a lone tile that repeats
   it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
-  nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It
-  folds to its icons, and starts folded in a narrow panel, in CAD any panel beside a chat, so the
-  model keeps the room (`toolboxNarrowRem`); a group's icon opens it on that tab. The title bar's right
-  button is the Toolbox's, as the left one is the sidebar's: it opens the Toolbox, with the panel
-  if that is shut, and folds it again (`toolboxFold.ts`), and the Toolbox slides open and shut at
-  the sidebar's pace (Amy, 11/11); the Toolbox has no fold button of its own (Amy, 11/12). Every job the
+  nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It is
+  a popup under the title bar's right button, the Toolbox's one way in (Amy, 11/18: one button, not
+  one per group), opening on the tab used last: it takes none of the panel, so the model keeps all
+  of it. The button opens it, with the panel if that is shut, and shuts it (`toolboxOpen.ts`), as
+  do Escape and a press anywhere but the model; a press on the model leaves it open, so its tiles follow
+  the part picked there (`ToolboxPopup.tsx`), and a tile's press shuts it as it starts the job. Every job the
   enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
   board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
   and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.
