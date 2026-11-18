@@ -187,6 +187,11 @@ export function useStudioInterface(): StudioInterface {
   );
 }
 
+/** A chat forked from another, as the engineering interface titles it. */
+export function engineeringForkTitle(title: string): string {
+  return `${title}, another way`;
+}
+
 /**
  * Whether the coding tools are put away and things are named in an engineer's
  * words ("Mark done", "AI agents"), for code outside React (timeline labels):

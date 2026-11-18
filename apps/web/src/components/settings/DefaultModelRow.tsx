@@ -123,7 +123,10 @@ export function DefaultModelRow() {
       }
       resetAction={
         settings.defaultModelSelection !== null ? (
-          <SettingResetButton label="default model" onClick={() => setModel(null)} />
+          <SettingResetButton
+            ariaLabel="Reset default model to default"
+            onClick={() => setModel(null)}
+          />
         ) : null
       }
       control={
