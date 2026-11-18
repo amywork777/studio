@@ -1,3 +1,4 @@
+import { useMessages } from "gt-react";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 
 import { usePrimaryCloudLinkState } from "~/cloud/cloudLinkState";
@@ -12,7 +13,10 @@ import { useEnvironmentScope } from "~/state/session";
 import { isWslSettingsRowVisible } from "./ConnectionsSettings.logic";
 import { isProviderSettingsEnvironmentAvailable } from "./ProviderSettingsPanel.logic";
 import { STUDIO_INTERFACE_AVAILABLE, useEngineeringInterface } from "../workbench/studioInterface";
-import { engineeringSettingsSearchItems } from "../workbench/engineeringSettings";
+import {
+  engineeringSettingsSearchItems,
+  settingsRowHidden,
+} from "../workbench/engineeringSettings";
 import {
   filterAvailableSettingsSearchItems,
   getThreadAutoSettlementSearchAvailability,
@@ -57,6 +61,7 @@ export function useAvailableSettingsSearchItems() {
   const canManageLocalBackend = !localEnvironmentDisabled && canMaintain;
   const desktopWsl = useEnvironmentQuery(
     isElectron && canManageLocalBackend ? desktopWslStateAtom : null,
+    useMessages(),
   );
   const cloudPublicConfig = hasCloudPublicConfig() === true;
   const wslSettingsRowVisible =
@@ -80,7 +85,9 @@ export function useAvailableSettingsSearchItems() {
   // Studio offers the Interface switch only where it has the choice, and has no mobile app.
   const offered = available.filter(
     (item) =>
-      item.id !== "mobile-app" && (STUDIO_INTERFACE_AVAILABLE || item.id !== "studio-interface"),
+      item.id !== "mobile-app" &&
+      !settingsRowHidden(item.id, false) &&
+      (STUDIO_INTERFACE_AVAILABLE || item.id !== "studio-interface"),
   );
   // The engineering interface searches only the sections and rows it shows, by their names there.
   return engineering ? engineeringSettingsSearchItems(offered) : offered;

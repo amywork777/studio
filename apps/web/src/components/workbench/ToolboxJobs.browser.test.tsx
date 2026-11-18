@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
 import { HARDWARE_ACTIONS, type HardwareAction } from "./hardwareActions";
 import type { ToolboxSection } from "./toolbox";
 import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { SectionJobs } from "./ToolboxJobs";
+import { ToolboxPopup } from "./ToolboxPopup";
 
 const jobs = HARDWARE_ACTIONS.filter((action) => action.section === "simulation");
 const section: ToolboxSection = { title: "Simulation", actions: jobs };
@@ -104,5 +106,54 @@ describe("SectionJobs tool tiles", () => {
     await fitTile.click();
     expect(onStart).toHaveBeenCalledWith(assembly);
     expect(onRun).not.toHaveBeenCalled();
+  });
+});
+
+describe("ToolboxPopup", () => {
+  async function renderPopup(onOpenChange: (open: boolean) => void) {
+    return render(
+      <>
+        {/* Laid out as the window is: the button top right, the popup under it, clear of the rest. */}
+        <button
+          type="button"
+          data-right-panel-toggle
+          style={{ position: "fixed", top: 0, right: 0 }}
+        >
+          Toolbox
+        </button>
+        <div data-right-panel-surface-content style={{ position: "fixed", bottom: 0, left: 96 }}>
+          <button type="button">Bracket</button>
+        </div>
+        <button type="button" style={{ position: "fixed", bottom: 0, left: 0 }}>
+          Chat
+        </button>
+        <ToolboxPopup open onOpenChange={onOpenChange}>
+          <button type="button">Strength under load</button>
+        </ToolboxPopup>
+      </>,
+    );
+  }
+
+  it("stays open for a press on the model, so its tiles follow the part picked there", async () => {
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    await using screen = await renderPopup(onOpenChange);
+    await expect.element(screen.getByRole("dialog", { name: "Toolbox" })).toBeVisible();
+
+    await screen.getByRole("button", { name: "Bracket" }).click();
+    await screen.getByRole("button", { name: "Toolbox", exact: true }).click();
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("shuts for a press elsewhere and for Escape", async () => {
+    const onOpenChange = vi.fn<(open: boolean) => void>();
+    await using screen = await renderPopup(onOpenChange);
+
+    await screen.getByRole("button", { name: "Chat" }).click();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+    onOpenChange.mockClear();
+    await userEvent.keyboard("{Escape}");
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 });
