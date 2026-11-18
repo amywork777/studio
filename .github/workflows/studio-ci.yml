@@ -38,6 +38,24 @@ jobs:
       - name: Lint
         run: vp lint
 
+  t3-edits:
+    name: T3 Code edits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Every commit and tree, no file contents: enough to find the T3 commit Studio last merged.
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            /scripts/
+          sparse-checkout-cone-mode: false
+
+      - name: Check law 14
+        run: bash scripts/studio-t3-edits.sh
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-24.04

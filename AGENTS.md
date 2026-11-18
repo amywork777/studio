@@ -57,6 +57,12 @@ typecheck and the tests on every push to `main` and every change request.
     `.github/workflows/studio-jakes-skills.yml`, which checks Jake's main against Studio's pin
     every day._
 
+14. **T3 Code stays T3's.** Studio's code lives in its own files and folders, and an edit to a T3
+    Code file is the smallest hook that calls it, so T3's improvements merge in cleanly. The T3
+    files Studio changes are exactly those in `scripts/studio-t3-edits.txt`: it shrinks as hooks
+    replace edits, and grows only on purpose. STUDIO.md says where each kind of change goes.
+    _CI: `scripts/studio-t3-edits.sh`, Studio CI's T3 Code edits._
+
 # T3 Code
 
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro) and serves web, desktop, and mobile clients.
