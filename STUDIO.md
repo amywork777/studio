@@ -726,7 +726,9 @@ as they were.
   something other than the selection, is not written. Undo takes a command's line back. A custom feature (`@feature` from `cad.build123d`, Onshape's FeatureScript for build123d) reads as one
   row by its own name, whatever it makes inside. Edit Feature opens its own dialog, built from its declared
   parameters (numbers with units, check boxes, choices, faces or edges picked on the model, in groups), the
-  Features tab's Custom group (and S) offers each feature the project declares, and a value outside a
+  Features tab's Custom menu (and S) offers each feature the project declares, then Studio's standard
+  ones (Bolt Circle, Vent Slots, Clearance Hole and Heat-set Insert Boss, sized from ISO 273 and
+  CNC Kitchen's insert table, in `cad.build123d.standard_features`), and a value outside a
   parameter's bounds is refused in the feature's own words with that parameter marked
   ([Custom features and implicits](docs/internals/custom-features-and-implicits.md)). The agent
   hears of each change with the next message (a Hand edit note queued in the composer), never by a
