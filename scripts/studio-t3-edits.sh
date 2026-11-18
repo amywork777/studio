@@ -7,28 +7,30 @@
 #     scripts/studio-t3-edits.sh          # check (CI)
 #     scripts/studio-t3-edits.sh --write  # rewrite the list (a T3 sync, or a leak taken out)
 #
-# T3_REF names T3 Code's main. Without it, CI fetches it (commits only) into refs/studio/t3, and a
-# checkout uses its `upstream` remote's main (`git fetch upstream main` first).
+# The list's header records the T3 commit it was taken against, so the check needs nothing of
+# T3's. --write takes the newest T3 commit Studio has merged, from T3_REF (default upstream/main;
+# `git fetch upstream main` first).
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 LIST=scripts/studio-t3-edits.txt
-T3_REPO="${T3_REPO:-https://github.com/pingdotgg/t3code.git}"
 
-if [ -z "${T3_REF:-}" ] && [ -n "${CI:-}" ]; then
-  # A named remote: a partial clone takes --filter only from one.
-  git remote add t3 "$T3_REPO" 2>/dev/null || true
-  git fetch --quiet --no-tags --filter=tree:0 t3 "+main:refs/studio/t3"
-  T3_REF=refs/studio/t3
+if [ "${1:-}" = "--write" ]; then
+  base="$(git merge-base HEAD "${T3_REF:-upstream/main}")"
+else
+  base="$(sed -n 's/^# T3 base: \([0-9a-f]\{40\}\)$/\1/p' "$LIST")"
+  if [ -z "$base" ] || ! git merge-base --is-ancestor "$base" HEAD; then
+    echo "::error::$LIST names no T3 commit Studio has merged. Run scripts/studio-t3-edits.sh --write."
+    exit 1
+  fi
 fi
-T3_REF="${T3_REF:-upstream/main}"
-base="$(git merge-base HEAD "$T3_REF")"
 edits="$(git diff --name-only --no-renames --diff-filter=MD "$base" HEAD | sort)"
 
 if [ "${1:-}" = "--write" ]; then
   {
     echo "# T3 Code files Studio changes or removes (law 10). Checked by scripts/studio-t3-edits.sh;"
     echo "# add a line only on purpose, and take one off when its change moves into Studio's own files."
+    echo "# T3 base: $base"
     printf '%s\n' "$edits"
   } >"$LIST"
   echo "Wrote $(printf '%s\n' "$edits" | grep -c .) files to $LIST (T3 ${base:0:12})."
@@ -40,7 +42,7 @@ added="$(comm -23 <(printf '%s\n' "$edits") <(printf '%s\n' "$listed") | sed '/^
 gone="$(comm -13 <(printf '%s\n' "$edits") <(printf '%s\n' "$listed") | sed '/^$/d')"
 status=0
 if [ -n "$added" ]; then
-  echo "::error::Studio now changes T3 Code files the list doesn't name (law 10). Move the change into Studio's own files, or add them to $LIST on purpose:"
+  echo "::error::Studio now changes T3 Code files the list doesn't name (law 10). Move the change into Studio's own files, or add them to $LIST on purpose. Just merged T3 Code? Run scripts/studio-t3-edits.sh --write:"
   printf '  %s\n' $added
   status=1
 fi
