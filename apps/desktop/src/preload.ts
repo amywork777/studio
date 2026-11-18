@@ -12,12 +12,8 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
-import {
-  PLUGIN_VIEW_RELEASE_CHANNEL,
-  PLUGIN_VIEW_STAGE_CHANNEL,
-} from "./plugins/pluginViewChannels.ts";
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
-import { studioImportBridge } from "./studio/studioImportPreload.ts";
+import { exposeStudioBridges } from "./studio/studioPreload.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
   "requested",
@@ -537,12 +533,4 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   },
 } satisfies DesktopBridge);
 
-// Plugin views stage their HTML on `mcp-app://` (apps/desktop/src/plugins/PluginViews.ts).
-contextBridge.exposeInMainWorld("pluginViewsBridge", {
-  stage: (html: string, csp: unknown): Promise<string> =>
-    ipcRenderer.invoke(PLUGIN_VIEW_STAGE_CHANNEL, { html, csp }),
-  release: (url: string): Promise<void> => ipcRenderer.invoke(PLUGIN_VIEW_RELEASE_CHANNEL, url),
-});
-
-// Studio's Import: scanning folders for engineering files, and copying them into projects.
-contextBridge.exposeInMainWorld("studioImport", studioImportBridge);
+exposeStudioBridges();
