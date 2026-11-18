@@ -27,6 +27,7 @@ import {
   isSettingsSearchScopeAvailable,
   movedSettingsPath,
 } from "../components/settings/settingsSearch";
+import { t3SettingsSectionHidden } from "../components/workbench/hiddenT3Features";
 
 function RestoreDefaultsButton({ onRestored }: { onRestored: () => void }) {
   const { changedSettingLabels, restoreDefaults } = useSettingsRestore(onRestored);
@@ -189,7 +190,7 @@ export const Route = createFileRoute("/_chat/settings")({
   validateSearch: validateSettingsRouteSearch,
   search: { middlewares: [retainSettingsScope] },
   beforeLoad: async ({ location }) => {
-    if (location.pathname === "/settings") {
+    if (location.pathname === "/settings" || t3SettingsSectionHidden(location.pathname)) {
       throw redirect({ to: "/settings/general", replace: true });
     }
     const moved = movedSettingsPath(location.pathname, location.hash);

@@ -18,6 +18,7 @@ import {
 import { primaryEnvironmentIdAtom } from "./primaryEnvironment";
 import { relayEnvironmentDiscovery } from "./relay";
 import { usePreparedConnection } from "./session";
+import { t3FeatureHidden } from "../components/workbench/hiddenT3Features";
 
 export interface EnvironmentPresentation extends BaseEnvironmentPresentation {
   readonly environmentId: EnvironmentId;
@@ -114,7 +115,7 @@ export function usePullRequestsSupported() {
 }
 
 export function useIssuesSupported() {
-  return useAtomValue(environmentSummaries.issuesSupportedAtom);
+  return useAtomValue(environmentSummaries.issuesSupportedAtom) && !t3FeatureHidden("issues");
 }
 
 export function useEnvironmentMachines() {

@@ -41,6 +41,7 @@ import * as Electron from "electron";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { withoutT3SnapShot } from "../studio/hiddenT3Features.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import { startGlobalShiftShortcutProcess } from "./GlobalShiftShortcutProcess.ts";
 import { startMacModifierPairShortcutProcess } from "./MacModifierPairShortcutProcess.ts";
@@ -1130,6 +1131,7 @@ export const make = Effect.gen(function* () {
     requestedPermissionMessage: string | null,
     forceShortcut = false,
   ) {
+    settings = withoutT3SnapShot(settings);
     const previousSettings = yield* Ref.get(settingsRef);
     yield* Ref.set(settingsRef, settings);
 
