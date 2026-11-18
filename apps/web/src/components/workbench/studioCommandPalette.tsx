@@ -5,6 +5,8 @@ import type { ComponentType } from "react";
 
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { t3FeatureHidden } from "./hiddenT3Features";
+
+export { withoutT3ThreadLink } from "./hiddenT3Features";
 import {
   ITEM_ICON_CLASS,
   type CommandPaletteActionItem,

@@ -6,7 +6,7 @@ import {
   settingsSectionLabel,
   STUDIO_INTERFACE_AVAILABLE,
 } from "./studioInterface";
-import { t3SettingsSectionHidden } from "./hiddenT3Features";
+import { t3SettingsRowHidden, t3SettingsSectionHidden } from "./hiddenT3Features";
 
 /**
  * Settings rows as the engineering interface shows them. A row is named by its
@@ -164,6 +164,7 @@ const STUDIO_HIDDEN_ROWS: ReadonlySet<string> = new Set<SettingsSearchItemId>(["
 export function settingsRowHidden(id: string | undefined, engineering: boolean): boolean {
   if (id === undefined) return false;
   if (STUDIO_INTERFACE_AVAILABLE && STUDIO_HIDDEN_ROWS.has(id)) return true;
+  if (t3SettingsRowHidden(id)) return true;
   return engineering && CODE_SETTINGS_ROWS.has(id);
 }
 
