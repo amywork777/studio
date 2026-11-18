@@ -102,6 +102,8 @@ function headline(host: string, located: Located, failure: ConnectionAttemptErro
       return "This device is offline";
     case "session_pending":
       return "This device is still loading its T3 Connect sign-in";
+    case "approval_pending":
+      return `${host} is waiting for someone to approve this device`;
     case "outdated":
       return `${host} runs an older ${appName()}`;
     case "clock_skew":
@@ -164,6 +166,15 @@ function steps(host: string, located: Located, failure: ConnectionAttemptError |
         `Wait a moment. ${appName()} retries on its own.`,
         `If it keeps waiting, reload or restart ${appName()} on this device.`,
       ];
+    case "approval_pending": {
+      const code =
+        failure?._tag === "ConnectionTransientError" ? failure.verificationCode : undefined;
+      const approve = code ? `approve the device showing ${code}` : "approve this device";
+      return [
+        `On a device already connected to ${host}, open Settings > Sharing & access and ${approve}.`,
+        `Or run \`t3 auth connect-device approve ${code ?? "<code>"}\` on ${host}.`,
+      ];
+    }
     case "outdated":
       return [`Update ${appName()} on ${host}.`];
     case "clock_skew":
@@ -225,10 +236,14 @@ function steps(host: string, located: Located, failure: ConnectionAttemptError |
           ]
         : [`Make sure ${host} is awake and online.`, checkHost];
     case "server":
-      return [
-        `Make sure ${appName()} is running on ${host}.`,
-        "Retry. If it keeps failing, copy the diagnostics.",
-      ];
+      return failure?.reason === "authentication"
+        ? [
+            `This device's sign-in to ${host} expired or was revoked. Pair it again with a new pairing link from ${host}.`,
+          ]
+        : [
+            `Make sure ${appName()} is running on ${host}.`,
+            "Retry. If it keeps failing, copy the diagnostics.",
+          ];
   }
 }
 
@@ -244,6 +259,7 @@ function helpSection(
     case "clock_skew":
       return "the-clock-is-off";
     case "session_pending":
+    case "approval_pending":
     case "not_linked":
     case "tunnel_not_enabled":
       return "sign-in-account-or-link-problems";

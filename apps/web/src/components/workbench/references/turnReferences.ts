@@ -339,6 +339,7 @@ function entryRunId(entry: TimelineEntry): string | null {
     case "work":
       return entry.entry.runId ?? null;
     case "html-render":
+    case "sent-message":
     case "mcp-app":
       return entry.runId;
     case "event":
