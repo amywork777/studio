@@ -194,7 +194,6 @@ apps/web/src/components/chat/ComposerPrimaryActions.tsx
 apps/web/src/components/chat/FileTagChip.tsx
 apps/web/src/components/chat/MarkdownFileLink.tsx
 apps/web/src/components/chat/McpAppFrame.tsx
-apps/web/src/components/chat/MessagesTimeline.logic.test.ts
 apps/web/src/components/chat/MessagesTimeline.logic.ts
 apps/web/src/components/chat/MessagesTimeline.tsx
 apps/web/src/components/chat/PanelLayoutControls.tsx
