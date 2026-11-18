@@ -5,7 +5,7 @@ import { InfoIcon } from "lucide-react";
 
 import { serverEnvironment } from "../../state/server";
 import { Alert, AlertDescription } from "../ui/alert";
-import { STUDIO_INTERFACE_AVAILABLE } from "../workbench/studioInterface";
+import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
 const MULTIPLE_ACCOUNTS_FAQ_URL =
   "https://github.com/pingdotgg/t3code/blob/main/docs/user/faq.md#can-i-add-a-bunch-of-accounts-for-one-provider";
@@ -36,8 +36,7 @@ export function MultipleAccountsNote({
       <InfoIcon aria-hidden />
       <AlertDescription>
         <p>
-          {/* The FAQ is T3 Code's own, on its repository. */}
-          {STUDIO_INTERFACE_AVAILABLE ? (
+          {t3FeatureHidden("docs") ? (
             <T>
               We do not recommend managing multiple <Var>{providerName}</Var> accounts in T3 Code.
             </T>

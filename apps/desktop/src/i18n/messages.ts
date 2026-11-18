@@ -5,6 +5,7 @@ import { hashMessage } from "gt-i18n/internal";
 
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import { brandLocales } from "../studio/studioLocales.ts";
+import { brandCopy } from "@t3tools/shared/studioBrandCopy";
 
 type Catalog = Readonly<Record<string, string>>;
 
@@ -44,7 +45,7 @@ export function m(message: string, variables: Readonly<Record<string, string>> =
       : activeCatalog[hashMessage(source, { ...options, $format: "ICU" })];
   // Untranslated text is English, so it takes English plural rules.
   return target === undefined
-    ? gtFallback(source, { ...options, $locale: DEFAULT_LOCALE })
+    ? gtFallback(brandCopy(source), { ...options, $locale: DEFAULT_LOCALE })
     : gtFallback(target, { ...options, $locale: activeLocale, $_fallback: source });
 }
 

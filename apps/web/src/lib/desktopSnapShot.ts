@@ -1,5 +1,7 @@
 import type { DesktopBridge } from "@t3tools/contracts";
 
+import { t3FeatureHidden } from "../components/workbench/hiddenT3Features";
+
 const SNAP_SHOT_FOCUS_EVENT = "t3code:focus-composer";
 
 export function dispatchSnapShotComposerFocus(): void {
@@ -14,5 +16,7 @@ export function subscribeSnapShotComposerFocus(listener: () => void): () => void
 }
 
 export function getDesktopSnapShotBridge(): DesktopBridge | undefined {
-  return typeof window === "undefined" ? undefined : window.desktopBridge;
+  return typeof window === "undefined" || t3FeatureHidden("snapShot")
+    ? undefined
+    : window.desktopBridge;
 }

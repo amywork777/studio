@@ -4,17 +4,14 @@ import { LayoutGridIcon, PuzzleIcon } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
+import { t3FeatureHidden } from "./hiddenT3Features";
 import {
   ITEM_ICON_CLASS,
   type CommandPaletteActionItem,
   type CommandPaletteSubmenuItem,
 } from "../CommandPalette.logic";
 import { StudioQuickFind } from "./StudioQuickFind";
-import {
-  hasEngineeringSurfaces,
-  isEngineeringInterface,
-  STUDIO_INTERFACE_AVAILABLE,
-} from "./studioInterface";
+import { hasEngineeringSurfaces, isEngineeringInterface } from "./studioInterface";
 import { withoutTrashedFolders } from "./trash/trash";
 import { useTrashHiddenFolderKeys } from "./trash/useTrash";
 
@@ -53,9 +50,9 @@ export function usePaletteScope<
 type PaletteItem = CommandPaletteActionItem | CommandPaletteSubmenuItem;
 
 /**
- * Studio's actions among T3's: Open plugins, and Open projects on the engineering surfaces. Triage
- * files issues on T3 Code's repository, so Studio leaves it out (its issues go to Report a problem
- * in Settings), and Use in another app needs the cloud's public config.
+ * Studio's actions among T3's: Open plugins, and Open projects on the engineering surfaces. T3's
+ * Issues and Triage are T3's own products, which Studio hides (`hiddenT3Features.ts`), and Use in
+ * another app needs the cloud's public config.
  */
 export function addPaletteActions(
   actionItems: Array<PaletteItem>,
@@ -63,7 +60,8 @@ export function addPaletteActions(
   navigate: ReturnType<typeof useNavigate>,
 ) {
   const leftOut = (item: PaletteItem) =>
-    (item.value === "action:triage" && STUDIO_INTERFACE_AVAILABLE) ||
+    (item.value === "action:issues" && t3FeatureHidden("issues")) ||
+    (item.value === "action:triage" && t3FeatureHidden("triage")) ||
     (item.value === "action:use-in-another-app" && !hasCloudPublicConfig());
   for (let index = actionItems.length - 1; index >= 0; index -= 1) {
     if (leftOut(actionItems[index]!)) actionItems.splice(index, 1);
