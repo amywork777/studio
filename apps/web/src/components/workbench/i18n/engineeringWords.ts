@@ -7,6 +7,14 @@ const ENGINEERING_WORDS: ReadonlyMap<string, string> = new Map([
   ["Superseded attempt", "Stopped to read your message"],
   ["Load earlier turns", "Show earlier messages"],
   ["Loading earlier turns…", "Showing earlier messages…"],
+  // The composer (`chat/ChatComposer.tsx`) and its "/" menu (`chat/useComposerMenuItems.ts`).
+  ["Enable a provider in Settings", "Sign in to an AI agent in Settings"],
+  [
+    "Enable a provider in Settings to send a message",
+    "Sign in to an AI agent in Settings to send a message",
+  ],
+  ["Choose a project above to start a thread", "Choose a project to start a chat"],
+  ["Switch response model for this thread", "Switch the model for this chat"],
 ]);
 
 /** T3's text in the engineering interface's words, where it has its own; else as given. */

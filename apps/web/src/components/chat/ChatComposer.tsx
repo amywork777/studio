@@ -13,7 +13,6 @@ import {
 } from "./runtimeModeConfig";
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import { usePrimaryEnvironmentId } from "../../state/environments";
-import { useRightPanelStore } from "~/rightPanelStore";
 import { importPastedComposerText, readPastedComposerContext } from "../composerInlineTokenPaste";
 import {
   questionAttachmentDraftId,
@@ -211,7 +210,6 @@ import {
   composerSuggestionOptionId,
 } from "./ComposerCommandMenu";
 import {
-  ComposerAttachButton,
   ComposerAttachmentFileList,
   ComposerAttachmentMediaRow,
   ComposerFilePreviewDialog,
@@ -246,30 +244,14 @@ import { observeResize } from "~/lib/observeResize";
 const isEnvironmentRequestInvalidError = Schema.is(EnvironmentRequestInvalidError);
 import { toastManager } from "../ui/toast";
 import { m as resolveMessage } from "../../i18n/messages";
-import { BuildingIcon, DraftingCompassIcon, PlayIcon, ReplyIcon } from "lucide-react";
+import { BuildingIcon, PlayIcon, ReplyIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { assistantCitationLabel } from "@t3tools/shared/assistantCitations";
 import { assistantCitationNavigation } from "../../lib/assistantCitationNavigation";
 import { Button } from "../ui/button";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useManagedPolicy } from "../../state/managedPolicy";
-import {
-  ENGINEERING_COMPOSER_PLACEHOLDER,
-  ENGINEERING_FOLLOW_UP_PLACEHOLDER,
-  ENGINEERING_SLASH_DESCRIPTIONS,
-  isEngineeringInterface,
-  useEngineeringInterface,
-} from "../workbench/studioInterface";
-import { partLabel } from "../workbench/partNames";
+import * as studioComposer from "../workbench/studioComposer";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
-import { ENGINEERING_RUNTIME_MODES } from "../workbench/engineeringTraits";
-import { SketchDialog } from "../workbench/SketchDialog";
-import {
-  copyIntoReferences,
-  FILE_ATTACHED_REFERENCES,
-  splitForReferences,
-} from "../workbench/attachToReferences";
-import { droppedPath } from "../workbench/studioImportBridge";
 import { hasProviderSetup } from "./ProviderStatusBanner";
 import { type AppModelOption, getAppModelOptionsForInstance } from "../../modelSelection";
 import type { UnifiedSettings } from "@t3tools/contracts/settings";
@@ -317,14 +299,10 @@ function consumePasteAsTextShortcut(deadline: { current: number }): boolean {
   return armed;
 }
 
-export interface ChatComposerHandle {
+export interface ChatComposerHandle extends studioComposer.StudioComposerHandle {
   focusAtEnd: () => void;
-  /** Sends what the composer holds, as its send button does (Studio's New dialog starts work). */
-  submit: () => void;
   focusAt: (cursor: number) => void;
   addDroppedFiles: (files: File[]) => void;
-  /** Studio: the Brief's Attach, which files everything in References, pictures too. */
-  addReferences: (files: File[]) => void;
   addDroppedFolders: (folders: File[]) => void;
   hasPendingAttachments: () => boolean;
   insertTextAtEnd: (
@@ -332,9 +310,7 @@ export interface ChatComposerHandle {
     options?: {
       ensureLeadingBoundary?: boolean;
       clipboardData?: DataTransfer;
-      /** Studio: leave a panel filling the window as it is (a note written while working there). */
-      stayHidden?: boolean;
-    },
+    } & studioComposer.StudioInsertOptions,
   ) => boolean;
   pasteTextAtEnd: (text: string, options?: { bypassAutoAttachment?: boolean }) => boolean;
   citeAssistantText: (
@@ -520,7 +496,6 @@ const NO_PROVIDER_SKILLS: ServerProvider["skills"] = [];
 const NO_PROVIDER_SLASH_COMMANDS: ServerProvider["slashCommands"] = [];
 
 export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps) {
-  const engineeringInterface = useEngineeringInterface();
   const gt = useGT();
   const m = useMessages();
   const {
@@ -963,18 +938,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       selectedProviderEntry?.snapshot.supportedRuntimeModes,
     );
   // Modes above an administrator's ceiling stay listed, disabled with the reason.
-  const supportedRuntimeModeOptions = resolveRuntimeModeOptions(
-    compatibleRuntimeModes,
-    managedPolicy,
-    m,
+  const compatibleRuntimeModeOptions = studioComposer.runtimeModeOptions(
+    resolveRuntimeModeOptions(compatibleRuntimeModes, managedPolicy, m),
   );
-  // The engineering interface names each mode by what the agent may do.
-  const compatibleRuntimeModeOptions = engineeringInterface
-    ? supportedRuntimeModeOptions.map((option) => ({
-        ...option,
-        ...ENGINEERING_RUNTIME_MODES[option.mode],
-      }))
-    : supportedRuntimeModeOptions;
   // A thread or draft already above the ceiling would be refused; offer the broadest mode left.
   const runtimeModeCeilingDenial = runtimeModeDenial(managedPolicy, compatibleRuntimeMode, m);
   const runtimeModeCeilingFallback =
@@ -1201,27 +1167,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     questionAttachmentTarget,
     modelMentions: { instanceEntries: providerInstanceEntries, modelOptionsByInstance },
   });
-  // Studio's menus name parts, not file names, and its "/" offers its own commands, in its words,
-  // and the skills, not the agent's coding commands.
-  const composerMenuItems = engineeringInterface
-    ? listedComposerMenuItems.flatMap((item): ComposerCommandItem[] =>
-        item.type === "provider-slash-command"
-          ? []
-          : item.type === "path"
-            ? [{ ...item, label: partLabel(item.path) }]
-            : item.type === "slash-command"
-              ? [
-                  {
-                    ...item,
-                    description:
-                      item.command === "model"
-                        ? gt("Switch the model for this chat")
-                        : (ENGINEERING_SLASH_DESCRIPTIONS[item.command] ?? item.description),
-                  },
-                ]
-              : [item],
-      )
-    : listedComposerMenuItems;
+  const composerMenuItems = studioComposer.menuItems(listedComposerMenuItems);
 
   const composerMenuOpen = Boolean(composerTrigger);
   const composerMenuSearchKey = composerTrigger
@@ -2589,10 +2535,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       onOpenProviderSetup={onOpenProviderSetup}
       providerCatalogPending={providerCatalogPending}
       isSendBusy={isSendBusy}
-      // One model a chat in the engineering interface: no side-by-side runs of several.
-      multipleModelsEnabled={
-        routeKind === "draft" && supportsMultipleModels && !engineeringInterface
-      }
+      multipleModelsEnabled={studioComposer.multipleModelsEnabled(
+        routeKind === "draft" && supportsMultipleModels,
+      )}
       multipleModelSelections={multipleModelSelections}
       onMultipleModelSelectionsChange={setMultipleModelSelections}
       selectedModelSelection={selectedModelSelection}
@@ -2703,8 +2648,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       ensureLeadingBoundary?: boolean;
       citationCommentAnchor?: AssistantCitationSourceAnchor;
       clipboardData?: DataTransfer;
-      stayHidden?: boolean;
-    },
+    } & studioComposer.StudioInsertOptions,
   ): boolean => {
     if (
       text.length === 0 ||
@@ -2738,11 +2682,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             },
             focusEditorAfterReplace: false,
           }
-        : // A note written while working elsewhere leaves the keyboard there: the next keys
-          // are the view's, and must not land inside the note.
-          options?.stayHidden === true
-          ? { focusEditorAfterReplace: false }
-          : undefined,
+        : studioComposer.stayHiddenReplacement(options),
     );
   };
   const insertComposerTextStable = useStableCallback(insertComposerText);
@@ -2815,11 +2755,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       // Reveal the mobile editor before its focus frame.
       expandMobileComposer();
     }
-    // Studio writes jobs into the chat from its menus, the viewer and the Overview: a panel
-    // filling the window steps back, so what was written (and the work it starts) shows.
-    if (inserted && isEngineeringInterface() && options?.stayHidden !== true) {
-      useRightPanelStore.getState().setMaximized(routeThreadRef, false);
-    }
+    studioComposer.revealChat(inserted, options, routeThreadRef);
     return inserted;
   };
   const insertComposerTextAtEndStable = useStableCallback(insertComposerTextAtEnd);
@@ -3165,49 +3101,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     setIsComposerModelPickerOpen(true);
   };
   const openModelPickerStable = useStableCallback(openModelPicker);
-
-  /**
-   * Attach and drop: in a Studio project a PRD or a data sheet goes in its References and the message
-   * links to it (`attachToReferences.ts`); the rest, and everything elsewhere, is a chat attachment.
-   * A question waiting takes what is attached as its answer.
-   */
-  const attachFiles = async (files: File[], pictures: "chat" | "references" = "chat") => {
-    if (!engineeringInterface || pendingUserInputs.length > 0 || gitCwd === null) {
-      return addComposerAttachments(files);
-    }
-    // A remote environment's folder is not on this computer: its agent files what it is sent.
-    const here = environmentId === primaryEnvironmentId;
-    const { copied, filedByAgent, chat } = splitForReferences(
-      files,
-      (file) => (here ? droppedPath(file) : null),
-      pictures,
-    );
-    const references = await copyIntoReferences(
-      gitCwd,
-      copied.map((entry) => entry.path),
-    );
-    for (const reference of references) {
-      insertComposerTextAtEnd(`${serializeComposerFileLink(`${gitCwd}/${reference}`)} `, {
-        ensureLeadingBoundary: true,
-      });
-    }
-    if (references.length > 0) {
-      toastManager.add({
-        type: "success",
-        title: gt("Added to References"),
-        description: copied.map((entry) => entry.file.name).join(", "),
-      });
-    }
-    // A copy that failed has said so: its files go with the message, so nothing is lost.
-    const forAgent = [...filedByAgent, ...(references.length > 0 ? [] : copied.map((c) => c.file))];
-    const inserted = await addComposerAttachments([...chat, ...forAgent]);
-    if (forAgent.length > 0) {
-      insertComposerTextAtEnd(FILE_ATTACHED_REFERENCES, { ensureLeadingBoundary: true });
-    }
-    return inserted || references.length > 0 || forAgent.length > 0;
-  };
-  const attachFilesStable = useStableCallback(attachFiles);
-  const [sketchOpen, setSketchOpen] = useState(false);
+  const studio = studioComposer.useStudioComposer({
+    environmentId,
+    primaryEnvironmentId,
+    gitCwd,
+    pendingUserInputCount: pendingUserInputs.length,
+    activeThreadId,
+    addComposerAttachments,
+    insertComposerTextAtEnd,
+  });
 
   useImperativeHandle(
     composerRef,
@@ -3219,12 +3121,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         composerEditorRef.current?.focusAt(cursor);
       },
       addDroppedFiles: (files: File[]) => {
-        void attachFilesStable(files).then((inserted) => {
+        void studio.attachFiles(files).then((inserted) => {
           if (!inserted) focusComposer();
         });
       },
       addReferences: (files: File[]) => {
-        void attachFilesStable(files, "references").then((inserted) => {
+        void studio.attachFiles(files, "references").then((inserted) => {
           if (!inserted) focusComposer();
         });
       },
@@ -3444,7 +3346,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     [
       activeThread,
       addComposerAttachments,
-      attachFilesStable,
+      studio.attachFiles,
       submitComposerStable,
       addComposerFoldersStable,
       foldPastedText,
@@ -3541,41 +3443,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       />
     ) : null;
   const composerAttachButton = showComposerAttachAction ? (
-    <>
-      <ComposerAttachButton
-        addComposerAttachments={attachFilesStable}
-        focusComposer={focusComposer}
-      />
-      {engineeringInterface ? (
-        <>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() => setSketchOpen(true)}
-                  aria-label={gt("Draw a sketch")}
-                />
-              }
-            >
-              <DraftingCompassIcon />
-            </TooltipTrigger>
-            <TooltipPopup>
-              <T>Draw a sketch</T>
-            </TooltipPopup>
-          </Tooltip>
-          <SketchDialog
-            key={activeThreadId}
-            open={sketchOpen}
-            onOpenChange={setSketchOpen}
-            onAttach={(files) => void addComposerAttachments(files)}
-          />
-        </>
-      ) : null}
-    </>
+    <studioComposer.StudioAttachButton
+      addComposerAttachments={studio.attachFiles}
+      focusComposer={focusComposer}
+      sketch={studio.sketch}
+    />
   ) : null;
   return (
     <form
@@ -3704,11 +3576,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       theme={resolvedTheme}
                     />
                   ) : showProviderUnavailable ? (
-                    engineeringInterface ? (
-                      gt("Sign in to an AI agent in Settings")
-                    ) : (
-                      gt("Enable a provider in Settings")
-                    )
+                    gt("Enable a provider in Settings")
                   ) : (
                     gt("Ask anything...")
                   )}
@@ -3897,19 +3765,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                                   "Type your own answer, or leave this blank to use the selected option",
                                 )
                           : projectSelectionRequired
-                            ? engineeringInterface
-                              ? gt("Choose a project to start a chat")
-                              : gt("Choose a project above to start a thread")
+                            ? gt("Choose a project above to start a thread")
                             : showProviderUnavailable
-                              ? engineeringInterface
-                                ? gt("Sign in to an AI agent in Settings to send a message")
-                                : gt("Enable a provider in Settings to send a message")
+                              ? gt("Enable a provider in Settings to send a message")
                               : (offeredPromptSuggestion ??
-                                (engineeringInterface
-                                  ? phase === "disconnected"
-                                    ? ENGINEERING_FOLLOW_UP_PLACEHOLDER
-                                    : ENGINEERING_COMPOSER_PLACEHOLDER
-                                  : m(DEFAULT_COMPOSER_PLACEHOLDER)))
+                                studioComposer.placeholder(phase) ??
+                                m(DEFAULT_COMPOSER_PLACEHOLDER))
                     }
                     placeholderSuffix={
                       offeredPromptSuggestion !== null ? (
