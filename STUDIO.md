@@ -4,17 +4,26 @@ T3 Code made into a hardware app: agents design parts with the text-to-cad plugi
 view follows their work beside the thread. It lives in this repository, on `main`.
 Studio's laws are at the top of [AGENTS.md](AGENTS.md).
 
-[text-to-cad](https://github.com/earthtojake/text-to-cad) is the `text-to-cad/` submodule, pinned
-to `studio-base` on [amywork777/text-to-cad-upstream](https://github.com/amywork777/text-to-cad-upstream):
-Jake's latest release, Amy's open text-to-cad PRs merged in, and Studio's Edit by hand on top
-(`packages/cad/src/cad/edit/` and `packages/ui/src/renderers/xbf/edit/`). Nothing else of
-Studio's lives there, so a new release or a PR's new commits come in by merging them into
-`studio-base`, keeping its suites green, pushing it, and moving the pin here:
+Studio is three codebases, each kept where it can be told apart:
 
-```sh
-git submodule update --remote text-to-cad
-git commit -m "text-to-cad: <what changed>" text-to-cad
-```
+| Layer | Where it lives | Whose |
+|---|---|---|
+| **T3 Code** | This repository, merged from [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (`upstream`) | T3's. Studio changes only the files in `scripts/studio-t3-edits.txt` (law 10) |
+| **Studio** | Its own files and folders here: `apps/web/src/components/workbench`, `studio-sample/`, `studio-plugins/`, `infra/usage`, `scripts/studio-*` | Studio's |
+| **text-to-cad** | The `text-to-cad/` submodule, pinned to `studio-base` on [amywork777/text-to-cad-upstream](https://github.com/amywork777/text-to-cad-upstream): Jake's releases with Studio's changes on top | Jake's, with Studio's commits on `studio-base` (law 10) |
+
+**Where a change goes.** Each is one review:
+
+| The change | Where | Then |
+|---|---|---|
+| A Studio feature or screen | This repository, in Studio's own files | Merged here |
+| A change to the CAD tools only Studio wants | A PR into `studio-base` on the fork, in new files where it can be (law 10) | The hourly pin moves Studio to it ([Releasing](#releasing)) |
+| A change every text-to-cad user would want | A PR to [earthtojake/text-to-cad](https://github.com/earthtojake/text-to-cad) | Comes in with his next release |
+| One that needs T3 Code's own code to change | The smallest hook in T3's file that calls Studio's code, and the file added to `scripts/studio-t3-edits.txt` | Merged here |
+| One every T3 Code user would want | A PR to [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | Comes in with the next T3 merge |
+
+T3 Code moves fast (well over a thousand commits a week), so merge `upstream` weekly; afterwards
+`scripts/studio-t3-edits.sh --write` brings the list up to date, and its diff shows what changed.
 
 The setup fetches it (`git submodule update --init text-to-cad`; not `--recurse-submodules`,
 which trips on the vendored `.repos` tree's gitlinks). Set it up on a Mac with
@@ -166,6 +175,12 @@ short user name, so a long one comes near Windows's 260.
   pnpm then refuses to install over the mobile app's unused patches. GitHub's checkout includes it
   and installs only the desktop app's packages, as T3 Code's release does; locally, add
   `apps/mobile` to the sparse checkout and install with the same `--filter`s.
+
+## Look
+
+Text is set in the sans-serif face, and monospace is kept for code: a script, a command, a file's
+contents. A label, a value with its unit or a callout is text, however technical. The lint
+`t3code/studio-code-font` holds it over `components/workbench`.
 
 ## Releasing
 

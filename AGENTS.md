@@ -39,18 +39,24 @@ typecheck and the tests on every push to `main` and every change request.
    them and deletes what was sent.
    _Tests: `apps/server/src/telemetry/usageDataListed.test.ts`,
    `apps/server/src/telemetry/AnalyticsService.test.ts` and `infra/usage/src/events.test.mjs`._
-10. **text-to-cad stays Jake's.** Studio's changes to the CAD tools are commits on `studio-base` in
-    the submodule's fork, never edits made here; Studio's own code stays outside `text-to-cad/`.
-    On `studio-base`, Studio-only code goes in new files, the edit to Jake's file kept to the line
-    that calls it, so his code and Studio's stay easy to tell apart; what every text-to-cad user
-    would want goes to Jake as a pull request instead.
-    _The submodule: an edit inside it is not part of Studio until it is a commit there. Review for
-    the rest._
-11. **Sans-serif text.** Monospace is only for code. _Lint: `t3code/studio-code-font` over
-    `components/workbench`._
-12. **Mac and Windows.** Studio ships for both, and a change is not done until it works on both.
+10. **Other people's code stays theirs.** Studio builds on two codebases it does not own: T3 Code,
+    merged into this repository, and Jake's text-to-cad, the `text-to-cad/` submodule on
+    `studio-base` in its fork. Studio's own code goes in its own files and folders, and an edit to
+    one of theirs is the smallest hook that calls it, so their improvements merge in cleanly and
+    whose code is whose stays plain. Studio's changes to the CAD tools are commits on `studio-base`,
+    never edits made here. The T3 Code files Studio changes are exactly those in
+    `scripts/studio-t3-edits.txt`, which shrinks as hooks replace edits and grows only on purpose.
+    What every user of theirs would want goes to them as a pull request instead. STUDIO.md says
+    where each kind of change goes.
+    _The submodule: an edit inside it is not part of Studio until it is a commit there. Tests:
+    `scripts/studio-t3-edits.sh` (Studio CI's T3 Code edits job) for T3 Code. Review for new files
+    on `studio-base`._
+11. **Mac and Windows.** Studio ships for both, and no release goes out until its Mac and Windows
+    builds have both passed their checks (STUDIO.md, Releasing). A change that could differ between
+    them (paths, processes, the shell, installers) says how it was checked on each, or that it was
+    not.
     _Review, and the Windows build (`.github/workflows/studio-windows.yml`)._
-13. **Every one of Jake's skills is in Studio.** Each skill in Jake's text-to-cad ships in the app
+12. **Every one of Jake's skills is in Studio.** Each skill in Jake's text-to-cad ships in the app
     and has its own tile in the Toolbox, with what it does, something to try and at least one job.
     A skill Jake adds comes into Studio with its tile and jobs, never left for later. Where a
     skill does more than one job, each job is a skill of its own too (`$fdm`, `$board-fab`), with its

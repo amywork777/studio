@@ -1,6 +1,6 @@
 name: Studio has Jake's skills
 
-# Studio's law 13 (AGENTS.md): every skill in Jake's text-to-cad is in Studio. Each day this lists the
+# Studio's law 12 (AGENTS.md): every skill in Jake's text-to-cad is in Studio. Each day this lists the
 # skills on Jake's main and those in the text-to-cad Studio pins, and fails, naming each one, when Jake
 # has a skill Studio's pin does not. Port that release (scripts/studio-bump-text-to-cad.sh) and give
 # each new skill its Toolbox tile and jobs (apps/web/src/components/workbench/library/toolboxSkills.test.ts).
@@ -38,7 +38,7 @@ jobs:
           missing="$(comm -23 <(echo "$jakes") <(echo "$ours"))"
           if [ -n "$missing" ]; then
             for skill in $missing; do
-              echo "::error::Jake's text-to-cad has the $skill skill, and Studio does not (law 13)."
+              echo "::error::Jake's text-to-cad has the $skill skill, and Studio does not (law 12)."
             done
             exit 1
           fi
