@@ -41,7 +41,11 @@ typecheck and the tests on every push to `main` and every change request.
    `apps/server/src/telemetry/AnalyticsService.test.ts` and `infra/usage/src/events.test.mjs`._
 10. **text-to-cad stays Jake's.** Studio's changes to the CAD tools are commits on `studio-base` in
     the submodule's fork, never edits made here; Studio's own code stays outside `text-to-cad/`.
-    _The submodule: an edit inside it is not part of Studio until it is a commit there._
+    On `studio-base`, Studio-only code goes in new files, the edit to Jake's file kept to the line
+    that calls it, so his code and Studio's stay easy to tell apart; what every text-to-cad user
+    would want goes to Jake as a pull request instead.
+    _The submodule: an edit inside it is not part of Studio until it is a commit there. Review for
+    the rest._
 11. **Sans-serif text.** Monospace is only for code. _Lint: `t3code/studio-code-font` over
     `components/workbench`._
 12. **Mac and Windows.** Studio ships for both, and a change is not done until it works on both.

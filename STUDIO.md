@@ -184,6 +184,12 @@ from his. There is one channel, Latest. The app reads both from `studio.json`, w
 About and Report a problem name the text-to-cad, and saving a project writes it to
 `.studio/engine.json`, so every Version records what made it. An update never rewrites a project.
 
+Between releases, `.github/workflows/studio-pin.yml` runs `scripts/studio-pin-studio-base.sh`
+every hour. When `studio-base` has moved past the pin, it keeps one review, `pin/studio-base`, that
+moves only the pin, and merges it once every check on it has passed; a failed check leaves it open.
+So a change to the CAD tools is one review, on the fork (where `studio-base-test.yml` runs Jake's
+tests), and reaches `main` within the hour. It uses the bump's token.
+
 1. **The bump.** `.github/workflows/studio-text-to-cad-bump.yml` runs
    `scripts/studio-bump-text-to-cad.sh` every six hours. When Jake's latest release is newer than
    the pin, it merges his tag into a copy of `studio-base` (`bump/<version>` on the fork, never
