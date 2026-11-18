@@ -61,7 +61,7 @@ typecheck and the tests on every push to `main` and every change request.
     Code file is the smallest hook that calls it, so T3's improvements merge in cleanly. The T3
     files Studio changes are exactly those in `scripts/studio-t3-edits.txt`: it shrinks as hooks
     replace edits, and grows only on purpose. STUDIO.md says where each kind of change goes.
-    _CI: `scripts/studio-t3-edits.sh`, Studio CI's T3 Code edits._
+    _Test: `scripts/studio-t3-edits.sh`, Studio CI's T3 Code edits job._
 
 # T3 Code
 
