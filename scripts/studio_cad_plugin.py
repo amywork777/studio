@@ -22,8 +22,12 @@ from pathlib import Path
 STARTUP_SECONDS = 300
 
 # The engine's own settings, as studioEngine.ts gives the app's: the bundled cad never updates
-# itself, and sends no telemetry.
-SERVER_ENV = {"CAD_UPDATE_CHECK": "0", "CAD_TELEMETRY": "0"}
+# itself, and sends no telemetry. `CAD_STUDIO_ENGINE=1` (studio-base's cad_mcp/studio.py): `cad mcp`
+# starts Studio's own server even where the person has a global cad installed, which 0.11.12+ would
+# otherwise hand the start to. `CAD_MCP_PRESENTATION=tabs`: 0.11.12+ serves CAD views only to a client
+# named codex, and Studio (t3code) shows them as tabs.
+SERVER_ENV = {"CAD_UPDATE_CHECK": "0", "CAD_TELEMETRY": "0", "CAD_STUDIO_ENGINE": "1",
+              "CAD_MCP_PRESENTATION": "tabs"}
 
 # The one sentence in every skill's Setup that installs cad (0.11.12+): "If `cad` is missing or older
 # than 0.11.12, run `uv tool install cad`, adding `--force` if uv says `cad` already exists."

@@ -128,6 +128,8 @@ describe("applyStudioAppBundle", () => {
       // The CAD tools never update themselves past Studio's pin, and send no telemetry of their own.
       CAD_UPDATE_CHECK: "0",
       CAD_TELEMETRY: "0",
+      // A `cad mcp` it starts runs Studio's own server, never a global cad's.
+      CAD_STUDIO_ENGINE: "1",
     });
     expect(env.PATH).toBe(NodePath.join(studioHome, "bin"));
     const skill = NodeFS.readFileSync(
