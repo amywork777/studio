@@ -16,6 +16,7 @@ export const STUDIO_DEV_ENGINE_PORT = 3346;
  * Studio's CAD server's state, cache, engine and port under its own home, apart from a user's own
  * (3245). `CAD_UPDATE_CHECK=0`: cad (0.11.12+) never updates itself, or a global cad, past the pin.
  * `CAD_TELEMETRY=0`: no text-to-cad telemetry, as channel `dev` gave before 0.11.12 dropped it.
+ * `CAD_STUDIO_ENGINE=1`: a `cad mcp` started here runs Studio's own server, never a global cad's.
  */
 export function studioEngineEnv(home: string, options: { readonly dev: boolean }) {
   const cad = NodePath.join(home, "cad");
@@ -27,6 +28,7 @@ export function studioEngineEnv(home: string, options: { readonly dev: boolean }
     CAD_LAUNCHER_DIR: NodePath.join(home, "bin"),
     CAD_UPDATE_CHECK: "0",
     CAD_TELEMETRY: "0",
+    CAD_STUDIO_ENGINE: "1",
   };
 }
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Checks an installed or built Studio the way a friend's first hour would use it: by the CAD tools the app carries,
 not the checkout's. With the app's own Python and a home of its own, it starts the bundled CAD server (`cad server
-start`: from text-to-cad 0.11.12 a command no longer starts one), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
+start`: from text-to-cad 0.11.12 a command no longer starts one), asks the plugin's MCP server for Studio's CAD views
+as the app does (`views_offered`), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
 and compares each with the one the example ships with, then solves every example's strength study and holds each
 answer to the one the example ships with. No pass, no release.
 
@@ -24,6 +25,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from queue import Empty, Queue
+from threading import Thread
 
 # The part it builds: the motor mount's plate, a model script.
 SAMPLE = "motor-mount"
@@ -112,6 +115,8 @@ def main() -> int:
         try:
             if cad_command("cad_server.cli", "server", "start", cwd=home, timeout=300).returncode != 0:
                 return 1
+            if views_offered(bundle, env, home) != 0:
+                return 1
             if cad_command("cad_server.cli", "run", PART, cwd=home / "sample" / SAMPLE, timeout=600).returncode:
                 return 1
             failed = 0
@@ -131,6 +136,67 @@ def main() -> int:
         finally:
             subprocess.run([str(python), "-P", "-m", "cad_server.cli", "server", "stop"], env=env, capture_output=True,
                            timeout=60)
+
+
+# The tools Studio's viewer needs from the plugin's MCP server: the CAD tab and the engine's HTTP door.
+VIEW_TOOLS = ("cad_open", "cad_http")
+
+
+def views_offered(bundle: Path, env: dict[str, str], home: Path) -> int:
+    """The plugin's MCP server, run as the app runs it (its codex.mcp.json's command, arguments and settings), offers
+    Studio (`t3code`, declaring MCP Apps) the CAD views. text-to-cad 0.11.12+ serves views only to a client named
+    codex unless told otherwise (`CAD_MCP_PRESENTATION`), and a Studio without them opens no model."""
+    started = time.monotonic()
+    plugins = sorted(bundle.glob("marketplace/plugins/*/codex.mcp.json"))
+    if not plugins:
+        print(f"FAIL the app carries no plugin MCP server under {bundle / 'marketplace'}", file=sys.stderr)
+        return 1
+    # The app fills in its Python where the plugin names it (studioAppBundle.ts, scripts/studio-app-plugin.py).
+    text = plugins[0].read_text(encoding="utf-8").replace("@@STUDIO_PYTHON@@", json.dumps(str(python_of(bundle)))[1:-1])
+    server = json.loads(text)["mcpServers"]["cad"]
+    process = subprocess.Popen([server["command"], *server.get("args", [])], cwd=home,
+                               env={**env, **server.get("env", {})}, stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    answers: Queue = Queue()
+    Thread(target=lambda: [answers.put(line) for line in process.stdout], daemon=True).start()
+
+    def send(message: dict) -> None:
+        process.stdin.write(json.dumps(message) + "\n")
+        process.stdin.flush()
+
+    def answer(ident: int, until: float) -> dict | None:
+        while time.monotonic() < until:
+            try:
+                message = json.loads(answers.get(timeout=max(0.1, until - time.monotonic())))
+            except (Empty, ValueError):
+                continue
+            if message.get("id") == ident:
+                return message
+        return None
+
+    names: list[str] = []
+    try:
+        send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2025-06-18", "clientInfo": {"name": "t3code", "version": "studio-app-check"},
+            "capabilities": {"extensions": {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}}}})
+        answer(1, time.monotonic() + 300)
+        send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        until, ident = time.monotonic() + 300, 2
+        while time.monotonic() < until and not set(VIEW_TOOLS) <= set(names):
+            send({"jsonrpc": "2.0", "id": ident, "method": "tools/list"})
+            listed = answer(ident, min(until, time.monotonic() + 30)) or {}
+            names = [tool.get("name") for tool in (listed.get("result") or {}).get("tools", [])]
+            ident += 1
+            if not set(VIEW_TOOLS) <= set(names):
+                time.sleep(2)
+    finally:
+        process.kill()
+        process.wait(timeout=30)
+    missing = [name for name in VIEW_TOOLS if name not in names]
+    print(f"{'FAIL' if missing else 'ok  '} the plugin's MCP server offers Studio {', '.join(VIEW_TOOLS)}"
+          f"{f' (missing {missing}; offered {names or None})' if missing else ''} ({time.monotonic() - started:.0f} s)",
+          flush=True)
+    return 1 if missing else 0
 
 
 def check_engine_port() -> str:
