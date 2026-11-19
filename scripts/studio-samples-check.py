@@ -12,8 +12,8 @@ unattached, so it is this run's PMI check too.
     text-to-cad/.venv/bin/python scripts/studio-samples-check.py [example ...]
 
 The engine is the cad command's own unless CAD_STATE_DIR, CAD_CACHE_DIR and CAD_ENGINE_DIR are set: then the run
-registers the checkout's .venv there, uses those folders (and CAD_ENGINE_PORT) and stops that engine when it
-ends. The engine listens on a loopback
+starts the checkout's .venv's server there (`cad server start`), uses those folders (and CAD_ENGINE_PORT) and stops
+that server when it ends. The engine listens on a loopback
 port, so a sandbox that refuses local sockets refuses the run.
 """
 
@@ -28,8 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "studio-sample"
-# The library and its server, as text-to-cad's requirements-dev.txt installs them.
-CAD_SRC = [ROOT / "text-to-cad" / "packages" / package / "src" for package in ("cad", "cad-server")]
+# The library and its server, one package from text-to-cad 0.11.12, as the checkout's `uv sync` installs it.
+CAD_SRC = [ROOT / "text-to-cad" / "packages" / "cad" / "src"]
 
 
 def scripts(sample: Path) -> list[Path]:
@@ -67,12 +67,9 @@ def main() -> int:
     env["PYTHONPATH"] = os.pathsep.join([*map(str, CAD_SRC), *filter(None, [env.get("PYTHONPATH")])])
     isolated = all(env.get(name) for name in ("CAD_STATE_DIR", "CAD_CACHE_DIR", "CAD_ENGINE_DIR"))
     if isolated:
-        # A state folder of its own holds no installation yet: register the checkout's .venv there, as
-        # Studio's dev launcher does (scripts/studio-dev-plugin.py), so `cad run` finds one.
-        sys.path.insert(0, str(ROOT / "text-to-cad" / "scripts" / "install"))
-        import dev_install
-
-        dev_install.register("studio", [sys.executable], dev_install.dev_version())
+        # A state folder of its own has no server running: start the checkout's .venv's there, since from
+        # text-to-cad 0.11.12 `cad run` starts none and says so.
+        subprocess.run([sys.executable, "-m", "cad_server.cli", "server", "start"], env=env, check=True)
     failed = []
     with tempfile.TemporaryDirectory(prefix="studio-samples-") as folder:
         try:
@@ -87,7 +84,7 @@ def main() -> int:
                         print("\n".join(said.splitlines()[-12:]), file=sys.stderr)
         finally:
             if isolated:
-                subprocess.run([sys.executable, "-m", "cad_server.cli", "stop"], env=env, capture_output=True)
+                subprocess.run([sys.executable, "-m", "cad_server.cli", "server", "stop"], env=env, capture_output=True)
     print(f"{len(failed)} failed" + (f": {', '.join(failed)}" if failed else ""))
     return 1 if failed else 0
 

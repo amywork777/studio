@@ -29,8 +29,8 @@ The setup fetches it (`git submodule update --init text-to-cad`; not `--recurse-
 which trips on the vendored `.repos` tree's gitlinks). Set it up on a Mac with
 `scripts/setup-studio.sh`, after Apple's command line tools and Node 24, and again after pulling.
 It fetches the text-to-cad submodule at its pin, installs the packages (the repository's own vp, run through npx when
-none is installed), fetches Electron, makes `text-to-cad/.venv` with uv (Python 3.13,
-`requirements-dev.txt` and the `fea` extra), runs `npm ci`, `npm run build:packages` and
+none is installed), fetches Electron, makes `text-to-cad/.venv` with uv (`uv sync --locked`,
+Python 3.14, with the `fea` group), runs `npm ci`, `npm run build:packages` and
 `scripts/bundle/bundle.sh` in `text-to-cad/`, and checks for Claude Code; it changes no shell
 settings. `scripts/run-studio.sh` starts it:
 `TEXT_TO_CAD_DEV=1 vpr studio:desktop`, from this repository's `text-to-cad/` (`TEXT_TO_CAD_ROOT`
@@ -65,16 +65,23 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
 (`--remote-debugging-port`), since a plain browser can't draw Studio's 3D views.
 
 - **What it carries** (`build/studio-bundle`):
-  - the CAD tools with a Python of their own: uv's movable CPython 3.14, with the `cad`,
-    `cad-server` and `cad-mcp` wheels and their dependencies pinned to the checkout's `.venv`. They make STL and DXF, and draws part pictures,
-    in that Python, so the Mac needs no Node or browser for them;
+  - the CAD tools with a Python of their own: uv's movable CPython 3.14, with the `cad` wheel
+    (from text-to-cad 0.11.12 it holds the library, the server and cad-mcp) and its dependencies
+    pinned to the checkout's `.venv`. They make STL and DXF, and draws part pictures,
+    in that Python, so the Mac needs no Node or browser for them. It is no uv or pipx tool, and the
+    app sets `CAD_UPDATE_CHECK=0` (`studioEngine.ts`), so text-to-cad never updates itself past
+    Studio's pin;
   - the FEA solver, CalculiX, as `cad[calculix]`'s own `cad-ccx` package in that Python (about
     16 MB with its libraries), so a strength check needs nothing installed;
   - the `cad` wheel itself (`wheels/`, `CAD_UPDATE_FIND_LINKS`), with the wheels' install records
     removed, so an integration made on first use (KiCad's) installs Studio's text-to-cad again
     rather than the build machine's long-gone file;
-  - their plugin, laid out by `scripts/studio-app-plugin.py`, with the app's paths left as
-    `@@STUDIO_…@@` placeholders;
+  - their plugin, laid out by `scripts/studio-app-plugin.py` (`scripts/studio_cad_plugin.py`), with
+    the app's Python left as `@@STUDIO_PYTHON@@`. Its skills' Setup sentence that installs cad
+    (`uv tool install cad`) is rewritten to say the CAD tools are Studio's own, and the build stops
+    on a skill that still says to install cad. On each start the app fills in its Python and writes
+    Studio's own `cad` command (`cad`, `cad.cmd`) in `<home>/bin`, which runs that Python's
+    `cad_server.cli`;
   - the plugin's page;
   - the examples, finished projects (`studio-sample/<id>/`), which the Library's Examples section
     shows and Make a copy to edit copies into a new project (`T3CODE_SAMPLES_DIR`);
@@ -899,9 +906,10 @@ as they were.
   a pick goes into the composer to edit before sending (`starterJobs.ts`).
 - **A checkout's working copy.** `TEXT_TO_CAD_DEV=1 vpr studio:desktop` runs the checkout's own
   CAD tools instead of the release, so branch work (FEA, CAM, KiCad) reaches Studio: the launcher
-  builds the development plugin with the checkout's `scripts/install/dev_install.py`
-  (`scripts/studio-dev-plugin.py`) and keeps its state in `~/.text-to-cad-studio-dev`. The
-  checkout needs its `.venv` (with the `fea` extra), `npm ci` and `scripts/bundle/bundle.sh`.
+  lays out the development plugin as the app's is, its server and Studio's `cad` command on the
+  checkout's `.venv` (`scripts/studio-dev-plugin.py`), and keeps its state in
+  `~/.text-to-cad-studio-dev`. The checkout needs its `.venv` (`uv sync`, with the `fea` group),
+  `npm ci` and `scripts/bundle/bundle.sh`.
 
 A new T3 Code merges in cleanly because Studio adds files rather than editing T3's: an edit to an
 upstream file is a seam of a line or a few. Keep it that way: new behaviour goes in new files, and a T3 string or style is changed through `brand/`,

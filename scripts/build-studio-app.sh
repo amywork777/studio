@@ -136,8 +136,11 @@ else
 fi
 # The library with its kernel and the integrations a part, a strength check and a manufacturing
 # check run on (`cad[build123d,netgen,calculix,trimesh]`: 0.11 counts an integration present only when
-# its extra is installed, else it makes an environment for it), the server (its packaged runtime,
-# which bundle.sh just built) and the agent apps' stdio transport, `cad-mcp`.
+# its extra is installed, else it makes an environment for it). From 0.11.12 the one `cad` wheel holds
+# the server (its packaged runtime, which bundle.sh just built) and the agent apps' stdio transport
+# (`cad_mcp`) too; `cad-server` and `cad-mcp` on PyPI are empty aliases of it.
+# It is installed into the app's own Python, never as a uv or pipx tool, so cad's own automatic update
+# finds nothing of its own to update; the app also turns the update check off (studioEngine.ts).
 wheel_url() {
   local wheel
   wheel="$(ls "$work"/"$1"-*.whl)"
@@ -145,15 +148,13 @@ wheel_url() {
 }
 # setuptools packs whatever its build/lib holds, and keeps old files there: the viewer's renamed
 # bundles from every earlier build (392 files, not 64, by 0.1.11). Each build starts it empty.
-for package in cad cad-server cad-mcp; do
-  rm -rf "$CAD/packages/$package/build"
-  uv build --wheel --out-dir "$(native "$work")" "$(native "$CAD/packages/$package")"
-done
+rm -rf "$CAD/packages/cad/build"
+uv build --wheel --out-dir "$(native "$work")" "$(native "$CAD/packages/cad")"
 # The versions the checkout's CAD tools run on, so the app runs the same ones.
 uv pip freeze --python "$(native "$venv_python")" | grep -v -E '^-e |^cad(-server|-mcp)?==|^ziglang' >"$work/constraints.txt"
 uv pip install --python "$(native "$bundle_python")" --break-system-packages \
   -c "$(native "$work/constraints.txt")" \
-  "cad[build123d,netgen,calculix,trimesh] @ $(wheel_url cad)" "cad-server @ $(wheel_url cad_server)" "cad-mcp @ $(wheel_url cad_mcp)"
+  "cad[build123d,netgen,calculix,trimesh] @ $(wheel_url cad)"
 "$bundle_python" -c "import cad_mcp.shim, cad_server.cli, OCP, netgen, cad_ccx, trimesh"
 # An integration made on first use (kicad's) installs the library again in an environment of its own,
 # from the archive its record names (direct_url.json): here the build's wheel, gone once the build ends.
@@ -165,7 +166,7 @@ cp "$work"/cad-*.whl "$BUNDLE/wheels/"
 "$bundle_python" - <<'PY'
 from importlib.metadata import distribution
 
-for name in ("cad", "cad-server", "cad-mcp"):
+for name in ("cad",):
     found = distribution(name)
     for file in found.files or ():
         if file.name != "direct_url.json":
@@ -179,7 +180,7 @@ for name in ("cad", "cad-server", "cad-mcp"):
 PY
 "$bundle_python" -c "
 from importlib.metadata import distribution
-left = [name for name in ('cad', 'cad-server', 'cad-mcp') if distribution(name).read_text('direct_url.json')]
+left = [name for name in ('cad',) if distribution(name).read_text('direct_url.json')]
 assert not left, f'still named by a build wheel: {left}'"
 
 # The FEA solver is cad[calculix]'s own CalculiX (the cad-ccx package), which carries its libraries

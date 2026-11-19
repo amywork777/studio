@@ -13,10 +13,9 @@ export const STUDIO_ENGINE_PORT = 3345;
 export const STUDIO_DEV_ENGINE_PORT = 3346;
 
 /**
- * Keeps Studio's bundled CAD server under Studio's own home, apart from the user's own CAD server
- * (Claude Code's or Codex's plugin, on 3245), so neither finds or retires the other. The folder is
- * `cad`, not 0.8's `cadgen`, so a 0.8 installation record never stands for 0.10's. Channel `dev`
- * keeps update notices and telemetry off from the very first `cad` command.
+ * Studio's CAD server's state, cache, engine and port under its own home, apart from a user's own
+ * (3245). `CAD_UPDATE_CHECK=0`: cad (0.11.12+) never updates itself, or a global cad, past the pin.
+ * `CAD_TELEMETRY=0`: no text-to-cad telemetry, as channel `dev` gave before 0.11.12 dropped it.
  */
 export function studioEngineEnv(home: string, options: { readonly dev: boolean }) {
   const cad = NodePath.join(home, "cad");
@@ -26,7 +25,8 @@ export function studioEngineEnv(home: string, options: { readonly dev: boolean }
     CAD_ENGINE_DIR: NodePath.join(cad, "engine"),
     CAD_ENGINE_PORT: String(options.dev ? STUDIO_DEV_ENGINE_PORT : STUDIO_ENGINE_PORT),
     CAD_LAUNCHER_DIR: NodePath.join(home, "bin"),
-    CAD_INSTALL_CHANNEL: "dev",
+    CAD_UPDATE_CHECK: "0",
+    CAD_TELEMETRY: "0",
   };
 }
 

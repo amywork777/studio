@@ -125,8 +125,9 @@ describe("applyStudioAppBundle", () => {
       CAD_ENGINE_DIR: NodePath.join(cad, "engine"),
       CAD_ENGINE_PORT: String(STUDIO_ENGINE_PORT),
       CAD_LAUNCHER_DIR: NodePath.join(studioHome, "bin"),
-      // text-to-cad's telemetry is off from the first `cad` command, in any order.
-      CAD_INSTALL_CHANNEL: "dev",
+      // The CAD tools never update themselves past Studio's pin, and send no telemetry of their own.
+      CAD_UPDATE_CHECK: "0",
+      CAD_TELEMETRY: "0",
     });
     expect(env.PATH).toBe(NodePath.join(studioHome, "bin"));
     const skill = NodeFS.readFileSync(
@@ -141,6 +142,14 @@ describe("applyStudioAppBundle", () => {
       ),
     );
     expect(config.mcpServers.cad.command).toBe(python);
+    // Studio's own `cad`, the bundled Python's, where the skills look for it.
+    const bin = NodePath.join(studioHome, "bin");
+    expect(NodeFS.readFileSync(NodePath.join(bin, "cad"), "utf8")).toBe(
+      `#!/bin/sh\nexec '${python}' -P -m cad_server.cli "$@"\n`,
+    );
+    expect(NodeFS.readFileSync(NodePath.join(bin, "cad.cmd"), "utf8")).toBe(
+      `@"${python}" -P -m cad_server.cli %*\r\n`,
+    );
   });
 
   it("runs Windows's Python, quoted in the skills where its folder has a space", () => {
@@ -161,6 +170,9 @@ describe("applyStudioAppBundle", () => {
     );
     const config = JSON.parse(NodeFS.readFileSync(NodePath.join(plugin, "codex.mcp.json"), "utf8"));
     expect(config.mcpServers.cad.command).toBe(python);
+    expect(NodeFS.readFileSync(NodePath.join(home, ".studio-test", "bin", "cad.cmd"), "utf8")).toBe(
+      `@"${python}" -P -m cad_server.cli %*\r\n`,
+    );
   });
 
   it("points the app at its samples folder when the bundle has one", () => {

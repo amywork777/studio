@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks an installed or built Studio the way a friend's first hour would use it: by the CAD tools the app carries,
-not the checkout's. With the app's own Python and a home of its own, it registers the bundled CAD server (as the
-app does on each start), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
+not the checkout's. With the app's own Python and a home of its own, it starts the bundled CAD server (`cad server
+start`: from text-to-cad 0.11.12 a command no longer starts one), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
 and compares each with the one the example ships with, then solves every example's strength study and holds each
 answer to the one the example ships with. No pass, no release.
 
@@ -62,8 +62,9 @@ def main() -> int:
         print(f"FAIL the app carries no library wheel under {wheels}", file=sys.stderr)
         return 1
     # An install record naming the build's wheel sends an integration made on first use to a file that is gone.
+    # From text-to-cad 0.11.12 one distribution, `cad`, holds the library, the server and cad-mcp.
     named = subprocess.run([str(python), "-c", "from importlib.metadata import distribution as d; "
-                            "print(' '.join(n for n in ('cad', 'cad-server', 'cad-mcp') if d(n).read_text('direct_url.json')))"],
+                            "print('cad' if d('cad').read_text('direct_url.json') else '')"],
                            capture_output=True, text=True)
     if named.returncode != 0 or named.stdout.strip():
         print(f"FAIL still installed from the build's wheel: {named.stdout.strip() or named.stderr.strip()}",
@@ -85,9 +86,10 @@ def main() -> int:
             "CAD_ENGINE_DIR": str(cad / "engine"),
             "CAD_ENGINE_PORT": check_engine_port(),
             "CAD_LAUNCHER_DIR": str(home / "bin"),
-            # The app's channel: its engine is never told of a release, so it never updates itself to the
-            # index's text-to-cad mid-check, which speaks another worker contract than Studio's.
-            "CAD_INSTALL_CHANNEL": "dev",
+            # As the app's: its CAD tools never update themselves to the index's cad mid-check, which speaks
+            # another worker contract than Studio's.
+            "CAD_UPDATE_CHECK": "0",
+            "CAD_TELEMETRY": "0",
             "CAD_UPDATE_FIND_LINKS": str(wheels),
             # A home with nothing in it: no tool this Mac or PC happens to have cached stands in for one the app
             # is missing.
@@ -108,7 +110,7 @@ def main() -> int:
             return done
 
         try:
-            if cad_command("cad_server._internal.installations", cwd=home, timeout=300).returncode != 0:
+            if cad_command("cad_server.cli", "server", "start", cwd=home, timeout=300).returncode != 0:
                 return 1
             if cad_command("cad_server.cli", "run", PART, cwd=home / "sample" / SAMPLE, timeout=600).returncode:
                 return 1
@@ -127,7 +129,7 @@ def main() -> int:
                 failed += 1 if solved.returncode != 0 else held_to_shipped(project.name, solved.stdout, shipped)
             return 1 if failed else 0
         finally:
-            subprocess.run([str(python), "-P", "-m", "cad_server.cli", "stop"], env=env, capture_output=True,
+            subprocess.run([str(python), "-P", "-m", "cad_server.cli", "server", "stop"], env=env, capture_output=True,
                            timeout=60)
 
 
