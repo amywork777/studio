@@ -73,9 +73,10 @@ function useOpenFromSidebar() {
 }
 
 /**
- * The head of a project's list: Overview (everything it holds) and New chat, in the words of a
- * project's own page. One row is filled at a time: Overview's only when it fills the main pane
- * alone; beside a chat, the chat's row keeps the fill and Overview shows in stronger words.
+ * The head of a project's list: Overview (everything it holds), in the words of a project's own
+ * page; a new chat is the + on the project's row. One row is filled at a time: Overview's only when
+ * it fills the main pane alone; beside a chat, the chat's row keeps the fill and Overview shows in
+ * stronger words.
  */
 function ProjectActions(props: {
   readonly entry: SidebarProject;
@@ -85,7 +86,6 @@ function ProjectActions(props: {
 }) {
   const { entry, panelRef, overview } = props;
   const { folder } = entry;
-  const handleNewThread = useNewThreadHandler();
   const openProject = useOpenProject();
   const { isMobile, setOpenMobile } = useSidebar();
   const done = () => {
@@ -109,24 +109,12 @@ function ProjectActions(props: {
           <span className={childRowClass(overview !== null)}>Overview</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          size="compact"
-          onClick={() => {
-            done();
-            void handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
-          }}
-        >
-          <PlusIcon aria-hidden="true" />
-          <span className={childRowClass(false)}>New chat</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
     </SidebarMenu>
   );
 }
 
 /**
- * An unfolded project's list under its row: its chats, newest first, under Overview and New chat
+ * An unfolded project's list under its row: its chats, newest first, under Overview
  * where the person is, or where it would open empty. Elsewhere a chat, or Open in its menu, goes in.
  */
 function ProjectChats(props: {
@@ -148,7 +136,7 @@ function ProjectChats(props: {
     entry.folder === null
       ? []
       : entry.folderIds.map((id) => scopeProjectRef(entry.folder!.environmentId, id as ProjectId));
-  // Chats begun and left unsent for another (New chat over one with text in it), listed first.
+  // Chats begun and left unsent for another (a new chat over one with text in it), listed first.
   const unsent = useUnsentChats(refs, currentDraftId);
   const openChat = useOpenFromSidebar();
   const currentId = threadRef?.threadId ?? null;
@@ -188,8 +176,8 @@ function ProjectChats(props: {
 /**
  * A project down the sidebar: pressed, it folds or unfolds its chats where it stands, as a folder
  * does in Claude's list, and moves the person nowhere: what is listed under it does. Folded, it
- * says if a chat in it needs the person or is at work. A right-click, or the "…" on its hover, is the
- * project's menu (`useProjectMenu`).
+ * says if a chat in it needs the person or is at work. Its + starts a new chat in it, as Claude Code's
+ * list does. A right-click, or the "…" on its hover, is the project's menu (`useProjectMenu`).
  */
 function ProjectRow(props: {
   readonly entry: SidebarProject;
@@ -202,6 +190,8 @@ function ProjectRow(props: {
   ) => void;
 }) {
   const { entry, current } = props;
+  const handleNewThread = useNewThreadHandler();
+  const { isMobile, setOpenMobile } = useSidebar();
   const unfolded = useChatScopeStore((store) => projectOpen(store, entry.id, current));
   const toggle = useChatScopeStore((store) => store.toggle);
   const standing = unfolded ? null : foldedStanding(entry.threads);
@@ -250,6 +240,8 @@ function ProjectRow(props: {
                 className="group-hover/chat:invisible group-focus-within/chat:invisible"
               />
             )}
+            {/* Room for the + over the row's end. */}
+            {folder === null ? null : <span aria-hidden="true" className="w-5 shrink-0" />}
           </SidebarMenuButton>
           {menu === null ? null : (
             <button
@@ -259,9 +251,25 @@ function ProjectRow(props: {
                 const box = event.currentTarget.getBoundingClientRect();
                 menu({ x: box.left, y: box.bottom });
               }}
-              className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100"
+              className={cn(
+                "absolute top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100",
+                folder === null ? "right-1.5" : "right-8",
+              )}
             >
               <EllipsisIcon className="size-4" aria-hidden="true" />
+            </button>
+          )}
+          {folder === null ? null : (
+            <button
+              type="button"
+              aria-label={`New chat in ${entry.name}`}
+              onClick={() => {
+                if (isMobile) setOpenMobile(false);
+                void handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
+              }}
+              className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+            >
+              <PlusIcon className="size-4" aria-hidden="true" />
             </button>
           )}
         </SidebarMenuItem>
