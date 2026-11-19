@@ -4,7 +4,6 @@ import {
   SquareMenuIcon,
   Maximize2Icon,
   Minimize2Icon,
-  type LucideIcon,
 } from "lucide-react";
 import { useGT } from "gt-react";
 import { memo, type ReactNode, useLayoutEffect, useRef } from "react";
@@ -35,9 +34,8 @@ export interface PanelLayoutControlsProps {
   rightPanelOpen: boolean;
   rightPanelShortcutLabel: string | null;
   rightPanelUnavailableLabel?: string;
-  /** What the right toggle is called, where a host gives it its own job (Studio's Toolbox). */
-  rightPanelLabel?: string;
-  rightPanelIcon?: LucideIcon;
+  /** Stands in for the right toggle, where a host gives it its own job (Studio's Toolbox). */
+  rightPanelControl?: ReactNode;
   onToggleTerminal: () => void;
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
@@ -58,8 +56,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   rightPanelOpen,
   rightPanelShortcutLabel,
   rightPanelUnavailableLabel,
-  rightPanelLabel,
-  rightPanelIcon: RightPanelIcon = PanelRightIcon,
+  rightPanelControl,
   onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
@@ -124,38 +121,33 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
           </TooltipPopup>
         </Tooltip>
       ) : null}
-      {showRightPanelControl ? (
+      {!showRightPanelControl ? null : rightPanelControl !== undefined ? (
+        rightPanelControl
+      ) : (
         <Tooltip>
           <TooltipTrigger render={<span className="flex shrink-0" />}>
             <Toggle
               className="shrink-0 [-webkit-app-region:no-drag]"
               pressed={rightPanelOpen}
               onPressedChange={onToggleRightPanel}
-              aria-label={rightPanelLabel ?? gt("Toggle right panel")}
+              aria-label={gt("Toggle right panel")}
               data-right-panel-toggle
               variant="ghost"
               size="sm"
               disabled={!rightPanelAvailable}
             >
-              <RightPanelIcon className="size-4" />
+              <PanelRightIcon className="size-4" />
             </Toggle>
           </TooltipTrigger>
           <TooltipPopup side="bottom">
             {rightPanelAvailable
-              ? rightPanelLabel !== undefined
-                ? rightPanelShortcutLabel
-                  ? gt("{label} ({shortcut})", {
-                      label: rightPanelLabel,
-                      shortcut: rightPanelShortcutLabel,
-                    })
-                  : rightPanelLabel
-                : rightPanelShortcutLabel
-                  ? gt("Toggle right panel ({shortcut})", { shortcut: rightPanelShortcutLabel })
-                  : gt("Toggle right panel")
+              ? rightPanelShortcutLabel
+                ? gt("Toggle right panel ({shortcut})", { shortcut: rightPanelShortcutLabel })
+                : gt("Toggle right panel")
               : (rightPanelUnavailableLabel ?? gt("Right panel is unavailable"))}
           </TooltipPopup>
         </Tooltip>
-      ) : null}
+      )}
     </div>
   );
 });

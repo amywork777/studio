@@ -7,7 +7,7 @@ import type {
   ScopedThreadRef,
 } from "@t3tools/contracts";
 import { useGT } from "gt-react";
-import { PencilRulerIcon, ToolCaseIcon } from "lucide-react";
+import { PencilRulerIcon } from "lucide-react";
 import {
   type ComponentProps,
   type ComponentType,
@@ -39,6 +39,7 @@ import { useProjectTabs } from "./projectTabs";
 import { useProjectViewStore } from "./projectView";
 import { StudioPanelBar } from "./StudioPanelBar";
 import { StudioToolbox } from "./StudioToolbox";
+import { ToolboxButton } from "./ToolboxButton";
 import {
   hasEngineeringSurfaces,
   isEngineeringInterface,
@@ -321,12 +322,16 @@ export function useStudioChatView(input: {
     /** The title bar's right toggle is the Toolbox's on the engineering surfaces. */
     panelToggleOverrides: engineeringSurfaces
       ? {
-          rightPanelOpen: rightPanelOpen && toolboxOpen,
-          rightPanelShortcutLabel: null,
-          rightPanelLabel:
-            rightPanelOpen && toolboxOpen ? gt("Close the Toolbox") : gt("Open the Toolbox"),
-          rightPanelIcon: ToolCaseIcon,
-          onToggleRightPanel: toggleToolboxStable,
+          rightPanelControl: (
+            <ToolboxButton
+              open={rightPanelOpen && toolboxOpen}
+              disabled={activeProject === null}
+              label={
+                rightPanelOpen && toolboxOpen ? gt("Close the Toolbox") : gt("Open the Toolbox")
+              }
+              onToggle={toggleToolboxStable}
+            />
+          ),
         }
       : {},
     pendingStart:

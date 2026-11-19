@@ -87,7 +87,9 @@ export function StudioToolbox(props: {
 
   return (
     <ToolboxPopup open={open} onOpenChange={setOpen}>
-      <div className="flex max-h-[min(40rem,var(--available-height))] flex-col">
+      {/* Capped by the window, not --available-height: Base UI measures the opening popup with
+        that set to max-content, which voids a cap built on it, so it opened at full length. */}
+      <div className="flex max-h-[min(40rem,calc(100dvh-var(--workspace-controls-top)-var(--workspace-topbar-height)-0.5rem))] flex-col">
         {/* The title bar's Toolbox button shuts it, so the popup has no button of its own. */}
         <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border ps-3 pe-1">
           <h2 className="text-sm font-medium text-foreground">Toolbox</h2>
