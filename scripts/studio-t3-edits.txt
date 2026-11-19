@@ -75,7 +75,6 @@ apps/desktop/src/app/DesktopUserData.test.ts
 apps/desktop/src/app/DesktopUserData.ts
 apps/desktop/src/backend/DesktopBackendPool.test.ts
 apps/desktop/src/backend/DesktopBackendPool.ts
-apps/desktop/src/backend/DesktopHomeOwner.ts
 apps/desktop/src/backend/DesktopLocalEnvironmentAuth.ts
 apps/desktop/src/boot.ts
 apps/desktop/src/electron/ElectronProtocol.ts
@@ -182,8 +181,10 @@ apps/server/src/workspace/WorkspaceFileSystem.ts
 apps/server/src/ws.test.ts
 apps/server/src/ws.ts
 apps/web/src/branding.ts
+apps/web/src/cloud/publicConfig.ts
 apps/web/src/components/AppSidebarLayout.tsx
 apps/web/src/components/auth/ConnectAgentSurface.tsx
+apps/web/src/components/BranchToolbarBranchSelector.tsx
 apps/web/src/components/chat/ChatComposer.tsx
 apps/web/src/components/chat/ChatHeader.tsx
 apps/web/src/components/chat/ChatRightPanel.tsx
@@ -194,7 +195,6 @@ apps/web/src/components/chat/ComposerPrimaryActions.tsx
 apps/web/src/components/chat/FileTagChip.tsx
 apps/web/src/components/chat/MarkdownFileLink.tsx
 apps/web/src/components/chat/McpAppFrame.tsx
-apps/web/src/components/chat/MessagesTimeline.logic.test.ts
 apps/web/src/components/chat/MessagesTimeline.logic.ts
 apps/web/src/components/chat/MessagesTimeline.tsx
 apps/web/src/components/chat/PanelLayoutControls.tsx
@@ -229,6 +229,7 @@ apps/web/src/components/ChatView.logic.test.ts
 apps/web/src/components/ChatView.logic.ts
 apps/web/src/components/ChatView.tsx
 apps/web/src/components/CommandPalette.tsx
+apps/web/src/components/desktop/DesktopWebLinkCoordinator.tsx
 apps/web/src/components/desktop/RunningThreadKeepAlive.tsx
 apps/web/src/components/desktopUpdate.logic.test.ts
 apps/web/src/components/desktopUpdate.logic.ts
@@ -242,8 +243,8 @@ apps/web/src/components/mcp/UseInAnotherAppDialog.tsx
 apps/web/src/components/onboarding/WelcomePage.tsx
 apps/web/src/components/preview/fileExplorerLabel.ts
 apps/web/src/components/ProjectScriptsControl.tsx
+apps/web/src/components/promptLinks/copyPromptLink.ts
 apps/web/src/components/ProviderUpdateLaunchNotification.logic.ts
-apps/web/src/components/RightPanelTabs.test.tsx
 apps/web/src/components/RightPanelTabs.tsx
 apps/web/src/components/settings/AboutVersionTitle.tsx
 apps/web/src/components/settings/AcpSessionManagementSection.tsx
@@ -259,6 +260,7 @@ apps/web/src/components/settings/DiagnosticsSettings.tsx
 apps/web/src/components/settings/EnvironmentRow.tsx
 apps/web/src/components/settings/FoldedSettingsSection.tsx
 apps/web/src/components/settings/FontFamilyPicker.tsx
+apps/web/src/components/settings/IntegrationsSettings.tsx
 apps/web/src/components/settings/itemRows.ts
 apps/web/src/components/settings/KeybindingsSettings.tsx
 apps/web/src/components/settings/LabsSettingsPanel.tsx
@@ -328,6 +330,8 @@ apps/web/src/hooks/useSidebarProjectGroups.ts
 apps/web/src/index.css
 apps/web/src/legalLinks.ts
 apps/web/src/lib/bootError.ts
+apps/web/src/lib/desktopSnapShot.ts
+apps/web/src/lib/openIssueLink.ts
 apps/web/src/pendingUserInput.test.ts
 apps/web/src/pendingUserInput.ts
 apps/web/src/providerInstances.ts
@@ -336,13 +340,18 @@ apps/web/src/rightPanelStore.test.ts
 apps/web/src/rightPanelStore.ts
 apps/web/src/routes/__root.tsx
 apps/web/src/routes/_chat.index.tsx
+apps/web/src/routes/_chat.issues.tsx
 apps/web/src/routes/_chat.pull-requests.tsx
 apps/web/src/routes/_chat.settings.tsx
 apps/web/src/routes/_chat.usage.tsx
+apps/web/src/routes/connect-agent.tsx
+apps/web/src/routes/guest.tsx
+apps/web/src/routes/pair.tsx
 apps/web/src/routeTree.gen.ts
 apps/web/src/rpc/requestLatencyState.ts
 apps/web/src/session-logic.ts
 apps/web/src/shortcuts/commandPaletteCommands.ts
+apps/web/src/state/environments.ts
 apps/web/src/state/threads.ts
 apps/web/src/timestampFormat.ts
 apps/web/src/versionSkew.test.ts

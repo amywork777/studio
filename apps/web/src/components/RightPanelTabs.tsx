@@ -49,11 +49,9 @@ import {
   Globe2,
   MessagesSquare,
   Plus,
-  Puzzle,
   TerminalSquare,
   Volume2Icon,
   VolumeOffIcon,
-  X as XIcon,
 } from "lucide-react";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -91,7 +89,6 @@ import {
 } from "~/components/ui/menu";
 import { useBrowserDefaults } from "~/browser/browserDefaults";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
 import { faviconUrlForOrigin } from "@t3tools/shared/favicon";
 import { useTheme } from "~/hooks/useTheme";
 import { useDeviceState } from "~/state/device";
@@ -114,24 +111,9 @@ import { resolvePullRequestState } from "./pullRequest/pullRequestPresentation";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
 import { surfaceShortcutKey } from "~/lib/surfaceShortcutKey";
-import {
-  CODE_SURFACE_LABELS,
-  hasEngineeringSurfaces,
-  isEngineeringInterface,
-  useEngineeringInterface,
-  useEngineeringSurfaces,
-} from "./workbench/studioInterface";
-import { partLabel } from "./workbench/partNames";
-import { useProjectViewStore } from "./workbench/projectView";
-import { surfaceFile, viewTabTitle } from "./workbench/sameFile";
-import { tabSuffixes } from "./workbench/tabSuffixes";
-import { FileKindIcon } from "./workbench/FileKindIcon";
-import { KIND_ICONS, KIND_TINT } from "./workbench/kinds";
-import { PinnedProjectTab } from "./workbench/PinnedProjectTab";
-import { knownModelScript, useModelTitles } from "./workbench/useFolderModels";
-import { WORKBENCH_LAYOUT } from "./workbench/workbenchLayout";
+import * as studioTabs from "./workbench/studioRightPanelTabs";
 
-export interface RightPanelTabsProps {
+export interface RightPanelTabsProps extends studioTabs.StudioRightPanelSlots {
   mode: PreviewPanelMode;
   maximized?: boolean;
   open?: boolean;
@@ -141,13 +123,6 @@ export interface RightPanelTabsProps {
   defaultWidth?: number;
   inlineSize?: PreviewPanelInlineSize;
   layoutControls?: ReactNode;
-  /**
-   * What can be done to the surface in front (Studio's toolbar), at the right end of the tab row,
-   * which is its `@container/toolbar`: a narrow panel shortens it.
-   */
-  toolbar?: ReactNode;
-  /** A column beside the surface in front, under the tab row (Studio's Toolbox), at most half the width. */
-  aside?: ReactNode;
   surfaces: readonly RightPanelSurface[];
   environmentId: EnvironmentId | null;
   activeSurfaceId: string | null;
@@ -187,8 +162,6 @@ export interface RightPanelTabsProps {
   /** Overrides the default reason while side chats are available but cannot start. */
   sideChatDisabledReason?: string | null;
   pullRequestStatusSeeds?: Readonly<Record<string, PullRequestTabStatusSeed>>;
-  /** More "+" menu rows after the built-in surfaces, such as plugin views. */
-  addSurfaceExtraItems?: ReactNode;
   children: ReactNode;
 }
 
@@ -375,13 +348,7 @@ function RightPanelEmptyState(props: {
   const gt = useGT();
   const messages = useMessages();
   const [highlight, setHighlight] = useState(-1);
-  const engineering = useEngineeringInterface();
-  // Studio's panel is never empty: with every tab closed, its Overview comes back.
-  const { onAddFiles, filesAvailable } = props;
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reopens the panel store's Overview surface, which lives outside React state
-  useEffect(() => {
-    if (engineering && filesAvailable) onAddFiles();
-  }, [engineering, filesAvailable, onAddFiles]);
+  const offered = studioTabs.useEmptyPanelOffers(props.onAddFiles, props.filesAvailable);
 
   const actions = [
     {
@@ -459,10 +426,7 @@ function RightPanelEmptyState(props: {
 
   type SurfaceAction = (typeof actions)[number];
 
-  // The engineering interface offers no coding surfaces (`workbench/studioInterface.ts`).
-  const availableActions = actions.filter(
-    (action) => action.available && !(engineering && CODE_SURFACE_LABELS.has(action.label)),
-  );
+  const availableActions = actions.filter((action) => action.available && offered(action.label));
   const highlightIndex =
     availableActions.length === 0 ? -1 : Math.min(highlight, availableActions.length - 1);
 
@@ -624,20 +588,17 @@ function surfaceTitle(
   surface: RightPanelSurface,
   sessions: Readonly<Record<string, PreviewSessionSnapshot>>,
   terminalLabelsById: ReadonlyMap<string, string>,
-  modelTitles: ReadonlyMap<string, string>,
   resolve: MessageResolver = m,
 ): string {
   switch (surface.kind) {
     case "diff":
       return resolve(msg("Diff"));
     case "files":
-      return hasEngineeringSurfaces() ? resolve(msg("Project")) : resolve(msg("Files"));
-    case "file": {
-      const name = surface.relativePath.slice(
+      return resolve(msg("Files"));
+    case "file":
+      return surface.relativePath.slice(
         Math.max(surface.relativePath.lastIndexOf("/"), surface.relativePath.lastIndexOf("\\")) + 1,
       );
-      return isEngineeringInterface() ? partLabel(name) : name;
-    }
     case "terminal":
       return (
         terminalLabelsById.get(surface.activeTerminalId) ??
@@ -652,10 +613,10 @@ function surfaceTitle(
       return /^\d+$/.test(surface.key) ? `#${surface.key}` : surface.key;
     case "device":
       return surface.title ?? surface.target?.name ?? resolve(msg("Device"));
+    case "plugin-app":
+      return surface.title;
     case "side-chat":
       return resolve(msg("Side chat"));
-    case "plugin-app":
-      return isEngineeringInterface() ? viewTabTitle(surface, modelTitles) : surface.title;
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return resolve(msg("Browser"));
@@ -716,6 +677,8 @@ function SurfaceIcon({
   environmentId: EnvironmentId | null;
   pullRequestStatusSeed: PullRequestTabStatusSeed | undefined;
 }) {
+  const studioIcon = studioTabs.surfaceIcon(surface);
+  if (studioIcon !== null) return studioIcon;
   switch (surface.kind) {
     case "preview":
       return <PreviewFavicon capturedUrl={previewCapturedUrl} url={previewUrl} />;
@@ -724,10 +687,7 @@ function SurfaceIcon({
     case "files":
       return <Files className="size-3 shrink-0" />;
     case "file":
-      // In the engineering interface a tab wears its file's kind, as a browser tab its site's icon.
-      return isEngineeringInterface() ? (
-        <FileKindIcon path={surface.relativePath} className="size-3.5" />
-      ) : (
+      return (
         <PierreEntryIcon
           pathValue={surface.relativePath}
           kind="file"
@@ -758,18 +718,6 @@ function SurfaceIcon({
         <AndroidIcon className="size-3 shrink-0" />
       ) : (
         <Smartphone className="size-3 shrink-0" />
-      );
-    case "plugin-app":
-      // In the workbench (Studio) a plugin view is the model or board viewer, marked by its kind:
-      // CAD's cube, the AI | CAD switch's, for a part and for the view before it has one.
-      return WORKBENCH_LAYOUT ? (
-        surfaceFile(surface) === null ? (
-          <KIND_ICONS.CAD className={cn("size-3.5 shrink-0", KIND_TINT)} aria-hidden="true" />
-        ) : (
-          <FileKindIcon path={surfaceFile(surface) ?? ""} className="size-3.5" />
-        )
-      ) : (
-        <Puzzle className="size-3 shrink-0" />
       );
   }
 }
@@ -988,7 +936,6 @@ function RightPanelTab(
     active: boolean;
     pending: boolean;
     title: string;
-    /** What tells two same-titled tabs apart (Studio), shown in grey after the title. */
     suffix: string | undefined;
     audio: TabAudioState;
     audioRuntimeTabId: string | null;
@@ -1026,39 +973,24 @@ function RightPanelTab(
   );
   const title = sideChatShell?.title ?? props.title;
   const sideChatState = sideChatTabState(sideChatShell);
-  const surfaceIcon = (
-    <>
-      <SurfaceIcon
-        surface={surface}
-        previewUrl={props.previewUrl}
-        previewCapturedUrl={props.previewCapturedUrl}
-        theme={props.theme}
-        environmentId={props.environmentId}
-        pullRequestStatusSeed={props.pullRequestStatusSeed}
-      />
-      {props.pending ? (
-        <span
-          className="absolute -right-0.5 -bottom-0.5 size-1.5 rounded-full bg-current"
-          aria-hidden
-        />
-      ) : null}
-    </>
-  );
   const content = (
     <>
-      {WORKBENCH_LAYOUT ? (
-        // Chrome's tab, as Studio's are: the kind's icon stays at the left.
-        <span className="relative flex size-4 shrink-0 items-center justify-center">
-          {surfaceIcon}
-        </span>
-      ) : (
-        <PanelTabCloseButton
-          label={gt("Close {title}", { title })}
-          onClick={() => onClose(surface)}
-        >
-          {surfaceIcon}
-        </PanelTabCloseButton>
-      )}
+      <studioTabs.TabIcon label={gt("Close {title}", { title })} onClick={() => onClose(surface)}>
+        <SurfaceIcon
+          surface={surface}
+          previewUrl={props.previewUrl}
+          previewCapturedUrl={props.previewCapturedUrl}
+          theme={props.theme}
+          environmentId={props.environmentId}
+          pullRequestStatusSeed={props.pullRequestStatusSeed}
+        />
+        {props.pending ? (
+          <span
+            className="absolute -right-0.5 -bottom-0.5 size-1.5 rounded-full bg-current"
+            aria-hidden
+          />
+        ) : null}
+      </studioTabs.TabIcon>
       {audio === "none" || !audioRuntimeTabId ? null : (
         <Tooltip>
           <TooltipTrigger
@@ -1130,9 +1062,7 @@ function RightPanelTab(
                 onClick={() => onActivate(surface)}
               >
                 <span className="truncate">{title}</span>
-                {props.suffix === undefined ? null : (
-                  <span className="ms-1.5 shrink-0 text-muted-foreground">{props.suffix}</span>
-                )}
+                <studioTabs.TabSuffix suffix={props.suffix} />
               </button>
             }
           />
@@ -1143,32 +1073,17 @@ function RightPanelTab(
                 environmentId={props.environmentId}
                 title={title}
               />
-            ) : props.suffix === undefined ? (
-              title
             ) : (
-              gt("{title}, {suffix}", { title, suffix: props.suffix })
+              <studioTabs.TitleWithSuffix title={title} suffix={props.suffix} />
             )}
           </TooltipPopup>
         </Tooltip>
       )}
-      {WORKBENCH_LAYOUT ? (
-        // ...and its close at the right, shown on the tab in front and on hover.
-        <button
-          type="button"
-          aria-label={gt("Close {title}", { title })}
-          data-tab-close=""
-          className={cn(
-            "ms-auto flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-muted focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
-            props.active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
-          )}
-          onClick={(event) => {
-            event.stopPropagation();
-            onClose(surface);
-          }}
-        >
-          <XIcon className="size-3" aria-hidden="true" />
-        </button>
-      ) : null}
+      <studioTabs.TabCloseAtEnd
+        label={gt("Close {title}", { title })}
+        active={props.active}
+        onClose={() => onClose(surface)}
+      />
     </>
   );
   return (
@@ -1195,47 +1110,17 @@ function RightPanelTab(
   );
 }
 
-/**
- * Whether a tab's menu offers "Copy path": a file's, never an attachment's, and not in the
- * engineering interface, where a path is a programmer's thing.
- */
-export function tabOffersCopyPath(
-  surface: { readonly kind: string; readonly attachment?: unknown },
-  engineering: boolean,
-): boolean {
-  return surface.kind === "file" && surface.attachment === undefined && !engineering;
-}
-
 export function RightPanelTabs(props: RightPanelTabsProps) {
-  // The engineering surfaces pin the project (and, with code tools, its source) ahead of the tabs.
-  const engineeringSurfaces = useEngineeringSurfaces();
-  const engineering = useEngineeringInterface();
-  const projectView = useProjectViewStore((state) => state.view);
-  const tabSurfaces = engineeringSurfaces
-    ? props.surfaces.filter((surface) => surface.kind !== "files")
-    : props.surfaces;
   const gt = useGT();
   const messages = useMessages();
   const focusedSurface = props.surfaces.find((surface) => surface.id === props.activeSurfaceId);
   const ownsDesktopTitleBar = isElectron && props.mode === "inline";
   const browserProfiles = useBrowserDefaults().profiles;
-  const modelTitles = useModelTitles();
+  const studio = studioTabs.useStudioTabs(props);
   const titleOf = (surface: RightPanelSurface) =>
-    surfaceTitle(surface, props.previewSessions, props.terminalLabelsById, modelTitles, messages);
-  // Two open tabs never read the same: each of a clash carries what it is, in grey.
-  const suffixes = engineering
-    ? tabSuffixes(
-        tabSurfaces.map((surface) => {
-          const file = surfaceFile(surface);
-          return {
-            id: surface.id,
-            title: titleOf(surface),
-            file,
-            script: file === null ? undefined : knownModelScript(file),
-          };
-        }),
-      )
-    : null;
+    studio.title(surface) ??
+    surfaceTitle(surface, props.previewSessions, props.terminalLabelsById, messages);
+  const suffixes = studio.suffixes(titleOf);
   const { resolvedTheme } = useTheme();
   const tabListRef = useRef<HTMLDivElement>(null);
   const addSurfaceTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1388,14 +1273,13 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     const api = readLocalApi();
     if (!api) return;
 
-    // Counted along the tabs shown, so Studio's pinned Overview is never one of the "others".
-    const surfaceIndex = tabSurfaces.findIndex((entry) => entry.id === surface.id);
+    const surfaceIndex = studio.tabSurfaces.findIndex((entry) => entry.id === surface.id);
     if (surfaceIndex < 0) return;
 
     const items: ContextMenuItem<TabContextMenuAction>[] = [];
     if (surface.kind === "device" && props.onRenameDevice)
       items.push({ id: "rename", label: gt("Rename") });
-    if (tabOffersCopyPath(surface, engineering)) {
+    if (studioTabs.tabOffersCopyPath(surface, studio.engineering)) {
       items.push({ id: "copy-path", label: gt("Copy path") });
     }
     const menuPreviewTabId = previewTabIdOf(surface, props.previewSessions);
@@ -1418,17 +1302,17 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       {
         id: "close-others",
         label: gt("Close others"),
-        disabled: tabSurfaces.length <= 1,
+        disabled: studio.tabSurfaces.length <= 1,
       },
       {
         id: "close-to-right",
         label: gt("Close to the right"),
-        disabled: surfaceIndex >= tabSurfaces.length - 1,
+        disabled: surfaceIndex >= studio.tabSurfaces.length - 1,
       },
       {
         id: "close-all",
         label: gt("Close all"),
-        disabled: tabSurfaces.length === 0,
+        disabled: studio.tabSurfaces.length === 0,
       },
     );
 
@@ -1531,28 +1415,15 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     };
   };
 
-  // The project is home, not one tab among many: pinned first, apart from the rest.
-  const projectTab = engineeringSurfaces ? (
-    <PinnedProjectTab
-      active={props.activeSurfaceId === "files"}
-      view={engineering ? "project" : projectView}
-      withSource={!engineering}
-      onSelect={(view) => {
-        useProjectViewStore.getState().setView(view);
-        const project = props.surfaces.find((surface) => surface.kind === "files");
-        if (project) props.onActivate(project);
-        else props.onAddFiles();
-      }}
-    />
-  ) : null;
-
   return (
     <PreviewPanelShell
       workspaceArea
       workspaceFocusKey={`panel:${props.environmentId}:${props.activeSurfaceId ?? "empty"}`}
       workspaceLabel={
         focusedSurface
-          ? gt("Workspace panel: {title}", { title: titleOf(focusedSurface) })
+          ? gt("Workspace panel: {title}", {
+              title: titleOf(focusedSurface),
+            })
           : gt("Workspace panel")
       }
       mode={props.mode}
@@ -1572,13 +1443,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       <div
         className={cn(
           "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-1 pl-2",
-          // Room for the title bar's toggles over the row's right end: Studio's one (the Toolbox's)
-          // and the gap the toolbar's buttons keep between them, T3's maximize and toggle.
-          props.mode === "inline" && !props.layoutControls
-            ? engineeringSurfaces
-              ? "pr-12"
-              : "pr-28"
-            : "pr-3",
+          props.mode === "inline" && !props.layoutControls ? studio.rowEndInset : "pr-3",
           ownsDesktopTitleBar && "drag-region",
           ownsDesktopTitleBar && "wco:pr-(--workspace-native-controls-inset)",
           props.mode === "inline" && props.maximized && COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
@@ -1586,7 +1451,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         )}
         data-right-panel-tabbar
       >
-        {engineeringSurfaces && !engineering ? projectTab : null}
+        {studio.leadingTab}
         <ScrollArea
           radius="none"
           ref={attachTabList}
@@ -1599,10 +1464,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           data-right-panel-tab-list
         >
           <div className="flex h-full w-max min-w-full items-center gap-1">
-            {/* The engineering interface's Overview is the first of the sheets along the bottom. */}
-            {engineering ? projectTab : null}
-            <SortableTabList surfaces={tabSurfaces} onMove={props.onMoveSurface}>
-              {tabSurfaces.map((surface) => {
+            {studio.firstTab}
+            <SortableTabList surfaces={studio.tabSurfaces} onMove={props.onMoveSurface}>
+              {studio.tabSurfaces.map((surface) => {
                 const previewTabId = previewTabIdOf(surface, props.previewSessions);
                 const favicon = previewFaviconOf(
                   surface,
@@ -1767,20 +1631,12 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             </Tooltip>
           </div>
         ) : null}
-        {props.toolbar === undefined ? null : (
-          <div
-            className="ms-2 flex shrink-0 items-center [-webkit-app-region:no-drag]"
-            data-right-panel-toolbar
-          >
-            {props.toolbar}
-          </div>
-        )}
+        <studioTabs.ToolbarSlot toolbar={props.toolbar} />
         {props.layoutControls}
         {ownsDesktopTitleBar && !props.layoutControls ? (
-          // Keeps the tabs clear of the window controls when the layout toggles live elsewhere.
           <span
             aria-hidden
-            className={cn("hidden shrink-0 wco:block", engineeringSurfaces ? "w-10" : "w-24")}
+            className={cn("hidden shrink-0 wco:block", studio.controlsSpacerWidth)}
           />
         ) : null}
         {ownsDesktopTitleBar ? (
@@ -1788,45 +1644,38 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             aria-hidden
             className={cn(
               "pointer-events-none fixed top-[var(--workspace-controls-top)] right-[var(--workspace-controls-right)] h-[var(--workspace-topbar-height)] [-webkit-app-region:no-drag]",
-              engineeringSurfaces ? "w-10" : "w-28",
+              studio.controlsInsetWidth,
             )}
           />
         ) : null}
       </div>
-      <div className="flex min-h-0 flex-1" data-right-panel-body>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-right-panel-surface-content>
-          {props.activeSurfaceId === null ? (
-            <RightPanelEmptyState
-              onAddBrowser={props.onAddBrowser}
-              onAddBrowserInProfile={props.onAddBrowserInProfile}
-              browserProfiles={browserProfiles}
-              onAddTerminal={props.onAddTerminal}
-              onAddDiff={props.onAddDiff}
-              onAddFiles={props.onAddFiles}
-              onAddPullRequest={props.onAddPullRequest}
-              onAddPullRequests={props.onAddPullRequests}
-              onAddDevice={props.onAddDevice}
-              onAddSideChat={props.onAddSideChat}
-              browserAvailable={props.browserAvailable}
-              terminalAvailable={props.terminalAvailable}
-              diffAvailable={props.diffAvailable}
-              filesAvailable={props.filesAvailable}
-              pullRequestAvailable={props.pullRequestAvailable}
-              pullRequestsAvailable={props.pullRequestsAvailable}
-              deviceAvailable={props.deviceAvailable}
-              sideChatAvailable={props.sideChatAvailable === true}
-              sideChatDisabledReason={props.sideChatDisabledReason ?? null}
-            />
-          ) : (
-            props.children
-          )}
-        </div>
-        {props.aside === undefined ? null : (
-          <div className="flex min-h-0 max-w-1/2 shrink-0" data-right-panel-aside>
-            {props.aside}
-          </div>
+      <studioTabs.PanelBody aside={props.aside}>
+        {props.activeSurfaceId === null ? (
+          <RightPanelEmptyState
+            onAddBrowser={props.onAddBrowser}
+            onAddBrowserInProfile={props.onAddBrowserInProfile}
+            browserProfiles={browserProfiles}
+            onAddTerminal={props.onAddTerminal}
+            onAddDiff={props.onAddDiff}
+            onAddFiles={props.onAddFiles}
+            onAddPullRequest={props.onAddPullRequest}
+            onAddPullRequests={props.onAddPullRequests}
+            onAddDevice={props.onAddDevice}
+            onAddSideChat={props.onAddSideChat}
+            browserAvailable={props.browserAvailable}
+            terminalAvailable={props.terminalAvailable}
+            diffAvailable={props.diffAvailable}
+            filesAvailable={props.filesAvailable}
+            pullRequestAvailable={props.pullRequestAvailable}
+            pullRequestsAvailable={props.pullRequestsAvailable}
+            deviceAvailable={props.deviceAvailable}
+            sideChatAvailable={props.sideChatAvailable === true}
+            sideChatDisabledReason={props.sideChatDisabledReason ?? null}
+          />
+        ) : (
+          props.children
         )}
-      </div>
+      </studioTabs.PanelBody>
     </PreviewPanelShell>
   );
 }

@@ -77,6 +77,7 @@ import { ComposerControl } from "./chat/ComposerControl";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { BranchPicker, BranchPickerRefItem } from "./BranchPicker";
 import { stackedThreadToast, toastManager } from "./ui/toast";
+import { t3FeatureHidden } from "./workbench/hiddenT3Features";
 
 export interface BranchToolbarBranchSelectorHandle {
   open: () => void;
@@ -718,7 +719,7 @@ export function BranchToolbarBranchSelector({
     branchStatusQuery.data?.sourceControlProvider,
   );
   const openPrLink = useOpenPrLink(threadRef);
-  const linkedIssues = serverThread?.issues ?? [];
+  const linkedIssues = t3FeatureHidden("issues") ? [] : (serverThread?.issues ?? []);
 
   function selectPickerItem(itemValue: string) {
     if (itemValue === checkoutPullRequestItemValue && prReference && onCheckoutPullRequestRequest) {

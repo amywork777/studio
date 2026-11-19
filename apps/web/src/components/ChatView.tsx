@@ -47,7 +47,6 @@ import { recallCheckoutIsRepo, rememberCheckoutIsRepo } from "./ChatView.logic";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
-import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
 import { usePendingThreadRequests } from "./chat/usePendingThreadRequests";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
@@ -127,17 +126,14 @@ import { resolveThreadReferenceCopyTarget } from "@t3tools/client-runtime/thread
 import { resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabelsCopy";
 import { useAtomValue } from "@effect/atom-react";
 import {
-  lazy,
   type MouseEvent as ReactMouseEvent,
   type SetStateAction,
-  Suspense,
   use,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { PencilRulerIcon, ToolCaseIcon } from "lucide-react";
 import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { WorkspaceMutationIdContext } from "./chat/ChatMarkdownMedia";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -178,7 +174,6 @@ import { FileMetadataThreadProvider } from "../hooks/FileMetadataThreadProvider"
 import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "../rightPanelLayout";
 import { PopoverCreateHandle } from "./ui/popover";
 import {
-  type RightPanelSurface,
   selectActiveRightPanel,
   selectActiveRightPanelSurface,
   selectThreadPanelOpen,
@@ -405,30 +400,7 @@ import {
   type LocalThreadErrorEntry,
   makeThreadErrorSetter,
 } from "./ChatView.logic";
-import { PluginThreadViewMenuItems } from "./plugins/PluginThreadViewMenuItems";
-import { PluginStarterPrompts } from "./plugins/PluginStarterPrompts";
-import { usePluginFollow } from "./plugins/usePluginFollow";
-import { PendingStart } from "./workbench/PendingStart";
-import { frontTab, useShowWaitingChat } from "./workbench/overviewPanel";
-import { useProjectTabs } from "./workbench/projectTabs";
-import { PartContextStrip } from "./workbench/PartContextStrip";
-import { StudioPanelBar } from "./workbench/StudioPanelBar";
-import { handToChat, sendsAtOnce } from "./workbench/handToChat";
-import { plainFailure, TRY_AGAIN_PROMPT } from "./workbench/plainFailure";
-import { StudioToolbox } from "./workbench/StudioToolbox";
-import { useToolboxOpen } from "./workbench/toolboxOpen";
-import { ProjectPage } from "./workbench/ProjectPage";
-import { useProjectViewStore } from "./workbench/projectView";
-import { useStudioProjectsList } from "./workbench/useStudioProjects";
-import { setChatInFront, takePendingFollow } from "./workbench/defaultModelFollow";
-import { useEngineeringInterface, useEngineeringSurfaces } from "./workbench/studioInterface";
-import { useDocumentFollow } from "./workbench/useDocumentFollow";
-import { useShowProjectPart } from "./workbench/useShowProjectPart";
-import { useWorkbenchViewer } from "./workbench/useWorkbenchViewer";
-import { addViewContextToComposer, handEditNoteShown } from "./workbench/viewContext";
-import { WORKBENCH_LAYOUT } from "./workbench/workbenchLayout";
-
-const PluginViewPanel = lazy(() => import("./plugins/PluginViewPanel"));
+import * as studioChat from "./workbench/studioChatView";
 
 const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PROVIDER_MODELS: ServerProvider["models"] = [];
@@ -556,10 +528,6 @@ export default function ChatView(props: ChatViewProps) {
           lastVisitedAt: fallbackLastVisitedAt,
         });
   const promptRef = useRef("");
-  const [handEditNotes, setHandEditNotes] = useState<{
-    readonly threadKey: string | null;
-    readonly notes: ReadonlyArray<string>;
-  }>({ threadKey: null, notes: [] });
   const localComposerRef = useRef<ChatComposerHandle | null>(null);
   const composerRef = useComposerHandleContext() ?? localComposerRef;
   const queuedRunEdit = useQueuedRunEdit({
@@ -1163,10 +1131,7 @@ export default function ChatView(props: ChatViewProps) {
     activePreviewMiniPlayer?.source ?? null,
     renderedRightPanelSurface,
   );
-  // Studio has no maximize: its title-bar button opens and shuts the Toolbox, the one there.
-  const engineeringInterface = useEngineeringInterface();
-  const engineeringSurfaces = useEngineeringSurfaces();
-  const canMaximizeRightPanel = rightPanelOpen && !engineeringSurfaces;
+  const canMaximizeRightPanel = studioChat.canMaximizeRightPanel(rightPanelOpen);
   // An embedded side chat has no panel; a stale maximized flag would hide its own column.
   const rightPanelMaximized =
     !embedded && canMaximizeRightPanel && rightPanelState.maximized === true;
@@ -1724,13 +1689,7 @@ export default function ChatView(props: ChatViewProps) {
     refresh: gitStatusQuery.refresh,
     resourceKey: `git-status:${activeThreadKey ?? ""}:${gitStatusCwd ?? ""}`,
   });
-  // An agent may rename or rewrite its project's file: the sidebar and Home read this list.
-  const studioProjectsList = useStudioProjectsList(environmentId);
-  useWorkspaceMutationRefresh({
-    mutationId: workspaceMutationId,
-    refresh: studioProjectsList.refresh,
-    resourceKey: `studio-projects:${environmentId}`,
-  });
+  studioChat.useStudioProjectsRefresh(environmentId, workspaceMutationId);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const backgroundThread = use(BackgroundThreadContext);
   const scriptKeybindings =
@@ -1843,10 +1802,9 @@ export default function ChatView(props: ChatViewProps) {
           providerSubagentModels,
           reportedModelSelection,
         );
-  // Studio's engineering interface puts the branch and checkout strip away with the other coding tools.
   const showComposerContextStrip =
     !embedded &&
-    !engineeringInterface &&
+    studioChat.showsComposerContextStrip() &&
     shouldShowComposerContextStrip({
       isDraftHeroState,
       persistInActiveThreads: settings.persistComposerContextStrip,
@@ -2419,7 +2377,7 @@ export default function ChatView(props: ChatViewProps) {
     showScrollToBottom,
   ]);
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(activeThreadRef);
-  const activeThreadReferenceCopyTarget =
+  const activeThreadReferenceCopyTarget = studioChat.withoutT3ThreadLink(
     activeThreadRef === null || !isServerThread
       ? null
       : resolveThreadReferenceCopyTarget(
@@ -2432,7 +2390,8 @@ export default function ChatView(props: ChatViewProps) {
             hostedAppUrl: configuredHostedAppUrl(),
           },
           messages,
-        );
+        ),
+  );
   const copyActiveThreadReference = () => {
     if (activeThreadReferenceCopyTarget === null) return;
     void copyThreadReference(activeThreadReferenceCopyTarget);
@@ -2492,80 +2451,32 @@ export default function ChatView(props: ChatViewProps) {
     closeRightPanelSurface,
   });
   const pullRequestSurfaceAvailable = supportsPullRequests && pullRequestPanelTarget !== null;
-  // Studio's tabs keep the panel's size; leaving a spread Overview steps back (`frontTab`).
-  const activateSurfaceStable = useStableCallback((surface: RightPanelSurface) => {
-    if (engineeringInterface && activeThreadRef) frontTab(activeThreadRef, surface);
-    activateRightPanelSurfaceStable(surface);
-  });
-  // Studio's right toggle is the Toolbox's, the one way in: it opens the Toolbox's popup, with the
-  // panel when that is shut, and shuts it again. The keybinding still shows or hides the panel.
-  const toolboxOpen = useToolboxOpen((state) => state.open);
-  const toggleToolboxStable = useStableCallback(() => {
-    if (!activeThreadRef) return;
-    if (!rightPanelOpen) {
-      useToolboxOpen.getState().setOpen(true);
-      useRightPanelStore.getState().toggleVisibility(activeThreadRef);
-      return;
-    }
-    useToolboxOpen.getState().setOpen(!toolboxOpen);
-  });
-  const chatBusy = isWorking || pendingUserInputs.length > 0;
-  const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
-  /**
-   * Studio: a view's message in a chat not started yet goes in through the composer, which starts
-   * the chat as a person's send does; into a draft being written it is added for the person to send.
-   */
-  const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) => {
-    const composer = composerRef.current;
-    if (composer === null) throw new Error("Messages from apps need a chat.");
-    const send = sendsAtOnce(composer.readSnapshot().value);
-    if (!composer.insertTextAtEnd(text, { ensureLeadingBoundary: true })) {
-      throw new Error("The chat is waiting on you: answer it, then send this again.");
-    }
-    if (send) composer.submit();
-  });
-  // Studio's engineering surfaces follow files once per run instead (`workbench/useDocumentFollow.ts`).
-  useShowWaitingChat(
-    engineeringInterface && !embedded ? activeThreadRef : null,
-    activePendingApproval?.requestId ?? activePendingUserInput?.requestId ?? null,
-  );
-  // Studio's tabs are the project folder's, the same beside each of its chats (`projectTabs.ts`).
-  useProjectTabs(
-    engineeringInterface && !embedded ? activeThreadRef : null,
-    activeWorkspaceRoot ?? null,
-  );
-  // Engineering with code tools lets the pinned tab show the source files instead (`workbench/projectView.ts`).
-  const projectView = useProjectViewStore((state) => state.view);
-  usePluginFollow({
+  const studio = studioChat.useStudioChatView({
+    embedded,
     environmentId,
-    threadRef: isServerThread && !embedded ? activeThreadRef : null,
-    threadKey: activeThreadKey,
-    runningRunId: activeRunningTurnId,
-    items: serverVisibleTurnItems,
-    workspaceRoot: gitCwd,
-    // Unlike proactive diffs, this opens a view only when none of the plugin's is open.
-    followFiles: !shouldUsePlanSidebarSheet && !engineeringSurfaces,
-  });
-  useWorkbenchViewer({
-    enabled: WORKBENCH_LAYOUT && !embedded,
-    environmentId,
-    threadRef: activeThreadRef,
-    serverThread: isServerThread,
-  });
-  // A project opened from Home, the switcher or Cmd+K shows its part in CAD (`showProject`).
-  useShowProjectPart({
-    environmentId,
-    threadRef: engineeringInterface && !embedded ? activeThreadRef : null,
-    cwd: activeWorkspaceRoot ?? null,
-  });
-  useDocumentFollow({
-    environmentId,
-    threadRef: isServerThread && !embedded ? activeThreadRef : null,
-    threadKey: activeThreadKey,
+    activeThreadRef,
+    activeThreadKey,
+    routeThreadKey,
+    isServerThread,
+    activeThread,
+    activeProject,
+    activeProjectIsScratch,
+    activeProjectEnvironmentId: activeProjectRef?.environmentId ?? null,
+    activeWorkspaceRoot,
+    gitCwd,
+    composerRef,
+    composerDraftTarget,
+    rightPanelOpen,
+    activateRightPanelSurface: activateRightPanelSurfaceStable,
+    isWorking,
+    pendingUserInputCount: pendingUserInputs.length,
+    pendingRequestId: activePendingApproval?.requestId ?? activePendingUserInput?.requestId ?? null,
     runningRunId: activeRunningTurnId,
     items: serverVisibleTurnItems,
     checkpoints: turnDiffSummaries,
-    workspaceRoot: gitCwd,
+    shouldUsePlanSidebarSheet,
+    workspaceMutationId,
+    sendAppMessage: sendAppMessageStable,
   });
   const {
     acknowledgeActiveThreadWoke,
@@ -2724,7 +2635,6 @@ export default function ChatView(props: ChatViewProps) {
     );
     return item ? [item] : [];
   });
-  const openModelPickerStable = useStableCallback(() => composerRef.current?.openModelPicker());
   const limitRecoveryBanner =
     limitRecoveryRun !== null && activeThreadShell !== null
       ? usageLimitRecoveryBannerItem(
@@ -2745,21 +2655,11 @@ export default function ChatView(props: ChatViewProps) {
               });
               if (result._tag === "Failure") throw squashAtomCommandFailure(result);
             },
-            onUseAnotherModel: openModelPickerStable,
+            onUseAnotherModel: studio.openModelPicker,
           },
           messages,
         )
       : null;
-  // Studio: the notes of hand edits written into the message box (`addViewContextToComposer`).
-  // A tester read one as a prompt waiting to be sent, so while the box holds one the chat says
-  // what it is: the AI gets it with the next message, and nothing needs doing now.
-  const shownHandEditNotes = handEditNotes.threadKey === routeThreadKey ? handEditNotes.notes : [];
-  const handEditNoteInBox = useComposerDraftStore((store) =>
-    handEditNoteShown(
-      store.getComposerDraft(composerDraftTarget)?.prompt ?? "",
-      shownHandEditNotes,
-    ),
-  );
   const composerBannerItems = (() => {
     const fallbackSelection = draftFallback?.selection;
     const defaultSelection =
@@ -2810,19 +2710,6 @@ export default function ChatView(props: ChatViewProps) {
           ]
         : [];
     const limitRecoveryItems = limitRecoveryBanner === null ? [] : [limitRecoveryBanner];
-    const handEditItems: ComposerBannerStackItem[] = handEditNoteInBox
-      ? [
-          {
-            id: "studio-hand-edit-note",
-            variant: "info",
-            icon: <PencilRulerIcon />,
-            title: gt("Your hand edits go to the AI with your next message"),
-            description: gt(
-              "Studio wrote what you changed into the message box, so the AI knows. There is no need to send it now; delete a line to leave it out.",
-            ),
-          },
-        ]
-      : [];
     const extensionStatusBanner = extensionStatusBannerItem(
       deriveProviderExtensionStatuses(serverProjection),
     );
@@ -2844,7 +2731,7 @@ export default function ChatView(props: ChatViewProps) {
         ...projectCloneItems,
         ...freshSessionItems,
         ...systemComposerBannerItems,
-        ...handEditItems,
+        ...studio.handEditBannerItems,
       ];
     }
     return [
@@ -2856,7 +2743,7 @@ export default function ChatView(props: ChatViewProps) {
       ...projectCloneItems,
       ...freshSessionItems,
       ...systemComposerBannerItems,
-      ...handEditItems,
+      ...studio.handEditBannerItems,
       branchMismatchBannerItem(
         {
           mismatchKey: activeBranchMismatchKey,
@@ -2935,10 +2822,7 @@ export default function ChatView(props: ChatViewProps) {
       ...terminalShortcuts,
       ...rightPanelShortcuts,
       ...threadLifecycleShortcuts,
-      // Studio keeps the terminal and the diff out of the way: their keys open nothing hidden.
-      ...(engineeringInterface
-        ? { "terminal.toggle": () => false, "diff.toggle": () => false }
-        : {}),
+      ...studio.shortcutOverrides,
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
@@ -3084,30 +2968,13 @@ export default function ChatView(props: ChatViewProps) {
     setPendingServerThreadStartFromOriginByThreadId,
     scheduleComposerFocus: scheduleComposerFocusStable,
   });
-  // The engineering composer has no model picker: a model chosen in Settings, AI agents reaches the
-  // chat that was in front then, once, the next time it is shown (`workbench/defaultModelFollow.ts`).
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records the chat in front in the module store Settings reads when a model is chosen
-  useEffect(() => {
-    if (!embedded) setChatInFront(activeThreadKey);
-  }, [activeThreadKey, embedded]);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- applies a model chosen in Settings once the chat it was chosen for is shown and its providers have loaded
-  useEffect(() => {
-    if (embedded || !activeThread || providerStatuses.length === 0) return;
-    const next = takePendingFollow(engineeringInterface, activeThreadKey);
-    if (next === null) return;
-    onProviderModelSelectStable(next.instanceId, next.model, {
-      focusComposer: false,
-      modelOptions: next.options ?? [],
-      announceBlockedProvider: true,
-    });
-  }, [
+  studioChat.useDefaultModelFollow({
+    embedded,
     activeThread,
     activeThreadKey,
-    embedded,
-    engineeringInterface,
-    onProviderModelSelectStable,
     providerStatuses,
-  ]);
+    onProviderModelSelect: onProviderModelSelectStable,
+  });
   const { onResume, isResuming } = useComposerResume({
     environmentId,
     routeThreadKey,
@@ -3441,111 +3308,62 @@ export default function ChatView(props: ChatViewProps) {
     return embedded ? null : <NoActiveThreadState />;
   }
 
-  const pluginAddSurfaceItems =
-    isServerThread && activeThreadRef ? (
-      <PluginThreadViewMenuItems
-        environmentId={activeThread.environmentId}
-        threadRef={activeThreadRef}
-      />
-    ) : null;
   const rightPanelContent = activeThreadRef ? (
-    renderedRightPanelSurface?.kind === "plugin-app" ? (
-      <Suspense fallback={null}>
-        <PluginViewPanel
-          environmentId={activeThread.environmentId}
-          threadId={activeThread.id}
-          surface={renderedRightPanelSurface}
-          draftWorkspaceRoot={isServerThread ? undefined : activeProject?.workspaceRoot}
-          onSendMessage={
-            isServerThread
-              ? sendAppMessageStable
-              : engineeringSurfaces
-                ? sendAppMessageThroughComposerStable
-                : undefined
-          }
-          onAddContext={(content) => {
-            const note = addViewContextToComposer(composerRef.current, content);
-            if (note !== null) {
-              setHandEditNotes((current) => ({
-                threadKey: routeThreadKey,
-                notes: current.threadKey === routeThreadKey ? [...current.notes, note] : [note],
-              }));
-            }
-          }}
-          workspaceRoot={activeWorkspaceRoot ?? undefined}
-          workspaceMutationId={workspaceMutationId}
-        />
-      </Suspense>
-    ) : renderedRightPanelSurface?.kind === "files" &&
-      engineeringSurfaces &&
-      (engineeringInterface || projectView === "project") &&
-      activeProject &&
-      activeWorkspaceRoot ? (
-      // The engineering surfaces' Project tab: the project page, not the file explorer.
-      <ProjectPage
-        environmentId={activeThread.environmentId}
-        cwd={activeWorkspaceRoot}
-        projectName={
-          activeProjectIsScratch ? activeThread.title || gt("This thread") : activeProject.title
-        }
-        projectId={activeProjectIsScratch ? null : activeProject.id}
-        threadRef={activeThreadRef}
-        workspaceMutationId={workspaceMutationId}
-        firstTurnWorking={isWorking && turnDiffSummaries.length === 0}
-      />
-    ) : (
-      <RightPanelSurfaceContent
-        surface={renderedRightPanelSurface}
-        activeSurfaceId={activeRightPanelSurface?.id ?? null}
-        threadRef={activeThreadRef}
-        environmentId={activeThread.environmentId}
-        visible={rightPanelOpen}
-        composerDraftTarget={composerDraftTarget}
-        keybindings={keybindings}
-        configuredPreviewUrls={configuredPreviewUrls}
-        workspaceMutationId={workspaceMutationId}
-        getShortcutContext={getShortcutContextStable}
-        onSendAnnotation={sendPreviewAnnotationStable}
-        onCloseSurface={closeRightPanelSurface}
-        sideChatParentPanel={sideChatParentPanel}
-        terminal={{
-          launchContext: activeTerminalLaunchContext ?? null,
-          keybindings,
-          onAddTerminalContext: addTerminalContextToDraftStable,
-          onSplitTerminal: splitPanelTerminalStable,
-          onSplitTerminalVertical: splitPanelTerminalVerticalStable,
-          onNewTerminal: addTerminalSurfaceStable,
-          onActiveTerminalChange: activatePanelTerminalStable,
-          onCloseTerminal: closePanelTerminalStable,
-          splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
-          splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
-          newShortcutLabel: newTerminalShortcutLabel ?? undefined,
-          closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
-        }}
-        pullRequest={{
-          capabilityKnown: pullRequestsCapabilityKnown,
-          supported: supportsPullRequests,
-          projectId: activeThread.projectId,
-          pullRequests: visiblePullRequests,
-          linkedPullRequest: linkedThreadPullRequest,
-          branchPullRequest: activeThreadShell?.branchPullRequest ?? activeThread.branchPullRequest,
-          onBack:
-            pullRequestsSurfaceAvailable && visiblePullRequestCount > 1
-              ? addPullRequestsSurfaceStable
-              : undefined,
-        }}
-        issuesSupported={serverConfig?.environment.capabilities.issues === true}
-        files={{
-          projectId: activeProject?.id,
-          projectName: activeProject?.title ?? null,
-          workspaceRoot: activeWorkspaceRoot,
-          availableEditors,
-          pendingSurfaceIds: pendingFileSurfaceIds,
-          onOpenFile: openFileSurfaceStable,
-          onPendingChange: handleFilePendingChangeStable,
-        }}
-      />
-    )
+    <studioChat.StudioRightPanelSurfaceContent
+      studio={studio.panel}
+      surface={renderedRightPanelSurface}
+      activeSurfaceId={activeRightPanelSurface?.id ?? null}
+      threadRef={activeThreadRef}
+      environmentId={activeThread.environmentId}
+      visible={rightPanelOpen}
+      composerDraftTarget={composerDraftTarget}
+      keybindings={keybindings}
+      configuredPreviewUrls={configuredPreviewUrls}
+      workspaceMutationId={workspaceMutationId}
+      getShortcutContext={getShortcutContextStable}
+      onSendAnnotation={sendPreviewAnnotationStable}
+      onCloseSurface={closeRightPanelSurface}
+      sideChatParentPanel={sideChatParentPanel}
+      terminal={{
+        launchContext: activeTerminalLaunchContext ?? null,
+        keybindings,
+        onAddTerminalContext: addTerminalContextToDraftStable,
+        onSplitTerminal: splitPanelTerminalStable,
+        onSplitTerminalVertical: splitPanelTerminalVerticalStable,
+        onNewTerminal: addTerminalSurfaceStable,
+        onActiveTerminalChange: activatePanelTerminalStable,
+        onCloseTerminal: closePanelTerminalStable,
+        splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
+        splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
+        newShortcutLabel: newTerminalShortcutLabel ?? undefined,
+        closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
+      }}
+      pullRequest={{
+        capabilityKnown: pullRequestsCapabilityKnown,
+        supported: supportsPullRequests,
+        projectId: activeThread.projectId,
+        pullRequests: visiblePullRequests,
+        linkedPullRequest: linkedThreadPullRequest,
+        branchPullRequest: activeThreadShell?.branchPullRequest ?? activeThread.branchPullRequest,
+        onBack:
+          pullRequestsSurfaceAvailable && visiblePullRequestCount > 1
+            ? addPullRequestsSurfaceStable
+            : undefined,
+      }}
+      issuesSupported={
+        serverConfig?.environment.capabilities.issues === true &&
+        !studioChat.t3FeatureHidden("issues")
+      }
+      files={{
+        projectId: activeProject?.id,
+        projectName: activeProject?.title ?? null,
+        workspaceRoot: activeWorkspaceRoot,
+        availableEditors,
+        pendingSurfaceIds: pendingFileSurfaceIds,
+        onOpenFile: openFileSurfaceStable,
+        onPendingChange: handleFilePendingChangeStable,
+      }}
+    />
   ) : null;
   const panelToggleControlProps = {
     terminalAvailable: activeProject !== null,
@@ -3556,21 +3374,12 @@ export default function ChatView(props: ChatViewProps) {
     threadPanelPopoverHandle,
     threadPanelShortcutLabel: shortcutLabelForCommand(keybindings, "threadPanel.toggle"),
     rightPanelAvailable: activeProject !== null,
-    ...(engineeringSurfaces
-      ? {
-          rightPanelOpen: rightPanelOpen && toolboxOpen,
-          rightPanelShortcutLabel: null,
-          rightPanelLabel:
-            rightPanelOpen && toolboxOpen ? gt("Close the Toolbox") : gt("Open the Toolbox"),
-          rightPanelIcon: ToolCaseIcon,
-        }
-      : {
-          rightPanelOpen,
-          rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
-        }),
+    rightPanelOpen,
+    rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
     onToggleTerminal: toggleTerminalVisibilityStable,
     onToggleThreadPanel: toggleThreadPanelStable,
-    onToggleRightPanel: engineeringSurfaces ? toggleToolboxStable : toggleRightPanelStable,
+    onToggleRightPanel: toggleRightPanelStable,
+    ...studio.panelToggleOverrides,
   } satisfies PanelLayoutControlsProps;
   const panelToggleControls = (
     <PanelLayoutControls
@@ -3581,7 +3390,7 @@ export default function ChatView(props: ChatViewProps) {
   const threadPanelHeaderControl = <ThreadPanelHeaderControl {...panelToggleControlProps} />;
   const panelLayoutControls = (
     <WorkspaceTitlebarControls
-      showMaximizeControl={!shouldUsePlanSidebarSheet && !engineeringSurfaces}
+      showMaximizeControl={!shouldUsePlanSidebarSheet && !studio.engineeringSurfaces}
       rightPanelOpen={rightPanelOpen}
       animationsActive={panelAnimationsActive}
       maximized={rightPanelMaximized}
@@ -3662,13 +3471,7 @@ export default function ChatView(props: ChatViewProps) {
             />
           </header>
         )}
-        {engineeringInterface && !embedded ? (
-          <PendingStart
-            project={activeProject ?? null}
-            draft={!isServerThread}
-            thread={activeThread ?? null}
-          />
-        ) : null}
+        {studio.pendingStart}
 
         <div className="relative flex min-h-0 min-w-0 flex-1">
           <ThreadFindCanvas
@@ -3697,14 +3500,10 @@ export default function ChatView(props: ChatViewProps) {
               providerStatusDismissalKey={providerStatusDismissalKey}
               onOpenProviderSetup={openProviderSetupStable}
               threadId={activeThread.id}
-              threadError={
-                engineeringInterface &&
-                timelineThreadError !== null &&
-                threadErrorIsServerRuntimeError &&
-                serverRuntime?.lastErrorClass
-                  ? plainFailure(serverRuntime.lastErrorClass).label
-                  : timelineThreadError
-              }
+              threadError={studioChat.threadError(
+                timelineThreadError,
+                threadErrorIsServerRuntimeError ? serverRuntime?.lastErrorClass : null,
+              )}
               threadErrorClass={
                 threadErrorIsServerRuntimeError ? (serverRuntime?.lastErrorClass ?? null) : null
               }
@@ -3764,7 +3563,7 @@ export default function ChatView(props: ChatViewProps) {
                   onCancelWorktreeSetup={onCancelWorktreeSetupStable}
                   retryableWorkspacePreparationRunIds={retryableWorkspacePreparationRunIds}
                   onRetryWorkspacePreparation={onRetryWorkspacePreparationStable}
-                  {...(engineeringInterface ? { onTryAgain: onTryAgainStable } : {})}
+                  {...studio.timelineProps}
                   {...(draftId
                     ? { onWorktreeSetupWorkLocally: onWorktreeSetupWorkLocallyStable }
                     : {})}
@@ -3851,11 +3650,8 @@ export default function ChatView(props: ChatViewProps) {
               className={
                 isDraftHeroState
                   ? cn(
-                      "pointer-events-none absolute inset-0 z-20 flex",
-                      // Studio's chat is a dock beside the model: its empty draft stays at the foot.
-                      engineeringInterface
-                        ? "items-end"
-                        : "items-center [@media(max-height:34rem)]:items-end",
+                      "pointer-events-none absolute inset-0 z-20 flex items-center [@media(max-height:34rem)]:items-end",
+                      studio.draftOverlayDock,
                     )
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
@@ -3875,24 +3671,17 @@ export default function ChatView(props: ChatViewProps) {
                             : undefined
                         }
                       >
-                        {/* Studio's chat is already in its project (the sidebar, the top bar): no
-                            headline, and no second project picker, over a new one. */}
-                        {engineeringInterface ? null : (
-                          <DraftHeroHeadline
-                            draftId={draftId}
-                            activeProjectRef={activeProjectRef}
-                            activeProjectTitle={activeProject?.title ?? null}
-                          />
-                        )}
-                        <PluginStarterPrompts
-                          environmentId={activeProjectRef?.environmentId ?? null}
-                          composerRef={composerRef}
-                          cwd={activeProjectIsScratch ? null : gitCwd}
+                        <studioChat.UnlessEngineering
+                          component={DraftHeroHeadline}
+                          draftId={draftId}
+                          activeProjectRef={activeProjectRef}
+                          activeProjectTitle={activeProject?.title ?? null}
                         />
+                        {studio.starterPrompts}
                       </div>
                     </div>
                   ) : (
-                    <PartContextStrip threadRef={isServerThread ? activeThreadRef : null} />
+                    studio.partContextStrip
                   )}
                   <div
                     ref={draftHeroComposerAnchorRef}
@@ -4197,82 +3986,78 @@ export default function ChatView(props: ChatViewProps) {
                   onConfirm={handleSwitchCheckoutToThreadStable}
                 />
 
-                {/* Only workspace and version control: the engineering interface leaves it out. */}
-                {engineeringInterface ? null : (
-                  <ThreadDetailsPanel
-                    anchor={threadPanelPopoverAnchorRef}
-                    handle={threadPanelPopoverHandle}
-                    forceNewWorktree={multipleModelSelections !== null}
-                    environmentId={activeThread.environmentId}
-                    threadId={activeThread.id}
-                    projectId={activeThread.projectId}
-                    worktreePath={activeThread.worktreePath}
-                    isServerThread={isServerThread}
-                    {...(draftId ? { draftId } : {})}
-                    composerDraftTarget={composerDraftTarget}
-                    activeProjectName={activeProject?.title}
-                    activeProjectScripts={activeProject ? activeProjectScripts : undefined}
-                    preferredScriptId={
-                      activeProject
-                        ? (lastInvokedScriptByProjectId[activeProject.id] ?? null)
-                        : null
-                    }
-                    keybindings={keybindings}
-                    availableEditors={availableEditors}
-                    showOpenInPicker={showOpenInPicker}
-                    openInShortcutEnabled={
-                      !(
-                        rightPanelOpen &&
-                        renderedRightPanelSurface?.kind === "file" &&
-                        renderedRightPanelSurface.attachment === undefined
-                      )
-                    }
-                    gitCwd={gitCwd}
-                    workspaceMutationId={workspaceMutationId}
-                    isGitRepo={isGitRepo}
-                    envLocked={envLocked}
-                    availableEnvironments={logicalProjectEnvironments}
-                    autoEnvironmentLabel={autoEnvironmentLabel}
-                    onAutoEnvironment={
-                      draftId &&
-                      !envLocked &&
-                      canAutoBalanceEnvironments &&
-                      loadBalancingSettings.loadBalancingEnabled
-                        ? onAutoEnvironmentStable
-                        : undefined
-                    }
-                    {...(canChangeEnvironment
-                      ? { onEnvironmentChange: onEnvironmentChangeStable }
-                      : {})}
-                    onEnvModeChange={onEnvModeChangeStable}
-                    envMode={envMode}
-                    {...(canOverrideServerThreadEnvMode
-                      ? {
-                          activeThreadBranchOverride: activeThreadBranch,
-                          onActiveThreadBranchOverrideChange: setPendingServerThreadBranch,
-                        }
-                      : {})}
-                    startFromOrigin={startFromOrigin}
-                    onStartFromOriginChange={onStartFromOriginChange}
-                    {...(canCheckoutPullRequestIntoThread
-                      ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
-                      : {})}
-                    onComposerFocusRequest={scheduleComposerFocusStable}
-                    {...(isServerThread && isGitRepo
-                      ? { onOpenChanges: openChangesFromThreadPanelStable }
-                      : {})}
-                    onRunProjectScript={runProjectScriptStable}
-                    onAddProjectScript={saveProjectScriptStable}
-                    onUpdateProjectScript={updateProjectScriptStable}
-                    onDeleteProjectScript={deleteProjectScriptStable}
-                    usage={{
-                      providerInstanceId: activeProviderInstanceId,
-                      providers: providerStatuses,
-                      sources: serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES,
-                      contextWindow: activeContextWindow,
-                    }}
-                  />
-                )}
+                <studioChat.UnlessEngineering
+                  component={ThreadDetailsPanel}
+                  anchor={threadPanelPopoverAnchorRef}
+                  handle={threadPanelPopoverHandle}
+                  forceNewWorktree={multipleModelSelections !== null}
+                  environmentId={activeThread.environmentId}
+                  threadId={activeThread.id}
+                  projectId={activeThread.projectId}
+                  worktreePath={activeThread.worktreePath}
+                  isServerThread={isServerThread}
+                  {...(draftId ? { draftId } : {})}
+                  composerDraftTarget={composerDraftTarget}
+                  activeProjectName={activeProject?.title}
+                  activeProjectScripts={activeProject ? activeProjectScripts : undefined}
+                  preferredScriptId={
+                    activeProject ? (lastInvokedScriptByProjectId[activeProject.id] ?? null) : null
+                  }
+                  keybindings={keybindings}
+                  availableEditors={availableEditors}
+                  showOpenInPicker={showOpenInPicker}
+                  openInShortcutEnabled={
+                    !(
+                      rightPanelOpen &&
+                      renderedRightPanelSurface?.kind === "file" &&
+                      renderedRightPanelSurface.attachment === undefined
+                    )
+                  }
+                  gitCwd={gitCwd}
+                  workspaceMutationId={workspaceMutationId}
+                  isGitRepo={isGitRepo}
+                  envLocked={envLocked}
+                  availableEnvironments={logicalProjectEnvironments}
+                  autoEnvironmentLabel={autoEnvironmentLabel}
+                  onAutoEnvironment={
+                    draftId &&
+                    !envLocked &&
+                    canAutoBalanceEnvironments &&
+                    loadBalancingSettings.loadBalancingEnabled
+                      ? onAutoEnvironmentStable
+                      : undefined
+                  }
+                  {...(canChangeEnvironment
+                    ? { onEnvironmentChange: onEnvironmentChangeStable }
+                    : {})}
+                  onEnvModeChange={onEnvModeChangeStable}
+                  envMode={envMode}
+                  {...(canOverrideServerThreadEnvMode
+                    ? {
+                        activeThreadBranchOverride: activeThreadBranch,
+                        onActiveThreadBranchOverrideChange: setPendingServerThreadBranch,
+                      }
+                    : {})}
+                  startFromOrigin={startFromOrigin}
+                  onStartFromOriginChange={onStartFromOriginChange}
+                  {...(canCheckoutPullRequestIntoThread
+                    ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
+                    : {})}
+                  onComposerFocusRequest={scheduleComposerFocusStable}
+                  {...(isServerThread && isGitRepo
+                    ? { onOpenChanges: openChangesFromThreadPanelStable }
+                    : {})}
+                  onRunProjectScript={runProjectScriptStable}
+                  onAddProjectScript={saveProjectScriptStable}
+                  onUpdateProjectScript={updateProjectScriptStable}
+                  onDeleteProjectScript={deleteProjectScriptStable}
+                  usage={{
+                    providerInstanceId: activeProviderInstanceId,
+                    providers: providerStatuses,
+                    sources: serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES,
+                    contextWindow: activeContextWindow,
+                  }}
+                />
 
                 <PullRequestThreadDialogHost
                   threadKey={activeThreadKey}
@@ -4316,45 +4101,18 @@ export default function ChatView(props: ChatViewProps) {
           layoutControls={
             rightPanelOpen ? (
               <div className="mr-px flex items-center gap-1">
-                {engineeringSurfaces ? null : (
-                  <RightPanelMaximizeControl
-                    maximized={rightPanelMaximized}
-                    onToggle={toggleRightPanelMaximizedStable}
-                  />
-                )}
+                <studioChat.UnlessEngineering
+                  component={RightPanelMaximizeControl}
+                  surfaces
+                  maximized={rightPanelMaximized}
+                  onToggle={toggleRightPanelMaximizedStable}
+                />
                 {panelToggleControls}
               </div>
             ) : null
           }
-          // A narrow window's panel keeps Studio's toolbar too: New and the AI | CAD switch.
-          {...(engineeringInterface
-            ? {
-                toolbar: (
-                  <StudioPanelBar
-                    folder={activeProject?.workspaceRoot ?? null}
-                    composerRef={composerRef}
-                    threadRef={activeThreadRef}
-                    mutationId={workspaceMutationId}
-                    chatBusy={chatBusy}
-                  />
-                ),
-              }
-            : {})}
-          // The Toolbox is the one place for a part's jobs, so it is there wherever the engineering
-          // surfaces are, with the code tools out too: a popup from the title bar's button.
-          {...(engineeringSurfaces
-            ? {
-                aside: (
-                  <StudioToolbox
-                    folder={activeProject?.workspaceRoot ?? null}
-                    composerRef={composerRef}
-                    threadRef={activeThreadRef}
-                    mutationId={workspaceMutationId}
-                  />
-                ),
-              }
-            : {})}
-          addSurfaceExtraItems={pluginAddSurfaceItems}
+          {...studio.panelSlots}
+          addSurfaceExtraItems={studio.pluginViewMenuItems}
           surfaces={renderedRightPanelSurfaces}
           environmentId={activeThreadRef.environmentId}
           activeSurfaceId={renderedRightPanelSurface?.id ?? null}
@@ -4363,7 +4121,7 @@ export default function ChatView(props: ChatViewProps) {
           desktopByTabId={activePreviewState.desktopByTabId}
           previewRuntimeTabId={resolvePreviewRuntimeTabId}
           terminalLabelsById={activeTerminalLabelsById}
-          onActivate={activateSurfaceStable}
+          onActivate={studio.activateSurface}
           onCloseSurface={closeRightPanelSurfaceStable}
           onRenameDevice={(surfaceId, title) => {
             if (activeThreadRef)

@@ -3,6 +3,7 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../i18n/messages";
+import { t3FeatureHidden } from "./workbench/hiddenT3Features";
 import { isEngineeringInterface } from "./workbench/studioInterface";
 
 export type ThreadActionMenuId =
@@ -287,11 +288,15 @@ export function buildThreadActionMenuItems(
               },
             ]
           : []),
-        {
-          id: "copy-thread",
-          label: resolve(msg("Thread", { $context: "copy the thread contents" })),
-          icon: "message-square",
-        },
+        ...(t3FeatureHidden("threadLinks")
+          ? []
+          : [
+              {
+                id: "copy-thread" as const,
+                label: resolve(msg("Thread", { $context: "copy the thread contents" })),
+                icon: "message-square",
+              },
+            ]),
         { id: "copy-thread-id", label: resolve(msg("Thread ID")), icon: "hash" },
       ],
     },

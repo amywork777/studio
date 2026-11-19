@@ -120,6 +120,7 @@ import { formatRelativeTime } from "../../timestampFormat";
 import { useEngineeringInterface } from "../workbench/studioInterface";
 import { CodexInviteCard, CodexInviteDialog, InviteCodeRow } from "../workbench/CodexInviteCode";
 import { usesInvite } from "../workbench/codexInvite";
+import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
 const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const SCAN_LIMIT_MESSAGE = msg(
@@ -762,7 +763,7 @@ function AgentsSection({
         </div>
       ) : null}
       {/* `t3` on PATH is a coding tool, which the engineering interface puts away. */}
-      {isPrimary && !studio ? <CliPathSetup /> : null}
+      {isPrimary && !studio && !t3FeatureHidden("cli") ? <CliPathSetup /> : null}
       {terminalSession !== null ? (
         <AgentInstallTerminal
           key={`${terminalSession.environmentId}:${terminalSession.providerInstanceId}:${terminalSession.driver}`}

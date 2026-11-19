@@ -318,8 +318,21 @@ Everything else is upstream T3 Code plus the fork's plugins (`FORK.md` on `main`
   beside the name, its favicons and dock icon (`brand/`, see its README). `T3CODE_BRAND_DIR` applies
   them (`apps/web/vite/brand.ts`) and `VITE_APP_BASE_NAME` names the app, its assistant messages and
   the desktop window. A theme the user picks keeps its own colors. T3's stage artwork gives way to
-  its small stage pill. Other mentions of T3 Code stay: they describe T3's own machinery (T3
-  Connect, its desktop updates), and rewording them would make every rebase conflict.
+  its small stage pill. T3's own text keeps its words in T3's files: Studio's build sends it
+  through `packages/shared/src/studioBrandCopy.ts`, which puts Studio's name in every "T3 Code"
+  (the desktop's menus and dialogs too).
+- **None of T3's own products.** A Studio user never sees T3 Code's products and services: the
+  Issues page, T3 Connect (its relay and tunnels, T3 Chat, the phone app, guest links), SnapShots,
+  the GitHub star prompt, prompt and thread links to app.t3.codes (Copy thread), triage, T3's docs,
+  the `t3` command, and remote access: Studio runs on one machine, so Environments, Sharing &
+  access, linked environments, pairing links and the guest and agent sign-in pages are hidden,
+  while its window still signs in to its own server through the same pairing. One list decides
+  (`components/workbench/hiddenT3Features.ts`, with `apps/desktop/src/studio/hiddenT3Features.ts`),
+  and each T3 file that offers one asks it in a line: `/issues`, `/guest`, `/connect-agent` and a
+  link to pair another computer open Home, their settings open General, and no sidebar, settings
+  search, menu or link leads to them. `brandCopy.test.ts` fails on any English sentence of T3's
+  that still names T3, a `t3` command or a `t3/` example outside them, so a T3 merge that brings
+  one either hides its feature there or rewords it in `studioBrandCopy.ts`.
 
 ## Hardware first
 

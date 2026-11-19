@@ -6,6 +6,7 @@ import {
   settingsSectionLabel,
   STUDIO_INTERFACE_AVAILABLE,
 } from "./studioInterface";
+import { t3SettingsRowHidden, t3SettingsSectionHidden } from "./hiddenT3Features";
 
 /**
  * Settings rows as the engineering interface shows them. A row is named by its
@@ -163,6 +164,7 @@ const STUDIO_HIDDEN_ROWS: ReadonlySet<string> = new Set<SettingsSearchItemId>(["
 export function settingsRowHidden(id: string | undefined, engineering: boolean): boolean {
   if (id === undefined) return false;
   if (STUDIO_INTERFACE_AVAILABLE && STUDIO_HIDDEN_ROWS.has(id)) return true;
+  if (t3SettingsRowHidden(id)) return true;
   return engineering && CODE_SETTINGS_ROWS.has(id);
 }
 
@@ -208,13 +210,14 @@ export function engineeringSettingsSearchItems(
 /**
  * The settings sidebar's entries in each interface. The engineering interface lists the
  * sections it keeps, with Plugins and Diagnostics together under one Advanced group (in
- * `ADVANCED_SETTINGS_SECTIONS` order); the code interfaces list every section as before, and
- * Diagnostics stays a link on General there rather than a section of its own.
+ * `ADVANCED_SETTINGS_SECTIONS` order); the code interfaces list every section but T3's own
+ * products' (`hiddenT3Features.ts`), and Diagnostics stays a link on General there.
  */
 export function settingsNavGroups<Entry extends { readonly to: string }>(
-  entries: ReadonlyArray<Entry>,
+  allEntries: ReadonlyArray<Entry>,
   engineering: boolean,
 ): { readonly main: Entry[]; readonly advanced: Entry[] } {
+  const entries = allEntries.filter((entry) => !t3SettingsSectionHidden(entry.to));
   if (!engineering) {
     // Diagnostics is a link on General here, and the Interface switch a row of Appearance.
     return {

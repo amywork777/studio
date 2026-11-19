@@ -5,11 +5,13 @@ import {
   PairingPendingSurface,
   PairingRouteSurface,
 } from "../components/auth/PairingRouteSurface";
+import { t3FeatureHidden } from "../components/workbench/hiddenT3Features";
 
 export const Route = createFileRoute("/pair")({
   beforeLoad: async ({ context }) => {
     const { authGateState } = context;
     if (authGateState.status === "hosted-pairing") {
+      if (t3FeatureHidden("remoteAccess")) throw redirect({ to: "/", replace: true });
       return {
         authGateState,
       };
