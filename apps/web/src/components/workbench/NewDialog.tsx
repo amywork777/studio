@@ -285,7 +285,7 @@ export function NewDialog(props: {
   const needs = chosen === undefined || chosen.availability.on ? null : chosen.availability;
   const needsPart = selected?.source === "from-part";
   const writesDocument = selected !== null && isDocumentTemplate(selected);
-  // New part: nothing for the agent, so no units or words; on Home, nothing to fill in at all.
+  // New part: nothing for the agent, so no units or words; on Home, only where the project goes.
   const isPart = selected?.id === "part";
   const named = !needsPart && !(isPart && props.newProject);
   // A part by its name in the engineering interface, by its path with code tools on.
@@ -537,7 +537,7 @@ export function NewDialog(props: {
                     />
                   </Field>
                 )}
-                {props.newProject && !isPart ? (
+                {props.newProject ? (
                   <Field label="Location" htmlFor={`${id}-location`}>
                     <ProjectLocationInput
                       id={`${id}-location`}
