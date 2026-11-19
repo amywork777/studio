@@ -53,15 +53,25 @@ export interface SnapshotLaunch {
   readonly cwd: string;
   /** A release before 0.11, whose `cad snapshot` takes a document of any type. */
   readonly typeless?: true;
+  /** A release from 0.11.12, whose commands need a server running (`cad server start`). */
+  readonly startsServer?: true;
 }
 
-/** A release's version as its pin names it (`==0.10.4`), or null for none. */
-const releaseOf = (pin: string | undefined) => /^==(\d+)\.(\d+)/.exec(pin ?? "");
+/** A release's version as its pin names it (`==0.10.4`, `@0.11.13`), or null for none. */
+const releaseOf = (pin: string | undefined) => /^(?:==|@)(\d+)\.(\d+)\.(\d+)/.exec(pin ?? "");
+
+/** Whether a release starts no server for a command, which then needs one running: 0.11.12 on. */
+const needsServer = (version: RegExpExecArray | null) =>
+  version === null ||
+  Number(version[1]) > 0 ||
+  Number(version[2]) > 11 ||
+  (Number(version[2]) === 11 && Number(version[3]) >= 12);
 
 /**
- * The snapshot command for a plugin's CAD server: a release's `uvx … --from cad-mcp==<v> cad-mcp`
- * becomes `uvx … --from cad-server==<v> cad`, and a Python's `-m cad_mcp` becomes
- * `-m cad_server.cli`. Null for a server that is not CAD's.
+ * The snapshot command for a plugin's CAD server: a release's `uvx … cad@<v> mcp` (0.11.12 on)
+ * becomes `uvx … cad@<v>`, its `uvx … --from cad-mcp==<v> cad-mcp` (before) `uvx … --from
+ * cad-server==<v> cad`, a Python's `-m cad_mcp` `-m cad_server.cli`, and `cad mcp` `cad`. Null for a
+ * server that is not CAD's.
  */
 export function snapshotLaunch(
   plugin: { readonly root: string; readonly servers: Readonly<Record<string, PluginServerConfig>> },
@@ -69,9 +79,9 @@ export function snapshotLaunch(
 ): SnapshotLaunch | null {
   for (const config of Object.values(plugin.servers)) {
     if (config.command === null) continue;
-    const found = cadArgs(config.args);
+    const found = cadArgs(config.command, config.args);
     if (found === null) continue;
-    const { args, typeless } = found;
+    const { args, typeless, startsServer } = found;
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(environment))
       if (value !== undefined) env[key] = value;
@@ -85,6 +95,7 @@ export function snapshotLaunch(
       env,
       cwd: plugin.root,
       ...(typeless ? { typeless: true as const } : {}),
+      ...(startsServer ? { startsServer: true as const } : {}),
     };
   }
   return null;
@@ -92,11 +103,26 @@ export function snapshotLaunch(
 
 /** The CAD command's arguments for a CAD server's launch arguments; null for another server's. */
 function cadArgs(
+  command: string,
   args: ReadonlyArray<string>,
-): { readonly args: string[]; readonly typeless: boolean } | null {
+): { readonly args: string[]; readonly typeless: boolean; readonly startsServer: boolean } | null {
   const last = args.at(-1);
+  // Studio's own Python, the app's or a checkout's .venv: always the release Studio pins.
   if (last === "cad_mcp" && args.at(-2) === "-m")
-    return { args: [...args.slice(0, -2), "-m", "cad_server.cli"], typeless: false };
+    return {
+      args: [...args.slice(0, -2), "-m", "cad_server.cli"],
+      typeless: false,
+      startsServer: true,
+    };
+  if (last === "mcp" && args.length === 1 && /(^|[\\/])cad(\.exe)?$/.test(command))
+    return { args: [], typeless: false, startsServer: true };
+  const pinned = last === "mcp" ? /^cad(@.+)$/.exec(args.at(-2) ?? "")?.[1] : undefined;
+  if (pinned !== undefined)
+    return {
+      args: args.slice(0, -1),
+      typeless: false,
+      startsServer: needsServer(releaseOf(pinned)),
+    };
   if (last !== "cad-mcp") return null;
   const from = args.indexOf("--from");
   const release = from === -1 ? undefined : /^cad-mcp(==.+)$/.exec(args[from + 1] ?? "")?.[1];
@@ -111,6 +137,7 @@ function cadArgs(
       "cad",
     ],
     typeless: version !== null && Number(version[1]) === 0 && Number(version[2]) < 11,
+    startsServer: false,
   };
 }
 
@@ -139,26 +166,26 @@ export function pictureFile(cacheDir: string, absolute: string, stat: NodeFS.Sta
 }
 
 function run(launch: SnapshotLaunch, type: string, jobFile: string): Promise<void> {
+  return runCad(launch, [
+    ...snapshotOf(launch, type),
+    "--job",
+    jobFile,
+    "--width",
+    String(WIDTH),
+    "--height",
+    String(HEIGHT),
+  ]);
+}
+
+function runCad(launch: SnapshotLaunch, args: ReadonlyArray<string>): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = NodeChildProcess.spawn(
-      launch.command,
-      [
-        ...snapshotOf(launch, type),
-        "--job",
-        jobFile,
-        "--width",
-        String(WIDTH),
-        "--height",
-        String(HEIGHT),
-      ],
-      {
-        cwd: launch.cwd,
-        env: launch.env,
-        stdio: ["ignore", "ignore", "pipe"],
-        timeout: RUN_MS,
-        killSignal: "SIGTERM",
-      },
-    );
+    const child = NodeChildProcess.spawn(launch.command, args, {
+      cwd: launch.cwd,
+      env: launch.env,
+      stdio: ["ignore", "ignore", "pipe"],
+      timeout: RUN_MS,
+      killSignal: "SIGTERM",
+    });
     let stderr = "";
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr = (stderr + chunk.toString("utf8")).slice(-2000);
@@ -257,6 +284,9 @@ async function render(input: PicturesInput) {
     if (input.launch.typeless !== true && type === "") continue;
     batches.set(type, [...(batches.get(type) ?? []), file]);
   }
+  // From 0.11.12 a command never starts the CAD server: one already running is joined.
+  if (batches.size > 0 && input.launch.startsServer === true)
+    await runCad(input.launch, [...input.launch.args, "server", "start"]).catch(() => undefined);
   for (const [type, files] of batches) {
     try {
       await runJobs(type, files.map(job));

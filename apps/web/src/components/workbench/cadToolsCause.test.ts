@@ -53,7 +53,7 @@ describe("cadToolsCause", () => {
 
   it("matches the words the engine and the server really use", () => {
     // text-to-cad's refusal of a held port, and the port Studio names for it.
-    expect(source("text-to-cad/packages/cad-server/src/cad_server/engine/daemon.py")).toContain(
+    expect(source("text-to-cad/packages/cad/src/cad_server/engine/daemon.py")).toContain(
       'PortHeld(f"port {port} is held by {who}: ',
     );
     // The server's words for a plugin server that did not start, before the client's error.

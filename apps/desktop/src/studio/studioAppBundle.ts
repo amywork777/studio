@@ -65,10 +65,9 @@ export function applyStudioAppBundle(input: {
     const marketplace = NodePath.join(home, "studio-app-plugins");
     writeFilledCopy(NodePath.join(bundle, "marketplace"), marketplace, {
       "@@STUDIO_PYTHON@@": forPlugin(python),
-      "@@STUDIO_BIN@@": forPlugin(env.CAD_LAUNCHER_DIR!),
     });
     setDefault(env, "T3CODE_PLUGIN_MARKETPLACE", marketplace);
-    registerBundledServer(python, env);
+    writeCadCommand(env.CAD_LAUNCHER_DIR!, python);
   } catch (error) {
     // Studio still opens; it just has no CAD tools this time, and says why in its log.
     // @effect-diagnostics-next-line globalConsole:off - Runs before any Effect logger exists.
@@ -90,18 +89,36 @@ interface StudioSettings {
 }
 
 /**
- * Registers the bundled CAD server in Studio's own CAD state and writes its `cad` command, by
- * the bundled Python, in the background: a registration never holds up the app or fails it.
+ * Studio's `cad` command, the bundled Python's (`cad_server.cli`), in `folder`: `cad` for a Mac's
+ * shell and `cad.cmd` for Windows. The skills run `cad`; Studio's is never an installed one, which
+ * would update itself past the release Studio was built with.
  */
-function registerBundledServer(python: string, env: Record<string, string | undefined>): void {
-  if (!NodeFS.existsSync(python)) return;
-  const child = NodeChildProcess.spawn(python, ["-P", "-m", "cad_server._internal.installations"], {
-    env: { ...env },
-    stdio: "ignore",
-    detached: true,
-  });
-  child.on("error", () => undefined);
-  child.unref();
+export function writeCadCommand(folder: string, python: string): void {
+  const quoted = `'${python.replaceAll("'", `'"'"'`)}'`;
+  writeIfChanged(
+    NodePath.join(folder, "cad"),
+    `#!/bin/sh\nexec ${quoted} -P -m cad_server.cli "$@"\n`,
+    0o755,
+  );
+  writeIfChanged(
+    NodePath.join(folder, "cad.cmd"),
+    `@"${python}" -P -m cad_server.cli %*\r\n`,
+    0o644,
+  );
+}
+
+function writeIfChanged(file: string, content: string, mode: number): void {
+  let current: string | null = null;
+  try {
+    current = NodeFS.readFileSync(file, "utf8");
+  } catch {
+    current = null;
+  }
+  if (current !== content) {
+    NodeFS.mkdirSync(NodePath.dirname(file), { recursive: true });
+    NodeFS.writeFileSync(file, content);
+  }
+  NodeFS.chmodSync(file, mode);
 }
 
 const isVersion = (value: unknown): value is string =>

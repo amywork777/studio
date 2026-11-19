@@ -52,15 +52,11 @@ step "Downloading the desktop app's runtime (Electron)"
 
 step "Setting up the CAD plugin's Python"
 cd "$CAD"
-# 3.14, which the CAD packages need: a .venv made on an older Python is made again. Its
-# requirements are the library with its kernel, the server and cad-mcp.
-if ! { [ -x .venv/bin/python ] && .venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 14))'; }; then
-  uv venv --clear --python 3.14 .venv
-fi
-uv pip install --python .venv/bin/python -r requirements-dev.txt
-# With strength checks' mesher and solver (netgen, cad-ccx's CalculiX), as the Mac app has them, so a
-# check runs here at once rather than making an environment for them first.
-uv pip install --python .venv/bin/python --editable "./packages/cad[build123d,trimesh,netgen,calculix]"
+# 3.14, which the CAD packages need, from text-to-cad's own lock (`uv sync`, as its CONTRIBUTING
+# says): the library editable with its kernel, the server and cad-mcp (one package from 0.11.12),
+# and with the `fea` group strength checks' mesher and solver (netgen, cad-ccx's CalculiX), as the
+# Mac app has them, so a check runs here at once rather than making an environment for them first.
+uv sync --locked --python 3.14 --group fea
 
 step "Building the CAD plugin's viewer and runtime"
 npm ci

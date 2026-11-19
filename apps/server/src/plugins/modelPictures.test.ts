@@ -64,6 +64,27 @@ describe("model pictures", () => {
     );
     expect(checkout?.args).toEqual(["-m", "cad_server.cli"]);
     expect(checkout?.typeless).toBeUndefined();
+    expect(checkout?.startsServer).toBe(true);
+    // 0.11.12 on: Codex's `uvx … cad@<v> mcp`, whose commands start no server.
+    const pinned = (version: string) =>
+      snapshotLaunch(
+        {
+          root: "/plugin",
+          servers: { cad: server(["--no-config", "--python", "3.14", `cad@${version}`, "mcp"]) },
+        },
+        {},
+      );
+    expect(pinned("0.11.13")?.args).toEqual(["--no-config", "--python", "3.14", "cad@0.11.13"]);
+    expect(pinned("0.11.13")?.startsServer).toBe(true);
+    expect(pinned("0.11.11")?.startsServer).toBeUndefined();
+    expect(release?.startsServer).toBeUndefined();
+    // A development install's `cad mcp`.
+    const tool = snapshotLaunch(
+      { root: "/plugin", servers: { cad: { ...server(["mcp"]), command: "cad" } } },
+      {},
+    );
+    expect(tool?.args).toEqual([]);
+    expect(tool?.startsServer).toBe(true);
     expect(
       snapshotLaunch({ root: "/p", servers: { other: server(["some-server", "mcp"]) } }, {}),
     ).toBeNull();
@@ -107,6 +128,30 @@ describe("model pictures", () => {
     const paths = ["a.step", "c.glb", "b.step"];
     await renderModelPictures({ launch, cwd: dir, paths, cacheDir: NodePath.join(dir, "cache") });
     expect(NodeFS.readFileSync(runs, "utf8").trim().split("\n")).toEqual([
+      "cad step snapshot: a.step,b.step",
+      "cad glb snapshot: c.glb",
+    ]);
+    // From 0.11.12 the server is started first, once, where it is not running.
+    NodeFS.rmSync(runs);
+    NodeFS.writeFileSync(
+      NodePath.join(dir, "start.mjs"),
+      `import fs from "node:fs";
+       fs.appendFileSync(${JSON.stringify(runs)}, process.argv.slice(2).join(" ") + "\\n");`,
+    );
+    const starting = NodePath.join(dir, "starting.mjs");
+    NodeFS.writeFileSync(
+      starting,
+      `if (process.argv.includes("server")) await import("./start.mjs");
+       else await import("./renderer.mjs");`,
+    );
+    await renderModelPictures({
+      launch: { ...launch, args: [starting, "cad"], startsServer: true },
+      cwd: dir,
+      paths,
+      cacheDir: NodePath.join(dir, "cache-0.11.12"),
+    });
+    expect(NodeFS.readFileSync(runs, "utf8").trim().split("\n")).toEqual([
+      "cad server start",
       "cad step snapshot: a.step,b.step",
       "cad glb snapshot: c.glb",
     ]);
