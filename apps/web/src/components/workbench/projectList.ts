@@ -18,7 +18,7 @@ export function folderProject(
 }
 
 /** When one of the threads was last open on this device; null when none has been. */
-export function lastOpened(
+function lastOpened(
   threads: ReadonlyArray<EnvironmentThreadShell>,
   opened: OpenedThreads,
 ): string | null {
@@ -36,7 +36,7 @@ export function lastTouched(card: Pick<ListedProject, "latest" | "opened">): str
 }
 
 /** When the threads were last worked on, or `since` when none has been. */
-export function newestOf(threads: ReadonlyArray<EnvironmentThreadShell>, since: string): string {
+function newestOf(threads: ReadonlyArray<EnvironmentThreadShell>, since: string): string {
   return threads.reduce(
     (newest, thread) => (thread.updatedAt > newest ? thread.updatedAt : newest),
     since,

@@ -30,7 +30,7 @@ import { frontViewBusy, pluginViewKey, useViewerEditState } from "./viewerEditSt
  * document, or anything that is not a CAD view. With it, how the project's parts are made, from
  * its setup, which Manufacture leads with. Jobs fall back from it to other parts (`usePartForJobs`).
  */
-export function usePartInFront(
+function usePartInFront(
   threadRef: ScopedThreadRef,
   folder: string | null,
 ): {

@@ -48,7 +48,7 @@ function isWork(path: string): boolean {
   );
 }
 
-export function outputRank(path: string): number {
+function outputRank(path: string): number {
   if (!isWork(path)) return 0;
   return OUTPUT_RANKS.find(([pattern]) => pattern.test(path))?.[1] ?? 0;
 }

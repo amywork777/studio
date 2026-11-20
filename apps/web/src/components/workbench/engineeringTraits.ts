@@ -85,9 +85,6 @@ export function engineeringTraitDescriptor(
   return descriptor;
 }
 
-/** The composer's access group, named for what the agent may do. */
-export const ENGINEERING_PERMISSIONS_HEADING = "Permissions";
-
 export const ENGINEERING_RUNTIME_MODES: Readonly<
   Record<RuntimeMode, { readonly label: string; readonly description: string }>
 > = {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 /** How long after the window comes back a refresh waits, so focus and visibility make one. */
-export const RETURN_REFRESH_DEBOUNCE_MS = 250;
+const RETURN_REFRESH_DEBOUNCE_MS = 250;
 
 /**
  * Calls `refresh` once each time the user comes back to the window (it gains focus or is shown

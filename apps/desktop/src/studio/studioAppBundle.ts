@@ -93,7 +93,7 @@ interface StudioSettings {
  * shell and `cad.cmd` for Windows. The skills run `cad`; Studio's is never an installed one, which
  * would update itself past the release Studio was built with.
  */
-export function writeCadCommand(folder: string, python: string): void {
+function writeCadCommand(folder: string, python: string): void {
   const quoted = `'${python.replaceAll("'", `'"'"'`)}'`;
   writeIfChanged(
     NodePath.join(folder, "cad"),

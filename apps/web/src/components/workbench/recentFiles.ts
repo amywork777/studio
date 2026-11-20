@@ -20,7 +20,7 @@ const sameFile = (a: RecentFile, b: RecentFile) =>
   a.environmentId === b.environmentId && a.threadId === b.threadId && a.path === b.path;
 
 /** `files` with `file` opened now: newest first, each file once, the oldest forgotten past `limit`. */
-export function withRecentFile(
+function withRecentFile(
   files: ReadonlyArray<RecentFile>,
   file: RecentFile,
   limit = LIMIT,

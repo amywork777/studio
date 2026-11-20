@@ -11,7 +11,7 @@ import * as ProviderSessionManager from "../orchestration-v2/ProviderSessionMana
 import * as PluginService from "./PluginService.ts";
 
 /** What an agent sees of the tools: each one's name and definition, as `tools.ts` registers it. */
-export const toolsSignature = (tools: ReadonlyArray<PluginService.AgentTool>) =>
+const toolsSignature = (tools: ReadonlyArray<PluginService.AgentTool>) =>
   JSON.stringify(
     tools
       .map((tool) => {

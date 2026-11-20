@@ -13,7 +13,7 @@ import { usePartContext } from "./usePartContext";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
 /** The facts after the name: kind, units, material, last build. */
-export function partFacts(part: PartContext) {
+function partFacts(part: PartContext) {
   const facts: Array<{
     readonly id: "kind" | "units" | "material" | "build";
     readonly text: string;

@@ -158,7 +158,7 @@ export function changesPhrase(changes: ReadonlyArray<DesignChange>, extra = 0): 
 }
 
 /** How many changes a turn's line shows before the rest fold into "3 more". */
-export const CHANGES_SHOWN = 4;
+const CHANGES_SHOWN = 4;
 
 /** A turn's changes as its line shows them: the first few, unless opened, and how many are left. */
 export function foldChanges<Change>(

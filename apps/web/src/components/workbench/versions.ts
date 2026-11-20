@@ -18,18 +18,18 @@ export interface PartVersion {
   readonly blob: string;
 }
 
-export const NOW = "now";
+const NOW = "now";
 
 /** Where the CAD service keeps what was on disk when a version was restored (`versions.py`). */
 const KEPT_REF = "refs/studio/kept/";
 
 /** A version kept on restoring another: what the person had then, so it can be gone back to. */
-export function isKeptVersion(version: Pick<PartVersion, "ref">): boolean {
+function isKeptVersion(version: Pick<PartVersion, "ref">): boolean {
   return version.ref?.startsWith(KEPT_REF) === true;
 }
 
 /** The earliest version before this one with the same contents, as a restore leaves it; -1 if none. */
-export function sameAsEarlier(versions: ReadonlyArray<Pick<PartVersion, "blob">>, index: number) {
+function sameAsEarlier(versions: ReadonlyArray<Pick<PartVersion, "blob">>, index: number) {
   const blob = versions[index]?.blob;
   return blob === undefined
     ? -1

@@ -65,7 +65,7 @@ export interface StagedPluginView {
 }
 
 /** The view a staged URL names, its origin, or null for anything that is not one of ours. */
-export function pluginViewOrigin(url: string | undefined): string | null {
+function pluginViewOrigin(url: string | undefined): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url);

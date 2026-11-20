@@ -360,7 +360,7 @@ function ProjectsList(props: { readonly environmentId: EnvironmentId }) {
  * the column (`AppSidebarLayout`); every other page, where the person is (`StudioSidebar`). It
  * folds away whole from the sidebar's own toggle or its shortcut.
  */
-export function StudioSidebarFrame(props: {
+function StudioSidebarFrame(props: {
   readonly children: ReactNode;
   /** What stands over Trash and Settings in the foot: the update, and Back inside Settings. */
   readonly foot?: ReactNode;

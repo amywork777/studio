@@ -9,10 +9,7 @@ import { useStudioProjectAt } from "./useStudioProjects";
 import { chatLabel, workspaceTitle } from "./workspaceTitle";
 
 /** How a workspace names its project: its folder and its name, as the sidebar names it. */
-export function useProjectHeading(
-  environmentId: EnvironmentId,
-  project: EnvironmentProject | null,
-) {
+function useProjectHeading(environmentId: EnvironmentId, project: EnvironmentProject | null) {
   const folder = project?.workspaceRoot ?? null;
   const studio = useStudioProjectAt(environmentId, folder);
   const title = workspaceTitle(studio?.project.name ?? null, folder);
