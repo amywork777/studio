@@ -22,6 +22,7 @@ export type SettingsPath =
   | "/settings/general"
   | "/settings/diagnostics"
   | "/settings/interface"
+  | "/settings/engineering"
   | "/settings/voice"
   | "/settings/appearance"
   | "/settings/chat"
@@ -100,6 +101,7 @@ export interface SettingsSearchAvailability {
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/diagnostics": msg("Diagnostics"),
   "/settings/interface": msg("Interface"),
+  "/settings/engineering": msg("Engineering"),
   "/settings/projects": msg("Projects"),
   "/settings/general": msg("General"),
   "/settings/appearance": msg("Appearance"),
@@ -145,6 +147,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     headingHidden: true,
     paths: [
       "/settings/general",
+      "/settings/engineering",
       "/settings/appearance",
       "/settings/chat",
       "/settings/diffs",
@@ -314,6 +317,27 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Studio interface"),
     to: "/settings/appearance",
     searchTerms: [msg("interface engineering code mode view developer hardware")],
+  },
+  {
+    // Studio: how the mouse moves a CAD view, as the CAD a person comes from (`EngineeringSettingsPanel`).
+    id: "viewer-mouse",
+    title: msg("Navigate like"),
+    to: "/settings/engineering",
+    searchTerms: [
+      msg("mouse orbit rotate pan zoom solidworks nx fusion onshape cad view navigation"),
+    ],
+  },
+  {
+    id: "viewer-reverse-wheel",
+    title: msg("Reverse wheel zoom"),
+    to: "/settings/engineering",
+    searchTerms: [msg("mouse wheel scroll zoom direction invert")],
+  },
+  {
+    id: "viewer-zoom-to-pointer",
+    title: msg("Zoom toward the pointer"),
+    to: "/settings/engineering",
+    searchTerms: [msg("mouse wheel zoom cursor pointer center")],
   },
   {
     id: "default-model",
@@ -1525,6 +1549,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/general": null,
   "/settings/voice": null,
   "/settings/appearance": null,
+  "/settings/engineering": null,
   "/settings/chat": null,
   "/settings/diffs": null,
   "/settings/snap-shot": null,
