@@ -12,6 +12,40 @@ licensed.
 - **Build and run it from source:** [STUDIO.md](STUDIO.md)
 - **The rules every change keeps:** [Studio's laws](AGENTS.md#studios-laws)
 
+## How the code is organized
+
+Studio is three codebases, kept apart so that each one's updates merge in cleanly and it stays
+plain whose code is whose:
+
+- **T3 Code**, the app Studio is built on, merged in from
+  [pingdotgg/t3code](https://github.com/pingdotgg/t3code). Studio changes as little of it as it
+  can. Where it has to, the change is the smallest hook that calls Studio's own code, and every T3
+  Code file Studio changes or removes is listed in
+  [`scripts/studio-t3-edits.txt`](scripts/studio-t3-edits.txt). CI fails when the list and the code
+  disagree.
+- **Studio's own code**, in folders of its own:
+  - `apps/web/src/components/workbench`: the CAD workspace beside the chat (the model view, edit
+    mode, drawings, versions, the Toolbox, Home).
+  - `apps/server/src/studio`: projects, examples, Sync and backups, and how Claude and Codex run
+    inside Studio.
+  - `apps/desktop/src/studio`: the Mac and Windows app's start: Studio's own folder, its own CAD
+    tools and engine, and what it hides of T3 Code.
+  - `studio-job-skills/` and `studio-plugins/`: the job skills (`$fdm`, `$cnc` and the rest) and
+    Studio's own plugins.
+  - `studio-sample/`: the example projects.
+  - `infra/usage`: the receiver for the anonymous usage counts below.
+  - `scripts/studio-*`: building, checking and releasing the app.
+- **text-to-cad**, Jake's CAD tools, as the `text-to-cad/` submodule. It points at `studio-base`
+  on [Studio's fork](https://github.com/amywork777/text-to-cad-upstream): Jake's releases with
+  Studio's changes on top, such as edit mode and the viewer's look. The fork lists the files of
+  Jake's that those changes touch in `scripts/studio-jake-edits.txt`.
+
+The app ships its own copy of the CAD tools at that version. It never uses or changes a
+text-to-cad installed on the same computer, and keeps all of the tools' data in its own folder,
+`~/.text-to-cad-studio`.
+
+[STUDIO.md](STUDIO.md#text-to-cad-studio) says where each kind of change goes.
+
 ## Usage data
 
 The app counts which features get used, anonymously, so we can see what works: chats started,
