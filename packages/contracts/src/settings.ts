@@ -23,6 +23,7 @@ import {
   TrimmedString,
 } from "./baseSchemas.ts";
 import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
+import { ViewerMouse } from "./studioViewer.ts";
 import { UsageModelFilter } from "./usage.ts";
 import { SecretProviderId, SecretProviderSlug } from "./secretReference.ts";
 import { containsSecretReference, SettingsSecretValue } from "./settingsSecretValue.ts";
@@ -600,6 +601,10 @@ export const ClientSettingsSchema = Schema.Struct({
   // Opt-in TeX typesetting in rendered Markdown. Off keeps math parsing and
   // KaTeX out of the render path entirely.
   mathRenderingEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  // Studio: how the mouse moves a CAD view on this device (Settings, Engineering).
+  viewerMouse: ViewerMouse.pipe(Schema.withDecodingDefault(Effect.succeed("studio" as const))),
+  viewerReverseWheel: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  viewerZoomToPointer: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 
@@ -2154,5 +2159,8 @@ export const ClientSettingsPatch = Schema.Struct({
   snapShotAnimations: Schema.optionalKey(Schema.Boolean),
   wordWrap: Schema.optionalKey(Schema.Boolean),
   mathRenderingEnabled: Schema.optionalKey(Schema.Boolean),
+  viewerMouse: Schema.optionalKey(ViewerMouse),
+  viewerReverseWheel: Schema.optionalKey(Schema.Boolean),
+  viewerZoomToPointer: Schema.optionalKey(Schema.Boolean),
 });
 export type ClientSettingsPatch = typeof ClientSettingsPatch.Type;

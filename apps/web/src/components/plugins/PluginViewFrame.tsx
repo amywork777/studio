@@ -59,6 +59,7 @@ import {
   type ViewerFocusPlace,
 } from "../workbench/references/viewerFocus";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
+import { useViewerControls } from "../workbench/viewerControls";
 
 /** What opens one plugin view: the tool whose result is the view, and where it runs. */
 
@@ -280,7 +281,9 @@ export function PluginViewFrame(props: {
       ? null
       : scopeThreadRef(target.environmentId, target.threadId),
   );
-  const live = { theme, size, props, request, editLayout, focus, openChatFile };
+  // How the mouse moves the view, from this device's Settings, Engineering.
+  const viewerControls = useViewerControls();
+  const live = { theme, size, props, request, editLayout, focus, openChatFile, viewerControls };
   const latest = useRef(live);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed props and state to the long-lived MCP App host, which reads them asynchronously
   useEffect(() => {
@@ -327,6 +330,7 @@ export function PluginViewFrame(props: {
         "openai/modelContext": modelContext.current,
         "studio/editLayout": current.editLayout,
         "studio/focus": current.focus,
+        "studio/viewerControls": current.viewerControls,
       } as McpAppHostContext;
     };
     const call = async (
@@ -530,11 +534,11 @@ export function PluginViewFrame(props: {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A new document needs a new host; the rest is read through `latest`.
   }, [frame, document_]);
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resends the host context to the view's frame when its theme, size, layout or focus ask changes
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resends the host context to the view's frame when its theme, size, layout, focus ask or mouse changes
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.
-  }, [theme, size, editLayout, focus]);
+  }, [theme, size, editLayout, focus, viewerControls]);
 
   const reload = () => {
     setClosed(false);
