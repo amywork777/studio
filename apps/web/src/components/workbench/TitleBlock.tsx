@@ -26,7 +26,7 @@ export const TITLE_TONE = {
 } as const;
 
 /** A label over its value, as a title block reads. */
-export function TitleCell(props: {
+function TitleCell(props: {
   readonly label: string;
   readonly children: ReactNode;
   readonly className?: string;

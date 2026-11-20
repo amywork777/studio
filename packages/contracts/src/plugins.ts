@@ -161,10 +161,9 @@ export const InstalledPlugin = Schema.Struct({
 export type InstalledPlugin = typeof InstalledPlugin.Type;
 
 /**
- * The name an agent sees a plugin tool by on T3's MCP server: `<plugin>__<tool>`,
- * kept to what every provider accepts. Claude prefixes `mcp__t3-code__` (14
- * characters) and caps the whole name at 64, so this stays within 50; a longer
- * one keeps its start and ends in a hash of the full name.
+ * A plugin tool's name on T3's MCP server, `<plugin>__<tool>`: Claude prefixes `mcp__t3-code__`
+ * (14 characters) and caps the whole at 64, so this stays within 50.
+ * @public `@t3tools/plugins` re-exports it, and knip does not scan that package.
  */
 export const AGENT_TOOL_NAME_MAX = 50;
 

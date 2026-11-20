@@ -30,7 +30,7 @@ export async function copySample(steps: {
 }
 
 /** Whether an example's file is a model's script, which a copy opens by the document it builds. */
-export function isModelScript(file: string): boolean {
+function isModelScript(file: string): boolean {
   return file.toLowerCase().endsWith(".py");
 }
 

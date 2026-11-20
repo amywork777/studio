@@ -13,7 +13,7 @@ import { WorkspacePageHeader } from "../WorkspacePageHeader";
  * away: how every engineering page starts its top bar then. A project's workspace leads with its
  * switcher instead (`StudioWorkspaceBar`).
  */
-export function StudioNav() {
+function StudioNav() {
   return (
     <nav aria-label={APP_BASE_NAME} className="flex shrink-0 items-center">
       <Link

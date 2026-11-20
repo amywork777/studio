@@ -95,7 +95,7 @@ const showOverviewBeside = (threadRef: ScopedThreadRef) =>
  * (`usePendingStart`) sends the description or New's job. Attachments are copied into References
  * first, and the first message asks the agent to read them (`startMessage`).
  */
-export function useStartProject(environmentId: EnvironmentId) {
+function useStartProject(environmentId: EnvironmentId) {
   const create = useCreateStudioProject(environmentId);
   const handleNewThread = useNewThreadHandler();
 

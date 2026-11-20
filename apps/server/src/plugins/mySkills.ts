@@ -64,7 +64,7 @@ function freeName(skillsDir: string, wanted: string): string {
 }
 
 /** A new skill's file: what a skill needs to be found, and where its steps go. */
-export function newSkillText(name: string, title: string, description: string): string {
+function newSkillText(name: string, title: string, description: string): string {
   return [
     "---",
     `name: ${name}`,

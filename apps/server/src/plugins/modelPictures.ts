@@ -145,7 +145,7 @@ function cadArgs(
 const snapshotOf = (launch: SnapshotLaunch, type: string) =>
   launch.typeless === true ? [...launch.args, "snapshot"] : [...launch.args, type, "snapshot"];
 
-export const isRenderable = (path: string) => RENDERABLE.test(path);
+const isRenderable = (path: string) => RENDERABLE.test(path);
 
 /**
  * How a picture is drawn, in what it is cached by: a picture drawn another way is a new picture,
@@ -161,7 +161,7 @@ const cached = (cacheDir: string, key: string) =>
   );
 
 /** A file's picture: by the file and its size and time. */
-export function pictureFile(cacheDir: string, absolute: string, stat: NodeFS.Stats): string {
+function pictureFile(cacheDir: string, absolute: string, stat: NodeFS.Stats): string {
   return cached(cacheDir, `${absolute}\n${stat.size}\n${stat.mtimeMs}`);
 }
 

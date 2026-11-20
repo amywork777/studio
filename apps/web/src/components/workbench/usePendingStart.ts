@@ -106,7 +106,7 @@ export function sendStep(box: {
  * is under way. With no agent, or out of tries, it says so and leaves the message in the box. This
  * outlives the effect that began it: React may run that effect twice, and the start is taken once.
  */
-export function pressSendWhileHeld(composerRef: ComposerHandleRef, message: string): void {
+function pressSendWhileHeld(composerRef: ComposerHandleRef, message: string): void {
   let tries = 0;
   let blocked = 0;
   const press = () => {

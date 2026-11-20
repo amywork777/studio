@@ -43,7 +43,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** A path's last segment, on either separator. */
-export const fileName = (path: string) =>
+const fileName = (path: string) =>
   path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1) || path;
 
 /**
@@ -245,7 +245,7 @@ export function readBuild(
 }
 
 /** How long one ask of a model's build state waits for it to move (`/version`'s `wait`). */
-export const BUILD_WAIT_SECONDS = 20;
+const BUILD_WAIT_SECONDS = 20;
 
 /**
  * The next ask of a model's build state (`GET /api/v1/documents/<id>/version`): answered once its

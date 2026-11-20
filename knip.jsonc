@@ -8,6 +8,8 @@
     ".": {
       // Keep vendored reference repositories outside the root project.
       "project": ["*.{js,mjs,cjs,ts,mts,cts}"],
+      // Studio: T3's CodeRabbit config, which Studio's edit of .coderabbit.config.ts stopped importing.
+      "ignoreDependencies": ["@coderabbitai/config"],
     },
     "scripts": {
       // Knip loads its preprocessor through a CLI option; native verification and
@@ -33,6 +35,11 @@
         "prepare-server-compile-cache.cjs",
         "smoke-desktop-app.ts",
         "verify-windows-desktop-artifact.ts",
+        // Studio: build-studio-app.sh runs its app check by path; T3's release workflows, which
+        // Studio leaves out, run the other two.
+        "studio-app-open-check.mjs",
+        "resolve-nightly-release.ts",
+        "smoke-cli-archive.ts",
       ],
       "ignoreDependencies": ["esbuild"],
       // The `t3` npm package's files: copied into the package, never imported.
@@ -93,11 +100,31 @@
     "apps/web": {
       // Worktree setup (scripts/setup-worktree.ts) runs this directly, and evidence
       // fixtures run under node.
-      "entry": ["scripts/warm-dep-cache.ts", "test/fixtures/**/*.mjs"],
+      // Studio: vite/brand.ts aliases gt-react and gt-i18n to Studio's two i18n files, and T3's CI,
+      // which Studio leaves out, runs verify-built-boot.ts.
+      "entry": [
+        "scripts/warm-dep-cache.ts",
+        "test/fixtures/**/*.mjs",
+        "scripts/verify-built-boot.ts",
+        "src/components/workbench/i18n/studioGtReact.tsx",
+        "src/components/workbench/i18n/studioGtI18n.ts",
+      ],
+      // Studio: T3's files whose callers Studio's edits took out (its Settings panels, the sidebar's
+      // utility menu, the composer's backdrop button). Kept as T3 has them, so its merges stay clean.
+      "ignoreFiles": [
+        "src/components/settings/MobileAppSettingsRow.tsx",
+        "src/components/settings/UpdateTrackSwitchDialog.tsx",
+      ],
       // UI component modules are copied and adapted as cohesive sets. Keep their
       // named subcomponents even before they have callers; the file audit still
       // reports an entire component module when nothing imports it.
-      "ignoreIssues": { "src/components/ui/*.tsx": ["exports", "nsExports", "duplicates"] },
+      "ignoreIssues": {
+        "src/components/ui/*.tsx": ["exports", "nsExports", "duplicates"],
+        "src/components/sidebar/SidebarChrome.tsx": ["exports"],
+        "src/components/sidebar/updateEverything.logic.ts": ["exports"],
+        "src/components/sidebar/useUpdateEverything.ts": ["exports"],
+        "src/components/SidebarStageBackdrop.tsx": ["exports"],
+      },
     },
     "apps/marketing": {
       // `astro check` runs from the typecheck task in vite.config.ts, which knip does not read.

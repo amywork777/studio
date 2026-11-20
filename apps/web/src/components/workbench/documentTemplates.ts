@@ -16,7 +16,7 @@ import { useStudioProjectsList } from "./useStudioProjects";
  * (`DOCUMENT_TEMPLATES`), and the agent writes the document following the file.
  */
 
-export const TEMPLATES_FOLDER = "Templates";
+const TEMPLATES_FOLDER = "Templates";
 
 /** A template file as the New dialog offers it: named after the file. */
 export function fileTemplate(path: string): NewTemplate {

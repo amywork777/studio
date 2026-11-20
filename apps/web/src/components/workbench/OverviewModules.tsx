@@ -199,7 +199,7 @@ export function Page(props: {
 }
 
 /** A document's text as a small page: its title, then its opening lines, as a thumbnail reads. */
-export function TextPage(props: { readonly text: string }) {
+function TextPage(props: { readonly text: string }) {
   // HTML in the Markdown (a new project's README opens on its icon's <img>) is not words to show.
   const lines = props.text
     .split("\n")

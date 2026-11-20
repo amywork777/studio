@@ -7,9 +7,9 @@
 import { isRecord } from "@t3tools/plugins";
 
 /** Where a tool result carries the capability: `_meta`, which a host never shows the model. */
-export const CAPABILITY_META = "dev.texttocad/httpToken";
+const CAPABILITY_META = "dev.texttocad/httpToken";
 /** The header a `cad_http` call carries it in. */
-export const CAPABILITY_HEADER = "x-cad-app";
+const CAPABILITY_HEADER = "x-cad-app";
 /** The route tool the capability is for. */
 export const HTTP_TOOL = "cad_http";
 /** The app-only tool whose launch delivers one with nothing shown: the CAD home's. */

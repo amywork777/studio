@@ -853,8 +853,6 @@ function readPluginSafely(folder: ReturnType<typeof PluginFiles.nodeFolder>): Re
 export const layerWith = (sources: ReadonlyArray<MarketplaceSource>) =>
   Layer.effect(PluginStore, makeWith(sources));
 
-export const layer = layerWith(DEFAULT_MARKETPLACE_SOURCES);
-
 /**
  * The Agent SDK's `plugins` option for a Claude session: every enabled
  * plugin's folder, for its skills (and commands, agents, hooks). Its MCP

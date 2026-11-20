@@ -6,7 +6,7 @@ import type { ProviderInstallState, ProviderInstanceConfig } from "@t3tools/cont
  * Codex instance in "existing" setup mode with the server as provider in its launch arguments and
  * the code as a sensitive instance variable.
  */
-export const STUDIO_INVITE_SERVER = "https://studio-invite.vercel.app/v1";
+const STUDIO_INVITE_SERVER = "https://studio-invite.vercel.app/v1";
 export const STUDIO_INVITE_CODE_ENV = "STUDIO_INVITE_CODE";
 const PROVIDER = "studio_invite";
 
