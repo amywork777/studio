@@ -43,7 +43,9 @@ built (`npm run build:packages` in `text-to-cad/`) before Studio starts.
 screen installs Claude Code and signs in, so the person needs only their own Claude subscription.
 Its last step checks the built app (`scripts/studio-app-check.py`): with the app's own Python and a
 scratch home, it rebuilds all five examples, compares each STEP with the one shipped and solves every
-strength study, held to the answer the example ships with. Then `scripts/studio-app-open-check.mjs`
+strength study, held to the answer the example ships with. Last, it fails if any of that wrote outside the CAD
+tools' own folders in the scratch home, where a text-to-cad installed beside Studio keeps its data
+(Jake's condition for Studio's own copy). Then `scripts/studio-app-open-check.mjs`
 starts the app from the disk image. A build that fails either is not offered for publishing. Building it needs Rust 1.95 or newer for the resource monitor (`RUSTUP_TOOLCHAIN=1.95` uses one
 installed beside an older default) and about 7 GB free; the download is about 400 MB and the app 1.2
 GB (from 0.1.4; 600 MB and 1.9 GB while the CAD tools went in twice). The disk image step reserves
