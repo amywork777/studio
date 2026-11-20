@@ -25,17 +25,18 @@ export type FreshPlugins = () => Promise<Plugins | undefined>;
 
 /** Asks the server for its plugin list again; undefined when it can't answer. */
 export function freshPlugins(environmentId: EnvironmentId): FreshPlugins {
-  return () => {
-    const atom = pluginEnvironment.list({ environmentId, input: {} });
-    appAtomRegistry.refresh(atom);
-    return Effect.runPromise(
-      AtomRegistry.getResult(appAtomRegistry, atom, { suspendOnWaiting: true }).pipe(
+  return () =>
+    Effect.runPromise(
+      Effect.suspend(() => {
+        const atom = pluginEnvironment.list({ environmentId, input: {} });
+        appAtomRegistry.refresh(atom);
+        return AtomRegistry.getResult(appAtomRegistry, atom, { suspendOnWaiting: true });
+      }).pipe(
         Effect.map((result): Plugins | undefined => result.plugins),
         Effect.timeout("10 seconds"),
-        Effect.orElseSucceed(() => undefined),
+        Effect.catchCause(() => Effect.undefined),
       ),
     );
-  };
 }
 
 /**
@@ -48,9 +49,9 @@ function unsettled(plugins: Plugins | undefined): boolean {
 
 /**
  * A file goes to the plugin view that claims it, anything else to a document at its line; says
- * whether a view shows it now. Given `fresh`, a file the plugins still loading can't place waits for
- * the server's list (a picture opened at launch still opens to mark up); `onShown` hears if a view
- * takes it then. */
+ * whether a view shows it now. Given `fresh`, a document opened while the plugins load moves to the
+ * view that claims it once the server lists them (a picture opened at launch still opens to mark
+ * up), and `onShown` hears it. */
 export function openInPanel(
   plugins: Plugins | undefined,
   threadRef: ScopedThreadRef,
@@ -80,17 +81,21 @@ export function openInPanel(
     panels.openPluginApp(threadRef, pluginAppSurface(viewer, path));
     return true;
   }
-  if (fresh === undefined || !unsettled(plugins)) {
-    panels.openFile(threadRef, path, line);
-    return false;
-  }
+  panels.openFile(threadRef, path, line);
+  if (fresh === undefined || !unsettled(plugins)) return false;
+  const document = selectThreadRightPanelState(
+    useRightPanelStore.getState().byThreadKey,
+    threadRef,
+  ).activeSurfaceId;
   void fresh().then((listed) => {
     const late = listed === undefined ? undefined : pluginFileHandlers(listed, path)[0];
     const now = useRightPanelStore.getState();
-    if (late === undefined) {
-      now.openFile(threadRef, path, line);
-      return;
-    }
+    const still = selectThreadRightPanelState(now.byThreadKey, threadRef).surfaces.some(
+      (surface) => surface.id === document,
+    );
+    // Closed meanwhile: the person moved on, so nothing reopens.
+    if (late === undefined || document === null || !still) return;
+    now.closeSurface(threadRef, document);
     now.openPluginApp(threadRef, pluginAppSurface(late, path));
     onShown?.();
   });

@@ -198,8 +198,10 @@ describe("opening a file from the Overview", () => {
     await listed;
     expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app"]);
     expect(folds).toBe(1);
-    // With the list in hand, a file no view claims opens as a document at once.
-    openFromOverview(plugins, THREAD, "docs/prd.md", () => listed);
+    // A script no view claims opens as a document at once, and stays one.
+    openFromOverview(undefined, THREAD, "parts/bracket.py", () => listed);
+    expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app", "file"]);
+    await listed;
     expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app", "file"]);
     stop();
   });
