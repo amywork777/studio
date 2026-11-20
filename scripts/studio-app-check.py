@@ -4,7 +4,8 @@ not the checkout's. With the app's own Python and a home of its own, it starts t
 start`: from text-to-cad 0.11.12 a command no longer starts one), asks the plugin's MCP server for Studio's CAD views
 as the app does (`views_offered`), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
 and compares each with the one the example ships with, then solves every example's strength study and holds each
-answer to the one the example ships with. No pass, no release.
+answer to the one the example ships with. Last, nothing it ran may have written outside the CAD tools' own folders
+(`stray_writes`). No pass, no release.
 
     python3 scripts/studio-app-check.py <the app's studio folder>
 
@@ -82,7 +83,8 @@ def main() -> int:
         cad = home / "cad"
         # The app's own solver, cad[calculix]'s, never one CAD_CCX names here.
         env = {
-            **{name: value for name, value in os.environ.items() if name != "CAD_CCX"},
+            # XDG_* would send a write outside the scratch home, where `stray_writes` can't see it.
+            **{name: value for name, value in os.environ.items() if name != "CAD_CCX" and not name.startswith("XDG_")},
             # As studioEngine.ts gives the app's, on a port of this check's own.
             "CAD_STATE_DIR": str(cad / "state"),
             "CAD_CACHE_DIR": str(cad / "cache"),
@@ -93,6 +95,7 @@ def main() -> int:
             # another worker contract than Studio's.
             "CAD_UPDATE_CHECK": "0",
             "CAD_TELEMETRY": "0",
+            "CAD_STUDIO_ENGINE": "1",
             "CAD_UPDATE_FIND_LINKS": str(wheels),
             # A home with nothing in it: no tool this Mac or PC happens to have cached stands in for one the app
             # is missing.
@@ -132,6 +135,7 @@ def main() -> int:
                                      "--out", str(home / "solved" / project.name), "--json", cwd=project,
                                      timeout=900)
                 failed += 1 if solved.returncode != 0 else held_to_shipped(project.name, solved.stdout, shipped)
+            failed += stray_writes(home)
             return 1 if failed else 0
         finally:
             subprocess.run([str(python), "-P", "-m", "cad_server.cli", "server", "stop"], env=env, capture_output=True,
@@ -197,6 +201,30 @@ def views_offered(bundle: Path, env: dict[str, str], home: Path) -> int:
           f"{f' (missing {missing}; offered {names or None})' if missing else ''} ({time.monotonic() - started:.0f} s)",
           flush=True)
     return 1 if missing else 0
+
+
+# Where the check's runs may write in its scratch home: the CAD tools' own folders (`cad`, `bin`, as studioEngine.ts names
+# them) and the check's copies and results.
+OWN_FOLDERS = ("cad", "bin", "sample", "compared", "solved")
+# ezdxf's list of the computer's fonts. Only XDG_CACHE_HOME moves it, which would move every tool's cache with it, and
+# it holds no CAD data, so it can't clash with a text-to-cad installed beside Studio.
+SHARED_FILES = (Path(".cache", "ezdxf", "font_manager_cache.json"),)
+
+
+def stray_writes(home: Path) -> int:
+    """Every file the check's runs left in the scratch home outside the CAD tools' own folders: what the app would have
+    written into the person's home, where a text-to-cad installed beside it keeps its data (Jake's condition for
+    Studio's own copy). On Windows the home is %USERPROFILE%; %LOCALAPPDATA% is not watched."""
+    stray = sorted(
+        path.relative_to(home)
+        for path in home.rglob("*")
+        if not path.is_dir()
+        and path.relative_to(home).parts[0] not in OWN_FOLDERS
+        and path.relative_to(home) not in SHARED_FILES
+    )
+    print(f"{'FAIL' if stray else 'ok  '} the CAD tools wrote nothing outside Studio's own folders"
+          f"{': ' + ', '.join(map(str, stray[:20])) if stray else ''}", flush=True)
+    return 1 if stray else 0
 
 
 def check_engine_port() -> str:
