@@ -1,8 +1,14 @@
 import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
-import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
-import type { ScopedThreadRef } from "@t3tools/contracts";
+import {
+  pluginFileHandlers,
+  pluginViewsWithEntrypoint,
+} from "@t3tools/client-runtime/state/plugins";
+import type { EnvironmentId, InstalledPlugin, ScopedThreadRef } from "@t3tools/contracts";
+import * as Effect from "effect/Effect";
+import { AtomRegistry } from "effect/reactivity";
 
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
 import { agentViewSurface, pluginAppSurface } from "../plugins/pluginSurfaces";
@@ -13,16 +19,46 @@ import { foldSidebarForPart } from "./sidebarFold";
 import { knownModelTitle } from "./useFolderModels";
 import { sameFile, surfaceFile } from "./sameFile";
 
+type Plugins = ReadonlyArray<InstalledPlugin>;
+/** The plugins as the server lists them now, read when the app's copy can't be trusted (`openInPanel`). */
+export type FreshPlugins = () => Promise<Plugins | undefined>;
+
+/** Asks the server for its plugin list again; undefined when it can't answer. */
+export function freshPlugins(environmentId: EnvironmentId): FreshPlugins {
+  return () =>
+    Effect.runPromise(
+      Effect.suspend(() => {
+        const atom = pluginEnvironment.list({ environmentId, input: {} });
+        appAtomRegistry.refresh(atom);
+        return AtomRegistry.getResult(appAtomRegistry, atom, { suspendOnWaiting: true });
+      }).pipe(
+        Effect.map((result): Plugins | undefined => result.plugins),
+        Effect.timeout("10 seconds"),
+        Effect.catchCause(() => Effect.undefined),
+      ),
+    );
+}
+
 /**
- * A file goes to the plugin view that claims it (a STEP in the CAD view, never as text), anything
- * else to a document at its line. Takes a path in the thread's folder, a full path, or a cadgen 0.8
- * document id. Says whether a plugin view shows it.
+ * A copy of the plugins still loading, or listing no file view at all (taken before the CAD view's
+ * server listed its tools), can't say that no view claims a file.
  */
+function unsettled(plugins: Plugins | undefined): boolean {
+  return plugins === undefined || pluginViewsWithEntrypoint(plugins, "file").length === 0;
+}
+
+/**
+ * A file goes to the plugin view that claims it, anything else to a document at its line; says
+ * whether a view shows it now. Given `fresh`, a document opened while the plugins load moves to the
+ * view that claims it once the server lists them (a picture opened at launch still opens to mark
+ * up), and `onShown` hears it. */
 export function openInPanel(
-  plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
+  plugins: Plugins | undefined,
   threadRef: ScopedThreadRef,
   path: string,
   line?: number,
+  fresh?: FreshPlugins,
+  onShown?: () => void,
 ): boolean {
   if (isDocumentId(path)) return openDocumentInPanel(plugins, threadRef, path);
   const panels = useRightPanelStore.getState();
@@ -41,9 +77,29 @@ export function openInPanel(
   }
   // Every PDF and picture opens in the CAD view, to read as a page and mark up.
   const viewer = plugins === undefined ? undefined : pluginFileHandlers(plugins, path)[0];
-  if (viewer !== undefined) panels.openPluginApp(threadRef, pluginAppSurface(viewer, path));
-  else panels.openFile(threadRef, path, line);
-  return viewer !== undefined;
+  if (viewer !== undefined) {
+    panels.openPluginApp(threadRef, pluginAppSurface(viewer, path));
+    return true;
+  }
+  panels.openFile(threadRef, path, line);
+  if (fresh === undefined || !unsettled(plugins)) return false;
+  const document = selectThreadRightPanelState(
+    useRightPanelStore.getState().byThreadKey,
+    threadRef,
+  ).activeSurfaceId;
+  void fresh().then((listed) => {
+    const late = listed === undefined ? undefined : pluginFileHandlers(listed, path)[0];
+    const now = useRightPanelStore.getState();
+    const still = selectThreadRightPanelState(now.byThreadKey, threadRef).surfaces.some(
+      (surface) => surface.id === document,
+    );
+    // Closed meanwhile: the person moved on, so nothing reopens.
+    if (late === undefined || document === null || !still) return;
+    now.closeSurface(threadRef, document);
+    now.openPluginApp(threadRef, pluginAppSurface(late, path));
+    onShown?.();
+  });
+  return false;
 }
 
 /** A viewer took the part the person picked: CAD mode, with the sidebar folded for the model. */
@@ -59,12 +115,13 @@ function startInCad() {
  * left as it was. Says whether a viewer took it (`openInPanel`).
  */
 export function openPartInCad(
-  plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
+  plugins: Plugins | undefined,
   threadRef: ScopedThreadRef,
   part: string,
+  fresh?: FreshPlugins,
 ): boolean {
   useRightPanelStore.getState().setMaximized(threadRef, false);
-  const shown = openInPanel(plugins, threadRef, part);
+  const shown = openInPanel(plugins, threadRef, part, undefined, fresh, startInCad);
   if (shown) startInCad();
   return shown;
 }
@@ -74,12 +131,13 @@ export function openPartInCad(
  * spread across the window stays so, as the person left it.
  */
 export function openFromOverview(
-  plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
+  plugins: Plugins | undefined,
   threadRef: ScopedThreadRef,
   path: string,
+  fresh?: FreshPlugins,
 ): boolean {
   keepOverviewSpread(threadRef);
-  const shown = openInPanel(plugins, threadRef, path);
+  const shown = openInPanel(plugins, threadRef, path, undefined, fresh, startInCad);
   if (shown) startInCad();
   return shown;
 }
@@ -93,7 +151,7 @@ const DOCUMENT_VIEW_TOOL = "cad_open";
  * already comes to the front. Says whether a view took it.
  */
 export function openDocumentInPanel(
-  plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
+  plugins: Plugins | undefined,
   threadRef: ScopedThreadRef,
   id: string,
   title?: string,
@@ -128,7 +186,8 @@ export function useOpenChatFile(threadRef: ScopedThreadRef | null) {
       : pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
   return (path: string, line?: number) =>
-    threadRef !== null && openInPanel(plugins, threadRef, path, line);
+    threadRef !== null &&
+    openInPanel(plugins, threadRef, path, line, freshPlugins(threadRef.environmentId));
 }
 
 /**
@@ -140,7 +199,8 @@ export function useOpenInWorkbench(threadRef: ScopedThreadRef) {
   const plugins = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
-  return (path: string) => openPartInCad(plugins, threadRef, path);
+  return (path: string) =>
+    openPartInCad(plugins, threadRef, path, freshPlugins(threadRef.environmentId));
 }
 
 /** `useOpenInWorkbench` for the Overview, whose files open at the panel's width (`openFromOverview`). */
@@ -148,5 +208,6 @@ export function useOpenFromOverview(threadRef: ScopedThreadRef) {
   const plugins = useEnvironmentQuery(
     pluginEnvironment.list({ environmentId: threadRef.environmentId, input: {} }),
   ).data?.plugins;
-  return (path: string) => openFromOverview(plugins, threadRef, path);
+  return (path: string) =>
+    openFromOverview(plugins, threadRef, path, freshPlugins(threadRef.environmentId));
 }

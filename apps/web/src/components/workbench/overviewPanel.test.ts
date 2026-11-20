@@ -172,6 +172,40 @@ describe("opening a file from the Overview", () => {
     stop();
   });
 
+  it("sends a picture opened before the plugins load to the view that claims it", async () => {
+    const plugins = [
+      {
+        id: "text-to-cad",
+        displayName: "text-to-cad",
+        enabled: true,
+        views: [
+          {
+            tool: "cad_open_file",
+            server: "cad",
+            title: "CAD",
+            resourceUri: "ui://cad/viewer",
+            entrypoints: [{ type: "file", extensions: ["png", "pdf"] }],
+          },
+        ],
+      },
+    ] as unknown as Parameters<typeof openPartInCad>[0];
+    let folds = 0;
+    const stop = onFoldSidebarForPart(() => {
+      folds += 1;
+    });
+    const listed = Promise.resolve(plugins);
+    openFromOverview(undefined, THREAD, "sketches/bracket.png", () => listed);
+    await listed;
+    expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app"]);
+    expect(folds).toBe(1);
+    // A script no view claims opens as a document at once, and stays one.
+    openFromOverview(undefined, THREAD, "parts/bracket.py", () => listed);
+    expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app", "file"]);
+    await listed;
+    expect(panel().surfaces.map((surface) => surface.kind)).toEqual(["plugin-app", "file"]);
+    stop();
+  });
+
   it("leaves a part picked anywhere else stepping back beside the chat", () => {
     showOverview(THREAD);
     openPartInCad(undefined, THREAD, "docs/prd.md");
