@@ -18,11 +18,11 @@ import {
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Textarea } from "../../ui/textarea";
-import { LibraryCard } from "./LibraryCard";
 import { PICTURE_BOX } from "./LibraryPicture";
+import { LibraryRow, ROW_PICTURE } from "./LibraryRow";
 
 /**
- * The tile at the head of My skills, a cover's size: asks a skill's name and what it is for, adds
+ * The row at the head of My skills, the others' size: asks a skill's name and what it is for, adds
  * it, and hands it to `onAdded`, which opens it on the editor for its steps.
  */
 export function AddSkillTile(props: {
@@ -50,10 +50,10 @@ export function AddSkillTile(props: {
 
   return (
     <>
-      <LibraryCard
+      <LibraryRow
         picture={
-          <span className={cn(PICTURE_BOX, "aspect-square border-b border-border")}>
-            <PlusIcon aria-hidden="true" className="size-8 text-primary" />
+          <span className={cn(PICTURE_BOX, ROW_PICTURE)}>
+            <PlusIcon aria-hidden="true" className="size-6 text-primary" />
           </span>
         }
         name="Add a skill"

@@ -161,10 +161,10 @@ export function useStudioTabs(props: {
     /** The engineering interface's Overview is the first of the sheets along the bottom. */
     firstTab: engineering ? projectTab : null,
     /**
-     * Room for the title bar's toggles over the row's right end: Studio's one (the Toolbox's)
-     * and the gap the toolbar's buttons keep between them, T3's maximize and toggle.
+     * Room for the title bar's toggles over the row's right end: Studio's named Toolbox button,
+     * or T3's maximize and toggle, with the gap the toolbar's buttons keep.
      */
-    rowEndInset: engineeringSurfaces ? "pr-12" : "pr-28",
+    rowEndInset: "pr-28",
     /** Keeps the tabs clear of the window controls when the layout toggles live elsewhere. */
     controlsSpacerWidth: engineeringSurfaces ? "w-10" : "w-24",
     controlsInsetWidth: engineeringSurfaces ? "w-10" : "w-28",

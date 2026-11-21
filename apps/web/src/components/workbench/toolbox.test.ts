@@ -4,7 +4,10 @@ import { HARDWARE_ACTIONS, hardwareActions } from "./hardwareActions";
 import {
   jobCount,
   pairLoneSections,
+  pinnedJobs,
   readToolboxTab,
+  searchJobs,
+  suggestedJobs,
   toolboxGroups,
   toolboxStart,
   toolboxLeftOut,
@@ -69,13 +72,55 @@ describe("toolboxGroups", () => {
 });
 
 describe("the Toolbox tab", () => {
-  it("opens on the group left open on this device, else Evaluate", () => {
+  it("opens on the tab left open on this device, else Yours", () => {
     globalThis.localStorage?.removeItem("studio:toolbox-tab");
-    expect(readToolboxTab()).toBe("Evaluate");
+    expect(readToolboxTab(true)).toBe("Yours");
     writeToolboxTab("Document");
-    expect(readToolboxTab()).toBe(globalThis.localStorage ? "Document" : "Evaluate");
+    expect(readToolboxTab(true)).toBe(globalThis.localStorage ? "Document" : "Yours");
     globalThis.localStorage?.setItem("studio:toolbox-tab", "Nonsense");
-    expect(readToolboxTab()).toBe("Evaluate");
+    expect(readToolboxTab(true)).toBe("Yours");
+  });
+
+  it("never opens on Yours with nothing pinned", () => {
+    globalThis.localStorage?.removeItem("studio:toolbox-tab");
+    expect(readToolboxTab(false)).toBe("Evaluate");
+    writeToolboxTab("Yours");
+    expect(readToolboxTab(false)).toBe("Evaluate");
+    writeToolboxTab("Manufacture");
+    expect(readToolboxTab(false)).toBe(globalThis.localStorage ? "Manufacture" : "Evaluate");
+  });
+});
+
+describe("the Yours tab and search", () => {
+  const groups = toolboxGroups(
+    hardwareActions(null, new Set(["fea", "cad", "cam", "fdm", "sheet-metal"]), "FDM printing"),
+  );
+  const jobs = groups.flatMap((group) => group.sections.flatMap((section) => section.actions));
+  const [first, second] = jobs;
+
+  it("keeps pins in the order pinned and drops ones no skill can do now", () => {
+    expect(pinnedJobs(groups, [second!.id, "gone", first!.id]).map((job) => job.id)).toEqual([
+      second!.id,
+      first!.id,
+    ]);
+  });
+
+  it("suggests jobs made for the kind, across groups, leaving out pins and any-file jobs", () => {
+    const suggested = suggestedJobs(groups, "Part", [], 6);
+    expect(suggested.length).toBeGreaterThan(0);
+    expect(suggested.every((job) => job.kinds?.includes("Part"))).toBe(true);
+    expect(new Set(suggested.map((job) => job.group)).size).toBeGreaterThan(1);
+    const pinned = suggested[0]!.id;
+    expect(suggestedJobs(groups, "Part", [pinned], 6).map((job) => job.id)).not.toContain(pinned);
+    expect(suggestedJobs(groups, null, [])).toEqual([]);
+  });
+
+  it("finds a job by every word typed, in any case", () => {
+    const found = searchJobs(groups, "FDM check");
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.every((job) => /fdm/i.test(`${job.label} ${job.gets}`))).toBe(true);
+    expect(searchJobs(groups, "  ")).toEqual([]);
+    expect(searchJobs(groups, "zzz-nothing")).toEqual([]);
   });
 });
 
