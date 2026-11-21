@@ -43,10 +43,10 @@ const toggleVariants = cva(
         "segmented-accent": ACCENT_SEGMENT,
         // The same, in a group with no tray behind it: tabs on the surface they switch.
         underline: ACCENT_SEGMENT,
-        // A browser's tab, on a tinted strip: the pressed one a card in the popup's color, open at
-        // the foot so it joins what it shows; the others quiet, with a soft wash on hover.
+        // A browser's tab, on a tinted strip: the pressed one a borderless card in the popup's color
+        // that joins what it shows; the others quiet, with a soft wash on hover.
         "browser-tab":
-          "border-transparent text-muted-foreground shadow-none transition-colors before:shadow-none not-data-pressed:hover:bg-popover/55 not-data-pressed:hover:text-foreground data-pressed:border-border data-pressed:border-b-0 data-pressed:bg-popover data-pressed:font-medium data-pressed:text-foreground dark:not-data-pressed:hover:bg-input/32",
+          "border-transparent text-muted-foreground shadow-none transition-colors before:shadow-none not-data-pressed:hover:bg-foreground/6 not-data-pressed:hover:text-foreground data-pressed:bg-popover data-pressed:font-medium data-pressed:text-foreground dark:not-data-pressed:hover:bg-input/32",
       },
     },
   },

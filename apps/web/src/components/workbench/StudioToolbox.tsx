@@ -314,7 +314,7 @@ function YourJobs(props: {
         </p>
       ) : (
         <div className={SECTION_GRID}>
-          <SectionJobs section={{ title: "Pinned", actions: props.pinned }} {...props.tiles} />
+          <SectionJobs section={{ title: "Starred", actions: props.pinned }} {...props.tiles} />
         </div>
       )}
       {props.suggested.length === 0 || props.partName === null ? null : (

@@ -19,6 +19,7 @@ import {
   useEngineeringSurfaces,
 } from "./studioInterface";
 import { tabSuffixes } from "./tabSuffixes";
+import { NewTabButton } from "./NewTabButton";
 import { knownModelScript, useModelTitles } from "./useFolderModels";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
@@ -156,18 +157,21 @@ export function useStudioTabs(props: {
             }),
           )
         : null,
-    /** Engineering with code tools pins the project tab ahead of the tab list. */
-    leadingTab: engineeringSurfaces && !engineering ? projectTab : null,
-    /** The engineering interface's Overview is the first of the sheets along the bottom. */
-    firstTab: engineering ? projectTab : null,
     /**
-     * Room for the title bar's toggles over the row's right end: Studio's named Toolbox button,
-     * or T3's maximize and toggle, with the gap the toolbar's buttons keep.
+     * The project's tab, pinned ahead of the tab list and outside its scroll, so it never scrolls
+     * away however many tabs are open.
+     */
+    leadingTab: engineeringSurfaces ? projectTab : null,
+    /** New, right after the last tab, as a browser's new-tab button (`NewTabButton`). */
+    afterTabs: engineeringSurfaces ? <NewTabButton /> : null,
+    /**
+     * Room for the title bar's toggles over the row's right end, the same for Studio's named
+     * Toolbox button as for T3's maximize and toggle: the inset, and the spacers that keep the tabs
+     * clear of the window controls when the layout toggles live elsewhere.
      */
     rowEndInset: "pr-28",
-    /** Keeps the tabs clear of the window controls when the layout toggles live elsewhere. */
-    controlsSpacerWidth: engineeringSurfaces ? "w-10" : "w-24",
-    controlsInsetWidth: engineeringSurfaces ? "w-10" : "w-28",
+    controlsSpacerWidth: "w-24",
+    controlsInsetWidth: "w-28",
   };
 }
 
@@ -189,10 +193,13 @@ export function TabIcon(props: {
   );
 }
 
-/** What tells two same-titled tabs apart (Studio), shown in grey after the title. */
+/**
+ * What tells two same-titled tabs apart (Studio), shown in grey after the title. In a narrow tab it
+ * gives way before the title does.
+ */
 export function TabSuffix(props: { readonly suffix: string | undefined }) {
   return props.suffix === undefined ? null : (
-    <span className="ms-1.5 shrink-0 text-muted-foreground">{props.suffix}</span>
+    <span className="ms-1.5 min-w-0 shrink-[4] truncate text-muted-foreground">{props.suffix}</span>
   );
 }
 

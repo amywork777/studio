@@ -3,8 +3,8 @@ import { ToolCaseIcon } from "lucide-react";
 import { Button } from "../ui/button";
 
 /**
- * The title bar's Toolbox button (`ToolboxPopup` hangs under it): named, as Import and New beside it
- * are, so the Toolbox is found without hunting for an icon. `outline`, their height.
+ * The title bar's Toolbox button (`ToolboxPopup` hangs under it): named, as Import beside it is, so
+ * the Toolbox is found without hunting for an icon. A chip like the strip's others (`outline`).
  */
 export function ToolboxButton(props: {
   readonly open: boolean;
@@ -13,7 +13,7 @@ export function ToolboxButton(props: {
   readonly onToggle: () => void;
 }) {
   return (
-    <span className="flex shrink-0">
+    <span className="flex shrink-0" data-studio-tab-row-control="">
       <Button
         variant="outline"
         size="sm"

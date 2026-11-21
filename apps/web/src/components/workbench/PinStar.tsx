@@ -4,7 +4,8 @@ import { cn } from "~/lib/utils";
 import { useToolboxPins } from "./toolboxPins";
 
 /**
- * A tool's star, over the end of its row: pins it to Yours or unpins it (`useToolboxPins`). Shown
+ * A tool's star, over the end of its row, named as Home's project stars are: stars it into Yours or
+ * takes it out (`useToolboxPins`). Shown
  * on a pinned tool, and on another while the pointer or focus is on its row (`group/pin`). The
  * brand's hue, never amber: red, amber and green are for status alone.
  */
@@ -14,7 +15,7 @@ export function PinStar(props: { readonly jobId: string; readonly name: string }
   return (
     <button
       type="button"
-      aria-label={pinned ? `Unpin ${props.name}` : `Pin ${props.name}`}
+      aria-label={pinned ? `Unstar ${props.name}` : `Star ${props.name}`}
       aria-pressed={pinned}
       onClick={() => toggle(props.jobId)}
       className={cn(

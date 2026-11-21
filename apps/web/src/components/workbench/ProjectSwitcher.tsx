@@ -148,10 +148,7 @@ export function ProjectSwitcher(props: {
                   <button
                     type="button"
                     aria-label={`Project ${props.title}: switch project`}
-                    className={cn(
-                      PROJECT_CONTROL_CLASS,
-                      "h-9 max-w-full @min-[16rem]/where:max-w-[55%]",
-                    )}
+                    className={cn(PROJECT_CONTROL_CLASS, "h-7 max-w-full ps-1.5")}
                   />
                 }
               />
@@ -160,7 +157,7 @@ export function ProjectSwitcher(props: {
             <ProjectThumb
               environmentId={environmentId}
               project={current?.project ?? null}
-              size="sm"
+              size="xs"
             />
             <span className="min-w-0 truncate text-sm font-semibold text-foreground">
               {props.title}

@@ -1464,7 +1464,6 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           data-right-panel-tab-list
         >
           <div className="flex h-full w-max min-w-full items-center gap-1">
-            {studio.firstTab}
             <SortableTabList surfaces={studio.tabSurfaces} onMove={props.onMoveSurface}>
               {studio.tabSurfaces.map((surface) => {
                 const previewTabId = previewTabIdOf(surface, props.previewSessions);
@@ -1506,6 +1505,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                 );
               })}
             </SortableTabList>
+            {studio.afterTabs}
             {props.open !== false ? (
               <Menu open={addSurfaceMenuOpen} onOpenChange={setAddSurfaceMenuOpen}>
                 <MenuTrigger
