@@ -340,6 +340,36 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("mouse wheel zoom cursor pointer center")],
   },
   {
+    id: "new-project-units",
+    title: msg("Units"),
+    to: "/settings/engineering",
+    searchTerms: [msg("units millimetres inches mm in imperial metric new project")],
+  },
+  {
+    id: "new-project-standard",
+    title: msg("Drafting standard"),
+    to: "/settings/engineering",
+    searchTerms: [msg("drawing standard iso asme y14.5 ansi projection first third angle")],
+  },
+  {
+    id: "new-project-general-tolerance",
+    title: msg("General tolerance"),
+    to: "/settings/engineering",
+    searchTerms: [msg("tolerance iso 2768 drawing title block unless otherwise specified")],
+  },
+  {
+    id: "title-block-company",
+    title: msg("Company"),
+    to: "/settings/engineering",
+    searchTerms: [msg("title block company drawing name")],
+  },
+  {
+    id: "title-block-drawn-by",
+    title: msg("Drawn by"),
+    to: "/settings/engineering",
+    searchTerms: [msg("title block author drawn by drawing name")],
+  },
+  {
     id: "default-model",
     title: msg("Default model"),
     to: "/settings/threads",

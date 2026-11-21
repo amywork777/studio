@@ -66,7 +66,7 @@ function makeThread(input: {
 }
 
 const layerRuntimePolicy = RuntimePolicy.layerFromProjectStore.pipe(
-  Layer.provide(ServerSettings.layerTest({})),
+  Layer.provide(ServerSettings.layerTest({ titleBlockCompany: "Rig Co", titleBlockDrawnBy: "" })),
   Layer.provide(
     Layer.succeed(ProviderInstanceRegistry.ProviderInstanceRegistry, {
       getInstance: () =>
@@ -151,6 +151,9 @@ it.layer(layerWithStudioProject)("RuntimePolicyV2 Studio projects", (it) => {
       assert.include(resolved.projectContext ?? "", "# Studio project: Test rig");
       assert.include(resolved.projectContext ?? "", "- Material: 6061 aluminum");
       assert.include(resolved.projectContext ?? "", "kept in `/studio/rig/project.json`");
+      // The person's title block, from Settings, read on the turn.
+      assert.include(resolved.projectContext ?? "", '`company="Rig Co"`');
+      assert.include(resolved.projectContext ?? "", "Drawn by: not set");
     }),
   );
 

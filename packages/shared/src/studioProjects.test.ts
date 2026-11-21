@@ -61,6 +61,36 @@ describe("studio projects", () => {
     expect(context).not.toContain("## Changing the setup");
   });
 
+  it("sets every drawing to the project's standard, units and tolerance, with the person's name", () => {
+    // A project made before the drawing settings: ISO, the usual tolerance, no name invented.
+    const before = studioProjectContext(rover, "/work/rover-cad");
+    expect(before).toContain('`profile=GENERIC`, `projection="FIRST ANGLE"`');
+    expect(before).toContain('`units="mm"`');
+    expect(before).toContain('`general_tolerance="ISO 2768-m"`');
+    expect(before).toContain("Company: not set; leave `company` empty");
+    expect(before).toContain("Drawn by: not set; leave `author` empty");
+
+    const inch = {
+      ...rover,
+      brief: { ...rover.brief, units: "in" as const, standard: "ASME" as const },
+    };
+    const context = studioProjectContext(inch, "/work/rover-cad", null, {
+      company: 'Rover "Works"',
+      drawnBy: "A. Engineer",
+    });
+    expect(context).toContain('`profile=Profile("ASME", "ASME Y14.5-2018")`');
+    expect(context).toContain('`projection="THIRD ANGLE"`');
+    expect(context).toContain('`units="in"`');
+    expect(context).toContain('`general_tolerance="±.005"`');
+    expect(context).toContain('`company="Rover \\"Works\\""`');
+    expect(context).toContain('`author="A. Engineer"`');
+
+    const stated = { ...inch, brief: { ...inch.brief, generalTolerance: "±.010" } };
+    expect(studioProjectContext(stated, "/work/rover-cad")).toContain(
+      '`general_tolerance="±.010"`',
+    );
+  });
+
   it("asks the agent to keep the README's decisions and to start a new project with a draft, not questions", () => {
     const context = studioProjectContext(rover, "/work/rover-cad", "/studio/rover/project.json");
     expect(context).toContain("## The README");

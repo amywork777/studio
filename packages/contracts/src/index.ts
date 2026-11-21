@@ -31,6 +31,7 @@ export * from "./server.ts";
 export * from "./settings.ts";
 export * from "./studioProjects.ts";
 export * from "./studioViewer.ts";
+export * from "./studioDrawing.ts";
 export * from "./managedPolicy.ts";
 export * from "./git.ts";
 export * from "./vcs.ts";

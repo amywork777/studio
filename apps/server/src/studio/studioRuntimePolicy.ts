@@ -10,6 +10,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import * as StudioProjects from "./StudioProjects.ts";
 
 type StudioProjectPolicy = Partial<
@@ -28,6 +29,7 @@ export const makeStudioProjectPolicy = Effect.fn("RuntimePolicyV2.makeStudioProj
     // Optional so tests that assemble the runtime policy by hand need no projects stub;
     // the production composition always provides it.
     const studioProjects = yield* Effect.serviceOption(StudioProjects.StudioProjects);
+    const settings = yield* Effect.serviceOption(ServerSettings.ServerSettingsService);
     return Effect.fn("RuntimePolicyV2.studioProjectPolicy")(function* (
       input: { readonly thread: OrchestrationV2AppThread; readonly modelSelection: ModelSelection },
       projectRoot: string | null,
@@ -46,9 +48,24 @@ export const makeStudioProjectPolicy = Effect.fn("RuntimePolicyV2.makeStudioProj
         if (match === null) return {};
         // The project's own folder under Studio's projects folder (an absolute path the server made).
         const record = `${folder.replace(/[\\/]+$/, "")}/${match.id}`;
+        // The person's name on every drawing, read each turn so a change in Settings reaches every project.
+        const titleBlock = Option.isNone(settings)
+          ? null
+          : yield* settings.value.getSettings.pipe(
+              Effect.map((current) => ({
+                company: current.titleBlockCompany,
+                drawnBy: current.titleBlockDrawnBy,
+              })),
+              Effect.orElseSucceed(() => null),
+            );
         return {
           additionalDirectories: [...studioOtherFolders(match.project, root), record],
-          projectContext: studioProjectContext(match.project, root, `${record}/project.json`),
+          projectContext: studioProjectContext(
+            match.project,
+            root,
+            `${record}/project.json`,
+            titleBlock,
+          ),
         };
       }).pipe(
         Effect.catch((cause) =>

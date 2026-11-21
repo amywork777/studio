@@ -1,4 +1,5 @@
 import type { EnvironmentId, InstalledPlugin } from "@t3tools/contracts";
+import { useEnvironmentSettings } from "~/hooks/useSettings";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { Link, useLocation } from "@tanstack/react-router";
 import { FilePlusIcon, FolderOpenIcon } from "lucide-react";
@@ -248,7 +249,11 @@ export function NewDialog(props: {
   const brief = useStudioProjectAt(props.environmentId, props.cwd)?.project.brief ?? null;
   const [name, setName] = useState(initial?.defaultName ?? "");
   const [folder, setFolder] = useState(initial?.folder ?? "");
-  const [units, setUnits] = useState<"mm" | "in">(brief?.units ?? "mm");
+  const newProjectUnits = useEnvironmentSettings(
+    props.environmentId,
+    (settings) => settings.newProjectUnits,
+  );
+  const [units, setUnits] = useState<"mm" | "in">(brief?.units ?? newProjectUnits);
   const [part, setPart] = useState<string | null>(props.parts[0] ?? null);
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);

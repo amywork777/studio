@@ -1,4 +1,8 @@
-import type { StudioProject, StudioProjectBrief } from "@t3tools/contracts";
+import {
+  type StudioProject,
+  type StudioProjectBrief,
+  usualGeneralTolerance,
+} from "@t3tools/contracts";
 
 /**
  * Studio projects (`StudioProject` in contracts): a named grouping of folders
@@ -214,6 +218,43 @@ const REFERENCES =
 const section = (title: string, body: string) =>
   body.trim() === "" ? [] : [`## ${title}`, "", body.trim(), ""];
 
+/** The person's name and company for every drawing's title block (Settings, Engineering). */
+export interface StudioTitleBlock {
+  readonly company: string;
+  readonly drawnBy: string;
+}
+
+/**
+ * How every drawing sheet in the project is set up: the brief's standard, units and general
+ * tolerance, and the person's title block, as text-to-cad's `Sheet` arguments.
+ */
+function drawingConventions(brief: StudioProjectBrief, titleBlock: StudioTitleBlock | null) {
+  const standard = brief.standard ?? "ISO";
+  const tolerance = brief.generalTolerance?.trim() || usualGeneralTolerance(standard, brief.units);
+  const text = (value: string) => JSON.stringify(value);
+  const company = titleBlock?.company.trim() ?? "";
+  const drawnBy = titleBlock?.drawnBy.trim() ?? "";
+  return [
+    "Set up every drawing sheet (`cad.eng_drawing.Sheet`) this way unless the person asks otherwise:",
+    "",
+    standard === "ASME"
+      ? '- Standard: ASME Y14.5, third angle: `profile=Profile("ASME", "ASME Y14.5-2018")`, `projection="THIRD ANGLE"`'
+      : '- Standard: ISO GPS, first angle: `profile=GENERIC`, `projection="FIRST ANGLE"`',
+    brief.units === "in"
+      ? '- Units: `units="in"`; every size prints in decimal inches, converted from the model\'s millimetres'
+      : '- Units: `units="mm"`',
+    `- General tolerance: \`general_tolerance=${text(tolerance)}\``,
+    company === ""
+      ? "- Company: not set; leave `company` empty"
+      : `- Company: \`company=${text(company)}\``,
+    drawnBy === ""
+      ? "- Drawn by: not set; leave `author` empty"
+      : `- Drawn by: \`author=${text(drawnBy)}\``,
+    "",
+    "Never invent a name, a company or a tolerance the person did not give.",
+  ].join("\n");
+}
+
 /**
  * What the agent is told about the project before any work: its folders
  * (which it can read and edit), how to work, the brief and where work goes.
@@ -223,6 +264,7 @@ export function studioProjectContext(
   folder: string,
   /** The project's own `project.json`, where the agent changes the setup when asked. */
   record: string | null = null,
+  titleBlock: StudioTitleBlock | null = null,
 ): string {
   const { brief } = project;
   const key = studioFolderKey(folder);
@@ -255,15 +297,17 @@ export function studioProjectContext(
     `- Process: ${brief.process.trim() || "Not decided"}`,
     `- Quantity: ${brief.quantity.trim() || "Not decided"}`,
     "",
+    ...section("Drawings", drawingConventions(brief, titleBlock)),
     ...section(
       "Changing the setup",
       record === null
         ? ""
         : [
-            `The units, material, process and quantity are the project's setup, kept in \`${record}\``,
-            `under \`brief\`: \`units\` is "mm" or "in", \`process\` is one of`,
-            `${STUDIO_PROCESSES.map((process) => `"${process}"`).join(", ")}, and \`material\``,
-            "and `quantity` are text. When asked to change the setup, change only those keys in that",
+            `The units, material, process, quantity, drafting standard and general tolerance are the`,
+            `project's setup, kept in \`${record}\` under \`brief\`: \`units\` is "mm" or "in",`,
+            `\`standard\` is "ISO" or "ASME", \`process\` is one of`,
+            `${STUDIO_PROCESSES.map((process) => `"${process}"`).join(", ")}, and \`material\`,`,
+            "`quantity` and `generalTolerance` are text. When asked to change the setup, change only those keys in that",
             "file, keep it valid JSON, and commit it in its folder with git. Then update the parts the",
             "change clearly affects in the same turn (a wall thickness, a bend radius, a hole for the new",
             "screws) and say what changed and which checks to rerun. Where it could go two very",
