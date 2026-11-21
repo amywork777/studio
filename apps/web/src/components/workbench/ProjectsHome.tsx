@@ -108,7 +108,6 @@ function ProjectsHomeFor(props: { readonly environmentId: EnvironmentId }) {
         environmentId,
         name: studioFolderName(folder.workspaceRoot),
         kind: PART_KIND,
-        units: "mm",
         material: "",
         purpose: "",
         folders: [folder.workspaceRoot],

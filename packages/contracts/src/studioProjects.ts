@@ -1,6 +1,7 @@
 import * as Schema from "effect/Schema";
 
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { DraftingStandard, ProjectUnits } from "./studioDrawing.ts";
 
 /**
  * What a hardware project is for, as its engineer sets it: every field is
@@ -9,7 +10,11 @@ import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 export const StudioProjectBrief = Schema.Struct({
   purpose: Schema.String,
   requirements: Schema.String,
-  units: Schema.Literals(["mm", "in"]),
+  units: ProjectUnits,
+  /** Whose rules its drawings follow; a project made before the setting reads as ISO. */
+  standard: Schema.optionalKey(DraftingStandard),
+  /** The tolerance its drawings state for every size without its own; unset is the standard's usual. */
+  generalTolerance: Schema.optionalKey(Schema.String),
   material: Schema.String,
   process: Schema.String,
   quantity: Schema.String,

@@ -9,6 +9,7 @@ import type {
 import type { StudioProjectKind } from "@t3tools/shared/studioProjects";
 
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
+import { useEnvironmentSettings } from "~/hooks/useSettings";
 import { waitForProject } from "~/state/entities";
 import { projectEnvironment } from "~/state/projects";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -21,7 +22,8 @@ export interface NewStudioProject {
   readonly environmentId: EnvironmentId;
   readonly name: string;
   readonly kind: StudioProjectKind;
-  readonly units: "mm" | "in";
+  /** Unsaid is Settings, Engineering's units for new projects. */
+  readonly units?: "mm" | "in";
   readonly material: string;
   readonly purpose: string;
   /** How it is made, when known (a copy of an example); the kind's own process otherwise. */
@@ -52,6 +54,12 @@ export function useCreateStudioProject(environmentId: EnvironmentId) {
   const save = useSaveStudioProject(environmentId);
   const knownFolders = useEnvironmentFolders(environmentId);
   const handleNewThread = useNewThreadHandler();
+  const units = useEnvironmentSettings(environmentId, (settings) => settings.newProjectUnits);
+  const standard = useEnvironmentSettings(environmentId, (settings) => settings.newProjectStandard);
+  const generalTolerance = useEnvironmentSettings(
+    environmentId,
+    (settings) => settings.newProjectGeneralTolerance,
+  );
 
   return async (input: NewStudioProject): Promise<boolean> => {
     const name = input.name.trim();
@@ -80,7 +88,12 @@ export function useCreateStudioProject(environmentId: EnvironmentId) {
       {
         name,
         template: input.kind.id,
-        brief: newProjectBrief(input),
+        brief: newProjectBrief({
+          ...input,
+          units: input.units ?? units,
+          standard,
+          generalTolerance,
+        }),
         folders,
         createdAt: new Date().toISOString(),
       },

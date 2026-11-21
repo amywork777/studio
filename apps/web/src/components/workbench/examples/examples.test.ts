@@ -105,7 +105,13 @@ describe("validateExampleSearch", () => {
 describe("copyBrief", () => {
   const part = STUDIO_PROJECT_KINDS.find((kind) => kind.id === "part")!;
   const briefOf = (example: StudioSample) =>
-    newProjectBrief({ kind: part, units: "mm", ...copyBrief(example) });
+    newProjectBrief({
+      kind: part,
+      units: "mm",
+      standard: "ISO",
+      generalTolerance: "",
+      ...copyBrief(example),
+    });
 
   it("makes a copy's brief carry the example's process, material and purpose", () => {
     const brief = briefOf({

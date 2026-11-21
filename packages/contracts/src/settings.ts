@@ -24,6 +24,7 @@ import {
 } from "./baseSchemas.ts";
 import { UsageLimitSourceId } from "./usageLimitSourceId.ts";
 import { ViewerMouse } from "./studioViewer.ts";
+import { DraftingStandard, ProjectUnits } from "./studioDrawing.ts";
 import { UsageModelFilter } from "./usage.ts";
 import { SecretProviderId, SecretProviderSlug } from "./secretReference.ts";
 import { containsSecretReference, SettingsSecretValue } from "./settingsSecretValue.ts";
@@ -1547,6 +1548,15 @@ export const ServerSettings = Schema.Struct({
   addProjectBaseDirectory: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   /** Where a new project's folder is made; empty is the server's own (`newProjectsRoot`). */
   newProjectsFolder: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  // Studio: what a new project's brief starts with, and whose name its drawings carry (Settings, Engineering).
+  newProjectUnits: ProjectUnits.pipe(Schema.withDecodingDefault(Effect.succeed("mm" as const))),
+  newProjectStandard: DraftingStandard.pipe(
+    Schema.withDecodingDefault(Effect.succeed("ISO" as const)),
+  ),
+  /** Empty is the standard's usual (`usualGeneralTolerance`). */
+  newProjectGeneralTolerance: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  titleBlockCompany: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  titleBlockDrawnBy: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   /** Clones default to `<addProjectBaseDirectory>/<host>/<owner>/<repo>`, like ghq. */
   ghqCloneLayout: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   textGenerationModelSelection: ModelSelection.pipe(
@@ -1961,6 +1971,11 @@ export const ServerSettingsPatch = Schema.Struct({
   worktreeSubmodules: Schema.optionalKey(Schema.NullOr(WorktreeSubmodules)),
   addProjectBaseDirectory: Schema.optionalKey(TrimmedString),
   newProjectsFolder: Schema.optionalKey(TrimmedString),
+  newProjectUnits: Schema.optionalKey(ProjectUnits),
+  newProjectStandard: Schema.optionalKey(DraftingStandard),
+  newProjectGeneralTolerance: Schema.optionalKey(TrimmedString),
+  titleBlockCompany: Schema.optionalKey(TrimmedString),
+  titleBlockDrawnBy: Schema.optionalKey(TrimmedString),
   ghqCloneLayout: Schema.optionalKey(Schema.Boolean),
   textGenerationModelSelection: Schema.optionalKey(ModelSelectionPatch),
   threadTitleInstructions: Schema.optionalKey(TrimmedString),

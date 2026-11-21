@@ -52,8 +52,6 @@ import {
 export const SETTINGS_DEVICE_ONLY_PATHS: ReadonlySet<string> = new Set([
   "/settings/general",
   "/settings/appearance",
-  // Studio: how the mouse moves a CAD view is this device's.
-  "/settings/engineering",
   "/settings/chat",
   "/settings/diffs",
   "/settings/snap-shot",
