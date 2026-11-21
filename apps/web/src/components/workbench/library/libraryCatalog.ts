@@ -467,6 +467,12 @@ function jobsOfEntry(entry: LibraryEntry): ReadonlyArray<HardwareAction> {
   return job === null ? HARDWARE_ACTIONS.filter((each) => each.skill === entry.name) : [job];
 }
 
+/** The one job an entry stands for, which a star pins (`PinStar`); null for one of none or many. */
+export function entryJob(entry: LibraryEntry): HardwareAction | null {
+  const jobs = jobsOfEntry(entry);
+  return jobs.length === 1 ? (jobs[0] ?? null) : null;
+}
+
 /**
  * What an entry needs that Studio does not bring (`HardwareAction.needs`), for its tile to say
  * before a press: said where every job behind it needs the same thing, in that job's own words.

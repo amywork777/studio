@@ -38,9 +38,9 @@ export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
     )} to 9 jumps to one.`,
   },
   {
-    target: "[data-studio-toolbar]",
-    title: "New, and AI or CAD",
-    body: "New starts a part, a board or a document. With a part open, the AI | CAD switch chooses between asking the agent and modeling the part yourself.",
+    target: "[data-studio-new-tab]",
+    title: "New",
+    body: "The + after your tabs starts a part, a board or a document, as a browser's opens a new tab.",
   },
   {
     // The Toolbox's button, the one way in, there whether the Toolbox is open or not.

@@ -1,4 +1,5 @@
 import type { EnvironmentId } from "@t3tools/contracts";
+import { ToolCaseIcon } from "lucide-react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useFilesystemReadAccess } from "~/state/filesystem";
@@ -69,6 +70,17 @@ export function ProjectStarters(props: {
           </button>
         );
       })}
+      {/* The way on to every other job: the title bar's Toolbox button, which opens the panel too. */}
+      <button
+        type="button"
+        className="flex min-h-6 min-w-0 items-start gap-1.5 rounded-md border border-dashed border-border px-2 py-0.5 text-start text-xs leading-4.5 text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        onClick={() =>
+          document.querySelector<HTMLButtonElement>("[data-right-panel-toggle]")?.click()
+        }
+      >
+        <ToolCaseIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0">More tools…</span>
+      </button>
     </div>
   );
 }

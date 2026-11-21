@@ -39,7 +39,7 @@ export function ToolboxPopup(props: {
         side="bottom"
         align="end"
         padding="none"
-        width="sm"
+        width="lg"
         aria-label="Toolbox"
         data-studio-toolbox
       >

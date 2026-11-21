@@ -22,8 +22,7 @@ function ToggleGroup({
   children,
   ...props
 }: ToggleGroupPrimitive.Props & VariantProps<typeof toggleVariants>) {
-  const size =
-    sizeProp === undefined ? (isSegmented(variant) ? "segmented" : "default") : sizeProp;
+  const size = sizeProp === undefined ? (isSegmented(variant) ? "segmented" : "default") : sizeProp;
   const value = { size, variant };
   return (
     <ToggleGroupPrimitive
@@ -32,7 +31,7 @@ function ToggleGroup({
         orientation === "horizontal"
           ? "*:pointer-coarse:after:min-w-auto"
           : "*:pointer-coarse:after:min-h-auto",
-        variant === "default" || variant === "underline"
+        variant === "default" || variant === "underline" || variant === "browser-tab"
           ? "gap-0.5"
           : isSegmented(variant)
             ? "gap-0.5 rounded-lg bg-input/40 p-0.5"

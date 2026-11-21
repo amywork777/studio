@@ -1,3 +1,5 @@
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+
 import { Button } from "../ui/button";
 import {
   RICH_TOOLTIP_DELAY,
@@ -6,12 +8,12 @@ import {
   TooltipRich,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { KIND_ICONS } from "./kinds";
 
 /**
  * The one button that hides or shows a part's CAD tools; a selection on the model goes to the agent
  * either way. Held, with the reason, while a command or sketch is open in the view in front. The
- * choice lives in Simple view's store (`simpleView.ts`).
+ * choice lives in Simple view's store (`simpleView.ts`). Its eye and its words say what a press
+ * does, and the words stay until the row is very short of room.
  */
 export function CadToolsButton(props: {
   readonly shown: boolean;
@@ -35,8 +37,8 @@ export function CadToolsButton(props: {
           data-studio-cad-tools=""
           onClick={() => props.onChange(!props.shown)}
         >
-          <KIND_ICONS.CAD aria-hidden="true" />
-          <span className="@max-[40rem]/toolbar:hidden">{label}</span>
+          {props.shown ? <EyeOffIcon aria-hidden="true" /> : <EyeIcon aria-hidden="true" />}
+          <span className="@max-[52rem]/toolbar:hidden">{label}</span>
         </Button>
       </TooltipTrigger>
       <TooltipPopup side="bottom">
