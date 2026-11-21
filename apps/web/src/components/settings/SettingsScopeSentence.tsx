@@ -74,6 +74,8 @@ const SETTINGS_NO_PROJECT_PATHS: ReadonlyMap<
   ["/settings/interface", { line: "This setting applies to every project.", environment: false }],
   ["/settings/plugins", { line: "These settings apply to every project", environment: true }],
   ["/settings/keybindings", { line: "These settings apply to every project", environment: true }],
+  // Studio: a new project's defaults and the title block are the person's, never one project's.
+  ["/settings/engineering", { line: "These settings apply to every project", environment: true }],
   ["/settings/diagnostics", { line: null, environment: true }],
   ["/settings/open-source-licenses", { line: null, environment: false }],
 ]);
