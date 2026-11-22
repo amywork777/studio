@@ -11,25 +11,41 @@ import {
   DumbbellIcon,
   ExpandIcon,
   FileBoxIcon,
+  FileOutputIcon,
   FileStackIcon,
+  FlameIcon,
   FlaskConicalIcon,
   FoldVerticalIcon,
+  FootprintsIcon,
+  GemIcon,
   LayersIcon,
+  LayoutPanelTopIcon,
+  ListChecksIcon,
   ListOrderedIcon,
   NotebookPenIcon,
   OrbitIcon,
+  PackageCheckIcon,
   PencilRulerIcon,
   PlayIcon,
+  PrinterIcon,
   Rotate3dIcon,
   RouteIcon,
   RulerIcon,
+  ScaleIcon,
   ScanLineIcon,
   ScissorsIcon,
   ShoppingCartIcon,
+  SplineIcon,
   SpoolIcon,
+  SquareDashedIcon,
+  SquareScissorsIcon,
+  SquareStackIcon,
   SyringeIcon,
+  TableIcon,
+  TablePropertiesIcon,
   TargetIcon,
   TruckIcon,
+  UnfoldHorizontalIcon,
   WeightIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -88,6 +104,31 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   mujoco: OrbitIcon,
 };
 
+/** The pictures of the industry plugins' jobs (`industryJobs.ts`), by id, each its own on its tab. */
+const INDUSTRY_JOB_ICONS: Partial<Record<string, LucideIcon>> = {
+  // Apparel
+  seams: SplineIcon,
+  "cutting-file": SquareScissorsIcon,
+  "print-pattern": PrinterIcon,
+  "size-spec": TablePropertiesIcon,
+  // Packaging
+  "carton-fit": PackageCheckIcon,
+  dieline: SquareDashedIcon,
+  // Woodworking
+  "cut-list-check": ListChecksIcon,
+  "cut-list": TableIcon,
+  "sheet-layout": LayoutPanelTopIcon,
+  // Jewelry
+  "stone-seat": GemIcon,
+  "metal-weight": ScaleIcon,
+  "casting-check": FlameIcon,
+  "casting-file": FileOutputIcon,
+  // Footwear
+  "shoe-size": FootprintsIcon,
+  "midsole-print": SquareStackIcon,
+  "flatten-upper": UnfoldHorizontalIcon,
+};
+
 /** The jobs with a picture of their own, by id: the test holds each to a real job. */
 export const JOB_ICON_IDS: ReadonlyArray<string> = Object.keys(JOB_ICONS);
 
@@ -113,7 +154,12 @@ const SECTION_ICONS: Partial<Record<string, LucideIcon>> = {
  * bar menu's icon).
  */
 export function toolIcon(action: HardwareAction): LucideIcon {
-  return JOB_ICONS[action.id] ?? SECTION_ICONS[action.section] ?? MENU_ICONS[action.group];
+  return (
+    JOB_ICONS[action.id] ??
+    INDUSTRY_JOB_ICONS[action.id] ??
+    SECTION_ICONS[action.section] ??
+    MENU_ICONS[action.group]
+  );
 }
 
 /** Whether a section (`ACTION_SECTIONS` id) has a picture of its own for its jobs to fall back on. */

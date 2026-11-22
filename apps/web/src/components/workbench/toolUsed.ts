@@ -1,4 +1,4 @@
-import { HARDWARE_ACTIONS, type HardwareAction } from "./hardwareActions";
+import { TOOLBOX_ACTIONS, type HardwareAction } from "./hardwareActions";
 
 /** The line, on its own or after a draft, which the composer joins to a job with a space. */
 const TOOL_LINE = /(?:^|\s+)Tool: ([^\n]+)\n+/g;
@@ -25,7 +25,7 @@ export function toolUsed(text: string): {
   const tools: HardwareAction[] = [];
   let words = "";
   const message = text.replace(TOOL_LINE, (line, name: string, at: number) => {
-    const tool = HARDWARE_ACTIONS.find((action) => action.label === name);
+    const tool = TOOLBOX_ACTIONS.find((action) => action.label === name);
     if (tool === undefined) return line;
     if (tools.length === 0) words = text.slice(0, at).trim();
     if (!tools.includes(tool)) tools.push(tool);

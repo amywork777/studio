@@ -39,6 +39,7 @@ import {
   skillName,
 } from "./libraryCatalog";
 import { AddSkillTile } from "./AddSkill";
+import { Industries } from "./Industries";
 import { LibraryCard } from "./LibraryCard";
 import { LibraryPicture } from "./LibraryPicture";
 import {
@@ -284,6 +285,7 @@ function LibraryContent(props: {
       {nothingFound ? (
         <p className="py-6 text-sm text-muted-foreground">Nothing in the Toolbox matches that.</p>
       ) : null}
+      {query === "" ? <Industries environmentId={environmentId} plugins={plugins} /> : null}
       <div className="@container min-w-0">
         <div className="flex min-w-0 items-start gap-8">
           <ShelfIndex shelves={shelves} />

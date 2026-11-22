@@ -143,7 +143,8 @@ if (process.env.STUDIO_SOLIDCRAFT?.trim() === "1" && NodeFS.existsSync(SOLIDCRAF
   );
   NodeFS.writeFileSync(listing, JSON.stringify(market, null, 2));
 }
-if (defaults.length > 1) markets.push(own);
+// Listed whether or not SolidCraft is: the industry plugins are turned on from the Toolbox page.
+markets.push(own);
 
 // text-to-cad's name, mark, icons and accent (brand/README.md).
 const brandDir = NodePath.join(appRoot, "brand");

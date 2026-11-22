@@ -1,5 +1,7 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
+import { INDUSTRY_ACTIONS, INDUSTRY_SECTIONS } from "./industryJobs";
+
 /**
  * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
  * own way first) and Document. Each job is one the agent knows through a text-to-cad skill, offered
@@ -552,6 +554,15 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
 
 const GROUPS: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "Document"];
 
+/**
+ * Every job a Toolbox can show: text-to-cad's, then those of Studio's industry plugins
+ * (`industryJobs.ts`), which only a person who turned that industry on is offered.
+ */
+export const TOOLBOX_ACTIONS: ReadonlyArray<HardwareAction> = [
+  ...HARDWARE_ACTIONS,
+  ...INDUSTRY_ACTIONS,
+];
+
 /** A run of a menu's jobs, under its section's title. */
 export interface ActionSection {
   readonly title: string;
@@ -598,7 +609,7 @@ export function hardwareActions(
   process: MakingProcess | string = "Not decided",
 ): HardwareActionMenu[] {
   const decided = process.trim() !== "" && process !== "Not decided";
-  const offered = HARDWARE_ACTIONS.filter(
+  const offered = TOOLBOX_ACTIONS.filter(
     (action) =>
       (kind === null || jobFits(action, kind)) &&
       (action.skill === null || skills.has(action.skill)),
@@ -613,7 +624,8 @@ export function hardwareActions(
       }))
       .filter((section) => section.actions.length > 0);
   return GROUPS.flatMap((group): HardwareActionMenu[] => {
-    const defs = ACTION_SECTIONS.filter((def) => def.group === group);
+    // An industry the person turned on leads its group, after the project's own way of making it.
+    const defs = [...INDUSTRY_SECTIONS, ...ACTION_SECTIONS].filter((def) => def.group === group);
     const ours = (def: ActionSectionDef) =>
       def.processes !== undefined && def.processes.some((entry) => entry === process);
     // A way of making it is in the menu itself only when it is the project's own.
