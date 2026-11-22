@@ -853,37 +853,41 @@ function readPluginSafely(folder: ReturnType<typeof PluginFiles.nodeFolder>): Re
 export const layerWith = (sources: ReadonlyArray<MarketplaceSource>) =>
   Layer.effect(PluginStore, makeWith(sources));
 
+/** The folder of every enabled plugin, which a Claude session takes as its plugins. */
+export const claudePluginRoots = (
+  store: Option.Option<PluginStore["Service"]>,
+): Effect.Effect<ReadonlyArray<string>> =>
+  Option.isNone(store)
+    ? Effect.succeed([])
+    : store.value.enabledPlugins.pipe(
+        Effect.map((plugins) => plugins.map((plugin) => plugin.root)),
+      );
+
 /**
  * The Agent SDK's `plugins` option for a Claude session: every enabled
- * plugin's folder, for its skills (and commands, agents, hooks). Its MCP
- * servers are skipped: agents reach them through T3's own MCP server, so the
- * CAD tab and the agent share one process.
+ * plugin's folder (`claudePluginRoots`), for its skills (and commands, agents,
+ * hooks). Its MCP servers are skipped: agents reach them through T3's own MCP
+ * server, so the CAD tab and the agent share one process.
  */
 export const withClaudePlugins = <
   O extends { readonly plugins?: ReadonlyArray<unknown> | undefined },
 >(
-  store: Option.Option<PluginStore["Service"]>,
+  roots: ReadonlyArray<string>,
   options: O,
-): Effect.Effect<O> =>
-  Option.isNone(store)
-    ? Effect.succeed(options)
-    : store.value.enabledPlugins.pipe(
-        Effect.map((plugins) =>
-          plugins.length === 0
-            ? options
-            : {
-                ...options,
-                plugins: [
-                  ...(options.plugins ?? []),
-                  ...plugins.map((plugin) => ({
-                    type: "local" as const,
-                    path: plugin.root,
-                    skipMcpDiscovery: true,
-                  })),
-                ],
-              },
-        ),
-      );
+): O =>
+  roots.length === 0
+    ? options
+    : {
+        ...options,
+        plugins: [
+          ...(options.plugins ?? []),
+          ...roots.map((root) => ({
+            type: "local" as const,
+            path: root,
+            skipMcpDiscovery: true,
+          })),
+        ],
+      };
 
 /** Codex's `skills/extraRoots/set`: the skills folders of every enabled plugin. */
 export const codexSkillRoots = (

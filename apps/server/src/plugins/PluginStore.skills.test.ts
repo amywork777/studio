@@ -41,9 +41,10 @@ describe("the person's own skills", () => {
         const myRoot = roots.find((root) => root.includes(MY_SKILLS_PLUGIN_ID));
         assert.isDefined(myRoot);
         assert.isTrue(NodeFS.existsSync(NodePath.join(myRoot!, added.skill, "SKILL.md")));
-        const claude = yield* PluginStore.withClaudePlugins(Option.some(store), {
-          plugins: [] as ReadonlyArray<{ readonly path: string }>,
-        });
+        const claude = PluginStore.withClaudePlugins(
+          yield* PluginStore.claudePluginRoots(Option.some(store)),
+          { plugins: [] as ReadonlyArray<{ readonly path: string }> },
+        );
         assert.isTrue(claude.plugins.some((plugin) => plugin.path.includes(MY_SKILLS_PLUGIN_ID)));
 
         // A save shows in the list at once.

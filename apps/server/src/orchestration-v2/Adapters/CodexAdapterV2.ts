@@ -2014,6 +2014,9 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
         >(undefined);
         // Codex rejects a second initialize on the shared app-server.
         const initializePermit = yield* Semaphore.make(1);
+        const pluginSkills = yield* CodexStudio.pluginSkills(pluginStore, (extraRoots) =>
+          client.request("skills/extraRoots/set", { extraRoots }),
+        );
         const ensureInitialized = initializePermit.withPermit(
           Effect.gen(function* () {
             const alreadyInitialized = yield* Ref.get(initialized);
@@ -2070,12 +2073,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               });
             }
             yield* client.notify("initialized", undefined);
-            yield* CodexStudio.loadPluginSkills(pluginStore, (extraRoots) =>
-              client.request("skills/extraRoots/set", { extraRoots }),
-            );
+            yield* pluginSkills.load;
             yield* Ref.set(initialized, true);
           }),
         );
+        yield* pluginSkills.follow(initializePermit.withPermit(Ref.get(initialized)));
         // A failed open is discarded, so the next turn spawns the updated binary.
         if (adapterOptions.compatibility !== undefined) yield* ensureInitialized;
         const personalMcpServersFor = yield* CodexStudio.personalMcpServersFor(

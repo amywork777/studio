@@ -2,7 +2,9 @@
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import type * as CodexSchema from "effect-codex-app-server/schema";
 import * as Effect from "effect/Effect";
-import type * as Option from "effect/Option";
+import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
+import * as Stream from "effect/Stream";
 
 import * as PluginStore from "../plugins/PluginStore.ts";
 
@@ -91,11 +93,35 @@ export const personalMcpServersFor = Effect.fn("CodexStudio.personalMcpServersFo
       : personalMcpServers;
 });
 
-/** Points a freshly started Codex app-server at the enabled plugins' skills; a failure leaves them out. */
-export const loadPluginSkills = Effect.fn("CodexStudio.loadPluginSkills")(function* <E>(
+/**
+ * The enabled plugins' skills folders, for one Codex app-server. `load` hands them over once it has
+ * started; `follow` hands them over again whenever the plugins change, so a plugin turned on or off
+ * while a chat is open is in (or out of) its very next turn: Codex reads a running thread's skills
+ * again when its folders are set. A failure leaves the folders as they were until the next change.
+ */
+export const pluginSkills = Effect.fn("CodexStudio.pluginSkills")(function* <E>(
   pluginStore: Option.Option<PluginStore.PluginStore["Service"]>,
   setExtraRoots: (extraRoots: Array<string>) => Effect.Effect<unknown, E>,
 ) {
-  const roots = yield* PluginStore.codexSkillRoots(pluginStore);
-  if (roots.length > 0) yield* setExtraRoots([...roots]).pipe(Effect.ignore);
+  // What this app-server has been given; a fresh one has none.
+  const given = yield* Ref.make<ReadonlyArray<string>>([]);
+  const load = Effect.gen(function* () {
+    const roots = yield* PluginStore.codexSkillRoots(pluginStore);
+    const current = yield* Ref.get(given);
+    if (roots.length === current.length && roots.every((root, at) => root === current[at])) return;
+    yield* setExtraRoots([...roots]);
+    yield* Ref.set(given, roots);
+  }).pipe(Effect.ignore);
+  /** `started`: whether the app-server has been initialized; before that, `load` is its start's to run. */
+  const follow = (started: Effect.Effect<boolean>) =>
+    Option.isNone(pluginStore)
+      ? Effect.void
+      : pluginStore.value.changes.pipe(
+          Stream.runForEach(() =>
+            started.pipe(Effect.flatMap((isStarted) => (isStarted ? load : Effect.void))),
+          ),
+          Effect.forkScoped,
+          Effect.asVoid,
+        );
+  return { load, follow };
 });
