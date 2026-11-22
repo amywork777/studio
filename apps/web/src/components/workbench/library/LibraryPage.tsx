@@ -39,7 +39,6 @@ import {
   skillName,
 } from "./libraryCatalog";
 import { AddSkillTile } from "./AddSkill";
-import { Industries } from "./Industries";
 import { LibraryCard } from "./LibraryCard";
 import { LibraryPicture } from "./LibraryPicture";
 import {
@@ -59,6 +58,7 @@ import {
   type LibrarySearch,
   skillGroup,
 } from "./librarySearch";
+import { Industries } from "./Industries";
 import { NeedsSkill } from "./NeedsSkill";
 import { SeeTheExample } from "./SeeTheExample";
 import { SkillDetail } from "./SkillDetail";
