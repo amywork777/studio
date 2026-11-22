@@ -1,0 +1,18 @@
+{
+  "name": "footwear",
+  "version": "0.1.0",
+  "description": "Design a sole unit from a foot's length and width, with stack heights, drop, cored cushioning and tread, checked for printing; and flatten a curved piece of an upper into its flat pattern with the stretch it needs.",
+  "author": {
+    "name": "Studio"
+  },
+  "keywords": ["footwear", "shoe", "sole", "midsole", "upper"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Footwear",
+    "shortDescription": "Soles and upper pattern pieces",
+    "longDescription": "Design a sole unit from a foot's length and width, with stack heights, drop, cored cushioning and tread, checked for printing; and flatten a curved piece of an upper into its flat pattern with the stretch it needs.",
+    "developerName": "Studio",
+    "category": "Creativity",
+    "capabilities": ["Write"]
+  }
+}

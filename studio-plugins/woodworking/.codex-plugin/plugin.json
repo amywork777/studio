@@ -1,0 +1,18 @@
+{
+  "name": "woodworking",
+  "version": "0.1.0",
+  "description": "Design furniture from plywood and boards: the piece with its joints, a cut list checked against the model, the boards laid out on sheets with the saw kerf, and edge banding lengths.",
+  "author": {
+    "name": "Studio"
+  },
+  "keywords": ["woodworking", "furniture", "cut list", "plywood", "cabinet"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Woodworking",
+    "shortDescription": "Furniture, cut lists and sheet layouts",
+    "longDescription": "Design furniture from plywood and boards: the piece with its joints, a cut list checked against the model, the boards laid out on sheets with the saw kerf, and edge banding lengths.",
+    "developerName": "Studio",
+    "category": "Creativity",
+    "capabilities": ["Write"]
+  }
+}

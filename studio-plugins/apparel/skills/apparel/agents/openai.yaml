@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apparel"
+  short_description: "Sewing patterns from measurements"
+  default_prompt: "Draft a T-shirt pattern from my measurements with $apparel, check its seams and give me the cutting-room DXF."

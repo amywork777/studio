@@ -1,0 +1,18 @@
+{
+  "name": "jewelry",
+  "version": "0.1.0",
+  "description": "Design rings and settings: a band at a ring size, a stone with its seat, the metal as one castable body, its weight in silver, gold or platinum, and the checks a caster and a setter ask for.",
+  "author": {
+    "name": "Studio"
+  },
+  "keywords": ["jewelry", "ring", "casting", "stone setting"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Jewelry",
+    "shortDescription": "Rings and stone settings for casting",
+    "longDescription": "Design rings and settings: a band at a ring size, a stone with its seat, the metal as one castable body, its weight in silver, gold or platinum, and the checks a caster and a setter ask for.",
+    "developerName": "Studio",
+    "category": "Creativity",
+    "capabilities": ["Write"]
+  }
+}

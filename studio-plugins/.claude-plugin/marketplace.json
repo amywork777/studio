@@ -10,6 +10,41 @@
       "source": "./solidcraft",
       "description": "Edit parts in SolidCraft, a parametric CAD app, beside the engineer",
       "version": "0.13.1"
+    },
+    {
+      "name": "apparel",
+      "source": "./apparel",
+      "description": "Sewing patterns from measurements",
+      "version": "0.1.0",
+      "category": "Industry"
+    },
+    {
+      "name": "packaging",
+      "source": "./packaging",
+      "description": "Folding cartons and dielines",
+      "version": "0.1.0",
+      "category": "Industry"
+    },
+    {
+      "name": "woodworking",
+      "source": "./woodworking",
+      "description": "Furniture, cut lists and sheet layouts",
+      "version": "0.1.0",
+      "category": "Industry"
+    },
+    {
+      "name": "jewelry",
+      "source": "./jewelry",
+      "description": "Rings and stone settings for casting",
+      "version": "0.1.0",
+      "category": "Industry"
+    },
+    {
+      "name": "footwear",
+      "source": "./footwear",
+      "description": "Soles and upper pattern pieces",
+      "version": "0.1.0",
+      "category": "Industry"
     }
   ]
 }
