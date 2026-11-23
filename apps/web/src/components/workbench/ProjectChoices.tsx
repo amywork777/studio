@@ -18,10 +18,6 @@ import { useProjectCover } from "./useProjectCover";
  * its list, so a project looks and is found the same everywhere.
  */
 
-/** The control a project is chosen with: a bordered button, its picture and its name on one line. */
-export const PROJECT_CONTROL_CLASS =
-  "flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-md py-1 ps-1 pe-2 text-left outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[popup-open]:bg-accent";
-
 /** A row of the list, or an action under it: the row is the one hover. */
 export const PROJECT_ROW_CLASS =
   "flex min-h-7 min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent";

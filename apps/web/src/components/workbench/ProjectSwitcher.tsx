@@ -26,12 +26,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { showOverview } from "./overviewPanel";
-import {
-  PROJECT_CONTROL_CLASS,
-  PROJECT_ROW_CLASS,
-  ProjectChoices,
-  ProjectThumb,
-} from "./ProjectChoices";
+import { PROJECT_ROW_CLASS, ProjectChoices, ProjectThumb } from "./ProjectChoices";
 import type { ListedProject } from "./projectList";
 import { StarButton } from "./StarButton";
 import { useAskNewProject } from "./StudioNew";
@@ -50,6 +45,14 @@ import { useVersionRequestStore } from "./useVersions";
 const actionClass =
   "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
 
+/**
+ * The project in the top bar as one control: a white pill (the open tab's ground), its one hover
+ * over the whole of it, the name and the chevron two presses split by a hairline.
+ */
+const PROJECT_PILL_CLASS =
+  "flex h-7 min-w-0 max-w-full items-center overflow-hidden rounded-md border border-border bg-background transition-colors duration-150 hover:bg-accent/50 has-data-[popup-open]:bg-accent/50";
+const PILL_PART_CLASS =
+  "flex h-full min-w-0 cursor-pointer items-center text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 /**
  * The project switcher in the top bar, opened by a click or Cmd+O: the open project's menu on top,
  * then the other projects (starred first, then last opened first) with a box to find one. Picking
@@ -144,51 +147,54 @@ export function ProjectSwitcher(props: {
           else close();
         }}
       >
-        {/* The breadcrumb's project: its name opens its Overview, its chevron switches project. */}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <button
-                type="button"
-                aria-label={`${props.title}: open the Overview`}
-                className={cn(PROJECT_CONTROL_CLASS, "h-7 max-w-full ps-1.5")}
-                onClick={showProjectOverview}
+        {/* The breadcrumb's project, one white pill: its name opens its Overview, its chevron switches project. */}
+        <span className={PROJECT_PILL_CLASS} data-studio-project-pill="">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`${props.title}: open the Overview`}
+                  className={cn(PILL_PART_CLASS, "min-w-0 gap-1.5 ps-2 pe-1.5")}
+                  onClick={showProjectOverview}
+                />
+              }
+            >
+              <ProjectThumb
+                environmentId={environmentId}
+                project={current?.project ?? null}
+                size="xs"
               />
-            }
-          >
-            <ProjectThumb
-              environmentId={environmentId}
-              project={current?.project ?? null}
-              size="xs"
-            />
-            <span className="min-w-0 truncate text-sm font-medium text-foreground">
-              {props.title}
-            </span>
-          </TooltipTrigger>
-          <TooltipPopup side="bottom">Overview, everything in the project</TooltipPopup>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={`Project ${props.title}: switch project`}
-                    className={cn(PROJECT_CONTROL_CLASS, "h-7 shrink-0 px-1")}
-                  />
-                }
+              <span className="min-w-0 max-w-56 truncate text-sm font-medium text-foreground">
+                {props.title}
+              </span>
+            </TooltipTrigger>
+            <TooltipPopup side="bottom">{`${props.title}: open its Overview`}</TooltipPopup>
+          </Tooltip>
+          <span aria-hidden="true" className="h-4 w-px shrink-0 bg-border" />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`Project ${props.title}: switch project`}
+                      className={cn(PILL_PART_CLASS, "shrink-0 px-1.5")}
+                    />
+                  }
+                />
+              }
+            >
+              <ChevronsUpDownIcon
+                className="size-3.5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
               />
-            }
-          >
-            <ChevronsUpDownIcon
-              className="size-3.5 shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </TooltipTrigger>
-          {/* One line, as the name's own tooltip: a card here stood over the tabs it points past. */}
-          <TooltipPopup side="bottom">{`Switch project (${openShortcutLabel()})`}</TooltipPopup>
-        </Tooltip>
+            </TooltipTrigger>
+            {/* One line, as the name's own tooltip: a card here stood over the tabs it points past. */}
+            <TooltipPopup side="bottom">{`Switch project (${openShortcutLabel()})`}</TooltipPopup>
+          </Tooltip>
+        </span>
         <PopoverPopup width="md" padding="compact" align="start" initialFocus={input}>
           <section aria-label="This project" className="mb-2 border-b border-border pb-2">
             <div className="flex min-w-0 items-center gap-2 px-1 pb-1.5">
