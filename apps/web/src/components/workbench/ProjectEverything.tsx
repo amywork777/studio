@@ -228,6 +228,7 @@ export function ProjectEverything(props: {
       {present.length < 2 ? null : (
         <ToggleGroup
           aria-label="Type"
+          variant="underline"
           value={[shownType]}
           onValueChange={(next) => {
             const value = next[0];

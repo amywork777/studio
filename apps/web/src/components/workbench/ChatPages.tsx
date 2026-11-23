@@ -123,6 +123,7 @@ function ChatsPageContent(props: {
     >
       <ToggleGroup
         aria-label="Show"
+        variant="underline"
         value={[filter ?? "all"]}
         onValueChange={(next) => {
           const value = next[0];

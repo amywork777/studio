@@ -190,6 +190,7 @@ export function WhatChanged(props: {
         {diff === null ? null : (
           <ToggleGroup
             aria-label="How to show the two versions"
+            variant="underline"
             value={[view]}
             onValueChange={(next) => {
               const value = next[0];

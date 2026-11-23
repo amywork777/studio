@@ -23,6 +23,7 @@ import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { AddFolderMenu } from "./AddFolderMenu";
 import { EMPTY_BRIEF } from "./briefFolder";
@@ -550,7 +551,22 @@ export function ProjectPage(props: {
               </Button>
             )}
             {plainWords ? null : (
-              <div role="tablist" aria-label="Project contents" className="flex gap-2">
+              <ToggleGroup
+                aria-label="Project contents"
+                variant="underline"
+                size="compact"
+                value={[tab]}
+                onValueChange={(next) => {
+                  const value = next[0];
+                  if (
+                    value === "overview" ||
+                    value === "files" ||
+                    value === "references" ||
+                    value === "threads"
+                  )
+                    setTab(value);
+                }}
+              >
                 {(
                   [
                     ["overview", "Overview"],
@@ -561,23 +577,11 @@ export function ProjectPage(props: {
                       : []),
                   ] as const
                 ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === id}
-                    onClick={() => setTab(id)}
-                    className={cn(
-                      "h-7 rounded-lg px-2.5 text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                      tab === id
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
+                  <Toggle key={id} value={id}>
                     {label}
-                  </button>
+                  </Toggle>
                 ))}
-              </div>
+              </ToggleGroup>
             )}
           </div>
         </div>
