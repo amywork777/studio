@@ -483,6 +483,7 @@ export function StudioRightPanelSurfaceContent({
                 environmentId={thread.environmentId}
                 threadId={thread.id}
                 surface={view}
+                front={inFront(view.id)}
                 draftWorkspaceRoot={studio.isServerThread ? undefined : project?.workspaceRoot}
                 onSendMessage={
                   studio.isServerThread

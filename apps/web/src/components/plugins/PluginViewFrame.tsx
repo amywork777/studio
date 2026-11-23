@@ -148,6 +148,8 @@ export function PluginViewFrame(props: {
    * file, `workbench/references/viewerFocus.ts`); without it the view is asked nothing.
    */
   readonly focusPlace?: ViewerFocusPlace | null | undefined;
+  /** Studio: whether this view is the tab in front beside its chat (a kept one behind is not). */
+  readonly front?: boolean;
 }) {
   const { target } = props;
   const theme = useHtmlRenderTheme();
@@ -268,7 +270,7 @@ export function PluginViewFrame(props: {
   // its script, where no feature of the part holds the cited line.
   const focus = useViewerFocus(props.focusPlace);
   // Studio: the picks a chat's message carried, to select again (`workbench/references/viewerSelect.ts`).
-  const select = useViewerSelect(props.focusPlace?.threadKey);
+  const select = useViewerSelect(props.focusPlace, props.front ?? true);
   // Studio: the chat beside it has a turn running, so the view says the part is being changed.
   const working = useViewerWorking(props.focusPlace?.threadKey);
   const openChatFile = useOpenChatFile(

@@ -23,6 +23,8 @@ export default function PluginViewPanel(props: {
   readonly surface: PluginAppSurface;
   readonly draftWorkspaceRoot?: string | undefined;
   readonly onSendMessage?: ((text: string) => Promise<void>) | undefined;
+  /** Whether the view is the tab in front beside its chat (Studio keeps others mounted behind it). */
+  readonly front?: boolean;
   readonly onAddContext?: ((content: ReadonlyArray<unknown>) => void) | undefined;
   /** The thread's folder and its latest file changes, for the title block's checks. */
   readonly workspaceRoot?: string | undefined;
@@ -76,6 +78,7 @@ export default function PluginViewPanel(props: {
         onOpenFile={openInWorkbench}
         editStateKey={pluginViewKey(threadRef, surface.id)}
         focusPlace={viewerFocusPlace(threadRef, surface)}
+        front={props.front ?? true}
       />
     </>
   );

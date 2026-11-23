@@ -54,7 +54,9 @@ export function ViewContextChip(props: {
                 aria-label={`${names === "" ? "" : `${names}, `}${context.count}: select them in the model`}
                 className={CHAT_PILL_BUTTON}
                 onClick={() =>
-                  setNonce(useViewerSelectStore.getState().select(threadKey, context.picks))
+                  setNonce(
+                    useViewerSelectStore.getState().select(threadKey, context.picks, context.file),
+                  )
                 }
               />
             ) : (
