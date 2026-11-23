@@ -29,6 +29,8 @@ import { NewTabButton } from "./NewTabButton";
 import { knownModelScript, useModelTitles } from "./useFolderModels";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
 
+export { TabHoverCard, TabOverflowMenu } from "./TabStripExtras";
+
 // Studio's side of T3's panel tabs (`RightPanelTabs.tsx`): its slots, its titles and icons, its
 // pinned project tab, and its tabs as Chrome's (the kind's icon at the left, the close at the right).
 // T3's file calls these in one line where each goes.

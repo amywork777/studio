@@ -1075,7 +1075,9 @@ function RightPanelTab(
                 title={title}
               />
             ) : (
-              <studioTabs.TitleWithSuffix title={title} suffix={props.suffix} />
+              <studioTabs.TabHoverCard surface={surface} environmentId={props.environmentId}>
+                <studioTabs.TitleWithSuffix title={title} suffix={props.suffix} />
+              </studioTabs.TabHoverCard>
             )}
           </TooltipPopup>
         </Tooltip>
@@ -1091,6 +1093,7 @@ function RightPanelTab(
   return (
     <div
       data-active-tab={props.active}
+      data-tab-surface={surface.id}
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
       onAuxClick={(event) => onAuxClick(event, surface)}
@@ -1589,6 +1592,14 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             ) : null}
           </div>
         </ScrollArea>
+        {studio.engineering && tabScrollState.hasOverflow ? (
+          <studioTabs.TabOverflowMenu
+            list={tabListRef}
+            surfaces={studio.tabSurfaces}
+            titleOf={titleOf}
+            onActivate={onActivateTab}
+          />
+        ) : null}
         {tabScrollState.hasOverflow ? (
           <div
             className="flex shrink-0 items-center gap-0.5 [-webkit-app-region:no-drag]"
