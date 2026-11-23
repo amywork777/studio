@@ -538,7 +538,7 @@ export function ProjectPage(props: {
       <header className={cn("border-b border-border px-6 pt-6 pb-3", plainWords && "hidden")}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold text-foreground">{name}</h1>
+            <h1 className="truncate text-base leading-5 font-semibold text-foreground">{name}</h1>
             {purpose === "" || plainWords ? null : (
               <p className="mt-1 truncate text-sm text-muted-foreground">{purpose}</p>
             )}

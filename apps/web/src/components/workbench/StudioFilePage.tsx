@@ -152,7 +152,7 @@ export function StudioFilePage(props: {
             <FileKindIcon path={relativePath} className="size-6" />
           </span>
           <span className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-2xl font-semibold text-balance text-foreground">
+            <h1 className="text-base leading-5 font-semibold text-balance text-foreground">
               {result === null ? partLabel(name) : `${result.check} of ${partLabel(result.part)}`}
             </h1>
             <span className="text-sm text-muted-foreground">
