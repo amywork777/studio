@@ -18,8 +18,8 @@ const LABELS: Record<StudioInterface, string> = {
 const DESCRIPTIONS: Record<StudioInterface, string> = {
   engineering:
     "Parts, checks and outputs first: the project's Overview, and Analysis, Manufacturing and Documents. The code tools and the terminal stay out of the way.",
-  both: "The engineering surfaces with every coding tool kept in view: the project's Overview, plus branches, diffs, the terminal, source files and the agent's commands.",
-  code: "Every coding tool in view: branches, diffs, the terminal and the agent's commands, for working on the code behind a model.",
+  both: "The engineering surfaces with every coding tool kept in view: the project's Overview, plus design options, what changed, the terminal, source files and the agent's commands.",
+  code: "Every coding tool in view: design options, what changed, the terminal and the agent's commands, for working on the code behind a model.",
 };
 
 const ORDER: ReadonlyArray<StudioInterface> = ["engineering", "both", "code"];
