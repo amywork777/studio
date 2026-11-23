@@ -1,6 +1,7 @@
 /**
- * The numbers page at `/`, behind a password: installs per day, whether installs come back, event counts,
- * failed AI turns by AI, model and reason, and installs per version. It counts install ids but never shows one, nor any
+ * The numbers page at `/`, behind a password: installs per day, whether installs come back (and by the
+ * week they started), how far installs get on a first run, event counts, failed AI turns by AI, model
+ * and reason, and installs per version. It counts install ids but never shows one, nor any
  * other property or country. Plain HTML and CSS, no script, `no-store`.
  */
 import { PROPERTIES } from "./events.mjs";
@@ -134,8 +135,107 @@ export const FAILURE_REASONS = {
   context_full: "The chat outgrew the model's memory",
   could_not_start: "The turn could not start",
   gave_up: "The AI gave up after repeated errors",
+  stopped: "Stopped before it finished",
+  answer_cut_off: "The answer ran past the model's length limit",
+  unanswered_request: "The AI asked for something Studio can't show",
+  session_lost: "The AI lost its session",
+  bad_request: "Studio sent something the AI wouldn't take",
   other: "Something else",
 };
+
+/** The error's broad class (`OrchestrationV2ProviderFailureClass`), shown beside "Something else". */
+export const FAILURE_KINDS = {
+  usage_limit: "usage limit",
+  provider_error: "the AI's own error",
+  transport_error: "connection",
+  permission_error: "permission",
+  validation_error: "bad request",
+  unknown: "unknown",
+};
+
+/**
+ * Installs by the UTC Monday of their first launch in the span, and how many came back: on a later day,
+ * 7+ days on and 30+ days on, each of the installs old enough to have (`null` while none are).
+ * @param {{ install: string, at?: string }[]} launches
+ */
+export function cohortsOf(launches, now = Date.now()) {
+  const daysOf = new Map();
+  for (const { install, at } of launches) {
+    const day = Math.floor(Date.parse(at) / DAY_MS);
+    if (!Number.isFinite(day)) continue;
+    const days = daysOf.get(install) ?? new Set();
+    days.add(day);
+    daysOf.set(install, days);
+  }
+  const today = Math.floor(now / DAY_MS);
+  const weeks = new Map();
+  for (const days of daysOf.values()) {
+    const first = Math.min(...days);
+    const last = Math.max(...days);
+    // Day 0 of the epoch was a Thursday; (day + 3) % 7 is 0 on a Monday.
+    const week = first - ((first + 3) % 7);
+    const kept = weeks.get(week) ?? {
+      week,
+      installs: 0,
+      later: 0,
+      after: { 7: [0, 0], 30: [0, 0] },
+    };
+    kept.installs += 1;
+    if (days.size > 1) kept.later += 1;
+    for (const span of [7, 30]) {
+      if (today - first < span) continue;
+      kept.after[span][1] += 1;
+      if (last - first >= span) kept.after[span][0] += 1;
+    }
+    weeks.set(week, kept);
+  }
+  return [...weeks.values()]
+    .sort((a, b) => b.week - a.week)
+    .map(({ week, installs, later, after }) => ({
+      week: new Date(week * DAY_MS).toISOString().slice(0, 10),
+      installs,
+      later,
+      week1: after[7][1] ? { back: after[7][0], of: after[7][1] } : null,
+      month1: after[30][1] ? { back: after[30][0], of: after[30][1] } : null,
+    }));
+}
+
+/** The first-run steps, in order, as `store.numbers` names them. */
+export const STEPS = [
+  ["project", "made a project"],
+  ["message", "sent the AI a message"],
+  ["answer", "got an AI answer"],
+  ["model", "opened a model"],
+];
+
+/**
+ * Of the installs whose first launch is in the span, how many did each step in it.
+ * @param {{ install: string, at?: string }[]} launches
+ * @param {Record<string, { rows: { install: string }[] }>} steps
+ * @param {number} since the span's first day, in ms
+ */
+export function stepsOf(launches, steps, since) {
+  const firstOf = new Map();
+  for (const { install, at } of launches) {
+    const time = Date.parse(at);
+    if (!Number.isFinite(time)) continue;
+    firstOf.set(install, Math.min(time, firstOf.get(install) ?? time));
+  }
+  // An install already counted on the span's first day may have started before it.
+  const startDay = Math.floor(since / DAY_MS);
+  const fresh = new Set(
+    [...firstOf].filter(([, time]) => Math.floor(time / DAY_MS) > startDay).map(([id]) => id),
+  );
+  return {
+    installs: fresh.size,
+    steps: STEPS.map(([key, words]) => ({
+      words,
+      installs: new Set(
+        (steps[key]?.rows ?? []).map((row) => row.install).filter((id) => fresh.has(id)),
+      ).size,
+    })),
+  };
+}
 
 /**
  * Failed turns grouped by `keyOf`, most first: how many, and from how many installs.
@@ -263,9 +363,8 @@ footer { margin-top: 32px; color: var(--ink-muted); font-size: var(--small); max
 
 /**
  * The page for one span.
- * @param {{ days: number, installs: object[], events: object[], failedTurns?: number,
- *   failures?: { turns: object[], reasons: object[] },
- *   launches?: { rows: object[], complete: boolean }, now?: number }} input
+ * @param {{ days: number, installs: object[], events: object[], failedTurns?: number, failures?: object,
+ *   launches?: { rows: object[], complete: boolean }, steps?: object, now?: number }} input
  */
 export function pageOf({
   days,
@@ -274,6 +373,7 @@ export function pageOf({
   failedTurns = 0,
   failures = { turns: [], reasons: [] },
   launches = { rows: [], complete: true },
+  steps = {},
   now = Date.now(),
 }) {
   const summary = summaryOf(installs, events, days, now);
@@ -289,10 +389,11 @@ export function pageOf({
     aiName(row.provider),
     row.model ?? "Not sent",
   ]);
-  const byReason = failedBy(failures.reasons, (row) => [
-    aiName(row.provider),
-    FAILURE_REASONS[row.reason] ?? "Something else",
-  ]);
+  const byReason = failedBy(failures.reasons, (row) => {
+    const why = FAILURE_REASONS[row.reason] ?? FAILURE_REASONS.other;
+    const kind = FAILURE_KINDS[row.kind];
+    return [aiName(row.provider), why === FAILURE_REASONS.other && kind ? `${why} (${kind})` : why];
+  });
   const failedSection = failedTurns
     ? `<h2>Failed AI turns</h2>${failedTable(["AI", "Model"], byModel)}${
         byReason.length
@@ -327,6 +428,33 @@ ${
         launches.complete
           ? ""
           : `<p class="sub">From the first ${count(launches.rows.length)} launches of these days.</p>`
+      }`
+    : "";
+  const share = ({ back, of }) =>
+    `${count(back)} of ${count(of)} <span class="id">${Math.round((back / of) * 100)}%</span>`;
+  const cohorts = cohortsOf(launches.rows, now);
+  const cohortSection = cohorts.length
+    ? `<h2>Coming back, by the week they started</h2><table><thead><tr><th>First week</th><th class="n">Installs</th><th class="n">Back another day</th><th class="n">Back a week later</th><th class="n">Back a month later</th></tr></thead><tbody>${cohorts
+        .map(
+          (row) =>
+            `<tr><td>${escape(dayName(row.week))}</td><td class="n">${count(row.installs)}</td><td class="n">${share({ back: row.later, of: row.installs })}</td><td class="n">${row.week1 ? share(row.week1) : "–"}</td><td class="n">${row.month1 ? share(row.month1) : "–"}</td></tr>`,
+        )
+        .join(
+          "",
+        )}</tbody></table><p class="sub">A week starts on Monday. "A week later" counts only installs whose first day is a week old, and "a month later" those 30 days old.</p>`
+    : "";
+  const firstRun = stepsOf(launches.rows, steps, Date.parse(`${sinceOf(days, now)}T00:00:00Z`));
+  const stepsComplete = Object.values(steps).every((step) => step.complete !== false);
+  const firstRunSection = firstRun.installs
+    ? `<h2>How far new installs get</h2><table><thead><tr><th>Of the ${count(firstRun.installs)} installs that first opened Studio in these days</th><th class="n">Installs</th></tr></thead><tbody>${firstRun.steps
+        .map(
+          (step) =>
+            `<tr><td class="share"><i style="width:${Math.round((step.installs / firstRun.installs) * 100)}%"></i><span>${escape(step.words)}</span></td><td class="n">${share({ back: step.installs, of: firstRun.installs })}</td></tr>`,
+        )
+        .join("")}</tbody></table>${
+        stepsComplete && launches.complete
+          ? ""
+          : `<p class="sub">From the first rows of these days only.</p>`
       }`
     : "";
   const label = (event) => LABELS[event] ?? event;
@@ -392,6 +520,8 @@ ${figure(summary.edits, "hand edits")}
 ${figure(summary.projects, "projects made")}
 </section>
 ${backSection}
+${cohortSection}
+${firstRunSection}
 ${failedSection}
 <h2>Installs each day</h2>
 <div class="chart"><div class="bars" role="img" aria-label="Installs each day, newest on the right">${bars}</div>

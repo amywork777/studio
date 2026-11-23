@@ -87,7 +87,7 @@ NodeTest.test("names the settings a host lacks", () => {
 });
 
 NodeTest.test(
-  "reads the two daily views, counts and lists failed turns and pages through launches, nothing else",
+  "reads the two daily views, counts and lists failed turns, pages through launches and first-run steps, nothing else",
   async () => {
     const launch = { version: "0.1.10", install: "a" };
     const { calls, fetch } = recorder((url, init) => {
@@ -98,8 +98,11 @@ NodeTest.test(
         return Response.json([{ install: "a", provider: "claudeAgent", model: "claude-opus-5-5" }]);
       }
       if (url.includes("provider.turn.failed")) {
-        return Response.json([{ install: "a", provider: "claudeAgent", reason: "sign_in" }]);
+        return Response.json([
+          { install: "a", provider: "claudeAgent", reason: "sign_in", kind: "provider_error" },
+        ]);
       }
+      if (url.includes("select=install&")) return Response.json([{ install: "a" }]);
       if (url.includes("offset=0"))
         return Response.json(Array.from({ length: 1000 }, () => launch));
       if (url.includes("offset=1000")) return Response.json([launch]);
@@ -111,8 +114,12 @@ NodeTest.test(
       `${rest}usage_daily_events?day=gte.2026-11-04&order=day.desc,times.desc`,
       `${rest}usage_daily_installs?day=gte.2026-11-04&order=day.desc`,
       `${rest}usage_events?select=id&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04`,
+      `${rest}usage_events?select=install&event=eq.cad.model.opened&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
+      `${rest}usage_events?select=install&event=eq.client.turn.requested&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
+      `${rest}usage_events?select=install&event=eq.provider.turn.completed&properties->>terminalStatus=neq.failed&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
+      `${rest}usage_events?select=install&event=eq.studio.project.created&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
       `${rest}usage_events?select=install,provider:properties->>provider,model:properties->>model&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed&at=gte.2026-11-04&order=id&limit=1000`,
-      `${rest}usage_events?select=install,provider:properties->>provider,reason:properties->>reason&event=eq.provider.turn.failed&at=gte.2026-11-04&order=id&limit=1000`,
+      `${rest}usage_events?select=install,provider:properties->>provider,reason:properties->>reason,kind:properties->>kind&event=eq.provider.turn.failed&at=gte.2026-11-04&order=id&limit=1000`,
       `${rest}usage_events?select=version,install,at&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=0`,
       `${rest}usage_events?select=version,install,at&event=eq.client.connected&at=gte.2026-11-04&order=id&limit=1000&offset=1000`,
     ]);
@@ -120,9 +127,12 @@ NodeTest.test(
     NodeAssert.equal(numbers.failedTurns, 4);
     NodeAssert.deepEqual(numbers.failures, {
       turns: [{ install: "a", provider: "claudeAgent", model: "claude-opus-5-5" }],
-      reasons: [{ install: "a", provider: "claudeAgent", reason: "sign_in" }],
+      reasons: [
+        { install: "a", provider: "claudeAgent", reason: "sign_in", kind: "provider_error" },
+      ],
     });
     NodeAssert.equal(numbers.launches.rows.length, 1001);
+    NodeAssert.deepEqual(numbers.steps.answer, { rows: [{ install: "a" }], complete: true });
     NodeAssert.equal(numbers.launches.complete, true);
   },
 );

@@ -65,8 +65,9 @@ list differ):
   the rest), `client.turn.requested`
 - `provider.turn.completed`
 - `provider.turn.failed`: a turn that failed, with the kind of AI and why, as one word from Studio's
-  own list (a usage limit, not signed in, the service down, a lost connection and the like), never
-  the AI's own message
+  own list (a usage limit, not signed in, the service down, a lost connection and the like), and
+  the error's broad class from Studio's own short list (the AI's error, a bad request, unknown),
+  never the AI's own message
 - `chatgpt.auth.started`, `chatgpt.auth.completed`, `chatgpt.transfer.started`,
   `chatgpt.transfer.completed`
 - `claude.signed_in`: Claude went from signed out to signed in (a launch that finds it already

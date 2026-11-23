@@ -82,8 +82,8 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
       });
     },
     // Rows for page.mjs from `since` (`YYYY-MM-DD`): the daily views, failed-turn counts and the first
-    // 1000 failed turns, and each launch's version, install and time (`client.connected`), read a page at a time since the
-    // database answers 1000 rows a call.
+    // 1000 failed turns, each launch's version, install and time (`client.connected`), and the installs
+    // that reached each first-run step, read a page at a time since the database answers 1000 rows a call.
     async numbers(since) {
       const view = (name, order) =>
         call(`${url}/rest/v1/${name}?day=gte.${since}&order=${order}`).then((answer) =>
@@ -102,14 +102,14 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
           "select=install,provider:properties->>provider,model:properties->>model&event=eq.provider.turn.completed&properties->>terminalStatus=eq.failed",
         ),
         failedRows(
-          "select=install,provider:properties->>provider,reason:properties->>reason&event=eq.provider.turn.failed",
+          "select=install,provider:properties->>provider,reason:properties->>reason,kind:properties->>kind&event=eq.provider.turn.failed",
         ),
       ]).then(([turns, reasons]) => ({ turns, reasons }));
-      const launches = async () => {
+      const paged = async (query) => {
         const rows = [];
         for (let page = 0; page < LAUNCH_PAGES; page += 1) {
           const answer = await call(
-            `${rest}?select=version,install,at&event=eq.client.connected&at=gte.${since}&order=id&limit=${PAGE_ROWS}&offset=${page * PAGE_ROWS}`,
+            `${rest}?${query}&at=gte.${since}&order=id&limit=${PAGE_ROWS}&offset=${page * PAGE_ROWS}`,
           );
           const found = await answer.json();
           rows.push(...found);
@@ -117,14 +117,31 @@ export function databaseStore({ url, key }, { fetch: send = fetch, now = Date.no
         }
         return { rows, complete: false };
       };
-      const [installs, events, failed, failedWhy, versions] = await Promise.all([
+      // Which installs reached each step of a first run (page.mjs `STEPS`), by install id alone.
+      const steps = Promise.all([
+        paged("select=install&event=eq.studio.project.created"),
+        paged("select=install&event=eq.client.turn.requested"),
+        paged(
+          "select=install&event=eq.provider.turn.completed&properties->>terminalStatus=neq.failed",
+        ),
+        paged("select=install&event=eq.cad.model.opened"),
+      ]).then(([project, message, answer, model]) => ({ project, message, answer, model }));
+      const [installs, events, failed, failedWhy, versions, reached] = await Promise.all([
         view("usage_daily_installs", "day.desc"),
         view("usage_daily_events", "day.desc,times.desc"),
         failedTurns,
         failures,
-        launches(),
+        paged("select=version,install,at&event=eq.client.connected"),
+        steps,
       ]);
-      return { installs, events, failedTurns: failed, failures: failedWhy, launches: versions };
+      return {
+        installs,
+        events,
+        failedTurns: failed,
+        failures: failedWhy,
+        launches: versions,
+        steps: reached,
+      };
     },
     // Health's question: the table is there and answers to the key. Kept, failure or not, for READY_TTL_MS.
     ready() {

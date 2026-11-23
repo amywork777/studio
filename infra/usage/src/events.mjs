@@ -68,7 +68,7 @@ export const PROPERTIES = {
     "durationMs",
   ],
   // Why a turn failed, one word from Studio's own list (`apps/server/src/telemetry/TurnFailure.ts`).
-  "provider.turn.failed": ["provider", "reason"],
+  "provider.turn.failed": ["provider", "reason", "kind"],
   "chatgpt.auth.started": CHATGPT,
   "chatgpt.auth.completed": CHATGPT_DONE,
   "chatgpt.transfer.started": CHATGPT,

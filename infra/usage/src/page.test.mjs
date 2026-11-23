@@ -2,12 +2,15 @@ import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
 
 import {
+  cohortsOf,
   EVENT_NAMES,
+  FAILURE_REASONS,
   LABELS,
   pageOf,
   returningOf,
   sinceOf,
   spanOf,
+  stepsOf,
   summaryOf,
   versionsOf,
 } from "./page.mjs";
@@ -196,4 +199,72 @@ NodeTest.test("escapes what the database hands it", () => {
   });
   NodeAssert.doesNotMatch(html, /<script>/);
   NodeAssert.match(html, /&lt;script&gt;/);
+});
+
+NodeTest.test("names every reason Studio's server can send", async () => {
+  const source = await import("node:fs").then((fs) =>
+    fs.readFileSync(
+      new URL("../../../apps/server/src/telemetry/TurnFailure.ts", import.meta.url),
+      "utf8",
+    ),
+  );
+  const listed = source.split("TURN_FAILURE_REASONS = [")[1].split("]")[0];
+  const reasons = [...listed.matchAll(/"([a-z_]+)"/g)].map((found) => found[1]);
+  NodeAssert.deepEqual(Object.keys(FAILURE_REASONS).sort(), reasons.sort());
+});
+
+NodeTest.test(
+  "groups installs by the Monday of their first week, and counts only old enough ones later",
+  () => {
+    // NOW is Tue Nov 10; Nov 2 and Nov 9 are Mondays, Oct 5 a Monday 36 days back.
+    const rows = [
+      { install: "a", at: "2026-10-05T10:00:00Z" },
+      { install: "a", at: "2026-11-09T10:00:00Z" },
+      { install: "b", at: "2026-11-03T10:00:00Z" },
+      { install: "b", at: "2026-11-10T10:00:00Z" },
+      { install: "c", at: "2026-11-02T10:00:00Z" },
+      { install: "d", at: "2026-11-09T10:00:00Z" },
+      { install: "d", at: "2026-11-10T09:00:00Z" },
+    ];
+    NodeAssert.deepEqual(cohortsOf(rows, NOW), [
+      { week: "2026-11-09", installs: 1, later: 1, week1: null, month1: null },
+      {
+        week: "2026-11-02",
+        installs: 2,
+        later: 1,
+        week1: { back: 1, of: 2 },
+        month1: null,
+      },
+      {
+        week: "2026-10-05",
+        installs: 1,
+        later: 1,
+        week1: { back: 1, of: 1 },
+        month1: { back: 1, of: 1 },
+      },
+    ]);
+  },
+);
+
+NodeTest.test("counts first-run steps only for installs that started inside the span", () => {
+  const launches = [
+    { install: "old", at: "2026-11-04T01:00:00Z" },
+    { install: "a", at: "2026-11-06T10:00:00Z" },
+    { install: "b", at: "2026-11-07T10:00:00Z" },
+  ];
+  const rows = (...ids) => ({ rows: ids.map((install) => ({ install })), complete: true });
+  const result = stepsOf(
+    launches,
+    { project: rows("a", "old"), message: rows("a", "b", "a"), answer: rows("a"), model: rows() },
+    Date.parse("2026-11-04T00:00:00Z"),
+  );
+  NodeAssert.deepEqual(result, {
+    installs: 2,
+    steps: [
+      { words: "made a project", installs: 1 },
+      { words: "sent the AI a message", installs: 2 },
+      { words: "got an AI answer", installs: 1 },
+      { words: "opened a model", installs: 0 },
+    ],
+  });
 });

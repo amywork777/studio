@@ -63,7 +63,7 @@
     "interactionMode",
     "durationMs"
   ],
-  "provider.turn.failed": ["provider", "reason"],
+  "provider.turn.failed": ["provider", "reason", "kind"],
   "chatgpt.auth.started": ["flow", "intent", "callbackMode"],
   "chatgpt.auth.completed": [
     "flow",

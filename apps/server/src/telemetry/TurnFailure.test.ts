@@ -1,5 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 
+import { OPENCODE_2_STILL_STOPPING } from "@t3tools/provider-opencode/server/v2/adapter";
+
 import { TURN_FAILURE_REASONS, turnFailureReason } from "./TurnFailure.ts";
 
 describe("turnFailureReason", () => {
@@ -16,6 +18,15 @@ describe("turnFailureReason", () => {
       [{ class: "provider_error", code: "prompt_too_long" }, "context_full"],
       [{ class: "provider_error", code: "turn_setup_failed" }, "could_not_start"],
       [{ class: "provider_error", code: "malformed_tool_use_exhausted" }, "gave_up"],
+      [{ class: "provider_error", code: "ProviderAuthError" }, "sign_in"],
+      [{ class: "provider_error", code: "ContextOverflowError" }, "context_full"],
+      [{ class: "provider_error", code: "responseStreamDisconnected" }, "connection"],
+      [{ class: "provider_error", code: "process_exited_nonzero" }, "connection"],
+      [{ class: "provider_error", code: "responseTooManyFailedAttempts" }, "gave_up"],
+      [{ class: "provider_error", code: "MessageAbortedError" }, "stopped"],
+      [{ class: "provider_error", code: "MessageOutputLengthError" }, "answer_cut_off"],
+      [{ class: "provider_error", code: "claude_request_unanswered" }, "unanswered_request"],
+      [{ class: "validation_error", code: null }, "bad_request"],
       [{ class: "provider_error", code: "something new" }, "other"],
       [{ class: "unknown", code: null }, "other"],
     ] as const;
@@ -30,6 +41,17 @@ describe("turnFailureReason", () => {
         message: "Claude could not authenticate. For subscription login, run `claude auth login`.",
       }),
     ).toBe("sign_in");
+    const openCode = [
+      ["OpenCode is waiting on a request Studio couldn't answer.", "unanswered_request"],
+      ["OpenCode asked for a file picker, which Studio can't show.", "unanswered_request"],
+      ["The OpenCode session no longer exists. Send the message again.", "session_lost"],
+      [OPENCODE_2_STILL_STOPPING, "could_not_start"],
+      ["OpenCode ended the turn with an error while Studio was reconnecting.", "connection"],
+      ["OpenCode ended the turn with an error this version cannot read.", "other"],
+    ] as const;
+    for (const [message, reason] of openCode) {
+      expect(turnFailureReason({ class: "provider_error", code: null, message })).toBe(reason);
+    }
   });
 
   it("never sends the provider's own words", () => {
