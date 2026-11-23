@@ -4,8 +4,6 @@
  * any attachment that travels inline (the view's snapshot). The chat shows the person's words and the
  * rest as one chip (`ViewContextChip`); the agent reads the message whole.
  */
-const ABOUT = /(?:^|\n\n)(?=File: |References:\n)/;
-
 const NOUNS: Readonly<Record<string, readonly [string, string]>> = {
   f: ["face", "faces"],
   e: ["edge", "edges"],
@@ -28,17 +26,19 @@ function partName(name: string): string {
     .join(" ");
 }
 
-/** The picks a message names: each line under `References:`, up to the next blank line. */
+/** The picks a message names: each line under every `References:`, up to the next blank line. */
 function referencesOf(about: string): string[] {
-  const start = about.indexOf("References:\n");
-  if (start === -1) return [];
-  const lines = about.slice(start + "References:\n".length).split("\n");
   const picks: string[] = [];
-  for (const line of lines) {
-    if (line.trim() === "" || /^[A-Z][\w ]*(?:\([^)]*\))?: /.test(line)) break;
-    picks.push(line.trim());
+  let from = 0;
+  for (;;) {
+    const start = about.indexOf("References:\n", from);
+    if (start === -1) return picks;
+    from = start + "References:\n".length;
+    for (const line of about.slice(from).split("\n")) {
+      if (line.trim() === "" || /^[A-Z][\w ]*(?:\([^)]*\))?: /.test(line)) break;
+      picks.push(line.trim());
+    }
   }
-  return picks;
 }
 
 /** A pick's part and what of it: `doc#arm/head/f:head.body_face3~…` is the head, a face. */
@@ -91,15 +91,40 @@ export function viewContextLabel(about: string): string {
   return parts.length === 0 ? count : `${parts.join(", ")} · ${count}`;
 }
 
-/** The person's words and the context the view sent with them; null for a message typed in the chat. */
+/**
+ * A note edit mode left for the agent (text-to-cad's `editMode.js`: "In edit mode I added Fillet1, …
+ * (parts/part.py, line 20)."): it goes to the agent with the next message but is not the person's words.
+ */
+const HAND_EDIT_NOTE = /^In edit mode I /;
+/** A paragraph of what the view sent a message about: its file, its picks, an inline attachment. */
+const CONTEXT = /^(?:File: \S|References:(?:\n|$)|Snapshot JSON|[{[])/;
+
+/**
+ * The person's words and the context the view sent with them; null for a message typed in the chat.
+ * The composer may hold edit mode's notes ahead of a Quick Edit message: they and every context block
+ * go behind the chip, wherever they stand, and only the person's own paragraphs are the words.
+ */
 export function viewMessageOf(text: string): {
   readonly words: string;
   readonly about: string;
   readonly label: string;
 } | null {
-  const match = ABOUT.exec(text);
-  if (match === null) return null;
-  const about = text.slice(match.index).replace(/^\n\n/, "");
-  if (!/^File: \S/.test(about) && !about.startsWith("References:\n")) return null;
-  return { words: text.slice(0, match.index).trim(), about, label: viewContextLabel(about) };
+  const words: string[] = [];
+  const context: string[] = [];
+  const notes: string[] = [];
+  for (const paragraph of text.split(/\n{2,}/)) {
+    const trimmed = paragraph.trim();
+    if (trimmed === "") continue;
+    if (HAND_EDIT_NOTE.test(trimmed)) notes.push(trimmed);
+    else if (CONTEXT.test(trimmed)) context.push(trimmed);
+    else words.push(trimmed);
+  }
+  if (context.length === 0 && notes.length === 0) return null;
+  if (context.length > 0 && !context.some((block) => /^(?:File: \S|References:)/.test(block))) {
+    return null;
+  }
+  const about = [...notes, ...context].join("\n\n");
+  const picked = viewContextOf(context.join("\n\n")).count !== "";
+  const label = !picked && notes.length > 0 ? "Hand edit" : viewContextLabel(context.join("\n\n"));
+  return { words: words.join("\n\n"), about, label };
 }

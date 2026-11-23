@@ -65,4 +65,18 @@ describe("a message the model view sent", () => {
     expect(viewMessageOf("Make the File: line bold")).toBeNull();
     expect(viewMessageOf("make the wall 3 mm")).toBeNull();
   });
+
+  it("keeps edit mode's notes the composer held behind the chip, and the Quick Edit's picks in its label", () => {
+    const note =
+      "In edit mode I added Fillet1, radius 2 mm, 1 edge (parts/part.py, line 20).\n\nFile: 29ae9a38";
+    const sent = `${note}\n\n${QUICK_EDIT}`;
+    const view = viewMessageOf(sent);
+    expect(view?.words).toBe("make this face 2 mm thinner");
+    expect(view?.label).toBe("LED module · 1 face");
+    expect(view?.about).toContain("In edit mode I added Fillet1");
+    expect(viewMessageOf(`${note}\n\nround the top edge`)).toMatchObject({
+      words: "round the top edge",
+      label: "Hand edit",
+    });
+  });
 });

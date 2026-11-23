@@ -62,5 +62,10 @@ describe("what a chat a tool opened is titled from", () => {
       "Make this face 2 mm thinner",
     );
     expect(chatTitleText(about)).toBe("LED module · 1 face");
+    // An edit-mode note the composer held is never the title: the person's words are.
+    const note = "In edit mode I added Fillet1, radius 5 mm (parts/part.py, line 20).";
+    expect(chatTitleText(`${note}\n\nmake it 5 mm thicker\n\n${about}`)).toBe(
+      "make it 5 mm thicker",
+    );
   });
 });

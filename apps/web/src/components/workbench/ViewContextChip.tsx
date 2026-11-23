@@ -13,6 +13,8 @@ import { pickWords, viewContextOf } from "./viewMessage";
  */
 export function ViewContextChip(props: {
   readonly about: string;
+  /** What the pill says when nothing was picked ("Model view", "Hand edit"). */
+  readonly label?: string;
   /** The chat the message is in, whose views are asked; null where none can be. */
   readonly threadKey: string | null;
 }) {
@@ -28,7 +30,7 @@ export function ViewContextChip(props: {
     <>
       <BoxIcon aria-hidden="true" />
       {context.count === "" ? (
-        <span className="min-w-0 truncate">Model view</span>
+        <span className="min-w-0 truncate">{props.label ?? "Model view"}</span>
       ) : (
         <>
           {names === "" ? null : <span className="min-w-0 truncate">{names}</span>}
@@ -40,7 +42,8 @@ export function ViewContextChip(props: {
   );
   const lines = context.picks.length === 0 ? [props.about] : context.picks.map(pickWords);
   return (
-    <span className="flex min-w-0 max-w-full items-center gap-2">
+    // The pill on its own line; what the model said about the picks under it, never squeezed beside it.
+    <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-0.5">
       <Tooltip>
         <TooltipTrigger
           render={
@@ -76,7 +79,7 @@ export function ViewContextChip(props: {
         </TooltipPopup>
       </Tooltip>
       {answer === undefined || answer.missing === 0 ? null : (
-        <span className="text-xs text-muted-foreground">
+        <span className="basis-full text-xs text-muted-foreground">
           {answer.missing === 1
             ? "1 pick no longer in the model"
             : `${answer.missing} picks no longer in the model`}

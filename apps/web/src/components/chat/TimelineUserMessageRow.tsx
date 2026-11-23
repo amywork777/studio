@@ -1319,6 +1319,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
           {view === null ? null : (
             <ViewContextChip
               about={view.about}
+              label={view.label}
               threadKey={ctx.threadRef ? scopedThreadKey(ctx.threadRef) : null}
             />
           )}
