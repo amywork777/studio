@@ -1,11 +1,17 @@
+import { useAtomValue } from "@effect/atom-react";
+import type { ContextMenuItem, EnvironmentId } from "@t3tools/contracts";
 import { msg, useGT, useMessages } from "gt-react";
-import { Puzzle, X as XIcon } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { EllipsisIcon, Puzzle, X as XIcon } from "lucide-react";
+import { useEffect, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 
 import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
 import { cn } from "~/lib/utils";
 import type { RightPanelSurface } from "~/rightPanelStore";
+import { serverEnvironment } from "~/state/server";
+import { shellEnvironment } from "~/state/shell";
+import { useAtomCommand } from "~/state/use-atom-command";
 import { FileKindIcon } from "./FileKindIcon";
+import { folderLabel } from "./folderLabel";
 import { KIND_ICONS, KIND_TINT } from "./kinds";
 import { partLabel } from "./partNames";
 import { PinnedProjectTab } from "./PinnedProjectTab";
@@ -18,10 +24,12 @@ import {
   useEngineeringInterface,
   useEngineeringSurfaces,
 } from "./studioInterface";
-import { tabSuffixes } from "./tabSuffixes";
+import { tabSuffixes, withoutSharedPrefix } from "./tabSuffixes";
 import { NewTabButton } from "./NewTabButton";
 import { knownModelScript, useModelTitles } from "./useFolderModels";
 import { WORKBENCH_LAYOUT } from "./workbenchLayout";
+
+export { TabHoverCard, TabOverflowMenu } from "./TabStripExtras";
 
 // Studio's side of T3's panel tabs (`RightPanelTabs.tsx`): its slots, its titles and icons, its
 // pinned project tab, and its tabs as Chrome's (the kind's icon at the left, the close at the right).
@@ -38,6 +46,54 @@ export interface StudioRightPanelSlots {
   aside?: ReactNode;
   /** More "+" menu rows after the built-in surfaces, such as plugin views. */
   addSurfaceExtraItems?: ReactNode;
+  /** A file tab's own rows in its menu (`useStudioTabFileMenu`): what the viewer's ⋯ offered. */
+  fileMenu?: StudioTabFileMenu;
+}
+
+/** The rows Studio adds to a file tab's menu. */
+export type StudioTabAction = "show-in-folder";
+
+/** A file tab's own menu rows, and running the one picked. */
+export interface StudioTabFileMenu {
+  readonly items: (surface: RightPanelSurface) => ContextMenuItem<StudioTabAction>[];
+  readonly run: (action: string | null, surface: RightPanelSurface) => void;
+}
+
+/** A tab's file on disk, where it shows one: its workspace path under the project's folder. */
+export function tabFilePath(surface: RightPanelSurface, folder: string | null): string | null {
+  if (surface.kind === "file" && surface.attachment !== undefined) return null;
+  const file = surfaceFile(surface);
+  if (file === null) return null;
+  if (/^(?:\/|[A-Za-z]:[\\/])/.test(file)) return file;
+  if (folder === null) return null;
+  const separator = folder.includes("\\") && !folder.includes("/") ? "\\" : "/";
+  return `${folder.replace(/[\\/]+$/, "")}${separator}${file.replace(/^[\\/]+/, "")}`;
+}
+
+/**
+ * What the viewer's file menu offered, now that Studio's tab names the file and the viewer has no
+ * row of its own: Show in Finder, as the file page says it. Copy path stays out of the engineering
+ * interface (`tabOffersCopyPath`).
+ */
+export function useStudioTabFileMenu(
+  environmentId: EnvironmentId,
+  folder: string | null,
+): StudioTabFileMenu {
+  const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
+  const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
+  const reveals = serverConfig?.availableEditors.includes("file-manager") === true;
+  const label = folderLabel(serverConfig?.environment.platform.os);
+  return {
+    items: (surface) =>
+      isEngineeringInterface() && reveals && tabFilePath(surface, folder) !== null
+        ? [{ id: "show-in-folder", label }]
+        : [],
+    run: (action, surface) => {
+      const path = tabFilePath(surface, folder);
+      if (action !== "show-in-folder" || path === null) return;
+      void openInEditor({ environmentId, input: { cwd: path, editor: "file-manager" } });
+    },
+  };
 }
 
 /**
@@ -138,10 +194,25 @@ export function useStudioTabs(props: {
       }}
     />
   ) : null;
+  // The project's name most of its files' titles start with is said once, by the project.
+  const shortened = engineering
+    ? withoutSharedPrefix(
+        tabSurfaces.map((surface) => studioTitle(surface, modelTitles, resolve) ?? ""),
+      )
+    : null;
+  const shortTitles = new Map(
+    shortened === null
+      ? []
+      : tabSurfaces.flatMap((surface, index) => {
+          const short = shortened[index];
+          return short === undefined || short === "" ? [] : [[surface.id, short] as const];
+        }),
+  );
   return {
     engineering,
     tabSurfaces,
-    title: (surface: RightPanelSurface) => studioTitle(surface, modelTitles, resolve),
+    title: (surface: RightPanelSurface) =>
+      shortTitles.get(surface.id) ?? studioTitle(surface, modelTitles, resolve),
     /** Two open tabs never read the same: each of a clash carries what it is, in grey. */
     suffixes: (titleOf: (surface: RightPanelSurface) => string) =>
       engineering
@@ -187,9 +258,12 @@ export function TabIcon(props: {
       {props.children}
     </span>
   ) : (
-    <PanelTabCloseButton label={props.label} onClick={props.onClick}>
-      {props.children}
-    </PanelTabCloseButton>
+    // T3's icon is the tab's close: its press closes the tab, never also brings it forward.
+    <span className="contents" onClick={(event) => event.stopPropagation()}>
+      <PanelTabCloseButton label={props.label} onClick={props.onClick}>
+        {props.children}
+      </PanelTabCloseButton>
+    </span>
   );
 }
 
@@ -214,20 +288,77 @@ export function TitleWithSuffix(props: {
     : gt("{title}, {suffix}", { title: props.title, suffix: props.suffix });
 }
 
+/**
+ * A file tab's ⋯ (Studio): its menu, the one a right-click opens, at the press. Shown on the tab in
+ * front and on hover, before its close, as the viewer's ⋯ was after the file's name.
+ */
+function TabMoreAtEnd(props: {
+  readonly surface: RightPanelSurface;
+  readonly active: boolean;
+  readonly onOpen: (event: ReactMouseEvent) => void;
+}) {
+  const gt = useGT();
+  if (!WORKBENCH_LAYOUT || !isEngineeringInterface() || tabFilePath(props.surface, "/") === null) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      aria-label={gt("More")}
+      aria-haspopup="menu"
+      data-tab-more=""
+      className={cn(
+        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent/50 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        props.active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+      )}
+      onClick={(event) => {
+        event.stopPropagation();
+        props.onOpen(event);
+      }}
+    >
+      <EllipsisIcon className="size-3" aria-hidden="true" />
+    </button>
+  );
+}
+
 /** Studio's (Chrome's) tab close, at the right, shown on the tab in front and on hover. */
 export function TabCloseAtEnd(props: {
   readonly label: string;
   readonly active: boolean;
   readonly onClose: () => void;
+  /** A file tab's menu, for its ⋯ before the close (`TabMoreAtEnd`). */
+  readonly menu?: {
+    readonly surface: RightPanelSurface;
+    readonly onOpen: (event: ReactMouseEvent) => void;
+  };
 }) {
   if (!WORKBENCH_LAYOUT) return null;
+  return (
+    <span className="ms-auto flex shrink-0 items-center gap-0.5" data-tab-end="">
+      {props.menu === undefined ? null : (
+        <TabMoreAtEnd
+          surface={props.menu.surface}
+          active={props.active}
+          onOpen={props.menu.onOpen}
+        />
+      )}
+      <TabClose label={props.label} active={props.active} onClose={props.onClose} />
+    </span>
+  );
+}
+
+function TabClose(props: {
+  readonly label: string;
+  readonly active: boolean;
+  readonly onClose: () => void;
+}) {
   return (
     <button
       type="button"
       aria-label={props.label}
       data-tab-close=""
       className={cn(
-        "ms-auto flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-muted focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
+        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent/50 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         props.active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
       )}
       onClick={(event) => {

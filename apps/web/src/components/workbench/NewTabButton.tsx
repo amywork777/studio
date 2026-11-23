@@ -35,7 +35,7 @@ export function NewTabButton() {
         render={
           <Button
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-sm"
             aria-label="New or import"
             title="New or import"
             className="shrink-0"

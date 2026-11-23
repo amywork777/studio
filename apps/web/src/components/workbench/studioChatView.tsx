@@ -19,17 +19,27 @@ import {
 } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
+import { cn } from "~/lib/utils";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { useWorkspaceMutationRefresh } from "../../hooks/useWorkspaceMutationRefresh";
 import { useComposerDraftStore } from "../../composerDraftStore";
-import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
+import {
+  type PluginAppSurface,
+  type RightPanelSurface,
+  selectThreadRightPanelState,
+  useRightPanelStore,
+} from "../../rightPanelStore";
 import { PluginStarterPrompts } from "../plugins/PluginStarterPrompts";
 import { PluginThreadViewMenuItems } from "../plugins/PluginThreadViewMenuItems";
 import { usePluginFollow } from "../plugins/usePluginFollow";
 import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
-import { handToChat, sendsAtOnce } from "./handToChat";
+import { handToChat, sendViewMessage } from "./handToChat";
+import { keptSurfaces } from "./keptSurfaces";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
+import { useViewerWorkingStore } from "./references/viewerWorking";
+import { useStudioTabFileMenu } from "./studioRightPanelTabs";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
 import { PartContextStrip } from "./PartContextStrip";
 import { ChatTitleRow } from "./ChatTitleRow";
@@ -201,20 +211,19 @@ export function useStudioChatView(input: {
     useToolboxOpen.getState().setOpen(!toolboxOpen);
   });
   const chatBusy = input.isWorking || input.pendingUserInputCount > 0;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- tells the module store the CAD views beside this chat read (`studio/working`) whether its turn is running
+  useEffect(() => {
+    if (embedded || activeThreadKey === null) return;
+    useViewerWorkingStore.getState().set(activeThreadKey, input.isWorking);
+    return () => useViewerWorkingStore.getState().set(activeThreadKey, false);
+  }, [activeThreadKey, embedded, input.isWorking]);
   const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
-  /**
-   * Studio: a view's message in a chat not started yet goes in through the composer, which starts
-   * the chat as a person's send does; into a draft being written it is added for the person to send.
-   */
-  const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) => {
-    const composer = composerRef.current;
-    if (composer === null) throw new Error("Messages from apps need a chat.");
-    const send = sendsAtOnce(composer.readSnapshot().value);
-    if (!composer.insertTextAtEnd(text, { ensureLeadingBoundary: true })) {
-      throw new Error("The chat is waiting on you: answer it, then send this again.");
-    }
-    if (send) composer.submit();
-  });
+  // A file tab's menu: what the viewer's own row offered, now that the tab names the file.
+  const tabFileMenu = useStudioTabFileMenu(environmentId, activeWorkspaceRoot ?? null);
+  /** Studio: a view's message in a chat not started yet starts it through the composer (`sendViewMessage`). */
+  const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) =>
+    sendViewMessage(composerRef, text),
+  );
   // Studio's engineering surfaces follow files once per run instead (`useDocumentFollow.ts`).
   useShowWaitingChat(
     engineeringInterface && !embedded ? activeThreadRef : null,
@@ -365,6 +374,7 @@ export function useStudioChatView(input: {
         />
       ) : null,
     panelSlots: {
+      fileMenu: tabFileMenu,
       // A narrow window's panel keeps Studio's toolbar too: New and the AI | CAD switch.
       ...(engineeringInterface && activeThreadRef
         ? {
@@ -435,52 +445,118 @@ export function StudioRightPanelSurfaceContent({
 }: ComponentProps<typeof RightPanelSurfaceContent> & { readonly studio: StudioPanel }) {
   const { surface } = props;
   const { thread, project } = studio;
-  if (surface?.kind === "plugin-app" && thread !== null) {
-    return (
-      <Suspense fallback={null}>
-        <PluginViewPanel
-          environmentId={thread.environmentId}
-          threadId={thread.id}
-          surface={surface}
-          draftWorkspaceRoot={studio.isServerThread ? undefined : project?.workspaceRoot}
-          onSendMessage={
-            studio.isServerThread
-              ? studio.sendAppMessage
-              : studio.engineeringSurfaces
-                ? studio.sendAppMessageThroughComposer
-                : undefined
-          }
-          onAddContext={studio.addContext}
-          workspaceRoot={studio.workspaceRoot ?? undefined}
-          workspaceMutationId={studio.workspaceMutationId}
-        />
-      </Suspense>
-    );
-  }
-  if (
-    surface?.kind === "files" &&
+  const threadKey = studio.threadRef === null ? null : scopedThreadKey(studio.threadRef);
+  const open = useRightPanelStore(
+    (state) => selectThreadRightPanelState(state.byThreadKey, studio.threadRef).surfaces,
+  );
+  // The views and the Overview shown in this chat stay mounted behind the tab in front, so a
+  // switch back shows them as they were, with no reload (`keptSurfaces`, at most three views).
+  const [kept, setKept] = useState<{
+    readonly threadKey: string | null;
+    readonly views: ReadonlyArray<PluginAppSurface>;
+    readonly overview: boolean;
+  }>({ threadKey, views: [], overview: false });
+  const base = kept.threadKey === threadKey ? kept : { threadKey, views: [], overview: false };
+  const views = keptSurfaces(base.views, surface?.kind === "plugin-app" ? surface : null, open);
+  const overviewHere =
     studio.engineeringSurfaces &&
     (studio.engineeringInterface || studio.projectView === "project") &&
     thread !== null &&
-    project &&
-    studio.workspaceRoot &&
-    studio.threadRef
-  ) {
-    return (
-      <ProjectPage
-        environmentId={thread.environmentId}
-        cwd={studio.workspaceRoot}
-        projectName={
-          studio.projectIsScratch ? thread.title || studio.thisThreadTitle : project.title
-        }
-        projectId={studio.projectIsScratch ? null : project.id}
-        threadRef={studio.threadRef}
-        workspaceMutationId={studio.workspaceMutationId}
-        firstTurnWorking={studio.firstTurnWorking}
-      />
-    );
+    project !== null &&
+    studio.workspaceRoot !== null &&
+    studio.threadRef !== null;
+  const overview =
+    overviewHere &&
+    open.some((entry) => entry.kind === "files") &&
+    (base.overview || surface?.kind === "files");
+  if (base !== kept || views !== base.views || overview !== base.overview) {
+    setKept({ threadKey, views, overview });
   }
-  return <RightPanelSurfaceContent {...props} />;
+  const inFront = (id: string) => surface?.id === id;
+  const viewPanels =
+    thread === null
+      ? null
+      : views.map((view) => (
+          <KeptSurface key={view.id} shown={inFront(view.id)}>
+            <Suspense fallback={null}>
+              <PluginViewPanel
+                environmentId={thread.environmentId}
+                threadId={thread.id}
+                surface={view}
+                front={inFront(view.id)}
+                draftWorkspaceRoot={studio.isServerThread ? undefined : project?.workspaceRoot}
+                onSendMessage={
+                  studio.isServerThread
+                    ? studio.sendAppMessage
+                    : studio.engineeringSurfaces
+                      ? studio.sendAppMessageThroughComposer
+                      : undefined
+                }
+                onAddContext={studio.addContext}
+                workspaceRoot={studio.workspaceRoot ?? undefined}
+                workspaceMutationId={studio.workspaceMutationId}
+              />
+            </Suspense>
+          </KeptSurface>
+        ));
+  const overviewPanel =
+    overview && thread !== null && project && studio.workspaceRoot && studio.threadRef ? (
+      <KeptSurface key="overview" shown={surface?.kind === "files"}>
+        <ProjectPage
+          environmentId={thread.environmentId}
+          cwd={studio.workspaceRoot}
+          projectName={
+            studio.projectIsScratch ? thread.title || studio.thisThreadTitle : project.title
+          }
+          projectId={studio.projectIsScratch ? null : project.id}
+          threadRef={studio.threadRef}
+          workspaceMutationId={studio.workspaceMutationId}
+          firstTurnWorking={studio.firstTurnWorking}
+        />
+      </KeptSurface>
+    ) : null;
+  const ours =
+    (surface?.kind === "plugin-app" && thread !== null) ||
+    (surface?.kind === "files" && overviewHere);
+  if (overviewPanel === null && (viewPanels === null || viewPanels.length === 0)) {
+    return <RightPanelSurfaceContent {...props} />;
+  }
+  return (
+    // The kept surfaces stand on one another at the panel's full size, so the one behind keeps its
+    // size and its model's framing: a switch only shows another, with nothing to lay out. Another
+    // kind of tab in front stands over them the same way.
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-studio-kept-surfaces="">
+      {overviewPanel}
+      {viewPanels}
+      {ours ? null : (
+        <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col">
+          <RightPanelSurfaceContent {...props} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A kept surface: in front it fills the panel at once; behind, it keeps the panel's full size,
+ * unseen and inert (`visibility: hidden`, never `display: none` or no width), so its frame keeps its
+ * canvas and framing and a switch to it is only a change of which one shows.
+ */
+function KeptSurface(props: { readonly shown: boolean; readonly children: ReactNode }) {
+  return (
+    <div
+      inert={!props.shown}
+      aria-hidden={props.shown ? undefined : true}
+      data-studio-surface=""
+      data-shown={props.shown ? "" : undefined}
+      className={cn(
+        "absolute inset-0 flex min-h-0 min-w-0 flex-col",
+        props.shown ? "visible" : "pointer-events-none invisible",
+      )}
+    >
+      {props.children}
+    </div>
+  );
 }
 
 /** T3's control or panel, left out where Studio's engineering interface (or surfaces) has none. */

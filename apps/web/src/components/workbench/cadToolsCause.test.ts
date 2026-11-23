@@ -4,7 +4,13 @@ import * as NodePath from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
-import { CAD_TOOLS_IN_USE, CAD_TOOLS_STARTING, cadToolsCause } from "./cadToolsCause";
+import {
+  CAD_TOOLS_IN_USE,
+  CAD_TOOLS_STARTING,
+  cadToolsCause,
+  viewFailure,
+  viewFailureRequest,
+} from "./cadToolsCause";
 
 const repo = NodePath.join(import.meta.dirname, ...Array.from({ length: 5 }, () => ".."));
 const source = (path: string) => NodeFS.readFileSync(NodePath.join(repo, path), "utf8");
@@ -59,6 +65,33 @@ describe("cadToolsCause", () => {
     // The server's words for a plugin server that did not start, before the client's error.
     expect(source("apps/server/src/plugins/PluginHost.ts")).toContain(
       "did not start: ${sentence(error)}",
+    );
+  });
+});
+
+describe("viewFailure", () => {
+  it("says what was not opened and why, retrying a cause a person can act on", () => {
+    expect(
+      viewFailure(notStarted("port 3345 is held by another process: stop it"), "Base"),
+    ).toEqual({
+      headline: "Not opened: Base",
+      why: CAD_TOOLS_IN_USE,
+      action: "retry",
+    });
+    expect(viewFailure("path is outside the thread's workspace", "Base").why).toBe(
+      "The model view only opens files in this chat's folder.",
+    );
+  });
+
+  it("asks the agent to fix any other failure, with the reason as it came", () => {
+    const failure = viewFailure("ValueError: no solid in base.step", "Base");
+    expect(failure).toEqual({
+      headline: "Not opened: Base",
+      why: "The CAD tools couldn't read it.",
+      action: "ask",
+    });
+    expect(viewFailureRequest("Base", " ValueError: no solid in base.step\n")).toBe(
+      "The model view couldn't open Base. Find out why and fix it. The error was:\nValueError: no solid in base.step",
     );
   });
 });

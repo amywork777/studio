@@ -6,7 +6,8 @@ import type {
 } from "@t3tools/contracts";
 import { studioFolderName } from "@t3tools/shared/studioProjects";
 import { CircleXIcon, TriangleAlertIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import type { StudioProjectBrief } from "@t3tools/contracts";
+import { type ReactNode, useRef, useState } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useNowMinute } from "~/hooks/useNowMinute";
@@ -15,6 +16,8 @@ import { useRightPanelStore } from "~/rightPanelStore";
 import { useThreadShellsForProjectRefs } from "~/state/entities";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { handToChat } from "./handToChat";
+import { HARDWARE_ACTIONS } from "./hardwareActions";
 import { CheckBadge, CHECK_STATUS as STATUS, OutOfDateIcon } from "./CheckBadge";
 import {
   type CheckIssue,
@@ -36,7 +39,7 @@ import { leadPartOf } from "./leadPart";
 import { buildLabel, materialLabel } from "./partLabels";
 import { folderFiles, pictureVersions } from "./projectModels";
 import { PageTitle } from "./PageTitle";
-import { type FolderPart, MadeBadges, PartFooter, PartIcon } from "./PartBadges";
+import { type FolderPart, LEAD_LINK_CLASS, MadeBadges, PartFooter, PartIcon } from "./PartBadges";
 import { CARD_GRID, GROUP_LABEL, MODULE_HEADING, SECTION_STACK } from "./studioLayout";
 import {
   FileCard,
@@ -66,6 +69,13 @@ import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
 import { useProjectModels } from "./useFolderModels";
 import { projectChats } from "./workspaceTitle";
+import { waitingChats } from "./allChats";
+import { OpenQuestions } from "./OpenQuestions";
+import { ProjectHeading } from "./ProjectHeading";
+import { projectStatus } from "./projectStatus";
+
+/** The check a part with none run is offered, as the Toolbox hands it to the chat. */
+const STRENGTH_JOB = HARDWARE_ACTIONS.find((job) => job.id === "strength")!;
 
 const STATUS_ORDER: Record<CheckStatus | "none", number> = {
   fix: 0,
@@ -129,6 +139,8 @@ function LeadFacts(props: {
   readonly units: string;
   /** Opens a check's result, by its path in the part's folder. */
   readonly onOpenFile: (path: string) => void;
+  /** The checks alone: the project's heading already says its units, material and last build. */
+  readonly checksOnly: boolean;
 }) {
   const { part } = props;
   useNowMinute();
@@ -146,27 +158,34 @@ function LeadFacts(props: {
   );
   // With every check out of date they stand under the amber line above (`LeadPart`), not here too.
   const checks = part.results.length === 0 ? [] : [...part.results, ...part.outdated];
+  // Nothing to say takes no room: an empty list would push the links after it in by its gap.
+  if (props.checksOnly && checks.length === 0) return null;
   return (
-    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-1">
-      <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>
-      {material === null ? null : (
+    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
+      {props.checksOnly ? null : <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>}
+      {material === null || props.checksOnly ? null : (
         <LeadFact label="Material" tone={material.missing ? "faint" : "default"}>
           {material.text}
         </LeadFact>
       )}
-      {build === null ? null : (
+      {build === null || props.checksOnly ? null : (
         <LeadFact label="Build" labelHidden tone={build.failed ? "error" : "default"}>
           {build.text}
         </LeadFact>
       )}
       {checks.length === 0 ? null : (
-        <LeadFact label="Checks">
-          <span className="flex min-w-0 flex-wrap gap-1">
+        <LeadFact label="Checks" labelHidden={props.checksOnly}>
+          <span
+            className={
+              props.checksOnly ? "flex min-w-0 flex-col gap-1" : "flex min-w-0 flex-wrap gap-1"
+            }
+          >
             {checks.map((result) => (
               <CheckBadge
                 key={result.path}
                 result={result}
                 outOfDate={checkOutOfDate(result, part.file)}
+                row={props.checksOnly}
                 onOpen={() => props.onOpenFile(result.model)}
               />
             ))}
@@ -191,6 +210,10 @@ function LeadPart(props: {
   readonly onOpen: () => void;
   /** Opens a file made from it, by its path in its folder. */
   readonly onOpenFile: (path: string) => void;
+  /** Hands the strength check to the chat, as the Toolbox's job does; null with no chat to take it. */
+  readonly onRunCheck: (() => void) | null;
+  /** Under the project's heading, which already says the part's units, material and build. */
+  readonly underHeading: boolean;
 }) {
   const { part } = props;
   const pictures = usePictures({
@@ -231,9 +254,14 @@ function LeadPart(props: {
               ? `${sentenceCase(STATUS[status].caption)} on ${name}`
               : outOfDate
                 ? `${name} changed since its last check`
-                : `No checks run on ${name} yet`}
+                : "No checks run yet"}
             {props.where === undefined ? "" : ` · ${props.where}`}
           </p>
+          {status === null && !outOfDate && props.onRunCheck !== null ? (
+            <button type="button" onClick={props.onRunCheck} className={LEAD_LINK_CLASS}>
+              Run strength check
+            </button>
+          ) : null}
           {outOfDate ? (
             <div className="flex min-w-0 flex-wrap gap-x-3">
               {part.outdated.map((result) => (
@@ -249,18 +277,29 @@ function LeadPart(props: {
           ) : null}
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
         <LeadFacts
           part={part}
           threadRef={props.threadRef}
           units={props.units}
           onOpenFile={props.onOpenFile}
+          checksOnly={props.underHeading}
         />
-        {part.drawings.length + part.made.length === 0 ? null : (
-          <div className="flex max-w-full flex-wrap items-center gap-2">
+        {/* The drawing and the part's sizes are one row of links; the sizes live with the part, as
+            SolidWorks keeps them under Equations. */}
+        <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
+          {part.drawings.length + part.made.length === 0 ? null : (
             <MadeBadges part={part} onOpen={props.onOpenFile} lead />
-          </div>
-        )}
+          )}
+          <button
+            type="button"
+            onClick={props.onOpen}
+            aria-label={`Sizes: open ${part.file.title} at its sizes`}
+            className={LEAD_LINK_CLASS}
+          >
+            Sizes
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -418,6 +457,19 @@ export function ProjectOverview(props: {
   readonly units: string;
   /** Opens New on Documents (PRD, requirements, FMEA, your own templates); null where it cannot. */
   readonly onNewDocument: (() => void) | null;
+  /**
+   * The project as its Overview names it, in Engineering: its name, what it is, its properties and
+   * their editor, and its folder; null where the page's own header names it.
+   */
+  readonly heading: {
+    readonly name: string;
+    readonly purpose: string;
+    readonly brief: StudioProjectBrief | null;
+    readonly setup: ReactNode | null;
+    readonly onShowFolder: (() => void) | null;
+    /** The folder its README is in, for its open questions. */
+    readonly cwd: string;
+  } | null;
 }) {
   const folderChecks = useProjectChecks({
     environmentId: props.environmentId,
@@ -533,6 +585,10 @@ export function ProjectOverview(props: {
   );
   const chats = projectChats(useThreadShellsForProjectRefs(props.projectRefs));
   const otherChats = chats.filter((chat) => chat.id !== props.currentThreadId).length;
+  const status = projectStatus({
+    results: byFolder.flatMap((folder) => folder.results),
+    waiting: waitingChats(chats).length,
+  });
   // Every part, the lead part first, for its versions.
   const versioned = (() => {
     const all: VersionedPart[] = byFolder.flatMap((folder) => folder.parts);
@@ -546,9 +602,52 @@ export function ProjectOverview(props: {
   const { folded, toggle } = useFoldedModules(props.folders[0] ?? "");
   const partCount = byFolder.reduce((total, folder) => total + folder.parts.length, 0);
   const engineering = useEngineeringInterface();
+  const chatsRef = useRef<HTMLDivElement>(null);
+  const issuesPanel = (
+    <OpenIssues
+      issues={issues}
+      checked={checked}
+      composerRef={props.composerRef}
+      linkTo={props.linkTo}
+      onShow={(entry) => props.onOpen(entry.root, entry.result.model)}
+      onShowChat={showChat}
+    />
+  );
+  const leadBuild =
+    lead?.file.version === undefined
+      ? null
+      : buildLabel({ state: "built", at: Number(lead.file.version) * 1000 });
 
   return (
     <div className="@container flex min-w-0 flex-col gap-6">
+      {props.heading === null ? null : (
+        // The project first, by its own name: how it stands, what to answer, what failed.
+        <div className={SECTION_STACK}>
+          <ProjectHeading
+            name={props.heading.name}
+            purpose={props.heading.purpose}
+            brief={props.heading.brief}
+            status={status}
+            built={leadBuild}
+            onOpenPart={lead === null ? null : () => props.onOpen(lead.root, lead.file.path)}
+            setup={props.heading.setup}
+            onShowFolder={props.heading.onShowFolder}
+            onShowChats={
+              otherChats === 0
+                ? null
+                : () => chatsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+            }
+          />
+          <OpenQuestions
+            environmentId={props.environmentId}
+            cwd={props.heading.cwd}
+            mutationId={props.mutationId}
+            composerRef={props.composerRef}
+            onShowChat={showChat}
+          />
+          {checked || issues.length > 0 ? issuesPanel : null}
+        </div>
+      )}
       {lead === null ? (
         <>
           {props.readme}
@@ -560,9 +659,11 @@ export function ProjectOverview(props: {
           )}
         </>
       ) : (
-        // The part first, large, with what the project is beside it, both under its name.
+        // The part first, large, with what the project is beside it; outside Engineering under its name.
         <div className={SECTION_STACK}>
-          <PageTitle title={lead.file.title} label={lead.file.kind} />
+          {props.heading === null ? (
+            <PageTitle title={lead.file.title} label={lead.file.kind} />
+          ) : null}
           <div className="grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
             <LeadPart
               environmentId={props.environmentId}
@@ -572,19 +673,19 @@ export function ProjectOverview(props: {
               where={engineering ? undefined : lead.file.path}
               onOpen={() => props.onOpen(lead.root, lead.file.path)}
               onOpenFile={(path) => props.onOpen(lead.root, path)}
+              underHeading={props.heading !== null}
+              onRunCheck={
+                props.composerRef === null
+                  ? null
+                  : () => {
+                      const composerRef = props.composerRef;
+                      if (composerRef === null) return;
+                      showChat();
+                      handToChat(composerRef, STRENGTH_JOB.prompt(lead.file.title));
+                    }
+              }
             />
-            {props.readme === null ? (
-              <OpenIssues
-                issues={issues}
-                checked={checked}
-                composerRef={props.composerRef}
-                linkTo={props.linkTo}
-                onShow={(entry) => props.onOpen(entry.root, entry.result.model)}
-                onShowChat={showChat}
-              />
-            ) : (
-              props.readme
-            )}
+            {props.readme === null ? (props.heading === null ? issuesPanel : null) : props.readme}
           </div>
         </div>
       )}
@@ -600,16 +701,9 @@ export function ProjectOverview(props: {
         />
       ) : null}
 
-      {props.readme !== null && (checked || issues.length > 0) ? (
-        <OpenIssues
-          issues={issues}
-          checked={checked}
-          composerRef={props.composerRef}
-          linkTo={props.linkTo}
-          onShow={(entry) => props.onOpen(entry.root, entry.result.model)}
-          onShowChat={showChat}
-        />
-      ) : null}
+      {props.heading === null && props.readme !== null && (checked || issues.length > 0)
+        ? issuesPanel
+        : null}
 
       <div className="grid min-w-0 gap-6 @3xl:grid-cols-2">
         {versioned.length === 0 ? null : (
@@ -626,8 +720,9 @@ export function ProjectOverview(props: {
             composerRef={props.composerRef}
           />
         )}
-        {/* Every named size in one table, shared ones first (`ProjectSizes`). */}
-        {partCount === 0 ? null : (
+        {/* A project of one part shows it above, large; these are for picking among several. */}
+        {/* What several parts share; a part's own sizes are the part's (its Sizes, above). */}
+        {partCount < 2 ? null : (
           <ProjectSizes
             environmentId={props.environmentId}
             threadRef={props.threadRef}
@@ -638,7 +733,6 @@ export function ProjectOverview(props: {
             onFold={() => toggle("Sizes")}
           />
         )}
-        {/* A project of one part shows it above, large; these are for picking among several. */}
         {engineering || partCount < 2
           ? null
           : designModules.map((module) => (
@@ -688,30 +782,38 @@ export function ProjectOverview(props: {
             />
           ),
         )}
-        {engineering || props.onShowThreads === null || otherChats === 0 ? null : (
-          <OverviewModule
-            title="Recent work"
-            wide
-            folded={folded.includes("Recent work")}
-            onFold={() => toggle("Recent work")}
-            action={
-              <button
-                type="button"
-                onClick={props.onShowThreads}
-                className="text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:underline"
-              >
-                {engineering ? "Full history" : "Every thread"}
-              </button>
-            }
+        {otherChats === 0 || (!engineering && props.onShowThreads === null) ? null : (
+          <div
+            ref={chatsRef}
+            className={cn("flex min-w-0 flex-col", !engineering && "@3xl:col-span-2")}
           >
-            <ProjectThreads
-              projectRefs={props.projectRefs}
-              folderNames={props.folderNames}
-              currentThreadId={props.currentThreadId}
-              query=""
-              limit={RECENT_THREADS}
-            />
-          </OverviewModule>
+            <OverviewModule
+              title={engineering ? "Chats" : "Recent work"}
+              wide={!engineering}
+              folded={folded.includes("Recent work")}
+              onFold={() => toggle("Recent work")}
+              action={
+                props.onShowThreads === null ? undefined : (
+                  <button
+                    type="button"
+                    onClick={props.onShowThreads}
+                    className="text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:underline"
+                  >
+                    {engineering ? "Every chat" : "Every thread"}
+                  </button>
+                )
+              }
+            >
+              <ProjectThreads
+                projectRefs={props.projectRefs}
+                folderNames={props.folderNames}
+                currentThreadId={props.currentThreadId}
+                query=""
+                limit={RECENT_THREADS}
+                waitingFirst={engineering}
+              />
+            </OverviewModule>
+          </div>
         )}
       </div>
     </div>

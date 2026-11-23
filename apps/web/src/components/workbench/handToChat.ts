@@ -29,3 +29,17 @@ export function handToChat(composerRef: ComposerHandleRef, prompt: string): void
   }
   if (send) requestAnimationFrame(() => composer.submit());
 }
+
+/**
+ * A view's own Send (the model's Quick Edit bar): the person pressed send there, so it starts the
+ * turn now, as the chat's send button does. What the composer already holds goes with it, for that
+ * is what the view queued (its picks and references) or what the person was adding to it.
+ */
+export function sendViewMessage(composerRef: ComposerHandleRef, text: string): void {
+  const composer = composerRef.current;
+  if (composer === null) throw new Error("Messages from apps need a chat.");
+  if (!composer.insertTextAtEnd(text, { ensureLeadingBoundary: true })) {
+    throw new Error("The chat is waiting on you: answer it, then send this again.");
+  }
+  composer.submit();
+}

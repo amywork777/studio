@@ -192,7 +192,7 @@ function BrowseLibrary(props: { readonly onBrowse: () => void }) {
 /**
  * New work across disciplines, like a CAD system's New dialog. A template whose skill is off shows
  * dimmed and names the skill. Create hands the job on (`onCreate`); Part skips the agent and makes
- * the part at once (`onNewPart`), named "Untitled part" on Home until renamed.
+ * the part at once (`onNewPart`), named "Untitled project" on Home until renamed.
  */
 export function NewDialog(props: {
   readonly open: boolean;
@@ -451,7 +451,7 @@ export function NewDialog(props: {
               ) : null}
             </div>
             {selected === null ? null : (
-              <div className="flex min-w-0 flex-col gap-2.5 border-t border-border pt-3 md:border-s md:border-t-0 md:ps-4 md:pt-0">
+              <div className="flex min-w-0 flex-col gap-2 border-t border-border pt-3 md:border-s md:border-t-0 md:ps-4 md:pt-0">
                 <TemplatePreview
                   key={selected.id}
                   template={selected}
@@ -474,7 +474,7 @@ export function NewDialog(props: {
                             {part === null ? "Choose a part" : partShown(part)}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectPopup alignItemWithTrigger={false}>
+                        <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                           {props.parts.map((path) => (
                             <SelectItem key={path} hideIndicator value={path}>
                               {partShown(path)}
@@ -514,7 +514,7 @@ export function NewDialog(props: {
                       <SelectTrigger size="sm" className="w-full" aria-label="Units">
                         <SelectValue>{units === "in" ? "Inches" : "Millimeters"}</SelectValue>
                       </SelectTrigger>
-                      <SelectPopup alignItemWithTrigger={false}>
+                      <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                         <SelectItem hideIndicator value="mm">
                           Millimeters
                         </SelectItem>

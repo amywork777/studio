@@ -2,7 +2,7 @@ import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
 
 import type { TimelineEntry } from "../../session-logic";
-import { latestTurnActivity } from "./quietTurn";
+import { latestTurnActivity, turnStepsLine } from "./quietTurn";
 
 describe("latestTurnActivity", () => {
   const prompt = {
@@ -69,5 +69,29 @@ describe("latestTurnActivity", () => {
       at: "2026-11-04T10:00:00.000Z",
       step: null,
     });
+  });
+});
+
+describe("turnStepsLine", () => {
+  const step = (name: string | null) => name;
+  it("names the turn's latest steps in order, a repeat straight after itself once", () => {
+    const steps = [
+      "Reading the script",
+      "Reading the script",
+      null,
+      "Rebuilding the head",
+      "Checking the fit",
+      "Saving",
+    ];
+    expect(turnStepsLine(steps, 0, step)).toBe("Rebuilding the head → Checking the fit → Saving");
+    expect(turnStepsLine(steps, 0, step)?.split(" → ")).toHaveLength(3);
+    expect(turnStepsLine(steps.slice(0, 4), 0, step)).toBe(
+      "Reading the script → Rebuilding the head",
+    );
+  });
+
+  it("reads from the turn's start, and says nothing before a named step", () => {
+    expect(turnStepsLine(["Old step", "New step"], 1, step)).toBe("New step");
+    expect(turnStepsLine([null, null], 0, step)).toBeNull();
   });
 });

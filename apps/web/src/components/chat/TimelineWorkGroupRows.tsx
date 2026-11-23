@@ -1,4 +1,5 @@
 import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
+import { TurnStepLine } from "../workbench/TurnStepLine";
 import { WorkLogButton, WorkLogList, WorkLogRow } from "./WorkLog";
 import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
 import { type ToolActivityIcon } from "@t3tools/contracts";
@@ -384,6 +385,7 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
           <BackgroundWorktreeSetupChip snapshot={backgroundWorktreeSetup} />
         ) : null}
       </div>
+      {row.steps && !shimmer ? <TurnStepLine steps={row.steps} /> : null}
     </div>
   );
 }

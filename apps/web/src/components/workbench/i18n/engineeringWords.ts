@@ -15,6 +15,8 @@ const ENGINEERING_WORDS: ReadonlyMap<string, string> = new Map([
   ],
   ["Choose a project above to start a thread", "Choose a project to start a chat"],
   ["Switch response model for this thread", "Switch the model for this chat"],
+  // Settings, the sidebar, the command palette and keybindings name a project's chats one way (law 2).
+  ["Threads", "Chats"],
 ]);
 
 /** T3's text in the engineering interface's words, where it has its own; else as given. */

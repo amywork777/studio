@@ -64,6 +64,7 @@ import * as PullRequestReviewGuides from "./persistence/PullRequestReviewGuides.
 import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewGuideService.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as DelegatedTaskAnalytics from "./telemetry/DelegatedTaskAnalytics.ts";
+import { installStudioAgentShell } from "./studio/studioAgentShell.ts";
 import * as StudioServerLayers from "./studio/StudioServerLayers.ts";
 import * as ProviderUsageAnalytics from "./telemetry/ProviderUsageAnalytics.ts";
 import * as ModelManifest from "./provider/ModelManifest.ts";
@@ -929,6 +930,8 @@ const layerMakeServer = Layer.unwrap(
     // fixPath rewrites PATH, so pin the launcher the shell chose before it does.
     const invokedAs = (yield* resolveLauncherPath) ?? (yield* HostProcess.InvokedAs);
     yield* fixPath({ shellEnvironmentPrepared: config.shellEnvironmentPrepared });
+    // Studio: every agent's cad is its own, whatever the login shell's profile puts first.
+    yield* installStudioAgentShell(config.stateDir);
 
     const layerHttpListening = Layer.effectDiscard(
       Effect.gen(function* () {

@@ -7,7 +7,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { filterMaterials, MATERIAL_LIBRARY } from "./materials";
 
 const rowClass =
-  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-foreground outline-none hover:bg-accent focus-visible:bg-accent";
+  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-foreground outline-none hover:bg-accent/50 focus-visible:bg-accent";
 
 /**
  * A material from the library, the way a CAD tool assigns one: search the

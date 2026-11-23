@@ -29,7 +29,7 @@ export function CadToolsButton(props: {
       {/* Hovered through a span: a held button takes no pointer of its own, and says why. */}
       <TooltipTrigger delay={RICH_TOOLTIP_DELAY} render={<span className="flex" />}>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           aria-label={label}
           aria-pressed={props.shown}

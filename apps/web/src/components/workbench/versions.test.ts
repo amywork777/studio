@@ -216,7 +216,7 @@ describe("restoring a version", () => {
         files: ["parts/daisy_cover.step", "parts/daisy_cover.py"],
       }),
     ).toBe(
-      "In Version history I restored the daisy cover to Version 3, from 2 hours ago (parts/daisy_cover.step, parts/daisy_cover.py).",
+      "In Versions I restored the daisy cover to Version 3, from 2 hours ago (parts/daisy_cover.step, parts/daisy_cover.py).",
     );
   });
 

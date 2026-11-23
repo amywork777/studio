@@ -41,7 +41,7 @@ describe("studio projects", () => {
     expect(context).toContain("- Material: 6061-T6 aluminum");
     expect(context).toContain("- Quantity: Not decided");
     expect(context).toContain("In `/work/rover-cad`, keep the project's work");
-    expect(context).toContain("- `robots/`: robot descriptions (URDF, SRDF, SDF)");
+    expect(context).toContain("- `robots/`: robot descriptions (URDF, SRDF)");
     expect(context).not.toContain("## Requirements");
     expect(context).toContain("## Show your work");
     expect(context).toContain("## References");
@@ -98,6 +98,8 @@ describe("studio projects", () => {
     expect(context).toContain("(<YYYY-MM-DD>, asked)");
     expect(context).toContain("`- Support the bike by its front wheel (2026-10-19, asked)`");
     expect(context).toContain("Studio shows every section, folded to its heading");
+    // Open questions as taps: the format `readQuestion` reads (`projectReadme.ts`).
+    expect(context).toContain("`- <question> [<what you assumed> | <another answer>]`");
     expect(context).toContain("write short points, not paragraphs");
     expect(context).toContain("## Starting a project");
     expect(context).toContain("as `name` in `/studio/rover/project.json`");

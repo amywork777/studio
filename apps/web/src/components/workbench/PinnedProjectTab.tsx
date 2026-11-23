@@ -5,12 +5,12 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type { ProjectView } from "./projectView";
 
 const VIEWS = [
-  { view: "project", label: "Project", Icon: LayoutDashboardIcon },
+  { view: "project", label: "Overview", Icon: LayoutDashboardIcon },
   { view: "source", label: "Source", Icon: FileCodeIcon },
 ] as const;
 
 /**
- * The Project tab, pinned ahead of the panel's tabs: it cannot be closed or dragged. With code
+ * The Overview tab, pinned ahead of the panel's tabs: it cannot be closed or dragged. With code
  * tools (`both`) Source sits beside it; in the engineering interface alone it is the first of the
  * tabs, drawn as they are (`brand/theme.css`), its icon in the brand's color beside its name.
  */
@@ -60,7 +60,7 @@ export function PinnedProjectTab(props: {
               "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               pressed
                 ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
             )}
           >
             <Icon className="size-3.5" aria-hidden="true" />

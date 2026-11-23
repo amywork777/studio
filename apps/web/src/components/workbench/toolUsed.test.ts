@@ -55,4 +55,17 @@ describe("what a chat a tool opened is titled from", () => {
   it("leaves a typed message as it is", () => {
     expect(chatTitleText("Draw bracket.step.")).toBe("Draw bracket.step.");
   });
+
+  it("is the person's words over what the model view sent, else what it picked", () => {
+    const about = "File: 29ae9a38\nReferences:\n29ae9a38#led_module/f:led_module.body_face3~ee2f";
+    expect(chatTitleText(`Make this face 2 mm thinner\n\n${about}`)).toBe(
+      "Make this face 2 mm thinner",
+    );
+    expect(chatTitleText(about)).toBe("LED module · 1 face");
+    // An edit-mode note the composer held is never the title: the person's words are.
+    const note = "In edit mode I added Fillet1, radius 5 mm (parts/part.py, line 20).";
+    expect(chatTitleText(`${note}\n\nmake it 5 mm thicker\n\n${about}`)).toBe(
+      "make it 5 mm thicker",
+    );
+  });
 });

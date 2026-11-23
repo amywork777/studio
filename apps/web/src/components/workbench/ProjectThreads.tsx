@@ -19,6 +19,7 @@ import { cn } from "~/lib/utils";
 import { useThreadShellsForProjectRefs } from "~/state/entities";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { formatRelativeTimeLabel, formatShortTimestamp } from "~/timestampFormat";
+import { keptChats } from "./allChats";
 import { type HistoryOutcome, historyByDay, historyOutcome } from "./projectHistory";
 import { useEngineeringInterface } from "./studioInterface";
 import { GROUP_LABEL, SECTION_STACK } from "./studioLayout";
@@ -50,6 +51,8 @@ export function ProjectThreads(props: {
   readonly query: string;
   /** The newest this many, for the overview; all when absent. */
   readonly limit?: number;
+  /** The chats waiting on the person are kept among the `limit` first, however old. */
+  readonly waitingFirst?: boolean;
 }) {
   const navigate = useNavigate();
   useNowMinute();
@@ -58,11 +61,14 @@ export function ProjectThreads(props: {
   const shells = useThreadShellsForProjectRefs(props.projectRefs);
   const needle = props.query.trim().toLowerCase();
   const days = historyByDay(
-    shells
-      .filter((thread) => thread.archivedAt === null)
-      .filter((thread) => needle === "" || thread.title.toLowerCase().includes(needle))
-      .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, props.limit),
+    keptChats(
+      shells
+        .filter((thread) => thread.archivedAt === null)
+        .filter((thread) => needle === "" || thread.title.toLowerCase().includes(needle))
+        .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      props.limit,
+      props.waitingFirst === true,
+    ),
   );
 
   if (days.length === 0) {
@@ -71,13 +77,13 @@ export function ProjectThreads(props: {
         {needle !== ""
           ? "Nothing matches that."
           : plainWords
-            ? "No history yet. The work you start in this project shows up here."
+            ? "No chats yet. The work you start in this project shows up here."
             : "No threads in this project yet."}
       </p>
     );
   }
   return (
-    <div className="flex flex-col gap-3" aria-label={plainWords ? "History" : "Threads"}>
+    <div className="flex flex-col gap-3" aria-label={plainWords ? "Chats" : "Threads"}>
       {days.map(({ day, threads }) => (
         <section key={day} aria-label={day} className={SECTION_STACK}>
           <h3 className={GROUP_LABEL}>{day}</h3>

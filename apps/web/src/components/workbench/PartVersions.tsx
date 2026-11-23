@@ -44,7 +44,7 @@ export interface VersionedPart {
   readonly results: ReadonlyArray<CheckResult>;
 }
 
-const SHOWN = 6;
+const SHOWN = 3;
 const partKey = (part: VersionedPart) =>
   `${studioFolderKey(part.root)}\n${versionedPath(part.file)}`;
 
@@ -125,7 +125,7 @@ export function PartVersions(props: {
   const needsGit = useStudioProjectsList(props.environmentId).data?.git === false;
   const byScope = useChatsByScope(props.chats);
 
-  // Each new request, or the switcher's Version history, opens the module and brings it into view, once.
+  // Each new request, or the switcher's Versions, opens the module and brings it into view, once.
   const shownRequest = useRef<typeof request>(null);
   const revealAt = useVersionRequestStore((store) => store.revealAt);
   const revealed = useVersionRequestStore((store) => store.revealed);
@@ -282,7 +282,7 @@ export function PartVersions(props: {
               <SelectTrigger size="sm" variant="ghost" aria-label="Part">
                 <SelectValue>{part.file.title}</SelectValue>
               </SelectTrigger>
-              <SelectPopup alignItemWithTrigger={false}>
+              <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                 {props.parts.map((entry) => (
                   <SelectItem key={partKey(entry)} hideIndicator value={partKey(entry)}>
                     {entry.file.title}
@@ -341,7 +341,7 @@ export function PartVersions(props: {
                         aria-current={current ? "true" : undefined}
                         onClick={() => pick(choice.id, null)}
                         className={cn(
-                          "flex h-9 w-full min-w-0 items-center gap-3 px-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                          "flex h-9 w-full min-w-0 items-center gap-3 px-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                           current && "bg-accent/60",
                         )}
                       >
@@ -362,7 +362,7 @@ export function PartVersions(props: {
                   onClick={() => setAll((value) => !value)}
                   className="self-start text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:underline"
                 >
-                  {all ? "Show fewer" : `Show all ${choices.length}`}
+                  {all ? "Show fewer" : `All versions (${choices.length})`}
                 </button>
               ) : null}
               {newer === null || !restorable ? null : (

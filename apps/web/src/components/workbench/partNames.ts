@@ -139,7 +139,6 @@ const ENDINGS: ReadonlyArray<{
   { ending: /\.(?:stl|3mf|obj|glb)$/i, kind: "Mesh", suffix: (match) => meshFormat(match[0]) },
   { ending: /\.urdf$/i, kind: "Robot", suffix: "robot description" },
   { ending: /\.srdf$/i, kind: "Planning groups", suffix: "planning groups" },
-  { ending: /\.sdf$/i, kind: "Simulation model", suffix: "simulation model" },
   { ending: /\.kicad_pcb$/i, kind: "Board", suffix: "board" },
   { ending: /\.kicad_sch$/i, kind: "Schematic", suffix: "schematic" },
   { ending: /\.(?:dxf|dwg|svg)$/i, kind: "Drawing", suffix: "drawing" },

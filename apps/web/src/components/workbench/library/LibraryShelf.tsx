@@ -168,7 +168,7 @@ export function ShelfIndex(props: { readonly shelves: ReadonlyArray<Shelf> }) {
             onClick={() =>
               document.getElementById(shelfAnchor(shelf.key))?.scrollIntoView({ block: "start" })
             }
-            className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           >
             <Icon aria-hidden="true" className={cn("size-4 shrink-0", shelf.tint)} />
             <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
