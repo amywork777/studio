@@ -17,7 +17,6 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { EnvironmentHttpApi, type RepositoryIdentity } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { keepStudioCadFirst } from "@t3tools/shared/studioCadPath";
 import * as Cause from "effect/Cause";
 import * as Duration from "effect/Duration";
 import * as Deferred from "effect/Deferred";
@@ -65,6 +64,7 @@ import * as PullRequestReviewGuides from "./persistence/PullRequestReviewGuides.
 import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewGuideService.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as DelegatedTaskAnalytics from "./telemetry/DelegatedTaskAnalytics.ts";
+import { installStudioAgentShell } from "./studio/studioAgentShell.ts";
 import * as StudioServerLayers from "./studio/StudioServerLayers.ts";
 import * as ProviderUsageAnalytics from "./telemetry/ProviderUsageAnalytics.ts";
 import * as ModelManifest from "./provider/ModelManifest.ts";
@@ -930,8 +930,8 @@ const layerMakeServer = Layer.unwrap(
     // fixPath rewrites PATH, so pin the launcher the shell chose before it does.
     const invokedAs = (yield* resolveLauncherPath) ?? (yield* HostProcess.InvokedAs);
     yield* fixPath({ shellEnvironmentPrepared: config.shellEnvironmentPrepared });
-    // Studio: its own cad ahead of one the login shell's profile put first (`studioCadFirstPath`).
-    keepStudioCadFirst(yield* HostProcess.Environment, yield* HostProcess.Platform);
+    // Studio: every agent's cad is its own, whatever the login shell's profile puts first.
+    yield* installStudioAgentShell(config.stateDir);
 
     const layerHttpListening = Layer.effectDiscard(
       Effect.gen(function* () {
