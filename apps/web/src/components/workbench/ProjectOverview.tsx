@@ -158,6 +158,8 @@ function LeadFacts(props: {
   );
   // With every check out of date they stand under the amber line above (`LeadPart`), not here too.
   const checks = part.results.length === 0 ? [] : [...part.results, ...part.outdated];
+  // Nothing to say takes no room: an empty list would push the links after it in by its gap.
+  if (props.checksOnly && checks.length === 0) return null;
   return (
     <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
       {props.checksOnly ? null : <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>}
@@ -283,20 +285,21 @@ function LeadPart(props: {
           onOpenFile={props.onOpenFile}
           checksOnly={props.underHeading}
         />
-        {part.drawings.length + part.made.length === 0 ? null : (
-          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
+        {/* The drawing and the part's sizes are one row of links; the sizes live with the part, as
+            SolidWorks keeps them under Equations. */}
+        <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
+          {part.drawings.length + part.made.length === 0 ? null : (
             <MadeBadges part={part} onOpen={props.onOpenFile} lead />
-          </div>
-        )}
-        {/* The part's named sizes live with it, as SolidWorks keeps them under Equations. */}
-        <button
-          type="button"
-          onClick={props.onOpen}
-          aria-label={`Sizes: open ${part.file.title} at its sizes`}
-          className={LEAD_LINK_CLASS}
-        >
-          Sizes
-        </button>
+          )}
+          <button
+            type="button"
+            onClick={props.onOpen}
+            aria-label={`Sizes: open ${part.file.title} at its sizes`}
+            className={LEAD_LINK_CLASS}
+          >
+            Sizes
+          </button>
+        </div>
       </div>
     </section>
   );
