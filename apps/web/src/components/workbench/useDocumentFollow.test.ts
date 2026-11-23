@@ -88,4 +88,21 @@ describe("one thing per run", () => {
     expect(pickFollow(["parts/bracket.step", "src/bracket.py"], viewer, showing)).toBeNull();
     expect(pickFollow([".claude/plan.md", "AGENTS.md", "pyproject.toml"], viewer, none)).toBeNull();
   });
+
+  it("keeps the part a run changed in front, not another model the change rippled into", () => {
+    // Quick Edit on the shown bracket: a shared size moved the clip, the assembly and a robot's mesh too.
+    const showing = (path: string) => path === "parts/servo_bracket.step";
+    const rippled = [
+      "parts/servo_bracket.step",
+      "parts/cable_clip.step",
+      "assemblies/servo_mount.step",
+      "robots/meshes/horn_link.stl",
+    ];
+    expect(pickFollow(rippled, viewer, showing)).toBeNull();
+    // A study or a document the run made still opens over it.
+    expect(pickFollow([...rippled, "studies/servo_bracket/result.glb"], viewer, showing)).toEqual({
+      kind: "viewer",
+      path: "studies/servo_bracket/result.glb",
+    });
+  });
 });
