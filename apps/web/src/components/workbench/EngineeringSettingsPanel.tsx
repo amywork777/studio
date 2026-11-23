@@ -97,7 +97,7 @@ export function EngineeringSettingsPanel() {
               <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Navigate like">
                 <SelectValue>{MOUSE_LABELS[mouse]}</SelectValue>
               </SelectTrigger>
-              <SelectPopup align="end" alignItemWithTrigger={false}>
+              <SelectPopup align="end" alignItemWithTrigger={false} sideOffset={6}>
                 {VIEWER_MICE.map((value) => (
                   <SelectItem key={value} hideIndicator value={value}>
                     {MOUSE_LABELS[value]}
@@ -194,7 +194,7 @@ function NewProjectSettings() {
             <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Drafting standard">
               <SelectValue>{STANDARD_LABELS[standard]}</SelectValue>
             </SelectTrigger>
-            <SelectPopup align="end" alignItemWithTrigger={false}>
+            <SelectPopup align="end" alignItemWithTrigger={false} sideOffset={6}>
               {DRAFTING_STANDARDS.map((value) => (
                 <SelectItem key={value} hideIndicator value={value}>
                   {STANDARD_LABELS[value]}

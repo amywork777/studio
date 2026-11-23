@@ -363,19 +363,12 @@ html[data-studio-focus="hardware"] {
   --studio-tab-height: 2.375rem;
   --studio-tab-foot: calc(var(--workspace-topbar-height) - var(--studio-tab-height));
 }
+/*
+ * The tab in front is the page it opens into. Under a CAD view that is the view's navbar (the file's
+ * name row), which paints Studio's own background, handed in as the view's host styles.
+ */
 html[data-studio-focus="hardware"] [data-right-panel-tabbar] {
   --studio-tab-page: var(--background);
-}
-/* Under a CAD view the page is its ribbon, the CAD tools' panel color (text-to-cad's studio tokens). */
-html[data-studio-focus="hardware"]
-  :has(> [data-right-panel-tabbar]):has([data-right-panel-surface-content] iframe)
-  > [data-right-panel-tabbar] {
-  --studio-tab-page: color-mix(in oklab, var(--background), black 5%);
-}
-html.dark[data-studio-focus="hardware"]
-  :has(> [data-right-panel-tabbar]):has([data-right-panel-surface-content] iframe)
-  > [data-right-panel-tabbar] {
-  --studio-tab-page: color-mix(in oklab, var(--background), black 32%);
 }
 /*
  * The window's one strip, as Chrome's: the chat column's header (the project switcher) and the
@@ -582,4 +575,17 @@ html[data-studio-focus="hardware"] [data-document] :not(pre) > code {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+}
+/*
+ * Scrollbars as macOS overlays them: a thumb shows only while the pointer is over what it scrolls,
+ * so a chat or a page at rest draws no line at its edge. (`iframe` stays out, as `index.css` keeps it.)
+ */
+html[data-studio-focus="hardware"] :where(:not(iframe))::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+html[data-studio-focus="hardware"] :where(:not(iframe)):hover::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar-thumb);
+}
+html[data-studio-focus="hardware"] :where(:not(iframe)):hover::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
 }

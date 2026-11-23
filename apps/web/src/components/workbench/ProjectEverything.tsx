@@ -15,7 +15,9 @@ import type { ProjectGroup } from "./projectFiles";
 import { byLatest, pictureVersions, type ProjectModel } from "./projectModels";
 import {
   type FileItem,
+  ITEM_TYPE_FORMATS,
   ITEM_TYPES,
+  itemTypeCounts,
   type ItemType,
   itemType,
   projectFileItems,
@@ -182,7 +184,8 @@ export function ProjectEverything(props: {
       type: itemType(file.file.group),
       file,
     }));
-  const present = ITEM_TYPES.filter((entry) => items.some((item) => item.type === entry));
+  const counts = itemTypeCounts(items);
+  const present = ITEM_TYPES.filter((entry) => counts.has(entry));
   const shownType = type !== "All" && present.includes(type) ? type : "All";
   const matching = shownType === "All" ? items : items.filter((item) => item.type === shownType);
   const shown = all ? matching : matching.slice(0, FIRST);
@@ -239,11 +242,14 @@ export function ProjectEverything(props: {
           }}
           className="flex-wrap"
         >
-          <Toggle value="All">All</Toggle>
+          <Toggle value="All">
+            All<span className="tabular-nums text-muted-foreground">{items.length}</span>
+          </Toggle>
           {present.map((entry) => (
-            <Toggle key={entry} value={entry}>
+            <Toggle key={entry} value={entry} title={ITEM_TYPE_FORMATS[entry]}>
               <KindMark group={entry} className="size-3.5" />
               {entry}
+              <span className="tabular-nums text-muted-foreground">{counts.get(entry)}</span>
             </Toggle>
           ))}
         </ToggleGroup>

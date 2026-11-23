@@ -212,7 +212,7 @@ export function ProjectSetup(props: {
                 )}
               </SelectValue>
             </SelectTrigger>
-            <SelectPopup alignItemWithTrigger={false}>
+            <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
               {PROCESSES.map((process) => (
                 <SelectItem key={process} hideIndicator value={process}>
                   {process}

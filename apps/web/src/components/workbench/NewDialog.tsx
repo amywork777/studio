@@ -474,7 +474,7 @@ export function NewDialog(props: {
                             {part === null ? "Choose a part" : partShown(part)}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectPopup alignItemWithTrigger={false}>
+                        <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                           {props.parts.map((path) => (
                             <SelectItem key={path} hideIndicator value={path}>
                               {partShown(path)}
@@ -514,7 +514,7 @@ export function NewDialog(props: {
                       <SelectTrigger size="sm" className="w-full" aria-label="Units">
                         <SelectValue>{units === "in" ? "Inches" : "Millimeters"}</SelectValue>
                       </SelectTrigger>
-                      <SelectPopup alignItemWithTrigger={false}>
+                      <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                         <SelectItem hideIndicator value="mm">
                           Millimeters
                         </SelectItem>

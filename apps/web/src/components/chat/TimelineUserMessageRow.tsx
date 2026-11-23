@@ -84,6 +84,8 @@ import type { ChatMarkdownContextReference } from "../ChatMarkdown";
 import { cn } from "~/lib/utils";
 import { ToolChip } from "../workbench/ToolChip";
 import { toolUsed } from "../workbench/toolUsed";
+import { ViewContextChip } from "../workbench/ViewContextChip";
+import { viewMessageOf } from "../workbench/viewMessage";
 import { isEngineeringInterface } from "../workbench/studioInterface";
 import { markdownProseDirection } from "~/textDirection";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
@@ -1302,19 +1304,22 @@ const UserMessageBody = memo(function UserMessageBody(props: {
   if (props.text.length === 0) {
     return null;
   }
-  // A Toolbox job reads as its tool's chip; the text stays whole for the agent.
+  // A Toolbox job reads as its tool's chip, and what the model view sent as its own; the text stays
+  // whole for the agent.
   const used = toolUsed(props.text);
+  const view = isEngineeringInterface() ? viewMessageOf(used?.message ?? props.text) : null;
   return (
     <>
-      {used === null ? null : (
+      {used === null && view === null ? null : (
         <div className="mb-1.5 flex flex-wrap gap-1">
-          {used.tools.map((tool) => (
+          {used?.tools.map((tool) => (
             <ToolChip key={tool.id} tool={tool} />
           ))}
+          {view === null ? null : <ViewContextChip label={view.label} about={view.about} />}
         </div>
       )}
       <ChatMarkdown
-        text={used?.message ?? props.text}
+        text={view?.words ?? used?.message ?? props.text}
         cwd={props.markdownCwd}
         threadRef={ctx.threadRef ?? undefined}
         skills={props.skills}

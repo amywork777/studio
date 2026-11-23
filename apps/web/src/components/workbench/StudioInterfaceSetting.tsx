@@ -70,7 +70,7 @@ function StudioInterfaceRow() {
           <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Studio interface">
             <SelectValue>{LABELS[current]}</SelectValue>
           </SelectTrigger>
-          <SelectPopup align="end" alignItemWithTrigger={false}>
+          <SelectPopup align="end" alignItemWithTrigger={false} sideOffset={6}>
             {ORDER.map((value) => (
               <SelectItem key={value} hideIndicator value={value}>
                 {LABELS[value]}

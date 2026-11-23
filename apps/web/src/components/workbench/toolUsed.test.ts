@@ -55,4 +55,12 @@ describe("what a chat a tool opened is titled from", () => {
   it("leaves a typed message as it is", () => {
     expect(chatTitleText("Draw bracket.step.")).toBe("Draw bracket.step.");
   });
+
+  it("is the person's words over what the model view sent, else what it picked", () => {
+    const about = "File: 29ae9a38\nReferences:\n29ae9a38#led_module/f:led_module.body_face3~ee2f";
+    expect(chatTitleText(`Make this face 2 mm thinner\n\n${about}`)).toBe(
+      "Make this face 2 mm thinner",
+    );
+    expect(chatTitleText(about)).toBe("LED module · 1 face");
+  });
 });

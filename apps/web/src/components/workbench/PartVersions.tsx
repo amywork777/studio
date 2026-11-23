@@ -282,7 +282,7 @@ export function PartVersions(props: {
               <SelectTrigger size="sm" variant="ghost" aria-label="Part">
                 <SelectValue>{part.file.title}</SelectValue>
               </SelectTrigger>
-              <SelectPopup alignItemWithTrigger={false}>
+              <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
                 {props.parts.map((entry) => (
                   <SelectItem key={partKey(entry)} hideIndicator value={partKey(entry)}>
                     {entry.file.title}
