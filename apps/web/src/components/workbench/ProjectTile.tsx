@@ -8,7 +8,9 @@ import { formatRelativeTimeLabel } from "~/timestampFormat";
 import { Badge } from "../ui/badge";
 import { fileTint, KIND_ICONS } from "./kinds";
 import { projectActivity } from "./recentProjects";
+import { tileCheckBadge } from "./projectStatus";
 import { StarButton } from "./StarButton";
+import { useProjectChecks } from "./useProjectChecks";
 import { Page } from "./OverviewModules";
 import { useProjectCover, useProjectPage } from "./useProjectCover";
 import { chatLabel, workspaceTitle } from "./workspaceTitle";
@@ -35,6 +37,9 @@ export function ProjectTile(props: {
   const { environmentId, project } = props;
   const waiting = props.waiting ?? [];
   const picture = useProjectCover(environmentId, project);
+  // The worst check the project's runs wrote, if any needs a look: "Printing: passes with warnings".
+  const checks = useProjectChecks({ environmentId, folders: project.folders, mutationId: null });
+  const badge = tileCheckBadge(checks.flatMap((folder) => folder.results));
   // A project of documents is pictured by its first one, as a page of words.
   const page = useProjectPage(environmentId, project);
   // The minute as the page knows it (UTC), so the tile re-reads as time passes.
@@ -97,6 +102,13 @@ export function ProjectTile(props: {
         >
           <span className="truncate text-sm font-medium text-foreground">{name}</span>
           <span className="truncate text-xs text-muted-foreground tabular-nums">{line}</span>
+          {badge === null ? null : (
+            <span className="flex min-w-0 max-w-full">
+              <Badge variant={badge.tone === "failed" ? "error" : "warning"}>
+                <span className="truncate">{badge.text}</span>
+              </Badge>
+            </span>
+          )}
         </span>
       </button>
       <StarButton

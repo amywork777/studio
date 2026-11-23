@@ -58,3 +58,31 @@ export function statusWords(status: ProjectStatus): ReadonlyArray<{
     ...(status.passed === 0 ? [] : [{ tone: "passed" as const, text: `${status.passed} passed` }]),
   ];
 }
+
+/**
+ * A Home tile's one badge from its project's check results, the worst first: "Strength: failed"
+ * or "Printing: passes with warnings", counted where several checks share it ("2 checks failed").
+ * Null when every check passed or none ran: a tile says only what needs a look.
+ */
+export function tileCheckBadge(
+  results: ReadonlyArray<Pick<CheckResult, "check" | "status">>,
+): { readonly tone: "failed" | "warning"; readonly text: string } | null {
+  const failed = results.filter((result) => result.status === "fix");
+  if (failed.length > 0) {
+    return {
+      tone: "failed",
+      text: failed.length === 1 ? `${failed[0]!.check}: failed` : `${failed.length} checks failed`,
+    };
+  }
+  const warned = results.filter((result) => result.status === "warnings");
+  if (warned.length > 0) {
+    return {
+      tone: "warning",
+      text:
+        warned.length === 1
+          ? `${warned[0]!.check}: passes with warnings`
+          : `${warned.length} checks pass with warnings`,
+    };
+  }
+  return null;
+}

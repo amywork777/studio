@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { CheckResult } from "./checkResults";
-import { projectStatus, statusWords } from "./projectStatus";
+import { projectStatus, statusWords, tileCheckBadge } from "./projectStatus";
 
 const result = (status: CheckResult["status"], part: string): CheckResult => ({
   path: `${part}.fea.json`,
@@ -31,5 +31,27 @@ describe("the Overview's status strip", () => {
       "1 warning",
       "1 passed",
     ]);
+  });
+});
+
+describe("a Home tile's check badge", () => {
+  const result = (check: string, status: "fix" | "warnings" | "ready") => ({ check, status });
+  it("says the worst check, a failure before a warning, counting several", () => {
+    expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "ready")])).toEqual({
+      tone: "warning",
+      text: "Printing: passes with warnings",
+    });
+    expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "fix")])).toEqual({
+      tone: "failed",
+      text: "Strength: failed",
+    });
+    expect(tileCheckBadge([result("Strength", "fix"), result("Casting", "fix")])?.text).toBe(
+      "2 checks failed",
+    );
+  });
+
+  it("says nothing when every check passed or none ran", () => {
+    expect(tileCheckBadge([result("Strength", "ready")])).toBeNull();
+    expect(tileCheckBadge([])).toBeNull();
   });
 });
