@@ -66,7 +66,7 @@ export function projectStarters(
       // Every job for the part in menu order, and of its ways of making it only the project's
       // own: a chip never guesses how a part is made, so a project that has not said gets none.
       // Starters start work: a write-up (no skill of its own), an export or a bought part is none.
-      all: hardwareActions(kind, skills, brief?.process)
+      all: hardwareActions(kind, skills, brief?.process, brief?.industry)
         .flatMap((menu) =>
           menu.group === "Manufacture" ? menu.sections : [...menu.sections, ...menu.others],
         )

@@ -17,6 +17,11 @@ export const StudioProjectBrief = Schema.Struct({
   generalTolerance: Schema.optionalKey(Schema.String),
   material: Schema.String,
   process: Schema.String,
+  /**
+   * The trade it is made for, one of `STUDIO_INDUSTRIES` (`apparel`, `packaging` and so on), which
+   * the agent sets from the first request; unset or empty is general engineering.
+   */
+  industry: Schema.optionalKey(Schema.String),
   quantity: Schema.String,
   links: Schema.String,
   notes: Schema.String,

@@ -7,36 +7,55 @@ import { MENU_ICONS } from "./kinds";
 import { toolIcon } from "./toolIcons";
 import { toolUsed, withToolLine } from "./toolUsed";
 
-const titles = (group: string, kind: string, skills: string[], process?: string) =>
-  hardwareActions(kind, new Set(skills), process)
+const titles = (
+  group: string,
+  kind: string,
+  skills: string[],
+  process?: string,
+  industry?: string,
+  part: "sections" | "others" = "sections",
+) =>
+  hardwareActions(kind, new Set(skills), process, industry)
     .find((menu) => menu.group === group)
-    ?.sections.map((section) => [section.title, section.actions.map((action) => action.label)]);
+    ?.[part].map((section) => [section.title, section.actions.map((action) => action.label)]);
+
+const named = (sections: ReturnType<typeof titles>) => sections?.map(([title]) => title) ?? [];
 
 describe("an industry's jobs in the Toolbox", () => {
   it("offers them only while its plugin's skill is on", () => {
-    const off = hardwareActions("Assembly", new Set(["cad"])).flatMap((menu) =>
-      [...menu.sections, ...menu.others].map((section) => section.title),
+    const off = hardwareActions("Assembly", new Set(["cad"]), undefined, "woodworking").flatMap(
+      (menu) => [...menu.sections, ...menu.others].map((section) => section.title),
     );
     expect(off).not.toContain("Woodworking");
-    expect(titles("Evaluate", "Assembly", ["cad", "woodworking"])?.[0]).toEqual([
-      "Woodworking",
-      ["Check the cut list"],
-    ]);
+    expect(
+      titles("Evaluate", "Assembly", ["cad", "woodworking"], undefined, "woodworking")?.[0],
+    ).toEqual(["Woodworking", ["Check the cut list"]]);
   });
 
-  it("leads a group with them, after the project's own way of making it", () => {
-    const sections = titles("Manufacture", "Part", ["cad", "cam", "woodworking"], "CNC machining");
-    expect(sections?.[0]?.[0]).toBe("Machining and molding");
-    expect(sections?.[1]).toEqual(["Woodworking", ["Cut list", "Sheet layout"]]);
+  it("leads its own projects' groups, before their way of making it, and keeps out of others'", () => {
+    const skills = ["cad", "cam", "woodworking", "packaging"];
+    const ours = titles("Manufacture", "Part", skills, "CNC machining", "woodworking");
+    expect(ours?.[0]).toEqual(["Woodworking", ["Cut list", "Cutting diagrams"]]);
+    expect(ours?.[1]?.[0]).toBe("Machining and molding");
+    expect(named(ours)).not.toContain("Packaging");
+    expect(
+      named(titles("Manufacture", "Part", skills, "CNC machining", "woodworking", "others")),
+    ).not.toContain("Packaging");
+    // A project of no trade keeps every trade's jobs apart, for a request not told as one.
+    const general = titles("Manufacture", "Part", skills, "CNC machining");
+    expect(named(general)).not.toContain("Woodworking");
+    expect(named(titles("Manufacture", "Part", skills, "CNC machining", "", "others"))).toEqual(
+      expect.arrayContaining(["Woodworking", "Packaging"]),
+    );
   });
 
   it("offers a job only on what it works on", () => {
     // A piece of an upper is flattened from a mesh; a sole is a solid.
-    expect(titles("Manufacture", "Mesh", ["footwear"])?.[0]).toEqual([
+    expect(titles("Manufacture", "Mesh", ["footwear"], undefined, "footwear")?.[0]).toEqual([
       "Footwear",
       ["Flatten an upper piece"],
     ]);
-    expect(titles("Manufacture", "Part", ["footwear"])?.[0]).toEqual([
+    expect(titles("Manufacture", "Part", ["footwear"], undefined, "footwear")?.[0]).toEqual([
       "Footwear",
       ["Check the midsole for printing"],
     ]);

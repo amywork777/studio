@@ -13,6 +13,7 @@ import { type HardwareActionMenu, hardwareActions } from "./hardwareActions";
 export function useToolboxJobs(
   environmentId: EnvironmentId,
   process?: string,
+  industry?: string,
 ): {
   readonly status: "loading" | "ready" | "failed";
   readonly menus: HardwareActionMenu[];
@@ -22,7 +23,7 @@ export function useToolboxJobs(
   const skills = new Set(
     (list.data?.plugins ?? []).flatMap((plugin) => (plugin.enabled ? plugin.skills : [])),
   );
-  const menus = hardwareActions(null, skills, process);
+  const menus = hardwareActions(null, skills, process, industry);
   const status = list.data !== null ? "ready" : list.error !== null ? "failed" : "loading";
   return { status, menus, retry: list.refresh };
 }

@@ -7,8 +7,11 @@ import type { StudioProjectBrief } from "@t3tools/contracts";
  * datasheets and mating parts it gathers are filed under `brief/references/`.
  */
 
+import { STUDIO_INDUSTRIES } from "@t3tools/shared/studioProjects";
+
 export {
   EMPTY_STUDIO_BRIEF as EMPTY_BRIEF,
+  STUDIO_INDUSTRIES as INDUSTRIES,
   STUDIO_PROCESSES as PROCESSES,
 } from "@t3tools/shared/studioProjects";
 
@@ -17,7 +20,7 @@ export type ProjectBrief = StudioProjectBrief;
 export const BRIEF_REFERENCES = "brief/references";
 
 /** The setup the project page shows as a CAD tool's document properties. */
-export type SetupKey = "units" | "material" | "process" | "quantity";
+export type SetupKey = "units" | "material" | "process" | "industry" | "quantity";
 
 /**
  * What picking a setup value asks of the agent: one plain request, which it
@@ -25,6 +28,13 @@ export type SetupKey = "units" | "material" | "process" | "quantity";
  */
 export function setupRequest(key: SetupKey, value: string): string {
   if (value === "") return `Clear the project's ${key}.`;
-  const shown = key === "units" ? (value === "in" ? "inches" : "millimeters") : value;
+  const shown =
+    key === "units"
+      ? value === "in"
+        ? "inches"
+        : "millimeters"
+      : key === "industry"
+        ? (STUDIO_INDUSTRIES.find((industry) => industry.id === value)?.name ?? value)
+        : value;
   return `Change the project's ${key} to ${shown}.`;
 }

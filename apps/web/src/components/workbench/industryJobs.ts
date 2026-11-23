@@ -13,11 +13,19 @@ const GROUPS: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "
 /** An industry's section in a group: `woodworking:Manufacture`, titled by the industry. */
 const sectionId = (industry: string, group: HardwareActionGroup) => `${industry}:${group}`;
 
-/** A section per industry plugin in each group, titled by the industry. */
+/**
+ * A section per industry plugin in each group, titled by the industry, which leads in projects of
+ * that industry (the brief's `industry`) and waits apart in projects of none (`hardwareActions`).
+ */
 export const INDUSTRY_SECTIONS: ReadonlyArray<ActionSectionDef> = INDUSTRIES.filter(
   (industry) => industry.plugin !== null,
 ).flatMap((industry) =>
-  GROUPS.map((group) => ({ id: sectionId(industry.id, group), group, title: industry.name })),
+  GROUPS.map((group) => ({
+    id: sectionId(industry.id, group),
+    group,
+    title: industry.name,
+    industry: industry.id,
+  })),
 );
 
 const SOLID = ["Part", "Assembly"];
@@ -63,23 +71,45 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
     id: "print-pattern",
     group: "Manufacture",
     label: "Pattern to print",
-    gets: "The pieces as an SVG at full size, to print at 100%.",
+    gets: "Every size as A4 and Letter pages to print at 100% and tape, with a test square.",
     kinds: PATTERN,
     checks: false,
     prompt: (file) =>
-      `Write ${file} as a full-size SVG to print at home with the apparel skill. Ask me which size.`,
+      `Write ${file} as pages to print at home with the apparel skill: A4 and Letter, every size, with the cover's test square and map of pages. Tell me how many pages each is.`,
     short: (name) => `Print ${name} at full size`,
+  }),
+  job("apparel", {
+    id: "lay-plan",
+    group: "Manufacture",
+    label: "Lay plan",
+    gets: "One garment's pieces laid on the fabric, with the length of fabric it takes.",
+    kinds: PATTERN,
+    checks: false,
+    prompt: (file) =>
+      `Lay ${file} out on its fabric with the apparel skill and tell me how much fabric one garment takes. Ask me the fabric's width if the project does not say.`,
+    short: (name) => `Lay plan of ${name}`,
+  }),
+  job("apparel", {
+    id: "graded-nest",
+    group: "Document",
+    label: "Graded nest",
+    gets: "Every size stacked on one sheet, a line each, the base size drawn whole.",
+    kinds: PATTERN,
+    checks: false,
+    prompt: (file) =>
+      `Show me the graded nest of ${file} with the apparel skill: every size stacked, with the base size drawn whole.`,
+    short: (name) => `Graded nest of ${name}`,
   }),
   job("apparel", {
     id: "size-spec",
     group: "Document",
-    label: "Size spec",
-    gets: "A table of the garment's finished measurements in every size, for a tech pack.",
+    label: "Tech pack page",
+    gets: "Flat sketches with each point of measure on them, and the table of every size.",
     kinds: PATTERN,
     checks: false,
     prompt: (file) =>
-      `Write the size spec of ${file} with the apparel skill: each finished measurement of the garment laid flat, in every size, for a tech pack.`,
-    short: (name) => `Size spec of ${name}`,
+      `Write the tech pack's measurement page of ${file} with the apparel skill: the flats with each point of measure lettered on them, and the table of every size with its tolerances.`,
+    short: (name) => `Tech pack page of ${name}`,
   }),
   job("packaging", {
     id: "carton-fit",
@@ -96,12 +126,23 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
     id: "dieline",
     group: "Manufacture",
     label: "Dieline",
-    gets: "A DXF of the carton laid flat, its cut lines and crease lines on layers of their own.",
+    gets: "The carton laid flat as a sheet with named panels and sizes, and a cut and crease DXF.",
     kinds: CARTON,
     checks: false,
     prompt: (file) =>
-      `Export the dieline of ${file} as a DXF with the packaging skill, cuts and creases on layers of their own, and tell me the blank's size.`,
+      `Write the dieline of ${file} with the packaging skill: its sheet with the panels named and sized, and the DXF with cuts and creases on layers of their own. Tell me the blank's size and the lengths of cut and crease rule.`,
     short: (name) => `Dieline of ${name}`,
+  }),
+  job("packaging", {
+    id: "artwork-template",
+    group: "Document",
+    label: "Artwork template",
+    gets: "The dieline at full size from the print side, with bleed, safe areas and the glue flap bare.",
+    kinds: CARTON,
+    checks: false,
+    prompt: (file) =>
+      `Write the artwork template of ${file} with the packaging skill: the dieline at 1:1 from the print side, with bleed, each panel's safe area and the glue flap's no-print area. Ask me the printer's bleed and safe margin if the project does not say.`,
+    short: (name) => `Artwork template of ${name}`,
   }),
   job("woodworking", {
     id: "cut-list-check",
@@ -128,13 +169,24 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
   job("woodworking", {
     id: "sheet-layout",
     group: "Manufacture",
-    label: "Sheet layout",
-    gets: "The boards laid out on sheets with the saw kerf, as a DXF, and how much of each is used.",
+    label: "Cutting diagrams",
+    gets: "Each sheet with its boards lettered, the offcut, how much is used and the cuts it takes.",
     kinds: SOLID,
     checks: false,
     prompt: (file) =>
-      `Lay the boards of ${file} out on sheets with the woodworking skill, with the saw kerf, as a DXF. Ask me the sheet size if the project does not say, and tell me how many sheets and how much of each is used.`,
-    short: (name) => `Sheet layout of ${name}`,
+      `Lay the boards of ${file} out on sheets with the woodworking skill, with the saw kerf, as cutting diagrams and a DXF. Ask me the sheet size if the project does not say, and tell me how many sheets, how much of each is used and how many cuts it takes.`,
+    short: (name) => `Cutting diagrams of ${name}`,
+  }),
+  job("woodworking", {
+    id: "furniture-plan",
+    group: "Document",
+    label: "Plan",
+    gets: "Front and side views with every board lettered, the cut list and the joints.",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Write the plan of ${file} with the woodworking skill: front and side views with the overall sizes and every board lettered, the cut list those letters key to, and the joints.`,
+    short: (name) => `Plan of ${name}`,
   }),
   job("jewelry", {
     id: "stone-seat",
@@ -151,7 +203,7 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
     id: "metal-weight",
     group: "Evaluate",
     label: "Metal weight",
-    gets: "The piece's weight in silver, gold or platinum, from the model's volume.",
+    gets: "The piece's weight in silver, 14k, 18k or platinum, from the model's volume.",
     kinds: SOLID,
     checks: true,
     prompt: (file) =>
@@ -180,6 +232,17 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
       `Export the metal of ${file} as an STL for a caster or a wax printer, with the jewelry skill.`,
     short: (name) => `Casting file of ${name}`,
   }),
+  job("jewelry", {
+    id: "ring-spec",
+    group: "Document",
+    label: "Spec sheet",
+    gets: "Front, side and top views with the stone, the sizes and the weight in each alloy.",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Write the spec sheet of ${file} with the jewelry skill: its front, side and top views with the sizes on them, the stone and its estimated carat weight, and the metal's weight in each alloy. Leave the alloy and the finish as not given unless I have said them.`,
+    short: (name) => `Spec sheet of ${name}`,
+  }),
   job("footwear", {
     id: "shoe-size",
     group: "Evaluate",
@@ -206,11 +269,22 @@ export const INDUSTRY_ACTIONS: ReadonlyArray<HardwareAction> = [
     id: "flatten-upper",
     group: "Manufacture",
     label: "Flatten an upper piece",
-    gets: "A flat pattern of a curved piece of the upper, as a DXF, with the stretch it needs.",
+    gets: "A flat pattern of a curved piece of the upper, with where it must stretch or gather.",
     kinds: ["Mesh"],
     checks: false,
     prompt: (file) =>
-      `Flatten ${file}, one piece of an upper taken from a last, into its flat pattern with the footwear skill, as a DXF. Tell me how much the material has to stretch or compress.`,
+      `Flatten ${file}, one piece of an upper taken from a last, into its flat pattern with the footwear skill, as a DXF and its picture. Tell me how much the material has to stretch or gather, and where.`,
     short: (name) => `Flatten ${name}`,
+  }),
+  job("footwear", {
+    id: "sole-spec",
+    group: "Document",
+    label: "Sole spec sheet",
+    gets: "The sole's lateral, bottom, top and section views with its stack, drop and toe spring.",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Write the spec sheet of ${file} with the footwear skill: its lateral, bottom, top and section views with the stack heights, drop, toe spring and sizes. Leave the materials as not given unless I have said them.`,
+    short: (name) => `Spec sheet of ${name}`,
   }),
 ];

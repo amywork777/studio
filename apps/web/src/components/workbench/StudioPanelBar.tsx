@@ -36,6 +36,8 @@ function usePartInFront(
 ): {
   readonly part: { readonly path: string; readonly kind: string; readonly name?: string } | null;
   readonly process: string | undefined;
+  /** The trade the project is made for, from its setup (`industry`), when it has one. */
+  readonly industry: string | undefined;
   /** What the viewer in front says of its part (`usePartContext`), when it has said. */
   readonly shown: ReturnType<typeof usePartContext>;
 } {
@@ -48,7 +50,9 @@ function usePartInFront(
     return surface?.kind === "plugin-app" ? surfaceFile(surface) : null;
   });
   const shown = usePartContext(threadRef, folder);
-  const process = useStudioProjectAt(threadRef.environmentId, folder)?.project.brief.process;
+  const brief = useStudioProjectAt(threadRef.environmentId, folder)?.project.brief;
+  const process = brief?.process;
+  const industry = brief?.industry;
   const shownPath = shown?.part.path ?? null;
   const shownKind = shown?.part.kind ?? null;
   const shownName = shown?.part.name ?? null;
@@ -63,7 +67,7 @@ function usePartInFront(
               path: frontFile,
               kind: studyMeshKind(frontFile, folder) ?? partName(frontFile)?.kind ?? "Part",
             };
-  return { part, process, shown };
+  return { part, process, industry, shown };
 }
 
 /**
@@ -78,8 +82,9 @@ export function usePartForJobs(
 ): {
   readonly part: { readonly path: string; readonly kind: string; readonly name?: string } | null;
   readonly process: string | undefined;
+  readonly industry: string | undefined;
 } {
-  const { part: front, process, shown } = usePartInFront(threadRef, folder);
+  const { part: front, process, industry, shown } = usePartInFront(threadRef, folder);
   const lead = useLeadPart(threadRef.environmentId, folder, mutationId);
   const part =
     front ??
@@ -88,7 +93,7 @@ export function usePartForJobs(
       : lead === null
         ? null
         : { path: lead.file.path, kind: lead.file.kind, name: lead.file.title });
-  return { part, process };
+  return { part, process, industry };
 }
 
 /**
@@ -118,7 +123,7 @@ export function StudioPanelBar(props: {
     simpleViewToggle(frontView === null ? undefined : store.byView[frontView]),
   );
   // ⌘K's part, the Toolbox's too.
-  const { part: subject, process } = usePartForJobs(threadRef, folder, props.mutationId);
+  const { part: subject, process, industry } = usePartForJobs(threadRef, folder, props.mutationId);
   const studio = useStudioProjectAt(threadRef.environmentId, folder);
   const addPart = useAddPart(threadRef, folder);
   // Import beside New, as on Home: files brought into this project's folder.
@@ -161,9 +166,10 @@ export function StudioPanelBar(props: {
               ...(subjectName === null ? {} : { name: subjectName }),
             },
       process,
+      industry,
     });
     return () => setWorkspace(null);
-  }, [folder, process, setWorkspace, subjectKind, subjectName, subjectPath, threadRef]);
+  }, [folder, industry, process, setWorkspace, subjectKind, subjectName, subjectPath, threadRef]);
 
   return (
     <div className="flex items-center gap-2" data-studio-toolbar="">

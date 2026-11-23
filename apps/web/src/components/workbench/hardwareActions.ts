@@ -24,6 +24,8 @@ export interface ActionSectionDef {
   readonly processes?: ReadonlyArray<MakingProcess>;
   /** Kept in a submenu under the menu's "more" heading, not in the menu itself. */
   readonly more?: boolean;
+  /** A trade's own section (`INDUSTRY_SECTIONS`): it leads in that trade's projects only. */
+  readonly industry?: string;
 }
 
 /**
@@ -598,17 +600,18 @@ export function jobFits(action: HardwareAction, kind: string): boolean {
 }
 
 /**
- * The jobs for a part of this kind that the enabled plugins' skills can do, by menu, in order; with
- * no kind, every job those skills can do, whatever it works on (the Toolbox, which shows them all).
- * Manufacture puts the project's own way of making it first, whole, and the other ways apart;
- * until the project has chosen one, every way waits apart.
+ * The jobs the enabled skills can do for a part of this kind (any kind: null), by menu, in order.
+ * The project's trade (`industry`) leads and other trades' are out; with no trade they wait apart.
+ * Manufacture puts the project's own way of making it first and the others apart.
  */
 export function hardwareActions(
   kind: string | null,
   skills: ReadonlySet<string>,
   process: MakingProcess | string = "Not decided",
+  industry = "",
 ): HardwareActionMenu[] {
   const decided = process.trim() !== "" && process !== "Not decided";
+  const trade = industry.trim();
   const offered = TOOLBOX_ACTIONS.filter(
     (action) =>
       (kind === null || jobFits(action, kind)) &&
@@ -624,16 +627,28 @@ export function hardwareActions(
       }))
       .filter((section) => section.actions.length > 0);
   return GROUPS.flatMap((group): HardwareActionMenu[] => {
-    // An industry the person turned on leads its group, after the project's own way of making it.
-    const defs = [...INDUSTRY_SECTIONS, ...ACTION_SECTIONS].filter((def) => def.group === group);
+    // The project's trade leads its group, then its own way of making it; another trade's is out.
+    const defs = [...INDUSTRY_SECTIONS, ...ACTION_SECTIONS].filter(
+      (def) =>
+        def.group === group &&
+        (def.industry === undefined || trade === "" || def.industry === trade),
+    );
     const ours = (def: ActionSectionDef) =>
       def.processes !== undefined && def.processes.some((entry) => entry === process);
-    // A way of making it is in the menu itself only when it is the project's own.
+    const theTrade = (def: ActionSectionDef) =>
+      def.industry !== undefined && def.industry === trade;
+    // A way of making it is in the menu itself only when it is the project's own; a trade's only
+    // in its own projects.
     const inMenu = (def: ActionSectionDef) =>
-      def.processes === undefined ? !def.more : decided && ours(def);
+      def.industry !== undefined
+        ? theTrade(def)
+        : def.processes === undefined
+          ? !def.more
+          : decided && ours(def);
     const sections = filled([
+      ...defs.filter(theTrade),
       ...defs.filter(ours),
-      ...defs.filter((def) => inMenu(def) && !ours(def)),
+      ...defs.filter((def) => inMenu(def) && !ours(def) && !theTrade(def)),
     ]);
     const others = filled(defs.filter((def) => !inMenu(def)));
     if (sections.length === 0 && others.length === 0) return [];

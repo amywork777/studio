@@ -106,8 +106,8 @@ function IndustryList(props: {
         Industries
       </h2>
       <p className="text-xs text-muted-foreground">
-        Turn on what you make. The agent gets that industry's skill, and a part's Toolbox gets its
-        jobs.
+        The agent tells a project's industry from its first request and sets it in the project's
+        setup; that industry's jobs then lead its Toolbox. Turn off one you never use.
       </p>
       <ul role="list" className="grid min-w-0 gap-x-8 @2xl:grid-cols-2">
         {rows.map(({ industry, standing }) => (

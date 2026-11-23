@@ -45,8 +45,8 @@ export function StudioToolbox(props: {
   readonly mutationId: string | null;
 }) {
   const { threadRef, composerRef } = props;
-  const { part, process } = usePartForJobs(threadRef, props.folder, props.mutationId);
-  const jobs = useToolboxJobs(threadRef.environmentId, process);
+  const { part, process, industry } = usePartForJobs(threadRef, props.folder, props.mutationId);
+  const jobs = useToolboxJobs(threadRef.environmentId, process, industry);
   const projectKinds = useProjectKinds(threadRef.environmentId, props.folder, props.mutationId);
   const startFor = (action: HardwareAction) =>
     projectKinds === null ? null : toolboxStart(action, projectKinds);

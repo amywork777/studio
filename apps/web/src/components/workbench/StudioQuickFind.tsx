@@ -221,7 +221,8 @@ function QuickFindBody(props: {
   );
   const part = workspace?.part ?? null;
   const process = workspace?.process;
-  const menus = part === null ? [] : hardwareActions(part.kind, skills, process);
+  const menus =
+    part === null ? [] : hardwareActions(part.kind, skills, process, workspace?.industry);
   // A model's id is never a title: its name, as its viewer or the project's list says it.
   const partTitle =
     part === null

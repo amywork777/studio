@@ -143,8 +143,15 @@ if (process.env.STUDIO_SOLIDCRAFT?.trim() === "1" && NodeFS.existsSync(SOLIDCRAF
   );
   NodeFS.writeFileSync(listing, JSON.stringify(market, null, 2));
 }
-// Listed whether or not SolidCraft is: the industry plugins are turned on from the Toolbox page.
+// Listed whether or not SolidCraft is. The industry plugins are on from the first start, once
+// (an uninstall sticks): their skills are small, the agent tells a project's trade from its first
+// request and records it in the brief, and only that trade's jobs show in its Toolbox. The
+// Toolbox page's Industries switches turn one off.
 markets.push(own);
+const industries = JSON.parse(
+  NodeFS.readFileSync(NodePath.join(own, ".claude-plugin", "marketplace.json"), "utf8"),
+).plugins.filter((plugin: { category?: string }) => plugin.category === "Industry");
+defaults.push(...industries.map((plugin: { name: string }) => plugin.name));
 
 // text-to-cad's name, mark, icons and accent (brand/README.md).
 const brandDir = NodePath.join(appRoot, "brand");

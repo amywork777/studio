@@ -2,9 +2,8 @@ import type { InstalledPlugin, PluginCatalogEntry } from "@t3tools/contracts";
 
 /**
  * What a person makes, as the Toolbox page lists it: an industry is one skill and its jobs. Two are
- * built into text-to-cad and always there; the rest are Studio's own plugins (`studio-plugins/`),
- * off until the person turns one on, so its skill stays out of the agent's context for everyone
- * who does not make that kind of thing.
+ * built into text-to-cad; the rest are Studio's own plugins (`studio-plugins/`), on from the first
+ * start, whose jobs show in projects of that trade (the brief's `industry`). Its switch turns one off.
  */
 export interface Industry {
   readonly id: string;
