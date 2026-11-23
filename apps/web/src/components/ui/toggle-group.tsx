@@ -31,7 +31,7 @@ function ToggleGroup({
         orientation === "horizontal"
           ? "*:pointer-coarse:after:min-w-auto"
           : "*:pointer-coarse:after:min-h-auto",
-        variant === "default" || variant === "underline" || variant === "browser-tab"
+        variant === "default" || variant === "underline"
           ? "gap-0.5"
           : isSegmented(variant)
             ? "gap-0.5 rounded-lg bg-input/40 p-0.5"
