@@ -5,6 +5,7 @@ import {
   jobFits,
 } from "./hardwareActions";
 import { libraryHref } from "./library/librarySearch";
+import { MENU_WORDS } from "./kinds";
 import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { lowerName } from "./partNames";
 
@@ -55,25 +56,94 @@ export function pairLoneSections(
   return paired;
 }
 
+/** The Toolbox's tabs: the person's own tools first, then each group. */
+export type ToolboxTab = "Yours" | HardwareActionGroup;
+
+const TABS: ReadonlyArray<ToolboxTab> = ["Yours", ...GROUP_ORDER];
+
 const TAB_KEY = "studio:toolbox-tab";
 
-/** The group the Toolbox was left on, on this device; Evaluate when never chosen. */
-export function readToolboxTab(): HardwareActionGroup {
+/**
+ * The tab the Toolbox opens on: the one left open on this device, else Yours. With nothing pinned
+ * it never opens on Yours, which would hold suggestions alone, but on the first group.
+ */
+export function readToolboxTab(pinned: boolean): ToolboxTab {
+  let stored: ToolboxTab | undefined;
   try {
-    const stored = globalThis.localStorage?.getItem(TAB_KEY);
-    return GROUP_ORDER.find((group) => group === stored) ?? "Evaluate";
+    const value = globalThis.localStorage?.getItem(TAB_KEY);
+    stored = TABS.find((tab) => tab === value);
   } catch {
-    return "Evaluate";
+    stored = undefined;
   }
+  const tab = stored ?? "Yours";
+  return tab === "Yours" && !pinned ? "Evaluate" : tab;
 }
 
-/** Remembers, for this device, the group the Toolbox shows. */
-export function writeToolboxTab(group: HardwareActionGroup): void {
+/** Remembers, for this device, the tab the Toolbox shows. */
+export function writeToolboxTab(tab: ToolboxTab): void {
   try {
-    globalThis.localStorage?.setItem(TAB_KEY, group);
+    globalThis.localStorage?.setItem(TAB_KEY, tab);
   } catch {
     // Storage is full or off: the choice holds until the window closes.
   }
+}
+
+const allJobs = (groups: ReadonlyArray<ToolboxGroup>) =>
+  groups.flatMap((group) => group.sections.flatMap((section) => section.actions));
+
+/** The pinned jobs the enabled skills can still do, in the order pinned. */
+export function pinnedJobs(
+  groups: ReadonlyArray<ToolboxGroup>,
+  pins: ReadonlyArray<string>,
+): ReadonlyArray<HardwareAction> {
+  const jobs = allJobs(groups);
+  return pins.flatMap((id) => jobs.filter((job) => job.id === id));
+}
+
+/**
+ * A few jobs made for the file in front's kind and not pinned, taken from each group in turn so
+ * they span checking, making and documenting it. A job for any file is no suggestion.
+ */
+export function suggestedJobs(
+  groups: ReadonlyArray<ToolboxGroup>,
+  kind: string | null,
+  pins: ReadonlyArray<string>,
+  limit = 4,
+): ReadonlyArray<HardwareAction> {
+  if (kind === null) return [];
+  const queues = groups.map((group) =>
+    group.sections
+      .flatMap((section) => section.actions)
+      .filter((job) => job.kinds?.includes(kind) === true && !pins.includes(job.id)),
+  );
+  const picked: HardwareAction[] = [];
+  for (
+    let round = 0;
+    picked.length < limit && queues.some((queue) => queue.length > round);
+    round++
+  ) {
+    for (const queue of queues) {
+      const job = queue[round];
+      if (job !== undefined && picked.length < limit) picked.push(job);
+    }
+  }
+  return picked;
+}
+
+/** Every job whose name, what it makes or group holds each word typed. */
+export function searchJobs(
+  groups: ReadonlyArray<ToolboxGroup>,
+  query: string,
+): ReadonlyArray<HardwareAction> {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word !== "");
+  if (words.length === 0) return [];
+  return allJobs(groups).filter((job) => {
+    const text = `${job.label} ${job.gets} ${MENU_WORDS[job.group]}`.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
 }
 
 /** A group's jobs, in all its sections. */

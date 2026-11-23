@@ -55,8 +55,8 @@ class ContextMenuImageCopyError extends Schema.TaggedError<ContextMenuImageCopyE
     return "Could not copy the context-menu image.";
   }
 }
-// Match --workspace-topbar-height in apps/web/src/index.css; native macOS buttons stay 14 points at any zoom.
-const MACOS_WORKSPACE_TOPBAR_HEIGHT = 52;
+// Match --workspace-topbar-height (Studio sets it in brand/theme.css); native macOS buttons stay 14 points at any zoom.
+const MACOS_WORKSPACE_TOPBAR_HEIGHT = 44;
 const MACOS_WINDOW_BUTTON_RADIUS = 7;
 
 function parseMailtoAddress(rawUrl: string): Option.Option<string> {

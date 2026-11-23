@@ -4,17 +4,17 @@ import { type CSSProperties, Fragment, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
 import { MODULE_HEADING } from "../studioLayout";
 
-/** Columns of covers, by the width of the page's `@container`: one rule for every shelf. */
-const SHELF_COLUMNS = "grid-cols-2 @xl:grid-cols-3 @3xl:grid-cols-5";
+/** Columns of rows, by the width of the page's `@container`: one rule for every shelf. */
+const SHELF_COLUMNS = "grid-cols-2 @4xl:grid-cols-3";
 
 /** How many columns `SHELF_COLUMNS` comes to, at each of its widths. */
-const COLUMN_COUNTS = [2, 3, 5] as const;
+const COLUMN_COUNTS = [2, 3] as const;
 
-/** A shelf's covers across the page's columns. */
-const SHELF_ROW = `grid gap-3 ${SHELF_COLUMNS}`;
+/** A shelf's rows across the page's columns. */
+const SHELF_ROW = `grid gap-2 ${SHELF_COLUMNS}`;
 
-/** The shelves on the same columns as their covers, so a cover is one size on any of them. */
-export const SHELF_GRID = `grid min-w-0 gap-x-3 gap-y-6 ${SHELF_COLUMNS}`;
+/** The shelves on the same columns as their rows, so a row is one size on any of them. */
+export const SHELF_GRID = `grid min-w-0 gap-x-2 gap-y-6 ${SHELF_COLUMNS}`;
 
 /**
  * A shelf this short takes only its covers' columns, in place of a whole row, and shares the row
@@ -23,8 +23,8 @@ export const SHELF_GRID = `grid min-w-0 gap-x-3 gap-y-6 ${SHELF_COLUMNS}`;
 const SHORT_SHELVES: Readonly<
   Partial<Record<number, { readonly span: string; readonly row: string }>>
 > = {
-  1: { span: "col-span-1", row: "grid grid-cols-1 gap-3" },
-  2: { span: "col-span-2", row: "grid grid-cols-2 gap-3" },
+  1: { span: "col-span-1", row: "grid grid-cols-1 gap-2" },
+  2: { span: "col-span-2", row: "grid grid-cols-2 gap-2" },
 };
 
 /**
@@ -32,7 +32,7 @@ const SHORT_SHELVES: Readonly<
  * on a rule and not a hole. Subgrid keeps its covers on the page's tracks, however wide it spans.
  */
 const ROW_END_SHELF =
-  "grid grid-cols-subgrid content-start gap-y-3 col-span-(--span-of-2) @xl:col-span-(--span-of-3) @3xl:col-span-(--span-of-5)";
+  "grid grid-cols-subgrid content-start gap-y-2 col-span-(--span-of-2) @4xl:col-span-(--span-of-3)";
 
 /** A shelf the page lists: what its index and its heading both show. */
 export interface Shelf {
@@ -138,7 +138,9 @@ export function LibraryShelf(props: {
       )}
       <div
         className={
-          rowEnd === undefined ? (short?.row ?? SHELF_ROW) : "col-span-full grid grid-cols-subgrid"
+          rowEnd === undefined
+            ? (short?.row ?? SHELF_ROW)
+            : "col-span-full grid grid-cols-subgrid gap-y-2"
         }
       >
         {props.children}
