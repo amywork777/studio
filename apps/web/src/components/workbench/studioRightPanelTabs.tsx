@@ -279,8 +279,10 @@ export function titleParts(
   title: string,
   keep = 4,
 ): { readonly head: string; readonly tail: string } {
-  if (title.length <= keep * 3) return { head: title, tail: "" };
-  return { head: title.slice(0, title.length - keep), tail: title.slice(title.length - keep) };
+  // A short title keeps a shorter tail, so "LED module" reads "LED m…ule", not "LED m…".
+  const tail = Math.min(keep, Math.floor(title.length / 3));
+  if (title.length <= 6 || tail < 2) return { head: title, tail: "" };
+  return { head: title.slice(0, title.length - tail), tail: title.slice(title.length - tail) };
 }
 
 /** A tab's title cut in the middle (`titleParts`), not at its end. */

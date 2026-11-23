@@ -46,6 +46,7 @@ import { ChatTitleRow } from "./ChatTitleRow";
 import { PendingStart } from "./PendingStart";
 import { plainFailure, TRY_AGAIN_PROMPT } from "./plainFailure";
 import { ProjectPage } from "./ProjectPage";
+import { useMergedPartTabs } from "./partTabs";
 import { useProjectTabs } from "./projectTabs";
 import { useProjectViewStore } from "./projectView";
 import { StudioPanelBar } from "./StudioPanelBar";
@@ -229,6 +230,8 @@ export function useStudioChatView(input: {
     engineeringInterface && !embedded ? activeThreadRef : null,
     input.pendingRequestId,
   );
+  // One part is one tab: a STEP's tab and its built document's merge (`partTabs.ts`).
+  useMergedPartTabs(engineeringInterface && !embedded ? activeThreadRef : null);
   // Studio's tabs are the project folder's, the same beside each of its chats (`projectTabs.ts`).
   useProjectTabs(
     engineeringInterface && !embedded ? activeThreadRef : null,

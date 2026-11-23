@@ -110,4 +110,36 @@ describe("Studio's tab strip", () => {
     }
     style.remove();
   });
+
+  // 0.1.18's final check: a press near a quiet tab's end, where its close stands on hover, closed it
+  // ("the tab vanished"); the close shows only once the pointer has rested there.
+  it("brings a quiet tab forward from a quick press at its very end, never closing it", async () => {
+    const onActivate = vi.fn();
+    const onClose = vi.fn();
+    const { style, host } = setup(1100);
+    await using screen = await render(
+      host(<RightPanelTabs {...props(onActivate)} onCloseSurface={onClose} />),
+    );
+    const quiet = screen.container.querySelector<HTMLElement>(
+      `[data-tab-surface="${TABS[1]!.id}"]`,
+    )!;
+    const tab = quiet.getBoundingClientRect();
+    await userEvent.click(quiet, { position: { x: tab.width - 10, y: tab.height / 2 } });
+    expect(onActivate).toHaveBeenCalledWith(TABS[1]);
+    expect(onClose).not.toHaveBeenCalled();
+    style.remove();
+  });
+
+  it("keeps a narrow tab in front readable: no ⋯, and its name more than a letter", async () => {
+    const { style, host } = setup(470);
+    await using screen = await render(host(<RightPanelTabs {...props(vi.fn())} />));
+    const front = screen.container.querySelector<HTMLElement>(
+      `[data-tab-surface="${TABS[0]!.id}"]`,
+    )!;
+    const more = front.querySelector<HTMLElement>("[data-tab-more]");
+    expect(more === null || more.offsetWidth === 0).toBe(true);
+    const name = front.querySelector<HTMLElement>("[data-tab-title]")!;
+    expect(name.getBoundingClientRect().width).toBeGreaterThan(40);
+    style.remove();
+  });
 });
