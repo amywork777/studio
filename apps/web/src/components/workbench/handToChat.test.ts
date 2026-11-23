@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { toastManager } from "../ui/toast";
-import { handToChat, sendsAtOnce } from "./handToChat";
+import { handToChat, sendsAtOnce, sendViewMessage } from "./handToChat";
 
 /** A composer holding `draft`, keeping what is written into it and whether it was sent. */
 function composer(draft: string, accepts = true) {
@@ -56,5 +56,22 @@ describe("handing a job to the chat", () => {
     expect(add).toHaveBeenCalledWith(
       expect.objectContaining({ title: "The chat is waiting on you" }),
     );
+  });
+
+  it("starts the turn from a view's Send, with what the view queued in the composer", () => {
+    const { state, ref } = composer("File: part.step References: face 1");
+    sendViewMessage(ref, "Fillet this edge 2 mm");
+    expect(state).toEqual({
+      value: "File: part.step References: face 1 Fillet this edge 2 mm",
+      sent: true,
+    });
+  });
+
+  it("refuses a view's Send the chat cannot take now, so the view says so", () => {
+    const { state, ref } = composer("", false);
+    expect(() => sendViewMessage(ref, "Fillet this edge 2 mm")).toThrow(
+      "The chat is waiting on you",
+    );
+    expect(state.sent).toBe(false);
   });
 });

@@ -29,7 +29,7 @@ import { usePluginFollow } from "../plugins/usePluginFollow";
 import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
-import { handToChat, sendsAtOnce } from "./handToChat";
+import { handToChat, sendViewMessage } from "./handToChat";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
 import { PartContextStrip } from "./PartContextStrip";
 import { ChatTitleRow } from "./ChatTitleRow";
@@ -202,19 +202,10 @@ export function useStudioChatView(input: {
   });
   const chatBusy = input.isWorking || input.pendingUserInputCount > 0;
   const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
-  /**
-   * Studio: a view's message in a chat not started yet goes in through the composer, which starts
-   * the chat as a person's send does; into a draft being written it is added for the person to send.
-   */
-  const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) => {
-    const composer = composerRef.current;
-    if (composer === null) throw new Error("Messages from apps need a chat.");
-    const send = sendsAtOnce(composer.readSnapshot().value);
-    if (!composer.insertTextAtEnd(text, { ensureLeadingBoundary: true })) {
-      throw new Error("The chat is waiting on you: answer it, then send this again.");
-    }
-    if (send) composer.submit();
-  });
+  /** Studio: a view's message in a chat not started yet starts it through the composer (`sendViewMessage`). */
+  const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) =>
+    sendViewMessage(composerRef, text),
+  );
   // Studio's engineering surfaces follow files once per run instead (`useDocumentFollow.ts`).
   useShowWaitingChat(
     engineeringInterface && !embedded ? activeThreadRef : null,
