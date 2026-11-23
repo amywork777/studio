@@ -132,6 +132,18 @@ export interface McpAppHostOptions {
   readonly onFocusTaken?:
     | ((taken: { readonly nonce: number; readonly found: boolean }) => void)
     | undefined;
+  /**
+   * Hears that Studio's CAD view selected the picks its host context asked for (`studio/select`), by
+   * the ask's nonce, with how many it found and how many the model no longer has. Absent, the app is
+   * not offered it.
+   */
+  readonly onSelectTaken?:
+    | ((taken: {
+        readonly nonce: number;
+        readonly found: number;
+        readonly missing: number;
+      }) => void)
+    | undefined;
   readonly onRequestTeardown: () => void;
   readonly onSizeChanged: (size: { readonly width?: number; readonly height?: number }) => void;
 }
@@ -285,6 +297,7 @@ export function makeMcpAppHost(options: McpAppHostOptions): McpAppHost {
             ...(options.onEditState === undefined ? {} : { studioEditState: {} }),
             ...(options.requestEditLayout === undefined ? {} : { studioEditLayout: {} }),
             ...(options.onFocusTaken === undefined ? {} : { studioFocus: {} }),
+            ...(options.onSelectTaken === undefined ? {} : { studioSelect: {} }),
             sandbox: {
               ...(options.app.csp === undefined ? {} : { csp: options.app.csp }),
               ...(options.app.permissions === undefined
@@ -481,6 +494,13 @@ export function makeMcpAppHost(options: McpAppHostOptions): McpAppHost {
         const { nonce, found = true } = params;
         if (typeof nonce === "number" && typeof found === "boolean") {
           options.onFocusTaken?.({ nonce, found });
+        }
+        return;
+      }
+      case "studio/notifications/select-taken": {
+        const { nonce, found, missing } = params;
+        if (typeof nonce === "number" && typeof found === "number" && typeof missing === "number") {
+          options.onSelectTaken?.({ nonce, found, missing });
         }
         return;
       }

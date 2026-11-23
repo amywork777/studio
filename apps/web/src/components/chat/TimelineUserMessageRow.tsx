@@ -85,6 +85,7 @@ import { cn } from "~/lib/utils";
 import { ToolChip } from "../workbench/ToolChip";
 import { toolUsed } from "../workbench/toolUsed";
 import { ViewContextChip } from "../workbench/ViewContextChip";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { viewMessageOf } from "../workbench/viewMessage";
 import { isEngineeringInterface } from "../workbench/studioInterface";
 import { markdownProseDirection } from "~/textDirection";
@@ -1315,7 +1316,12 @@ const UserMessageBody = memo(function UserMessageBody(props: {
           {used?.tools.map((tool) => (
             <ToolChip key={tool.id} tool={tool} />
           ))}
-          {view === null ? null : <ViewContextChip label={view.label} about={view.about} />}
+          {view === null ? null : (
+            <ViewContextChip
+              about={view.about}
+              threadKey={ctx.threadRef ? scopedThreadKey(ctx.threadRef) : null}
+            />
+          )}
         </div>
       )}
       <ChatMarkdown

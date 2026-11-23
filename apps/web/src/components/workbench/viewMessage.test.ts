@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { viewContextLabel, viewMessageOf } from "./viewMessage";
+import { pickWords, viewContextLabel, viewContextOf, viewMessageOf } from "./viewMessage";
 
 const QUICK_EDIT = [
   "make this face 2 mm thinner",
@@ -29,6 +29,35 @@ describe("a message the model view sent", () => {
     expect(viewContextLabel("File: 29ae9a38\nSnapshot JSON (cad model snapshot): {}")).toBe(
       "Model view",
     );
+  });
+
+  it("names every part picked in an assembly once, by its own name, with the picks and the file", () => {
+    const about = [
+      "File: desk_lamp.step",
+      "References:",
+      "d#arm_assembly/arm<1>",
+      "d#arm_assembly/head_assembly/head<1>/f:head.body_face2~a",
+      "d#arm_assembly/head_assembly/head<1>/f:head.body_face5~b",
+      "d#base<1>",
+    ].join("\n");
+    expect(viewContextOf(about)).toEqual({
+      parts: ["Arm", "Head", "Base"],
+      count: "4 picks",
+      picks: [
+        "d#arm_assembly/arm<1>",
+        "d#arm_assembly/head_assembly/head<1>/f:head.body_face2~a",
+        "d#arm_assembly/head_assembly/head<1>/f:head.body_face5~b",
+        "d#base<1>",
+      ],
+      file: "desk_lamp.step",
+    });
+    expect(viewContextLabel(about)).toBe("Arm, Head, Base · 4 picks");
+    expect(viewContextOf(about).picks.map(pickWords)).toEqual([
+      "Arm",
+      "Head, face 2",
+      "Head, face 5",
+      "Base",
+    ]);
   });
 
   it("reads a send with no words of its own, and leaves a message typed in the chat alone", () => {

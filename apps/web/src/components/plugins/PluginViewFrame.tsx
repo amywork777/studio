@@ -58,6 +58,7 @@ import {
   useViewerFocus,
   type ViewerFocusPlace,
 } from "../workbench/references/viewerFocus";
+import { useViewerSelect, useViewerSelectStore } from "../workbench/references/viewerSelect";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 import { useViewerControls } from "../workbench/viewerControls";
 
@@ -276,6 +277,8 @@ export function PluginViewFrame(props: {
   // Studio: where a reference opens this part's view (`workbench/references/viewerFocus.ts`), and
   // its script, where no feature of the part holds the cited line.
   const focus = useViewerFocus(props.focusPlace);
+  // Studio: the picks a chat's message carried, to select again (`workbench/references/viewerSelect.ts`).
+  const select = useViewerSelect(props.focusPlace?.threadKey);
   const openChatFile = useOpenChatFile(
     props.focusPlace == null || target.threadId === null
       ? null
@@ -283,7 +286,17 @@ export function PluginViewFrame(props: {
   );
   // How the mouse moves the view, from this device's Settings, Engineering.
   const viewerControls = useViewerControls();
-  const live = { theme, size, props, request, editLayout, focus, openChatFile, viewerControls };
+  const live = {
+    theme,
+    size,
+    props,
+    request,
+    editLayout,
+    focus,
+    select,
+    openChatFile,
+    viewerControls,
+  };
   const latest = useRef(live);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed props and state to the long-lived MCP App host, which reads them asynchronously
   useEffect(() => {
@@ -330,6 +343,7 @@ export function PluginViewFrame(props: {
         "openai/modelContext": modelContext.current,
         "studio/editLayout": current.editLayout,
         "studio/focus": current.focus,
+        "studio/select": current.select,
         "studio/viewerControls": current.viewerControls,
       } as McpAppHostContext;
     };
@@ -476,6 +490,8 @@ export function PluginViewFrame(props: {
               // script opens there, as Simple view opens it, so the press is never lost.
               if (!found && asked?.nonce === nonce) openChatFile(asked.path, asked.line);
             },
+            onSelectTaken: ({ nonce, found, missing }) =>
+              useViewerSelectStore.getState().answer(nonce, { found, missing }),
           }),
       downloadFile: async (files) => {
         await ask(`Save ${files.map((file) => file.name).join(", ")} from ${target.title}?`);
@@ -538,7 +554,7 @@ export function PluginViewFrame(props: {
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.
-  }, [theme, size, editLayout, focus, viewerControls]);
+  }, [theme, size, editLayout, focus, select, viewerControls]);
 
   const reload = () => {
     setClosed(false);
