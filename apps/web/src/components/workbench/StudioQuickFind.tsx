@@ -11,7 +11,7 @@ import {
   SettingsIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import { useComposerHandleContext } from "~/composerHandleContext";
 import { cn } from "~/lib/utils";
@@ -647,6 +647,9 @@ export function StudioQuickFind(props: {
 }) {
   const composerRef = useComposerHandleContext();
   const environmentId = usePrimaryEnvironmentId();
+  // Something picked opened: focus goes with it, not back to the control focused before (whose
+  // tooltip a returned focus opens, and keeps open while the person works in the view).
+  const picked = useRef(false);
   return (
     <CommandDialogPopup
       aria-label="Find"
@@ -654,8 +657,12 @@ export function StudioQuickFind(props: {
       data-command-palette="true"
       data-testid="command-palette"
       finalFocus={() => {
-        // A chat's box, where there is one; else back to what was focused.
-        if (!composerRef?.current) return true;
+        // A chat's box, where there is one; else back to what was focused, unless a pick opened.
+        if (!composerRef?.current) {
+          const restore = !picked.current;
+          picked.current = false;
+          return restore;
+        }
         composerRef.current.focusAtEnd();
         return false;
       }}
@@ -665,7 +672,10 @@ export function StudioQuickFind(props: {
         <QuickFindBody
           environmentId={environmentId}
           initialQuery={props.query}
-          close={() => props.setOpen(false)}
+          close={() => {
+            picked.current = true;
+            props.setOpen(false);
+          }}
         />
       )}
     </CommandDialogPopup>
