@@ -1,6 +1,6 @@
 ---
 name: jewelry
-description: Designs rings and stone settings for casting - a band at a ring size (US or ISO), a stone modelled from its diameter and proportions with a seat cut for it, the metal as one castable body, its weight in silver, gold or platinum from the model's volume, and the checks a caster and a setter ask for. Use for rings, bands, solitaires, prong and bezel settings, ring sizing, metal weight, and wax or resin patterns for casting.
+description: Designs rings and stone settings for casting - a band at a ring size (US or ISO), a stone modelled from its diameter and proportions with a seat cut for it, the metal as one castable body, and a spec sheet with front, side and top views, the stone's carat estimate, the metal's weight in silver, 14k, 18k and platinum, and the checks a caster and a setter ask for. Use for rings, bands, solitaires, prong and bezel settings, ring sizing, metal weight, and patterns for casting.
 ---
 
 # Jewelry: rings and settings
@@ -14,15 +14,16 @@ piece of jewelry needs.
 
 ## Start with the task
 
-| Task                                               | Start with                                                     | Reference                                         |
-| -------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------- |
-| **A ring at a size, with a stone**                 | The size and the stone, in the worked ring                     | [A solitaire ring](references/ring.md)            |
-| **A plain band**                                   | The same script with the head left out                         | [Another piece](references/ring.md#another-piece) |
-| **What does it weigh?**                            | The run's `metal` line, from the model's volume                | [Run and check](#run-and-check)                   |
-| **Does the stone sit, is it clear of the finger?** | `cad model interference <set id>`                              | [Run and check](#run-and-check)                   |
-| **Can it be printed and cast?**                    | `cad model dfm <metal id> --process printing --technology sla` | [Casting](#casting)                               |
-| **A file for the caster or a wax printer**         | `cad model export <metal id> ring.stl`                         | [Casting](#casting)                               |
-| **A picture for the client**                       | The render skill ($render)                                     | Its own references                                |
+| Task                                               | Start with                                                     | Reference                                           |
+| -------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| **A ring at a size, with a stone**                 | The size and the stone, in the worked ring                     | [A solitaire ring](references/ring.md)              |
+| **A plain band**                                   | The same script with the head left out                         | [Another piece](references/ring.md#another-piece)   |
+| **A spec sheet for approval or for the caster**    | `out/ring_spec.pdf`, which the run writes                      | [The spec sheet](references/ring.md#the-spec-sheet) |
+| **What does it weigh?**                            | The run's `metal` line, from the model's volume                | [Run and check](#run-and-check)                     |
+| **Does the stone sit, is it clear of the finger?** | `cad model interference <set id>`                              | [Run and check](#run-and-check)                     |
+| **Can it be printed and cast?**                    | `cad model dfm <metal id> --process printing --technology sla` | [Casting](#casting)                                 |
+| **A file for the caster or a wax printer**         | `out/ring_pattern.stl`, which the run writes                   | [Casting](#casting)                                 |
+| **A picture for the client**                       | The render skill ($render)                                     | Its own references                                  |
 
 ## Setup
 
@@ -46,9 +47,14 @@ built ring.py::ring_set warm in 0.13s: ...
   parts 2 · bounds 20.92 × 7 × 25.42 mm · joints 0 · sequences 0
   id: a104a6ae-b26e-5005-848f-21340df8c479
 US size 7: inside diameter 17.32 mm, circumference 54.4 mm (ISO 8653 size)
-stone 6.5 mm: depth 3.96 mm, girdle 5.11 mm above the finger
-metal 258.9 mm3: 2.68 g in sterling silver 925, 5.00 g in fine gold, 5.55 g in platinum
+stone 6.5 mm, about 1.02 ct: depth 3.96 mm, girdle 5.11 mm above the finger
+metal 258.9 mm3, about: 2.68 g in sterling silver 925, 3.38 g in 14k yellow gold, 4.03 g in 18k yellow gold, 5.36 g in platinum 950 (Pt/Ru)
+against a caster's published minimums: band thickness at the base 1.8 mm (ok 1.7), culet above the finger 0.5 mm (ok 0.5), collet wall 0.8 mm (ok 0.8)
+spec sheet out/ring_spec.pdf · casting pattern out/ring_pattern.stl (the metal alone)
 ```
+
+The run writes, into `out/`: `ring_spec.pdf` and `.png`, the spec sheet a jeweller sends for approval
+and a caster reads; `ring_spec.csv`, its table as data; and `ring_pattern.stl`, the metal alone.
 
 Two models: `ring` is the metal alone, the body that is cast; `ring_set` is the metal with the stone.
 The script raises when the metal is more than one body (`the metal is 2 bodies: a casting is one`).
@@ -63,7 +69,8 @@ cad model snapshot "$SET_ID" ring.png
 OK ring_set: no two parts share volume (2 parts at 1 pose, the boxes of 1 pair met: 1 measured, in 1.23 s)
 ```
 
-Show the ring as the cad skill's Show the model section says.
+Look at `out/ring_spec.png` yourself. Then show the person the ring and its spec sheet, as the cad
+skill's Show the model section says: the sheet is the ring as jewellery CAD draws it for approval.
 
 ## The rules a piece keeps
 
@@ -80,10 +87,13 @@ Show the ring as the cad skill's Show the model section says.
   the stone is cut out of them, so the stone touches the metal without passing through it. Prongs
   are left standing above the girdle for the setter to push over.
 - **A casting is one body.** Everything in metal is fused before the seat is cut.
-- **Weight is volume times density.** The volume is the model's. The densities in the script are
-  handbook values for fine gold (19.32 g/cm3), platinum (21.45) and sterling silver (10.36). A
-  karat gold's density depends on its alloy: ask the supplier for theirs and add it. Never quote a
-  karat weight from a guessed density, and never quote a price.
+- **Weight is volume times density, and "about".** The volume is the model's. The densities in the
+  script are typical figures for common casting alloys: sterling silver 10.36 g/cm3, 14k yellow gold
+  13.07, 18k yellow gold 15.58, platinum 950 with ruthenium 20.7. A karat gold's moves a few percent
+  with its colour and its maker (14k runs 12.6 to 13.3): say "about", name the alloy, and use the
+  supplier's figure when the person has it. Never quote a price.
+- **The checked minimums are a casting house's published ones**, not this person's caster's. Say so,
+  and say "UNDER" plainly when a section is below one.
 
 ## Casting
 
@@ -106,8 +116,9 @@ OK eabcc073-...: 3 warning(s); printing sla: 258.85 mm3, 1 body(ies); overhangs 
   shrinkage to scale the pattern up by, and where they want the sprue. None is in the script by
   default, and none is to be assumed. Apply shrinkage as a scale on the exported pattern only when
   the caster gives it.
-- **The pattern file** is the metal alone: `cad model export "$METAL_ID" ring.stl`. Never export the
-  set model for casting: it holds the stone.
+- **The pattern file** is the metal alone, `out/ring_pattern.stl`, which the run writes, in
+  millimetres, one closed body, with no sprue and no shrinkage added: the casting house adds both.
+  Never send the set model for casting: it holds the stone.
 
 Printing the pattern is the print3d skill's ($print3d); whether it will print in a given resin is
 that skill's and the printer's.
@@ -120,7 +131,7 @@ that skill's and the printer's.
 | The stone or the head                | `cad model interference` on the set is OK; the snapshot shows every prong reaching above the girdle |
 | A section (band, prong, collet wall) | `walls min` from the print check against the caster's minimum; the run's weight                     |
 | Anything in metal                    | The run does not raise: the metal is one body                                                       |
-| Before a file leaves                 | The exported file is the metal model, not the set                                                   |
+| Before a file leaves                 | The file is `ring_pattern.stl`, the metal alone; the spec sheet goes with it                        |
 
 An OK here establishes that the stone's stand-in sits in its seat clear of the finger, that the
 metal is one body, and what it weighs. It does not establish that the real stone fits, that the

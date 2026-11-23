@@ -19,20 +19,23 @@ configuration there (`codex.mcp.json`), so nothing in this folder names a path o
 
 One plugin for each industry, each a skill that builds on the cad skill and adds what that industry
 needs: its sizes, its construction rules, the file its makers take, and how to check the result.
-None has a server or a view of its own: the model and drawing views show what they make. A pack is
-a plugin so that it can be turned on by the people who make that kind of thing, and its description
-stays out of the agent's context for everyone else.
+None has a server or a view of its own: the model and drawing views show what they make. Each is on
+from the first start: the agent tells a project's industry from its first request and records it in
+the project's setup, and that industry's jobs lead the project's Toolbox. A pack is a plugin so that
+someone who never makes that kind of thing can turn it off.
 
-- `apparel`: sewing patterns from body measurements, graded, with seam checks, a cutting-room DXF
-  (AAMA/ASTM D6673), a 1:1 SVG and a size spec for a tech pack.
+- `apparel`: sewing patterns from body measurements, graded, with seam checks, and the sheets a
+  pattern room reads: the graded nest, a 1:1 sheet per size, tiled pages to print at home, a lay
+  plan, a tech pack measurement page and a cutting-room DXF (AAMA/ASTM D6673).
 - `packaging`: a folding carton from the product's size and the board's caliper, its dieline (cut
   and crease layers), and the carton folded up to check it closes and the product fits.
 - `woodworking`: furniture from sheet goods, with its joints, a cut list checked against the model,
   the boards laid out on sheets and edge banding lengths.
 - `jewelry`: a ring at a ring size with a stone and its seat, the metal as one castable body, and
   its weight from the model's volume.
-- `footwear`: a sole unit from a foot's length and width, and a curved piece of an upper flattened
-  into its flat pattern with the stretch it needs.
+- `footwear`: a running sole unit from a foot's length and width (stack, drop, toe spring, a cupped
+  footbed, a lugged outsole) with its spec sheet of lateral, bottom, top and section views, and a
+  curved piece of an upper flattened into its flat pattern with a picture of where it stretches.
 
 A skill ships no program, so the script an agent starts from is a fenced block in a reference under
 a `<!-- file: NAME.py -->` line. `scripts/studio-plugins-check.py` checks every plugin here (listed,

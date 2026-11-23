@@ -1,6 +1,6 @@
 ---
 name: apparel
-description: Drafts sewing patterns from body measurements as code - pattern pieces with seam allowances, notches, grainlines and fold lines, graded across sizes, checked seam against seam, and written as an AAMA/ASTM DXF for a cutting room, a 1:1 SVG to print, and a graded size spec for a tech pack. Use for garment patterns, blocks, grading, made-to-measure, seam allowances and tech pack measurements. Not for 3D drape or fit on a body.
+description: Drafts sewing patterns from body measurements as code - pieces with seam allowances, notches, grainlines and fold lines, graded across sizes and checked seam against seam. Writes what a pattern room reads - the graded nest, a 1:1 sheet per size, tiled pages to print at home, a lay plan with the fabric it takes, a tech pack measurement page and an AAMA/ASTM DXF. Use for garment patterns, blocks, grading, made-to-measure and tech pack specs. Not for 3D drape or fit on a body.
 ---
 
 # Apparel patterns
@@ -20,8 +20,11 @@ pattern needs.
 | **Make it to one person's measure**           | One row in the design's size table, with their measurements   | [A worked T-shirt](references/tee.md#sizes-and-made-to-measure)             |
 | **Grade it across sizes**                     | One row per size: each size is drafted from its own row       | [A worked T-shirt](references/tee.md#sizes-and-made-to-measure)             |
 | **Change a seam allowance, a hem or a notch** | The edge's `allowance` or `kind`, or the piece's `notch` call | [The kit](references/pattern-kit.md#pieces-edges-and-allowances)            |
-| **Hand it to a cutting room or a factory**    | The AAMA DXF and the size spec the run writes                 | [Handing it over](references/handoff.md)                                    |
-| **Print it at home**                          | The run's SVG, printed at 100%                                | [Handing it over](references/handoff.md#the-svg)                            |
+| **See every size at once**                    | The graded nest the run writes                                | [Handing it over](references/handoff.md#the-sheets)                         |
+| **Hand it to a cutting room or a factory**    | The AAMA DXF and the tech pack page the run writes            | [Handing it over](references/handoff.md)                                    |
+| **Print it at home**                          | The run's tiled pages, A4 or Letter, printed at 100%          | [Handing it over](references/handoff.md#printing-at-home)                   |
+| **How much fabric it takes**                  | The run's lay plan, on the fabric's own width                 | [Handing it over](references/handoff.md#the-lay-plan)                       |
+| **A tech pack's measurements**                | The run's tech pack page: flats, points of measure, the table | [Handing it over](references/handoff.md#the-tech-pack-page)                 |
 | **See how it hangs on a body**                | Not covered: this skill makes flat patterns                   | [What it does not do](#what-it-does-not-do)                                 |
 
 ## Setup
@@ -31,8 +34,8 @@ already there. If it is missing, say so and stop: do not install it yourself.
 
 ## Draft, run, look
 
-A project holds two files: `pattern_kit.py`, copied as it is from [the kit](references/pattern-kit.md),
-and a design script that imports it. Start a new garment from [the T-shirt](references/tee.md) and
+A project holds two files: `pattern_kit.py`, written out of [the kit](references/pattern-kit.md) as
+it is (the page has the one command that does it: do not retype it), and a design script that imports it. Start a new garment from [the T-shirt](references/tee.md) and
 change its `draft` function.
 
 ```bash
@@ -45,23 +48,32 @@ cad run tee.py
   M: finished chest 106 cm, armhole 396 mm, cap 406 mm, checks pass
   L: finished chest 114 cm, armhole 423 mm, cap 433 mm, checks pass
  XL: finished chest 122 cm, armhole 450 mm, cap 460 mm, checks pass
+print at home: 18 pages of A4, 19 pages of Letter, 2 pages of A0
+lay plan, size M: 99 cm of 150 cm fabric, 62% used (not nested)
 ```
 
-The run writes, into `out/`: one SVG per size, one AAMA DXF holding every size, the size spec as a
-CSV and the checks as JSON. It exits 1 when a check fails and names the size and the seam
-(`FAILED S: neckline over the head`). `ezdxf` prints `Drawing units ($INSUNITS) are not exported for
-DXF R12.` on every run: the cutting-room format is R12, which carries no units field, so the file's
-millimetres are stated in [the handover](references/handoff.md) instead.
+The run writes, into `out/`:
 
-Look at the pieces, then show the person:
+| File                                 | What it is                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| `tee_nest.svg`, `tee_nest.png`       | The graded nest: every size stacked, a line each, the base size drawn whole        |
+| `tee_<size>.svg`                     | One size at 1:1, for a plotter or a copy shop                                      |
+| `tee_print_A4.pdf`, `_Letter`, `_A0` | The nest as pages to print at home and tape, with a cover, a test square and a map |
+| `tee_lay.png`                        | One garment laid on the fabric, with the length it takes                           |
+| `tee_techpack.pdf`, `.png`           | The tech pack's measurement page: flats, points of measure and the graded table    |
+| `tee_spec.csv`, `tee_checks.json`    | That table as data, and every seam check                                           |
+| `tee_aama.dxf`                       | Every size for a cutting room's CAD                                                |
 
-```bash
-cad dxf snapshot out/tee_aama.dxf out/tee.png
-```
+It exits 1 when a check fails and names the size and the seam (`FAILED S: neckline over the head`).
+`ezdxf` prints `Drawing units ($INSUNITS) are not exported for DXF R12.` on every run: the
+cutting-room format is R12, which carries no units field, so the file says `Units: METRIC` in its own
+text and [the handover](references/handoff.md) says it again.
 
-Show the DXF as the cad skill's Show the model section says. The viewer draws the cut line, the sew
-line, the grainline and the fold line of every piece; it does not draw notches, which the DXF holds
-as points (`warning: ... not drawn: 40 POINT`). The SVG draws them.
+Look at `out/tee_nest.png` and `out/tee_techpack.png` yourself. Then open the nest for the person
+first, before any notes or report, as the cad skill's Show the model section says, and name the tech
+pack page and the print pages in your reply. The nest is the pattern as pattern software shows it.
+The DXF is for the cutting room's CAD: Studio's viewer draws its lines without notches or styling, so
+do not show it as the pattern.
 
 ## The rules a pattern keeps
 
@@ -85,9 +97,10 @@ as points (`warning: ... not drawn: 40 POINT`). The SVG draws them.
 | Change                          | Check                                                                                         |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
 | A measurement, an ease, a curve | The run's checks pass; read `out/<name>_checks.json` for how far each seam is off             |
-| A new piece or seam             | Its pair is in `seam_checks`; the snapshot shows the piece closed, its grainline inside it    |
-| An allowance or a hem           | The snapshot: the cut line stays outside the sew line everywhere but the fold                 |
-| A new size                      | Its row drafts and passes; the size spec's column steps sensibly from its neighbours          |
+| A new piece or seam             | Its pair is in `seam_checks`; the nest shows the piece closed, its grainline inside it        |
+| An allowance or a hem           | The nest: the cut line stays outside the sew line everywhere but the fold                     |
+| A new size                      | Its row drafts and passes; in the nest its line steps evenly from its neighbours'             |
+| A new garment                   | `flat` is redrawn from its sew lines, and every point of measure has its line on the flat     |
 | The neckline or its band        | `neckline over the head` and `neckband on neckline` pass with the fabric's measured stretch   |
 | Before handing over             | [Handing it over](references/handoff.md#before-it-leaves): the DXF opens in the receiving CAD |
 
@@ -99,7 +112,9 @@ sample on a body. Say "not checked on a body" until one has been made.
 
 - **Drape and fit in 3D.** Nothing here simulates cloth or a body. Say so if asked, and offer the flat
   pattern and its size spec.
-- **Marker making.** `layout` sets pieces side by side to look at. It does not nest them to save fabric.
+- **Marker making.** The lay plan sets one garment's pieces side by side for a first fabric figure. It
+  does not nest pieces into one another or mix sizes, as a cutting room's marker does.
+- **Size layers.** The print pages hold every size as its own line, not as layers a reader switches.
 - **Grade rules.** Each size is drafted from its own measurements and written as its own pieces. No
   grade rule table (an AAMA `.rul` file) is written, so a receiving CAD sees sizes as separate pieces.
 - **Darts, pleats and gathers** are not in the kit yet. A fitted bodice needs them: say so, and do not

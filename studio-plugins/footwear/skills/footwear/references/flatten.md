@@ -25,9 +25,19 @@ pieces (more than one outline), and a mesh whose triangles share an edge three w
 
 It lays the mesh flat in two steps: first keeping angles (least squares conformal maps), then
 relaxing so that each triangle keeps its true size as nearly as its neighbours allow (as rigid as
-possible). It writes the flat outline as one closed polyline on the `CUT` layer of a DXF in
-millimetres, and prints a report. A surface that only bends, a cone or a cylinder, comes out with
-its true lengths and areas. A surface that domes or saddles cannot, and the report says by how much.
+possible). It writes the flat outline as one closed polyline in a DXF in millimetres, a picture of the
+flat piece beside it, and prints a report.
+
+- **The DXF.** Alone, the net outline is on the `CUT` layer. With `--margin 5` the net outline is on
+  `NET` and a line 5 mm outside it on `CUT`. `--name` and `--size` put the piece's label on `TEXT`.
+- **The picture** (`PIECE.png`) is the flat piece as a flattening tool shows it: blue where it must
+  stretch to take the last's shape, red where it must gather, the net line, the cut line and a 50 mm
+  bar. Show it with the report.
+- **One margin all round is a start, not a pattern piece.** A real piece takes a different allowance
+  on each edge: about 15 to 20 mm to last over, 6 to 8 mm where it lies under another piece, 5 mm to
+  fold, 1.5 to 2 mm on a closed seam. The script does not know which edge is which: add those in the
+  maker's CAD, or ask which allowance each edge takes. A surface that only bends, a cone or a cylinder, comes out with
+  its true lengths and areas. A surface that domes or saddles cannot, and the report says by how much.
 
 If triangles fold over one another when flat, it stops: the shape is too curved to be one piece.
 
@@ -100,14 +110,18 @@ if __name__ == "__main__":
 
 ```python
 # /// script
-# dependencies = ["numpy", "scipy", "trimesh", "ezdxf"]
+# dependencies = ["numpy", "scipy", "trimesh", "ezdxf", "shapely", "matplotlib"]
 # ///
 """Flatten one curved piece of an upper (a mesh patch with a single edge loop) into its flat pattern,
 and say how much the material has to stretch or compress to take that shape.
 
-Run: cad run flatten.py PATCH.stl PIECE.dxf [--mirror]
+Run: cad run flatten.py PATCH.stl PIECE.dxf [--name VAMP] [--size 42] [--margin 5] [--mirror]
+
+Writes PIECE.dxf (the net outline on layer NET, the cut line on CUT when a margin is given, the piece's
+name on TEXT) and PIECE.png: the flat piece coloured by how far each part must stretch or gather.
 """
 import json
+import pathlib
 import sys
 
 import ezdxf
@@ -227,27 +241,79 @@ def flatten(v: np.ndarray, f: np.ndarray) -> tuple[np.ndarray, list[int], dict]:
         "must_compress_max_pct": round(float(max(strain.max(), 0) * 100), 2),    # flat is longer here: it gathers
         "strain_p95_pct": round(float(np.percentile(np.abs(strain), 95) * 100), 2),
     }
-    return uv, loop, report
+    return uv, loop, report, strain.reshape(3, -1).mean(axis=0)
+
+
+def picture(path: str, uv: np.ndarray, f: np.ndarray, loop: list[int], strain: np.ndarray, cut, title: str, report: dict) -> None:
+    """The flat piece as a flattening tool shows it: blue where it must stretch to take the last's
+    shape, red where it must gather, with the net line, the cut line and a 50 mm bar for scale."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9, 6.5))
+    most = max(2.0, float(np.abs(strain).max()) * 100)
+    shade = ax.tripcolor(uv[:, 0], uv[:, 1], f, facecolors=strain * 100, cmap="RdBu_r", vmin=-most, vmax=most)
+    net = uv[loop + loop[:1]]
+    ax.plot(net[:, 0], net[:, 1], color="#111111", lw=1.4 if cut is None else 0.9, ls="-" if cut is None else (0, (5, 3)))
+    if cut is not None:
+        ax.plot(cut[:, 0], cut[:, 1], color="#111111", lw=1.4)
+    x0, y0 = (net if cut is None else cut).min(axis=0)
+    ax.plot([x0, x0 + 50], [y0 - 8, y0 - 8], color="#111111", lw=2)
+    ax.text(x0 + 25, y0 - 10, "50 mm", ha="center", va="top", fontsize=8)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(title, loc="left", fontsize=13, fontweight="bold")
+    fig.text(0.125, 0.04, f"flat {report['flat_area_mm2']:.0f} mm2 (on the last {report['area_mm2']:.0f})  ·  outline flat "
+             f"{report['flat_outline_mm']:.0f} mm (on the last {report['outline_mm']:.0f})  ·  stretch up to "
+             f"{report['must_stretch_max_pct']:g}%  ·  gather up to {report['must_compress_max_pct']:g}%", fontsize=8, color="#6b6b6b")
+    fig.colorbar(shade, ax=ax, shrink=0.6, label="must stretch  ←  % change in length, flat against the last  →  must gather")
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if len(args) != 2:
-        raise SystemExit(__doc__)
-    mesh = trimesh.load(args[0], force="mesh", process=True)
+    import argparse
+
+    ask = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ask.add_argument("patch")
+    ask.add_argument("dxf")
+    ask.add_argument("--name", default="", help="the piece's name: VAMP, QUARTER, TOE CAP")
+    ask.add_argument("--size", default="", help="the size the last is")
+    ask.add_argument("--margin", type=float, default=0.0, help="one allowance all round the net piece, in mm")
+    ask.add_argument("--mirror", action="store_true", help="the other foot, or seen from inside")
+    args = ask.parse_args()
+    mesh = trimesh.load(args.patch, force="mesh", process=True)
     mesh.merge_vertices()
     mesh.update_faces(mesh.nondegenerate_faces(height=1e-6))    # slivers a kernel leaves at a pole or a seam
     mesh.update_faces(mesh.unique_faces())
     mesh.remove_unreferenced_vertices()
     trimesh.repair.fix_winding(mesh)
-    uv, loop, report = flatten(np.asarray(mesh.vertices, dtype=float), np.asarray(mesh.faces))
-    if "--mirror" in sys.argv:
+    faces = np.asarray(mesh.faces)
+    uv, loop, report, strain = flatten(np.asarray(mesh.vertices, dtype=float), faces)
+    if args.mirror:
         uv[:, 0] = -uv[:, 0]
+    cut = None
+    if args.margin > 0:
+        from shapely.geometry import Polygon
+
+        cut = np.array(Polygon(uv[loop]).buffer(args.margin, join_style="mitre", mitre_limit=2.0).exterior.coords)
+    label = "  ".join(part for part in (args.name.upper(), f"SIZE {args.size}" if args.size else "") if part)
     doc = ezdxf.new("R2010", setup=False)
     doc.units = ezdxf.units.MM
-    doc.layers.add("CUT")
-    doc.modelspace().add_lwpolyline([tuple(p) for p in uv[loop]], close=True, dxfattribs={"layer": "CUT"})
-    doc.saveas(args[1])
+    for layer in ("NET", "CUT", "TEXT"):
+        doc.layers.add(layer)
+    space = doc.modelspace()
+    space.add_lwpolyline([tuple(p) for p in uv[loop]], close=True, dxfattribs={"layer": "NET" if cut is not None else "CUT"})
+    if cut is not None:
+        space.add_lwpolyline([tuple(p) for p in cut[:-1]], close=True, dxfattribs={"layer": "CUT"})
+    if label:
+        space.add_text(label, dxfattribs={"layer": "TEXT", "height": 4, "insert": tuple(uv[loop].mean(axis=0))})
+    doc.saveas(args.dxf)
+    allowance = f"net piece + {args.margin:g} mm all round" if cut is not None else "net piece, no allowances"
+    picture(str(pathlib.Path(args.dxf).with_suffix(".png")), uv, faces, loop, strain, cut,
+            f"{label or pathlib.Path(args.dxf).stem}   {allowance}", report)
     print(json.dumps(report, indent=2))
-    print(f"wrote {args[1]}: the net piece, no allowances")
+    print(f"wrote {args.dxf} and its picture: the {allowance}")
 ```
