@@ -410,7 +410,7 @@ export function ReadmeOverview(props: {
         className="flex flex-col gap-6"
       >
         {!longDecisions && sections.more.length === 0 ? null : (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col">
             {rows.first.map(row)}
             {longDecisions ? (
               <OverviewModule

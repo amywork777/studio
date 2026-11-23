@@ -55,14 +55,14 @@ export function ProjectHeading(props: {
         action={
           <>
             {props.onOpenPart === null ? null : (
-              <Button size="sm" onClick={props.onOpenPart}>
+              <Button size="xs" onClick={props.onOpenPart}>
                 Open part
               </Button>
             )}
             <Menu>
               <MenuTrigger
                 render={
-                  <Button variant="ghost-muted" size="icon-sm" aria-label="More for the project" />
+                  <Button variant="ghost-muted" size="icon-xs" aria-label="More for the project" />
                 }
               >
                 <EllipsisIcon />
@@ -93,7 +93,7 @@ export function ProjectHeading(props: {
           aria-expanded={editing}
           aria-label={`Properties: ${properties}. Change them`}
           onClick={() => setEditing((open) => !open)}
-          className="self-start rounded-md px-1 -mx-1 text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="-mx-1 h-5 self-start rounded-sm px-1 text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           {properties}
         </button>

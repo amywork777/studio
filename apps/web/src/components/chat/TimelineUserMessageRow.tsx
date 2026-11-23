@@ -1311,7 +1311,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
   return (
     <>
       {used === null && view === null ? null : (
-        <div className="mb-1.5 flex flex-wrap gap-1">
+        <div className="mb-1 flex flex-wrap gap-1 text-xs text-muted-foreground">
           {used?.tools.map((tool) => (
             <ToolChip key={tool.id} tool={tool} />
           ))}

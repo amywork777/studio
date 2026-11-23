@@ -1,5 +1,4 @@
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { CheckBadge } from "./CheckBadge";
 import { checkOutOfDate, type CheckResult } from "./checkResults";
 import { fileTint, KIND_ICONS } from "./kinds";
@@ -41,6 +40,13 @@ function madeKinds(files: ReadonlyArray<ProjectFile>) {
 }
 
 /** One thing made from a part: a badge on a card, a control in its kind's hue under the lead part. */
+/**
+ * A link among the lead part's facts (a drawing, a print file, its sizes): the facts' own small
+ * text with an icon, never a button standing taller than the words beside it.
+ */
+export const LEAD_LINK_CLASS =
+  "inline-flex h-5 items-center gap-1 rounded-sm text-xs text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
 function MadeLink(props: {
   readonly group: ProjectGroup;
   readonly name: string;
@@ -51,10 +57,15 @@ function MadeLink(props: {
   const Icon = KIND_ICONS[props.group];
   if (props.lead) {
     return (
-      <Button size="sm" variant="outline" aria-label={props.label} onClick={props.onOpen}>
+      <button
+        type="button"
+        aria-label={props.label}
+        onClick={props.onOpen}
+        className={LEAD_LINK_CLASS}
+      >
         <Icon aria-hidden="true" className={`size-3.5 ${fileTint(props.group)}`} />
         {props.name}
-      </Button>
+      </button>
     );
   }
   return (

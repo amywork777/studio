@@ -3,7 +3,6 @@ import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
-import { Button } from "../ui/button";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { CHECK_STATUS } from "./CheckBadge";
 import { worstStatus } from "./checkResults";
@@ -207,26 +206,24 @@ export function ProjectEverything(props: {
           Files
           <span className="tabular-nums text-muted-foreground">{items.length}</span>
         </h2>
-        <div role="group" aria-label="View" className="flex shrink-0 gap-2">
-          <Button
-            variant={view === "list" ? "secondary" : "ghost-muted"}
-            size="icon-sm"
-            aria-label="Show as a list"
-            aria-pressed={view === "list"}
-            onClick={() => chooseView("list")}
-          >
+        {/* One segmented toggle, so which view is on reads at a glance. */}
+        <ToggleGroup
+          aria-label="View"
+          variant="segmented"
+          value={[view]}
+          onValueChange={(next) => {
+            const value = next[0];
+            if (value === "list" || value === "grid") chooseView(value);
+          }}
+          className="shrink-0"
+        >
+          <Toggle value="list" aria-label="Show as a list">
             <ListIcon />
-          </Button>
-          <Button
-            variant={view === "grid" ? "secondary" : "ghost-muted"}
-            size="icon-sm"
-            aria-label="Show as cards"
-            aria-pressed={view === "grid"}
-            onClick={() => chooseView("grid")}
-          >
+          </Toggle>
+          <Toggle value="grid" aria-label="Show as cards">
             <LayoutGridIcon />
-          </Button>
-        </div>
+          </Toggle>
+        </ToggleGroup>
       </div>
       {present.length < 2 ? null : (
         <ToggleGroup

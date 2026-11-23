@@ -37,7 +37,7 @@ import { leadPartOf } from "./leadPart";
 import { buildLabel, materialLabel } from "./partLabels";
 import { folderFiles, pictureVersions } from "./projectModels";
 import { PageTitle } from "./PageTitle";
-import { type FolderPart, MadeBadges, PartFooter, PartIcon } from "./PartBadges";
+import { type FolderPart, LEAD_LINK_CLASS, MadeBadges, PartFooter, PartIcon } from "./PartBadges";
 import { CARD_GRID, GROUP_LABEL, MODULE_HEADING, SECTION_STACK } from "./studioLayout";
 import {
   FileCard,
@@ -254,7 +254,7 @@ function LeadPart(props: {
           ) : null}
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
         <LeadFacts
           part={part}
           threadRef={props.threadRef}
@@ -262,7 +262,7 @@ function LeadPart(props: {
           onOpenFile={props.onOpenFile}
         />
         {part.drawings.length + part.made.length === 0 ? null : (
-          <div className="flex max-w-full flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-x-5 gap-y-1">
             <MadeBadges part={part} onOpen={props.onOpenFile} lead />
           </div>
         )}
@@ -271,7 +271,7 @@ function LeadPart(props: {
           type="button"
           onClick={props.onOpen}
           aria-label={`Sizes: open ${part.file.title} at its sizes`}
-          className="text-xs text-muted-foreground underline-offset-2 outline-none transition-colors duration-150 hover:text-foreground hover:underline focus-visible:underline"
+          className={LEAD_LINK_CLASS}
         >
           Sizes
         </button>

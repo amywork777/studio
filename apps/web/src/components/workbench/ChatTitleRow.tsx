@@ -11,7 +11,7 @@ export function ChatTitleRow(props: { readonly title: string }) {
   const label = chatLabel(props.title);
   return (
     <div
-      className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3 text-xs text-muted-foreground sm:px-4"
+      className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3 text-xs text-muted-foreground"
       data-studio-chat-title=""
     >
       <MessageSquareIcon className={`size-3.5 shrink-0 ${KIND_TINT}`} aria-hidden="true" />
