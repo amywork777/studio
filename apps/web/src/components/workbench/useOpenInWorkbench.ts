@@ -17,7 +17,8 @@ import { rememberRecentFile } from "./recentFiles";
 import { setSimpleView } from "./simpleView";
 import { foldSidebarForPart } from "./sidebarFold";
 import { knownModelTitle } from "./useFolderModels";
-import { sameFile, surfaceFile } from "./sameFile";
+import { notePartDocument, openPartTab } from "./partTabs";
+import { surfaceFile } from "./sameFile";
 
 type Plugins = ReadonlyArray<InstalledPlugin>;
 /** The plugins as the server lists them now, read when the app's copy can't be trusted (`openInPanel`). */
@@ -63,14 +64,11 @@ export function openInPanel(
   if (isDocumentId(path)) return openDocumentInPanel(plugins, threadRef, path);
   const panels = useRightPanelStore.getState();
   rememberRecentFile(threadRef, path);
-  // A file already open, however its path was written (in the folder, in full, by the agent),
-  // comes to the front in its own tab rather than in a second one.
-  const open = selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces.find(
-    (surface) => {
-      const file = surfaceFile(surface);
-      return file !== null && sameFile(file, path);
-    },
-  );
+  // A file already open, however its path was written (in the folder, in full, by the agent), or a
+  // part's STEP shown by its built document, comes to the front in its own tab, not in a second one.
+  const open =
+    openPartTab(selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces, path) ??
+    undefined;
   if (open !== undefined && (open.kind !== "file" || line === undefined)) {
     panels.activateSurface(threadRef, open.id);
     return open.kind === "plugin-app";
@@ -159,6 +157,12 @@ export function openDocumentInPanel(
   const panels = useRightPanelStore.getState();
   // Home's Recent lists it by its name: an id says nothing of what it is.
   rememberRecentFile(threadRef, id, title ?? knownModelTitle(id));
+  // The part's own tab, under its STEP or this document, comes to the front (`partTabs.ts`).
+  const part = openPartTab(selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces, id);
+  if (part !== null) {
+    panels.activateSurface(threadRef, part.id);
+    return true;
+  }
   for (const plugin of plugins ?? []) {
     if (!plugin.enabled) continue;
     const view = plugin.views.find((candidate) => candidate.tool === DOCUMENT_VIEW_TOOL);
@@ -245,6 +249,11 @@ export function useSwapViewForDocument(threadRef: ScopedThreadRef) {
   return (viewId: string, id: string) => {
     if (!isDocumentId(id)) return void openPartInCad(plugins, threadRef, id);
     const panels = useRightPanelStore.getState();
+    const view = selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces.find(
+      (surface) => surface.id === viewId,
+    );
+    const viewFile = view === undefined ? null : surfaceFile(view);
+    if (viewFile !== null) notePartDocument(viewFile, id);
     for (const plugin of plugins ?? []) {
       if (!plugin.enabled) continue;
       const view = plugin.views.find((candidate) => candidate.tool === DOCUMENT_VIEW_TOOL);

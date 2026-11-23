@@ -271,6 +271,30 @@ export function TabIcon(props: {
  * What tells two same-titled tabs apart (Studio), shown in grey after the title. In a narrow tab it
  * gives way before the title does.
  */
+/**
+ * Where a tab's title is cut: the head truncates and the last few characters stay, so "M3x8 socket
+ * screw" reads "M3x8 so…crew" in a narrow tab, as file names are cut in a file manager.
+ */
+export function titleParts(
+  title: string,
+  keep = 4,
+): { readonly head: string; readonly tail: string } {
+  if (title.length <= keep * 3) return { head: title, tail: "" };
+  return { head: title.slice(0, title.length - keep), tail: title.slice(title.length - keep) };
+}
+
+/** A tab's title cut in the middle (`titleParts`), not at its end. */
+export function TabTitle(props: { readonly title: string }) {
+  if (!WORKBENCH_LAYOUT) return <span className="truncate">{props.title}</span>;
+  const { head, tail } = titleParts(props.title);
+  return (
+    <span className="flex min-w-0" data-tab-title="">
+      <span className="min-w-0 truncate">{head}</span>
+      {tail === "" ? null : <span className="shrink-0">{tail}</span>}
+    </span>
+  );
+}
+
 export function TabSuffix(props: { readonly suffix: string | undefined }) {
   return props.suffix === undefined ? null : (
     <span className="ms-1.5 min-w-0 shrink-[4] truncate text-muted-foreground">{props.suffix}</span>
@@ -335,7 +359,8 @@ export function TabCloseAtEnd(props: {
   if (!WORKBENCH_LAYOUT) return null;
   return (
     <span className="ms-auto flex shrink-0 items-center gap-0.5" data-tab-end="">
-      {props.menu === undefined ? null : (
+      {/* Only the tab in front carries a ⋯; a quiet tab's menu is its right-click, as Chrome's is. */}
+      {props.menu === undefined || !props.active ? null : (
         <TabMoreAtEnd
           surface={props.menu.surface}
           active={props.active}

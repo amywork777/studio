@@ -1061,7 +1061,7 @@ function RightPanelTab(
                       })
                 }
               >
-                <span className="truncate">{title}</span>
+                <studioTabs.TabTitle title={title} />
                 <studioTabs.TabSuffix suffix={props.suffix} />
               </button>
             }
