@@ -35,7 +35,8 @@ describe("brand plugin", () => {
     // text-to-cad's palette, scoped so a theme the user picks keeps its own colors.
     expect(html).toContain("<style data-brand>");
     expect(html).toContain('html.dark:not([data-theme-id]), html.dark[data-theme-id=""]');
-    expect(html).toContain("--primary: #2c7197;");
+    expect(html).toContain("--primary: oklch(0.205 0 0);");
+    expect(html).toContain("--ring: #2c7197;");
   });
 
   it("lays Studio out as a workbench and gives it hardware starters", () => {
