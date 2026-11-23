@@ -15,7 +15,7 @@ export function ToolboxButton(props: {
   return (
     <span className="flex shrink-0" data-studio-tab-row-control="">
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         aria-label={props.label}
         title={props.label}

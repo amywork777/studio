@@ -43,7 +43,7 @@ function StartChoice({
       {...rest}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
-      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-xs/5 outline-none transition-colors duration-150 enabled:hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 text-left outline-none transition-colors duration-150 enabled:hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64"
     >
       <Icon aria-hidden="true" className={cn("size-6", tint ?? "text-foreground/75")} />
       <span className="flex min-w-0 flex-col gap-1">

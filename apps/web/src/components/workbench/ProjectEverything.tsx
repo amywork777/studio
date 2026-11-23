@@ -265,7 +265,7 @@ export function ProjectEverything(props: {
           <div
             role="row"
             className={cn(
-              "grid gap-3 border-b border-border px-3 pb-3 text-xs font-medium text-muted-foreground uppercase",
+              "grid gap-3 border-b border-border px-3 pb-3 text-xs text-muted-foreground",
               LIST_COLUMNS,
             )}
           >

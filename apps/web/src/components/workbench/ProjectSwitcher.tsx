@@ -159,7 +159,7 @@ export function ProjectSwitcher(props: {
               project={current?.project ?? null}
               size="xs"
             />
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+            <span className="min-w-0 truncate text-sm font-medium text-foreground">
               {props.title}
             </span>
             <ChevronsUpDownIcon
@@ -180,7 +180,7 @@ export function ProjectSwitcher(props: {
               <ProjectThumb environmentId={environmentId} project={current?.project ?? null} />
               {renaming === null ? (
                 <>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                     {props.title}
                   </span>
                   {current === null ? null : (

@@ -593,3 +593,23 @@ html[data-studio-focus="hardware"] :where(:not(iframe)):hover::-webkit-scrollbar
 html[data-studio-focus="hardware"] :where(:not(iframe)):hover::-webkit-scrollbar-thumb:hover {
   background: var(--app-scrollbar-thumb-hover);
 }
+
+/*
+ * Jake's viewer's type (`globals.css`, THE scale): the chrome's controls (the sidebar's rows, the
+ * window's strip, the chat's title) at 13/20 regular, as his navbar and rows are, and tooltips at
+ * 11/16. The chat's reading text keeps its size.
+ */
+html[data-studio-focus="hardware"]
+  :is([data-app-sidebar], [data-chat-header], [data-right-panel-tabbar], [data-studio-chat-title]) {
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+}
+html[data-studio-focus="hardware"]
+  [data-app-sidebar]
+  [data-sidebar="menu-button"]:not([data-active="true"]) {
+  font-weight: 400;
+}
+html[data-studio-focus="hardware"] [data-slot="tooltip-popup"] {
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1rem;
+}

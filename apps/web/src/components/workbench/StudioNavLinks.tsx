@@ -80,6 +80,7 @@ export function StudioFootLinks() {
     <SidebarMenu aria-label="More">
       <SidebarMenuItem>
         <SidebarMenuButton
+          size="compact"
           aria-label="Feedback, on Discord"
           render={<a href={TEXT_TO_CAD_DISCORD} target="_blank" rel="noreferrer noopener" />}
         >
@@ -131,6 +132,7 @@ function PlaceItem(props: {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        size="compact"
         isActive={props.marked}
         aria-current={props.marked ? "page" : undefined}
         aria-label={count > 0 ? `${props.label}, ${count} waiting on you` : props.label}

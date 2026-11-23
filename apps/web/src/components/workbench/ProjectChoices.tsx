@@ -20,7 +20,7 @@ import { useProjectCover } from "./useProjectCover";
 
 /** The control a project is chosen with: a bordered button, its picture and its name on one line. */
 export const PROJECT_CONTROL_CLASS =
-  "flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border bg-background py-1 ps-1 pe-2 text-left shadow-xs/5 outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[popup-open]:bg-accent";
+  "flex min-w-0 max-w-full items-center gap-2 rounded-lg py-1 ps-1 pe-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[popup-open]:bg-accent";
 
 /** A row of the list, or an action under it: the row is the one hover. */
 export const PROJECT_ROW_CLASS =

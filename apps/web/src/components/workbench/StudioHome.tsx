@@ -270,7 +270,7 @@ function StartProject(props: {
           attach(Array.from(event.dataTransfer.files).map(fromFile));
         }}
         className={cn(
-          "relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 shadow-xs/5 focus-within:border-ring",
+          "relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 focus-within:border-ring",
           attaching && "border-ring",
         )}
       >

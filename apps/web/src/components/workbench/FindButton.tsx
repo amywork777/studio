@@ -26,7 +26,7 @@ export function FindButton(props: { readonly compact?: boolean }) {
       onClick={openFind}
       aria-label="Find anything"
       className={cn(
-        "flex h-7 items-center gap-2 rounded-lg border border-input bg-background px-2.5 text-sm text-muted-foreground shadow-xs/5 outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-input/32",
+        "flex h-7 items-center gap-2 rounded-lg border border-input bg-background px-2.5 text-sm text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-input/32",
         compact ? "w-44 @max-[64rem]/toolbar:w-auto" : "w-full max-w-72",
       )}
     >
