@@ -11,6 +11,7 @@ import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { useComposerDraftStore } from "~/composerDraftStore";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { readOpened, rememberOpened, threadToOpen } from "./openedThreads";
@@ -50,10 +51,28 @@ export function useOpenProject() {
       return;
     }
     if (folder === null) return;
-    const draft = await handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
+    const projectRef = scopeProjectRef(folder.environmentId, folder.id);
+    // A project with only a chat not sent yet opens in it, with what was written in it.
+    const unsent = unsentChat(
+      useComposerDraftStore.getState().getDraftThreadByProjectRef(projectRef),
+    );
+    if (unsent !== null) {
+      foldSidebarForPart();
+      (show ?? showProject)(scopeThreadRef(unsent.environmentId, unsent.threadId));
+      await navigate({ to: "/draft/$draftId", params: { draftId: unsent.draftId } });
+      return;
+    }
+    const draft = await handleNewThread(projectRef);
     if (draft !== null) {
       foldSidebarForPart();
       (show ?? showProject)(scopeThreadRef(folder.environmentId, draft.threadId));
     }
   };
+}
+
+/** A project's chat not sent yet, to open it in; null once it was sent (it is a thread then). */
+export function unsentChat<Session extends { readonly promotedTo?: unknown }>(
+  session: Session | null,
+): Session | null {
+  return session !== null && session.promotedTo == null ? session : null;
 }
