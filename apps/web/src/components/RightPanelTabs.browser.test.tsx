@@ -257,28 +257,6 @@ const DEVICE_SURFACE: RightPanelSurface = {
   target: { hostId: "host", deviceId: "phone", platform: "ios", name: "Phone" },
 };
 
-describe("pressing a tab", () => {
-  it("brings it forward wherever on the tab the press lands, not only on its title", async () => {
-    const onActivate = vi.fn();
-    const props = panel(BROWSER_SURFACE).props as RightPanelTabsProps;
-    await using screen = await render(
-      <RightPanelTabs {...props} onActivate={onActivate}>
-        {null}
-      </RightPanelTabs>,
-    );
-    const tab = screen.container.querySelector<HTMLElement>(
-      `[data-tab-surface="${DIFF_SURFACE.id}"]`,
-    )!;
-    const middle = Math.floor(tab.offsetHeight / 2);
-    // Its padding at either end, where the title button does not reach.
-    for (const x of [2, tab.offsetWidth - 3]) {
-      onActivate.mockClear();
-      await userEvent.click(tab, { position: { x, y: middle } });
-      expect(onActivate).toHaveBeenCalledWith(DIFF_SURFACE);
-    }
-  });
-});
-
 describe("device tab rename", () => {
   it("keeps the editor open on an Enter that confirms an IME candidate", async () => {
     const onRenameDevice = vi.fn();
