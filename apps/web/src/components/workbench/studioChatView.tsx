@@ -32,6 +32,7 @@ import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
 import { handToChat, sendsAtOnce } from "./handToChat";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
 import { PartContextStrip } from "./PartContextStrip";
+import { ChatTitleRow } from "./ChatTitleRow";
 import { PendingStart } from "./PendingStart";
 import { plainFailure, TRY_AGAIN_PROMPT } from "./plainFailure";
 import { ProjectPage } from "./ProjectPage";
@@ -336,11 +337,14 @@ export function useStudioChatView(input: {
       : {},
     pendingStart:
       engineeringInterface && !embedded ? (
-        <PendingStart
-          project={activeProject ?? null}
-          draft={!isServerThread}
-          thread={activeThread ?? null}
-        />
+        <>
+          <PendingStart
+            project={activeProject ?? null}
+            draft={!isServerThread}
+            thread={activeThread ?? null}
+          />
+          {activeThread ? <ChatTitleRow title={activeThread.title} /> : null}
+        </>
       ) : null,
     timelineProps: engineeringInterface ? { onTryAgain: onTryAgainStable } : {},
     /** Studio's chat is a dock beside the model: its empty draft stays at the foot. */

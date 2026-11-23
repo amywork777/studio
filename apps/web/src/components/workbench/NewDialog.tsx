@@ -57,7 +57,7 @@ const LibraryPicture = lazy(() =>
 );
 
 /** What New starts in each discipline, as its description names it. */
-const STARTS: Readonly<Record<Discipline, string>> = {
+export const STARTS: Readonly<Record<Discipline, string>> = {
   CAD: "a part",
   Electronics: "a board",
   Analysis: "a study",

@@ -11,8 +11,8 @@ const VIEWS = [
 
 /**
  * The Project tab, pinned ahead of the panel's tabs: it cannot be closed or dragged. With code
- * tools (`both`) Source sits beside it; in the engineering interface alone it shows its icon only,
- * as a browser pins a tab.
+ * tools (`both`) Source sits beside it; in the engineering interface alone it is the first of the
+ * tabs, drawn as they are (`brand/theme.css`), its icon in the brand's color beside its name.
  */
 export function PinnedProjectTab(props: {
   /** Whether the project's surface is the panel's active one. */
@@ -34,11 +34,12 @@ export function PinnedProjectTab(props: {
               data-pinned-project-tab=""
               data-active-tab={pressed}
               onClick={() => props.onSelect("project")}
-              className="flex shrink-0 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              className="flex shrink-0 cursor-pointer items-center justify-center text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             />
           }
         >
-          <LayoutDashboardIcon className="size-3.5" aria-hidden="true" />
+          <LayoutDashboardIcon className="size-3.5 text-primary" aria-hidden="true" />
+          <span>Overview</span>
         </TooltipTrigger>
         <TooltipPopup side="bottom">Overview, everything in the project</TooltipPopup>
       </Tooltip>

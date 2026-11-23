@@ -12,18 +12,19 @@ import {
 import { jobLine, type HardwareAction } from "./hardwareActions";
 import type { NewTemplate } from "./newTemplates";
 import type { ToolboxSection } from "./toolbox";
+import { PinStar } from "./PinStar";
 import { GROUP_LABEL } from "./studioLayout";
 import { MENU_TINTS } from "./kinds";
 import { toolIcon } from "./toolIcons";
 
-/** Two even tiles to a row (`SectionJobs`). */
-const TOOL_GRID = "grid grid-cols-2 gap-x-2 gap-y-3";
+/** Two even rows side by side (`SectionJobs`). */
+const TOOL_GRID = "grid grid-cols-2 gap-1";
 
 /**
  * The sections of a group (`StudioToolbox`), on their tiles' two columns, so a tile is one size in
  * any of them. `pairLoneSections` gives them in the order that fills it.
  */
-export const SECTION_GRID = "grid min-w-0 grid-cols-2 gap-x-2 gap-y-4";
+export const SECTION_GRID = "grid min-w-0 grid-cols-2 gap-x-1 gap-y-3";
 
 /**
  * A section's jobs as tool tiles under its title, always open like every other. It takes the full
@@ -46,14 +47,16 @@ export function SectionJobs(props: {
   readonly startFor: (action: HardwareAction) => NewTemplate | null;
   readonly onRun: (action: HardwareAction) => void;
   readonly onStart: (template: NewTemplate) => void;
+  /** Each tile carries its star (`PinStar`). */
+  readonly pinnable?: boolean;
 }) {
   const lone = props.section.actions.length === 1;
   return (
     <section
       aria-label={props.section.title}
-      className={cn("flex min-w-0 flex-col gap-2", !lone && "col-span-2")}
+      className={cn("flex min-w-0 flex-col gap-1", !lone && "col-span-2")}
     >
-      <h4 className={GROUP_LABEL}>{props.section.title}</h4>
+      <h4 className={cn(GROUP_LABEL, "px-1")}>{props.section.title}</h4>
       <div className={lone ? "mt-auto grid grid-cols-1" : TOOL_GRID}>
         {props.section.actions.map((action) => (
           <ToolTile
@@ -65,6 +68,7 @@ export function SectionJobs(props: {
             start={props.startFor(action)}
             onRun={() => props.onRun(action)}
             onStart={props.onStart}
+            pinnable={props.pinnable === true}
           />
         ))}
       </div>
@@ -72,15 +76,15 @@ export function SectionJobs(props: {
   );
 }
 
-/** A tile's box, and how one that can be pressed answers the pointer. */
+/** A tile's box, a compact row, and how one that can be pressed answers the pointer. */
 const TILE =
-  "flex aspect-square min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background p-2 text-center outline-none transition-[border-color,background-color,scale] duration-150 dark:bg-input/32 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64 motion-reduce:transition-none";
+  "flex min-h-9 min-w-0 items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-start outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64 motion-reduce:transition-none";
 const TILE_LIVE =
-  "enabled:hover:border-foreground/25 enabled:hover:bg-accent/50 dark:enabled:hover:bg-input/64 enabled:active:scale-97 enabled:active:bg-accent motion-reduce:enabled:active:scale-100";
+  "enabled:hover:border-border enabled:hover:bg-accent/60 dark:enabled:hover:bg-input/48 enabled:active:bg-accent";
 
 /**
- * A job's square tile: its picture in its tab's hue over its name, with three lines' room so names
- * of any length sit level across a row. A job that does not fit the file in front (`worksOn`) is
+ * A job's tile, a compact row: its picture in its tab's hue beside its name, which takes two lines
+ * at most (the tooltip has it whole). A job that does not fit the file in front (`worksOn`) is
  * dimmed, takes no press and says what it works on; with `start`, a press opens New instead.
  */
 function ToolTile(props: {
@@ -92,13 +96,14 @@ function ToolTile(props: {
   readonly start: NewTemplate | null;
   readonly onRun: () => void;
   readonly onStart: (template: NewTemplate) => void;
+  readonly pinnable: boolean;
 }) {
   const { action, icon: Icon, worksOn, start } = props;
   const describedBy = useId();
   const fits = worksOn === null;
   // Dimmed either way; a start is still pressed, the way to make what the job works on.
   const starts = !fits && start !== null;
-  return (
+  const tile = (
     <Tooltip>
       <TooltipTrigger
         delay={RICH_TOOLTIP_DELAY}
@@ -113,17 +118,18 @@ function ToolTile(props: {
             aria-describedby={describedBy}
             className={cn(
               TILE,
+              props.pinnable && "w-full pe-7",
               fits ? TILE_LIVE : starts ? cn(TILE_LIVE, "opacity-64") : "cursor-default opacity-64",
             )}
           />
         }
       >
         <span
-          className={`flex size-11 shrink-0 items-center justify-center rounded-md bg-current/10 dark:bg-current/15 ${MENU_TINTS[action.group]}`}
+          className={`flex size-7 shrink-0 items-center justify-center rounded-md bg-current/10 dark:bg-current/15 ${MENU_TINTS[action.group]}`}
         >
-          <Icon aria-hidden="true" className="size-5" strokeWidth={1.75} />
+          <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
         </span>
-        <span className="line-clamp-3 h-[3lh] w-full text-xs leading-tight font-medium text-foreground">
+        <span className="line-clamp-2 min-w-0 flex-1 text-xs leading-tight font-medium text-foreground">
           {action.label}
         </span>
         <span id={describedBy} hidden>
@@ -138,5 +144,13 @@ function ToolTile(props: {
         />
       </TooltipPopup>
     </Tooltip>
+  );
+  return props.pinnable ? (
+    <div className="group/pin relative min-w-0">
+      {tile}
+      <PinStar jobId={action.id} name={action.label} />
+    </div>
+  ) : (
+    tile
   );
 }
