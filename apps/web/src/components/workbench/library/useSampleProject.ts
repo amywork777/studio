@@ -84,6 +84,7 @@ export function useExample(environmentId: EnvironmentId, sampleId: string) {
     refresh: true,
   });
   const write = useAtomCommand(projectEnvironment.writeFile, { reportFailure: false });
+  const startHistory = useAtomCommand(projectEnvironment.startHistory, { reportFailure: false });
   const create = useCreateStudioProject(environmentId);
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
     ?.plugins;
@@ -151,6 +152,13 @@ export function useExample(environmentId: EnvironmentId, sampleId: string) {
                   }
                 }
               : null,
+          });
+          // The folder's first version holds only what a new project starts with: the example
+          // is kept as the next, so its files are not read as changed by hand. A copy that keeps
+          // no versions (Git missing) is still a copy.
+          await startHistory({
+            environmentId,
+            input: { cwd: folder, keep: `Copied from the ${sample.name} example` },
           });
         };
         // Its new chat runs in the copy, where the example's paths hold.

@@ -278,6 +278,8 @@ export class StudioSyncError extends Schema.TaggedError<StudioSyncError>()("Stud
 /** A project folder that keeps no history yet, to start one in as a new project's folder has. */
 export const ProjectStartHistoryInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
+  /** In a folder that has a history, keep what is in it now as a version with this message. */
+  keep: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type ProjectStartHistoryInput = typeof ProjectStartHistoryInput.Type;
 
