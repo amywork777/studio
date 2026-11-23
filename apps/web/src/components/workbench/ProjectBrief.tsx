@@ -1,4 +1,9 @@
-import { AuthOrchestrationOperateScope, type EnvironmentId } from "@t3tools/contracts";
+import {
+  AuthOrchestrationOperateScope,
+  DRAFTING_STANDARDS,
+  type EnvironmentId,
+  usualGeneralTolerance,
+} from "@t3tools/contracts";
 import { studioFolderName } from "@t3tools/shared/studioProjects";
 import { ChevronDownIcon, FileTextIcon, PaperclipIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
@@ -17,6 +22,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "../ui/dialog";
+import { DraftInput } from "../ui/draft-input";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
@@ -28,6 +34,7 @@ import {
   type ProjectBrief as Brief,
   type SetupKey,
   setupRequest,
+  STANDARD_LABELS,
 } from "./briefFolder";
 import { MaterialPicker } from "./MaterialPicker";
 import { handToChat } from "./handToChat";
@@ -97,7 +104,7 @@ function Property(props: { readonly label: string; readonly children: ReactNode 
 }
 
 /**
- * The project's setup (units, material, process, quantity). Picking a value sends the request to
+ * The project's setup (units, material, process, drafting standard, general tolerance, quantity). Picking a value sends the request to
  * the chat, and the agent changes `project.json` and waits for a go. Only a folder in no project
  * yet is set up in place, since there is no project for the agent to change.
  */
@@ -220,6 +227,42 @@ export function ProjectSetup(props: {
               ))}
             </SelectPopup>
           </Select>
+        </Property>
+        <Property label="Standard">
+          <Select
+            value={brief.standard ?? "ISO"}
+            disabled={!canWrite}
+            onValueChange={(value) => {
+              if ((value === "ISO" || value === "ASME") && value !== (brief.standard ?? "ISO"))
+                update("standard", value);
+            }}
+          >
+            <SelectTrigger size="sm" aria-label="Drafting standard">
+              <SelectValue>{STANDARD_LABELS[brief.standard ?? "ISO"]}</SelectValue>
+            </SelectTrigger>
+            <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
+              {DRAFTING_STANDARDS.map((standard) => (
+                <SelectItem key={standard} hideIndicator value={standard}>
+                  {STANDARD_LABELS[standard]}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </Property>
+        <Property label="General tolerance">
+          <DraftInput
+            size="sm"
+            className="w-28"
+            aria-label="General tolerance"
+            spellCheck={false}
+            disabled={!canWrite}
+            value={brief.generalTolerance ?? ""}
+            placeholder={usualGeneralTolerance(brief.standard ?? "ISO", brief.units)}
+            onCommit={(next) => {
+              if (next.trim() !== (brief.generalTolerance ?? "").trim())
+                update("generalTolerance", next.trim());
+            }}
+          />
         </Property>
         <Property label="Quantity">
           <Input

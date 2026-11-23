@@ -380,8 +380,15 @@ Engineering also has no pull requests or usage page: `/pull-requests` and `/usag
 replaced history entry), and the usage shortcut does nothing. The code interfaces keep all of these
 as they were.
 
-- **The project's overview.** The Overview tab opens on it: the project's
-  README in its folder first, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
+- **The project's overview.** The Overview tab opens on it, the project first by its own name, never a
+  part's (`ProjectHeading.tsx`): what it is in a line, its properties (units, drafting standard,
+  general tolerance, material; a press opens them to change, each change asked of the agent as a CAD
+  tool applies a property, `ProjectSetup`), then how it stands, counted from the runs alone (failed,
+  warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,
+  `projectStatus.ts`). Under it the README's `## Open questions` as taps, the answer the part was
+  built with first (`- <question> [<assumed> | <other>]`, `OpenQuestions.tsx`), each tap answering in
+  the chat, then what the checks found. Then the lead part beside the
+  README in its folder, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
   asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
   its first turn and the README has no words yet, the Overview shows Studio's loading bars;
@@ -464,10 +471,10 @@ as they were.
   file in the Templates folder beside Studio's projects (`<projects folder>/Templates`), which the
   agent follows section by section (`documentTemplates.ts`; Add a template copies one in). The
   agent fills each section from the project and writes what is not known as an open question.
-- **Sizes** (Amy, 2026-10-22: "Variables > pushing and pulling hundreds of features"). The
-  Overview's Sizes is every named size in the project's scripts in one table, as a CAD tool's global
-  variables (`ProjectSizes.tsx`): the shared ones first, with the parts that use them, then each
-  part's own. Shared sizes live in `sizes.py` beside the parts, which import them by name (`from
+- **Sizes** (Amy, 2026-10-22: "Variables > pushing and pulling hundreds of features"). A part's
+  own sizes are the part's, at its Equations (Sizes under the lead part opens it). The Overview's
+  Shared sizes, once a project has several parts, are the ones they share, as a CAD tool's global
+  variables (`ProjectSizes.tsx`), with the parts that use them. Shared sizes live in `sizes.py` beside the parts, which import them by name (`from
   sizes import WALL`); a script's imports resolve from its own folder, so that is where the file
   goes, the folder holding most of the parts (`text-to-cad/skills/cad/references/edit-mode.md` tells
   the agent). A number changes where it is written, a click away, and every part that imports its

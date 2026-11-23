@@ -21,6 +21,8 @@ import { useRightPanelStore } from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
+import { shellEnvironment } from "~/state/shell";
+import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
@@ -417,6 +419,7 @@ export function ProjectPage(props: {
   };
   const composerRef = useComposerHandleContext();
   const plainWords = useEngineeringInterface();
+  const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
   // New asked for from outside the page (the library's Make
   // one): where this page shows its New, it takes the request and opens on it, once.
   const showsNew = composerRef !== null && !plainWords;
@@ -659,6 +662,30 @@ export function ProjectPage(props: {
             linkTo={(root, path) => serializeComposerFileLink(threadPath(root, path))}
             onShowThreads={isProject && !plainWords ? () => setTab("threads") : null}
             onNewDocument={composerRef === null ? null : () => openNew("Documents")}
+            heading={
+              plainWords
+                ? {
+                    name,
+                    purpose,
+                    brief: studio?.project.brief ?? null,
+                    setup:
+                      composerRef === null ? null : (
+                        <ProjectSetup
+                          environmentId={environmentId}
+                          cwd={cwd}
+                          composerRef={composerRef}
+                          workspaceMutationId={props.workspaceMutationId}
+                        />
+                      ),
+                    onShowFolder: () =>
+                      void openInEditor({
+                        environmentId,
+                        input: { cwd, editor: "file-manager" },
+                      }),
+                    cwd,
+                  }
+                : null
+            }
             byHand={byHand}
             onStartPart={startPart}
             threadRef={threadRef}

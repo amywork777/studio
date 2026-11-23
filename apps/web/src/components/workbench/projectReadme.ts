@@ -24,11 +24,44 @@ export interface ReadmeSection {
   readonly blocks: ReadonlyArray<ReadmeBlock>;
 }
 
+/**
+ * An open question the agent asks in the README's `## Open questions`, written
+ * `- <question> [<what it assumes> | <another answer> | ...]`: its answers, the assumed one first,
+ * are taps; a question with none is answered in the chat.
+ */
+export interface ReadmeQuestion {
+  readonly text: string;
+  readonly answers: ReadonlyArray<string>;
+}
+
 export interface ReadmeSections {
   readonly title: string | null;
   readonly whatItIs: string | null;
   readonly decisions: ReadonlyArray<ReadmeDecision>;
+  /** The open questions, which the Overview asks as taps rather than as a section. */
+  readonly questions: ReadonlyArray<ReadmeQuestion>;
   readonly more: ReadonlyArray<ReadmeSection>;
+}
+
+/** The headings the open questions go under; the first is the one the agent is told to write. */
+const QUESTION_HEADINGS = new Set(["open questions", "questions", "assumptions"]);
+/** A question's answers at its end: `[2 mm | 3 mm]`. */
+const ANSWERS = /^(.*?)\s*\[([^\[\]]*\|[^\[\]]*|[^\[\]|]+)\]\s*$/;
+
+/** One question line as the Overview asks it: its words, then its answers, the assumed one first. */
+export function readQuestion(item: string): ReadmeQuestion {
+  const found = ANSWERS.exec(item.trim());
+  if (found === null) return { text: item.trim(), answers: [] };
+  const answers = (found[2] ?? "")
+    .split("|")
+    .map((answer) => answer.trim())
+    .filter(Boolean);
+  return { text: (found[1] ?? "").trim(), answers };
+}
+
+/** What a tap on an answer says in the chat, as the person's answer to the agent's question. */
+export function questionAnswer(question: ReadmeQuestion, answer: string): string {
+  return `About the open question "${question.text}": ${answer}.`;
 }
 
 /**
@@ -157,7 +190,13 @@ export function readmeRuns(
 }
 
 export function readmeSections(markdown: string | null): ReadmeSections {
-  const empty: ReadmeSections = { title: null, whatItIs: null, decisions: [], more: [] };
+  const empty: ReadmeSections = {
+    title: null,
+    whatItIs: null,
+    decisions: [],
+    questions: [],
+    more: [],
+  };
   if (markdown === null || markdown.trim() === "") return empty;
   let title: string | null = null;
   const intro: string[] = [];
@@ -190,12 +229,32 @@ export function readmeSections(markdown: string | null): ReadmeSections {
       return item === undefined ? [] : [readDecision(item)];
     }),
   ];
+  const isQuestions = (heading: string) => QUESTION_HEADINGS.has(heading.toLowerCase());
+  const questions = sections
+    .filter(({ heading }) => isQuestions(heading))
+    .flatMap(({ lines }) =>
+      lines.flatMap((line) => {
+        const item = LIST_ITEM.exec(line)?.[1];
+        // Points nested under a question are its detail, not questions of their own.
+        if (item === undefined || line.length - line.trimStart().length > 1) return [];
+        return [readQuestion(item)];
+      }),
+    )
+    .filter((question) => question.text !== "");
   const more = sections
     .filter(({ heading }) => !["what it is", "decisions"].includes(heading.toLowerCase()))
+    // A questions section is asked as taps once it holds a question; else it reads as written.
+    .filter(({ heading }) => !(isQuestions(heading) && questions.length > 0))
     .map(({ heading, lines }) => readSection(heading, lines))
     .filter((section) => section.blocks.length > 0);
   const opening = intro.filter((line) => !STARTING_LINE.test(line) && !LOOSE_DECISION.test(line));
-  return { title, whatItIs: text(named("what it is")) ?? text(opening), decisions, more };
+  return {
+    title,
+    whatItIs: text(named("what it is")) ?? text(opening),
+    decisions,
+    questions,
+    more,
+  };
 }
 
 export type ReadmeInline =

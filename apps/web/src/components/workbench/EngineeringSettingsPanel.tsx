@@ -23,6 +23,7 @@ import { DraftInput } from "../ui/draft-input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
+import { STANDARD_LABELS } from "./briefFolder";
 
 const MOUSE_LABELS: Record<ViewerMouse, string> = {
   studio: "Studio",
@@ -43,11 +44,6 @@ const MOUSE_HOW: Record<ViewerMouse, string> = {
     "Orbit with Shift and a middle drag, pan with a middle drag, zoom with the wheel or Ctrl, Shift and a middle drag.",
   onshape:
     "Orbit with a right drag, pan with a middle drag or Ctrl and a right drag, zoom with the wheel.",
-};
-
-const STANDARD_LABELS: Record<DraftingStandard, string> = {
-  ISO: "ISO",
-  ASME: "ASME Y14.5",
 };
 
 const STANDARD_HOW: Record<DraftingStandard, string> = {

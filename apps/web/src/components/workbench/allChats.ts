@@ -61,6 +61,21 @@ export function waitingChatsFirst<T extends Parameters<typeof historyOutcome>[0]
 }
 
 /**
+ * The chats a list of `limit` keeps, newest first: the newest, or with `waitingFirst` the chats
+ * waiting on the person first and the newest after them, so none waiting is left off.
+ */
+export function keptChats<T extends Parameters<typeof historyOutcome>[0]>(
+  newestFirst: ReadonlyArray<T>,
+  limit: number | undefined,
+  waitingFirst: boolean,
+): T[] {
+  if (limit === undefined) return [...newestFirst];
+  if (!waitingFirst) return newestFirst.slice(0, limit);
+  const kept = new Set(waitingChatsFirst(newestFirst).slice(0, limit));
+  return newestFirst.filter((chat) => kept.has(chat));
+}
+
+/**
  * Every chat the sidebar can reach: each Studio project's, the older chats in no project, from Home's
  * old Ask, which no longer exists (`freeformChat.ts`), and those in folders in no project.
  */

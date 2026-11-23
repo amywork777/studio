@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { allChats, findChats, waitingChatsFirst } from "./allChats";
+import { allChats, findChats, keptChats, waitingChatsFirst } from "./allChats";
 
 const chat = (id: string, updatedAt: string, archivedAt: string | null = null) => ({
   id,
   updatedAt,
   archivedAt,
+});
+
+/** A chat as `historyOutcome` reads it, waiting on an approval or not. */
+const shell = (id: string, waiting: boolean) => ({
+  id,
+  runtime: null,
+  latestRun: null,
+  hasPendingApprovals: waiting,
+  hasPendingUserInput: false,
+  hasActionableProposedPlan: false,
 });
 
 describe("allChats", () => {
@@ -51,14 +61,6 @@ describe("allChats", () => {
   });
 
   it("puts the chats waiting on the person first, each group keeping its order", () => {
-    const shell = (id: string, waiting: boolean) => ({
-      id,
-      runtime: null,
-      latestRun: null,
-      hasPendingApprovals: waiting,
-      hasPendingUserInput: false,
-      hasActionableProposedPlan: false,
-    });
     const chats = [
       shell("newest", false),
       shell("asking", true),
@@ -71,6 +73,18 @@ describe("allChats", () => {
       "newest",
       "older",
     ]);
+  });
+
+  it("keeps the chats waiting on the person in a short list, the newest after them, newest first", () => {
+    const chats = [
+      shell("newest", false),
+      shell("newer", false),
+      shell("older", false),
+      shell("older asking", true),
+    ];
+    expect(keptChats(chats, 2, false).map((each) => each.id)).toEqual(["newest", "newer"]);
+    expect(keptChats(chats, 2, true).map((each) => each.id)).toEqual(["newest", "older asking"]);
+    expect(keptChats(chats, undefined, true)).toHaveLength(4);
   });
 
   it("lists a chat two projects share once, under the first", () => {

@@ -7,6 +7,8 @@ import {
   readmeInline,
   readmeRows,
   readmeRuns,
+  questionAnswer,
+  readQuestion,
   readmeSections,
   type ReadmeWriteIn,
   replaceReadmeText,
@@ -153,6 +155,7 @@ describe("readmeSections", () => {
       title: "Wall hook",
       whatItIs: null,
       decisions: [],
+      questions: [],
       more: [],
     });
     expect(readmeSections(`${started}\nHolds a bike up by its front wheel.\n`).whatItIs).toBe(
@@ -160,8 +163,26 @@ describe("readmeSections", () => {
     );
   });
 
+  it("asks the open questions as taps, the assumed answer first, and keeps prose ones as written", () => {
+    const sections = readmeSections(
+      "# Lamp\n\n## Open questions\n\n- Wall thickness? [2 mm | 3 mm]\n  - The arm flexes under 1 kg\n- Who prints it?\n\n## Notes\n\n- PLA\n",
+    );
+    expect(sections.questions).toEqual([
+      { text: "Wall thickness?", answers: ["2 mm", "3 mm"] },
+      { text: "Who prints it?", answers: [] },
+    ]);
+    expect(sections.more.map((section) => section.heading)).toEqual(["Notes"]);
+    expect(questionAnswer(sections.questions[0]!, "3 mm")).toBe(
+      'About the open question "Wall thickness?": 3 mm.',
+    );
+    expect(readQuestion("See the [datasheet](https://example.com)")).toEqual({
+      text: "See the [datasheet](https://example.com)",
+      answers: [],
+    });
+  });
+
   it("gives empty sections for a missing or empty README", () => {
-    const empty = { title: null, whatItIs: null, decisions: [], more: [] };
+    const empty = { title: null, whatItIs: null, decisions: [], questions: [], more: [] };
     expect(readmeSections(null)).toEqual(empty);
     expect(readmeSections("  \n")).toEqual(empty);
   });

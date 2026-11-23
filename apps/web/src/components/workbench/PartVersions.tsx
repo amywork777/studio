@@ -44,7 +44,7 @@ export interface VersionedPart {
   readonly results: ReadonlyArray<CheckResult>;
 }
 
-const SHOWN = 6;
+const SHOWN = 3;
 const partKey = (part: VersionedPart) =>
   `${studioFolderKey(part.root)}\n${versionedPath(part.file)}`;
 
@@ -362,7 +362,7 @@ export function PartVersions(props: {
                   onClick={() => setAll((value) => !value)}
                   className="self-start text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:underline"
                 >
-                  {all ? "Show fewer" : `Show all ${choices.length}`}
+                  {all ? "Show fewer" : `All versions (${choices.length})`}
                 </button>
               ) : null}
               {newer === null || !restorable ? null : (

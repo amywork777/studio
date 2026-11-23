@@ -32,9 +32,10 @@ const asSizeName = (typed: string) =>
     .replace(/[\s-]+/g, "_");
 
 /**
- * Every named size in the project's scripts in one table, shared ones (`sizes.py`) first. A number
- * is edited where it is written and every part using that file rebuilds; a formula is changed at
- * the sizes it uses. The agent is told of each change, as of a hand edit.
+ * The sizes several parts share (`sizes.py`), the project's own: a part's own sizes are the part's,
+ * at its Equations, as SolidWorks keeps them. A number is edited where it is written and every part
+ * using that file rebuilds; a formula is changed at the sizes it uses. The agent is told of each
+ * change, as of a hand edit.
  */
 export function ProjectSizes(props: {
   readonly environmentId: EnvironmentId;
@@ -60,7 +61,15 @@ export function ProjectSizes(props: {
   const readable = (read ?? []).flatMap((entry) =>
     entry.sizes === null ? [] : [{ folder: entry.folder, sizes: entry.sizes }],
   );
-  const shown = readable.filter((entry) => entry.sizes.groups.length > 0);
+  const shown = readable
+    .map((entry) => ({
+      ...entry,
+      sizes: {
+        ...entry.sizes,
+        groups: entry.sizes.groups.filter((group) => group.kind === "shared"),
+      },
+    }))
+    .filter((entry) => entry.sizes.groups.length > 0);
   const named = (read?.length ?? 0) > 1;
   const count = shown.reduce(
     (total, entry) =>
@@ -123,7 +132,7 @@ export function ProjectSizes(props: {
 
   return (
     <OverviewModule
-      title="Sizes"
+      title="Shared sizes"
       icon={RulerIcon}
       {...(count > 0 ? { count } : {})}
       wide
@@ -143,8 +152,8 @@ export function ProjectSizes(props: {
           </p>
         ) : shown.length === 0 ? (
           <p className="max-w-prose text-sm text-muted-foreground">
-            No named sizes yet. A part's sizes are the named numbers at the top of its script, like
-            WIDTH = 40, and sizes several parts share go in {home.sizes.sharedFile}.
+            No shared sizes yet. Sizes several parts share go in {home.sizes.sharedFile}; a part's
+            own sizes are at its Equations, a press on Sizes under it.
           </p>
         ) : (
           shown.map((entry) => (
