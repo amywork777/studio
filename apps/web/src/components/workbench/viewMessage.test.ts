@@ -60,6 +60,24 @@ describe("a message the model view sent", () => {
     ]);
   });
 
+  it("counts only the picks under References, not the snapshot that follows them (0.1.18 pass)", () => {
+    const text = [
+      "make it 2 mm thicker",
+      [
+        "File: 29ae9a38-16fc-587c-b9ea-7a4fc571762e",
+        "References:",
+        "29ae9a38-16fc-587c-b9ea-7a4fc571762e#led_module/f:led_module.board_face1~4d2c;Gf:led_module.board",
+        "Snapshot JSON (cad model snapshot --annotation):",
+        "```json",
+        '{"camera":{"projection":"orthographic"},"outputs":[{"path":"/tmp/cad-quick-edit-x/29ae9a38-1-current-view.png","label":"current view","width":1600,"height":1414}]}',
+        "```",
+      ].join("\n"),
+    ].join("\n\n");
+    const message = viewMessageOf(text);
+    expect(message?.words).toBe("make it 2 mm thicker");
+    expect(message?.label).toBe("LED module · 1 face");
+  });
+
   it("reads a send with no words of its own, and leaves a message typed in the chat alone", () => {
     expect(viewMessageOf("File: bracket.step")?.words).toBe("");
     expect(viewMessageOf("Make the File: line bold")).toBeNull();
