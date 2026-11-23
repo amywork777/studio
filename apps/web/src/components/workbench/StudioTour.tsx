@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 
 import { Button } from "../ui/button";
 import { MODULE_HEADING } from "./studioLayout";
-import { cardPlace, tourDone, tourSteps, useTourStore } from "./tourSteps";
+import { showSidebar } from "./sidebarFold";
+import { cardPlace, shownBox, tourDone, tourSteps, useTourStore } from "./tourSteps";
 
 interface Box {
   readonly top: number;
@@ -53,12 +54,12 @@ export function StudioTour(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- measures the step's target in the DOM and listens for resize and Escape while the tour is open
   useEffect(() => {
     if (!open || current === null) return;
+    if (current.sidebar) showSidebar();
     const measure = () => {
-      const rect = document.querySelector(current.target)?.getBoundingClientRect();
-      const box =
-        rect === undefined || rect.width === 0 || rect.height === 0
-          ? null
-          : { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+      const box = shownBox(document.querySelector(current.target)?.getBoundingClientRect(), {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
       const size = card.current?.getBoundingClientRect();
       setPlaced({
         step,
@@ -71,6 +72,8 @@ export function StudioTour(props: {
       });
     };
     const frame = requestAnimationFrame(measure);
+    // A sidebar opened for the step slides in: measured again once it is in place.
+    const settled = current.sidebar ? setTimeout(measure, 350) : undefined;
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") finish();
     };
@@ -78,6 +81,7 @@ export function StudioTour(props: {
     window.addEventListener("keydown", escape);
     return () => {
       cancelAnimationFrame(frame);
+      clearTimeout(settled);
       window.removeEventListener("resize", measure);
       window.removeEventListener("keydown", escape);
     };
