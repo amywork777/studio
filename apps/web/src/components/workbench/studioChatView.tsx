@@ -22,7 +22,12 @@ import type { ComposerHandleRef } from "~/composerHandleContext";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { useWorkspaceMutationRefresh } from "../../hooks/useWorkspaceMutationRefresh";
 import { useComposerDraftStore } from "../../composerDraftStore";
-import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
+import {
+  type PluginAppSurface,
+  type RightPanelSurface,
+  selectThreadRightPanelState,
+  useRightPanelStore,
+} from "../../rightPanelStore";
 import { PluginStarterPrompts } from "../plugins/PluginStarterPrompts";
 import { PluginThreadViewMenuItems } from "../plugins/PluginThreadViewMenuItems";
 import { usePluginFollow } from "../plugins/usePluginFollow";
@@ -30,6 +35,8 @@ import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
 import { handToChat, sendViewMessage } from "./handToChat";
+import { keptSurfaces } from "./keptSurfaces";
+import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { useViewerWorkingStore } from "./references/viewerWorking";
 import { useStudioTabFileMenu } from "./studioRightPanelTabs";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
@@ -437,52 +444,102 @@ export function StudioRightPanelSurfaceContent({
 }: ComponentProps<typeof RightPanelSurfaceContent> & { readonly studio: StudioPanel }) {
   const { surface } = props;
   const { thread, project } = studio;
-  if (surface?.kind === "plugin-app" && thread !== null) {
-    return (
-      <Suspense fallback={null}>
-        <PluginViewPanel
-          environmentId={thread.environmentId}
-          threadId={thread.id}
-          surface={surface}
-          draftWorkspaceRoot={studio.isServerThread ? undefined : project?.workspaceRoot}
-          onSendMessage={
-            studio.isServerThread
-              ? studio.sendAppMessage
-              : studio.engineeringSurfaces
-                ? studio.sendAppMessageThroughComposer
-                : undefined
-          }
-          onAddContext={studio.addContext}
-          workspaceRoot={studio.workspaceRoot ?? undefined}
-          workspaceMutationId={studio.workspaceMutationId}
-        />
-      </Suspense>
-    );
-  }
-  if (
-    surface?.kind === "files" &&
+  const threadKey = studio.threadRef === null ? null : scopedThreadKey(studio.threadRef);
+  const open = useRightPanelStore(
+    (state) => selectThreadRightPanelState(state.byThreadKey, studio.threadRef).surfaces,
+  );
+  // The views and the Overview shown in this chat stay mounted behind the tab in front, so a
+  // switch back shows them as they were, with no reload (`keptSurfaces`, at most three views).
+  const [kept, setKept] = useState<{
+    readonly threadKey: string | null;
+    readonly views: ReadonlyArray<PluginAppSurface>;
+    readonly overview: boolean;
+  }>({ threadKey, views: [], overview: false });
+  const base = kept.threadKey === threadKey ? kept : { threadKey, views: [], overview: false };
+  const views = keptSurfaces(base.views, surface?.kind === "plugin-app" ? surface : null, open);
+  const overviewHere =
     studio.engineeringSurfaces &&
     (studio.engineeringInterface || studio.projectView === "project") &&
     thread !== null &&
-    project &&
-    studio.workspaceRoot &&
-    studio.threadRef
-  ) {
-    return (
-      <ProjectPage
-        environmentId={thread.environmentId}
-        cwd={studio.workspaceRoot}
-        projectName={
-          studio.projectIsScratch ? thread.title || studio.thisThreadTitle : project.title
-        }
-        projectId={studio.projectIsScratch ? null : project.id}
-        threadRef={studio.threadRef}
-        workspaceMutationId={studio.workspaceMutationId}
-        firstTurnWorking={studio.firstTurnWorking}
-      />
-    );
+    project !== null &&
+    studio.workspaceRoot !== null &&
+    studio.threadRef !== null;
+  const overview =
+    overviewHere &&
+    open.some((entry) => entry.kind === "files") &&
+    (base.overview || surface?.kind === "files");
+  if (base !== kept || views !== base.views || overview !== base.overview) {
+    setKept({ threadKey, views, overview });
   }
-  return <RightPanelSurfaceContent {...props} />;
+  const inFront = (id: string) => surface?.id === id;
+  const viewPanels =
+    thread === null
+      ? null
+      : views.map((view) => (
+          <KeptSurface key={view.id} shown={inFront(view.id)}>
+            <Suspense fallback={null}>
+              <PluginViewPanel
+                environmentId={thread.environmentId}
+                threadId={thread.id}
+                surface={view}
+                draftWorkspaceRoot={studio.isServerThread ? undefined : project?.workspaceRoot}
+                onSendMessage={
+                  studio.isServerThread
+                    ? studio.sendAppMessage
+                    : studio.engineeringSurfaces
+                      ? studio.sendAppMessageThroughComposer
+                      : undefined
+                }
+                onAddContext={studio.addContext}
+                workspaceRoot={studio.workspaceRoot ?? undefined}
+                workspaceMutationId={studio.workspaceMutationId}
+              />
+            </Suspense>
+          </KeptSurface>
+        ));
+  const overviewPanel =
+    overview && thread !== null && project && studio.workspaceRoot && studio.threadRef ? (
+      <KeptSurface key="overview" shown={surface?.kind === "files"}>
+        <ProjectPage
+          environmentId={thread.environmentId}
+          cwd={studio.workspaceRoot}
+          projectName={
+            studio.projectIsScratch ? thread.title || studio.thisThreadTitle : project.title
+          }
+          projectId={studio.projectIsScratch ? null : project.id}
+          threadRef={studio.threadRef}
+          workspaceMutationId={studio.workspaceMutationId}
+          firstTurnWorking={studio.firstTurnWorking}
+        />
+      </KeptSurface>
+    ) : null;
+  const ours =
+    (surface?.kind === "plugin-app" && thread !== null) ||
+    (surface?.kind === "files" && overviewHere);
+  return (
+    <>
+      {overviewPanel}
+      {viewPanels}
+      {ours ? null : <RightPanelSurfaceContent {...props} />}
+    </>
+  );
+}
+
+/**
+ * A kept surface: in front it fills the panel and fades in once (`data-studio-surface`, 140ms, none
+ * with reduced motion); behind, it is hidden and inert, its frame and model kept.
+ */
+function KeptSurface(props: { readonly shown: boolean; readonly children: ReactNode }) {
+  return (
+    <div
+      hidden={!props.shown}
+      inert={!props.shown}
+      data-studio-surface=""
+      className="flex h-full min-h-0 w-full min-w-0 flex-col"
+    >
+      {props.children}
+    </div>
+  );
 }
 
 /** T3's control or panel, left out where Studio's engineering interface (or surfaces) has none. */
