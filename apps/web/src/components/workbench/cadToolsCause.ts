@@ -17,3 +17,30 @@ export function cadToolsCause(message: string | null | undefined): string | null
   if (START_TIMED_OUT.test(message)) return CAD_TOOLS_STARTING;
   return null;
 }
+
+/**
+ * A view that did not open, as a failure card says it: what was not done ("Not opened: Base"),
+ * why in plain words, and the one thing to do. A cause a person can act on is said and retried;
+ * any other is the CAD tools' own, so the agent is asked to fix it with the reason as it came.
+ */
+export function viewFailure(
+  message: string,
+  name: string,
+): { readonly headline: string; readonly why: string; readonly action: "retry" | "ask" } {
+  const headline = `Not opened: ${name}`;
+  if (/outside the thread's workspace/i.test(message)) {
+    return {
+      headline,
+      why: "The model view only opens files in this chat's folder.",
+      action: "retry",
+    };
+  }
+  const cause = cadToolsCause(message);
+  if (cause !== null) return { headline, why: cause, action: "retry" };
+  return { headline, why: "The CAD tools couldn't read it.", action: "ask" };
+}
+
+/** What the agent is asked when a view did not open: the file, and the reason as it came. */
+export function viewFailureRequest(name: string, message: string): string {
+  return `The model view couldn't open ${name}. Find out why and fix it. The error was:\n${message.trim()}`;
+}
