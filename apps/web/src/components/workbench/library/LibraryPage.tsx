@@ -1,6 +1,6 @@
 import { MY_SKILLS_PLUGIN_ID, type EnvironmentId, type InstalledPlugin } from "@t3tools/contracts";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { PlusIcon, PuzzleIcon, SearchIcon, UserRoundIcon } from "lucide-react";
+import { PlusIcon, PuzzleIcon, SearchIcon, StarIcon, UserRoundIcon } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
@@ -24,8 +24,10 @@ import { useNewDialogStore } from "../newDialogStore";
 import type { NewTemplate } from "../newTemplates";
 import { jobOfSkill } from "../jobSkills";
 import { useEngineeringInterface } from "../studioInterface";
+import { useToolboxPins } from "../toolboxPins";
 import {
   availability,
+  entryJob,
   entryNeeds,
   findItIn,
   LIBRARY_DOCUMENTS,
@@ -39,8 +41,8 @@ import {
   skillName,
 } from "./libraryCatalog";
 import { AddSkillTile } from "./AddSkill";
-import { LibraryCard } from "./LibraryCard";
 import { LibraryPicture } from "./LibraryPicture";
+import { LibraryRow, ROW_PICTURE } from "./LibraryRow";
 import {
   gatherShortShelves,
   shortRowEnd,
@@ -81,6 +83,11 @@ const entryName = (entry: LibraryEntry, skillLabel: (name: string) => string) =>
 interface Group extends Shelf {
   readonly entries: ReadonlyArray<LibraryEntry>;
 }
+
+/** Every entry on the work and plugin shelves, once. */
+const shelvesEntries = (...lists: ReadonlyArray<ReadonlyArray<Group>>) => [
+  ...new Set(lists.flatMap((shelves) => shelves.flatMap((shelf) => shelf.entries))),
+];
 
 /** A shelf of what matched, with how many. */
 const shelfOf = (shelf: Omit<Shelf, "count">, entries: ReadonlyArray<LibraryEntry>): Group => ({
@@ -176,15 +183,23 @@ function LibraryContent(props: {
       ),
     )
     .filter((group) => group.entries.length > 0);
+  // Your tools: what the person starred, here or in the Toolbox popup, in the order starred.
+  const pins = useToolboxPins((state) => state.pins);
+  const shownEntries = shelvesEntries(workShelves, pluginShelves);
+  const yours = shelfOf(
+    { key: "yours", title: "Your tools", icon: StarIcon, tint: "text-primary" },
+    pins.flatMap((id) => shownEntries.filter((entry) => entryJob(entry)?.id === id)),
+  );
   // My skills holds Add a skill, so it stays with nothing in it: last until the person has one.
   const haveOwn = mySkills.entries.length > 0;
   const shelves: ReadonlyArray<Group> = [
+    ...(query === "" ? [yours] : []),
     ...(haveOwn ? [mySkills] : []),
     ...workShelves,
     ...pluginShelves,
     ...(!haveOwn && query === "" ? [mySkills] : []),
   ];
-  const nothingFound = shelves.length === 0;
+  const nothingFound = shelves.every((shelf) => shelf === yours || shelf.entries.length === 0);
   const tilesOn = (group: Group) => group.entries.length + (group === mySkills ? 1 : 0);
 
   // Every skill on the page by its one name (`skillName`): cards, details, Made by, what it needs.
@@ -232,22 +247,22 @@ function LibraryContent(props: {
     setEditingId(id);
     openEntry(id);
   };
-  const cover = (entry: LibraryEntry) => (
-    <LibraryCard
-      key={entry.id}
-      picture={
-        <LibraryPicture
-          entry={entry}
-          environmentId={environmentId}
-          className="aspect-square border-b border-border"
-        />
-      }
-      name={entryName(entry, skillLabel)}
-      {...(entry.kind === "skill" ? { blurb: entry.blurb } : {})}
-      note={offNote(entry) ?? entryNeeds(entry)}
-      onOpen={() => openEntry(entry.id)}
-    />
-  );
+  const cover = (entry: LibraryEntry) => {
+    const job = entryJob(entry);
+    return (
+      <LibraryRow
+        key={entry.id}
+        picture={
+          <LibraryPicture entry={entry} environmentId={environmentId} className={ROW_PICTURE} />
+        }
+        name={entryName(entry, skillLabel)}
+        {...(entry.kind === "skill" ? { blurb: entry.blurb } : {})}
+        note={offNote(entry) ?? entryNeeds(entry)}
+        pin={job === null ? null : { jobId: job.id }}
+        onOpen={() => openEntry(entry.id)}
+      />
+    );
+  };
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the DOM to the shelf the URL's group names, unless it already shows near the top
   useEffect(() => {
@@ -258,13 +273,18 @@ function LibraryContent(props: {
     if (top < 0 || top > window.innerHeight / 2) anchor.scrollIntoView({ block: "start" });
   }, [search.group]);
 
-  const placed = gatherShortShelves(shelves, tilesOn);
-  const rowEnd = shortRowEnd(placed, tilesOn);
+  // Your tools stays first, whole width; the short shelves after it pack as they always have.
+  const rest = shelves.filter((shelf) => shelf !== yours);
+  const placed = [
+    ...(shelves.includes(yours) ? [yours] : []),
+    ...gatherShortShelves(rest, tilesOn),
+  ];
+  const rowEnd = shortRowEnd(gatherShortShelves(rest, tilesOn), tilesOn);
 
   return (
     <ChatPage
       title="Toolbox"
-      count={shelves.reduce((tiles, shelf) => tiles + shelf.count, 0)}
+      count={shelves.reduce((tiles, shelf) => tiles + (shelf === yours ? 0 : shelf.count), 0)}
       lede="The skills the agent works from: text-to-cad's and your own. Open one to read it and see what it makes."
       search={
         <InputGroup>
@@ -295,8 +315,11 @@ function LibraryContent(props: {
                 <LibraryShelf
                   key={group.key}
                   shelf={group}
-                  tiles={tilesOn(group)}
+                  tiles={group === yours ? 0 : tilesOn(group)}
                   rowEnd={group === rowEnd?.shelf ? rowEnd.spans : undefined}
+                  {...(group === yours && group.entries.length === 0
+                    ? { note: "Star a tool to keep it here and on the Toolbox's Yours tab." }
+                    : {})}
                 >
                   {group === mySkills ? (
                     <AddSkillTile environmentId={environmentId} onAdded={openOwnSkill} />

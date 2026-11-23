@@ -22,8 +22,7 @@ function ToggleGroup({
   children,
   ...props
 }: ToggleGroupPrimitive.Props & VariantProps<typeof toggleVariants>) {
-  const size =
-    sizeProp === undefined ? (isSegmented(variant) ? "segmented" : "default") : sizeProp;
+  const size = sizeProp === undefined ? (isSegmented(variant) ? "segmented" : "default") : sizeProp;
   const value = { size, variant };
   return (
     <ToggleGroupPrimitive

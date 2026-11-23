@@ -1,17 +1,14 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { DraftingCompassIcon, PaperclipIcon, SearchIcon, XIcon } from "lucide-react";
+import { DraftingCompassIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
 
-import { openCommandPalette } from "~/commandPaletteBus";
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
-import { shortcutLabelForCommand } from "~/keybindings";
 import { usePrimaryEnvironmentId } from "~/state/environments";
-import { primaryServerKeybindingsAtom, serverEnvironment } from "~/state/server";
+import { serverEnvironment } from "~/state/server";
 import { Button } from "../ui/button";
-import { Kbd } from "../ui/kbd";
 import { SidebarInset } from "../ui/sidebar";
 import { Textarea } from "../ui/textarea";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
@@ -19,6 +16,7 @@ import { NO_AGENT, OPEN_AGENTS } from "./agentWords";
 import type { ListedProject } from "./projectList";
 import { ENGINEERING_COMPOSER_PLACEHOLDER } from "./studioInterface";
 import { splitStarred, useStarredStore } from "./starredProjects";
+import { FindButton, openFind } from "./FindButton";
 import { ImportDialogHost } from "./ImportDialog";
 import { homeLayout } from "./homeStart";
 import { ImportDropZone } from "./ImportDropZone";
@@ -44,27 +42,6 @@ import { type ProjectStart, useStartOnce } from "./useStartProject";
 import { useExamples } from "./library/useSampleProject";
 
 /** Opens the quick find (`StudioQuickFind`): the top bar's search, and Cmd+O on Home. */
-const openFind = () => openCommandPalette();
-
-/** The top bar's search: it opens the quick find (⌘K, `StudioQuickFind`), which finds parts too. */
-function FindButton() {
-  const shortcut = shortcutLabelForCommand(
-    useAtomValue(primaryServerKeybindingsAtom),
-    "commandPalette.toggle",
-  );
-  return (
-    <button
-      type="button"
-      onClick={openFind}
-      className="flex h-7 w-full max-w-72 items-center gap-2 rounded-lg border border-input bg-background px-2.5 text-sm text-muted-foreground shadow-xs/5 outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-input/32"
-    >
-      <SearchIcon className="size-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-left">Find anything</span>
-      {shortcut ? <Kbd>{shortcut}</Kbd> : null}
-    </button>
-  );
-}
-
 /**
  * Studio's Home. With no projects (`homeLayout`) it asks where to start, with two big buttons and
  * the Start box; with projects, the box and then the project tiles, last worked on first, a project

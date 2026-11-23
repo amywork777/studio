@@ -4,10 +4,7 @@ import { useEffect } from "react";
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { selectActiveRightPanelSurface, useRightPanelStore } from "~/rightPanelStore";
 import { ImportDialogHost } from "./ImportDialog";
-import { ImportMenu } from "./ImportMenu";
-import { importIntoProject } from "./importIntoProject";
-import { useOpenFromOverview } from "./useOpenInWorkbench";
-import { useImportActions } from "./useImportActions";
+import { FindButton } from "./FindButton";
 import { CadToolsButton } from "./CadToolsButton";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { usePanelTabShortcuts } from "./panelTabShortcuts";
@@ -98,8 +95,9 @@ export function usePartForJobs(
 
 /**
  * The workspace panel's toolbar, at the right end of its tab row: Hide or Show CAD tools where the
- * viewer in front has them (`CadToolsButton`, the one way between them), then Import and New,
- * always last. ⌘K's and the Toolbox's jobs are for the same part (`usePartForJobs`).
+ * viewer in front has them (`CadToolsButton`, the one way between them), then Find (⌘K). New and
+ * Import are the + after the tabs (`NewTabButton`); New's dialog and Import's stay here. ⌘K's and the Toolbox's jobs are
+ * for the same part (`usePartForJobs`).
  */
 export function StudioPanelBar(props: {
   readonly folder: string | null;
@@ -124,27 +122,9 @@ export function StudioPanelBar(props: {
   );
   // ⌘K's part, the Toolbox's too.
   const { part: subject, process, industry } = usePartForJobs(threadRef, folder, props.mutationId);
-  const studio = useStudioProjectAt(threadRef.environmentId, folder);
   const addPart = useAddPart(threadRef, folder);
-  // Import beside New, as on Home: files brought into this project's folder.
-  const openImported = useOpenFromOverview(threadRef);
-  const importer = importIntoProject(folder, studio?.project.name ?? "the project", openImported);
-  // The same Import menu as Home's: here Files or a folder copies into this project, and Scan this
-  // computer opens the scan, which makes new projects.
-  const scanner = useImportActions();
-  const importMenu =
-    importer === null || scanner === null ? null : (
-      <>
-        <ImportMenu
-          actions={{ scan: scanner.scan, pick: importer.pick }}
-          hints={{
-            pick: `Copied into ${studio?.project.name ?? "the project"}`,
-            scan: "Makes new projects",
-          }}
-        />
-        <ImportDialogHost environmentId={threadRef.environmentId} />
-      </>
-    );
+  // Import's dialogs (the scan, the picker's results); its menu items are under the + after the tabs.
+  const importHost = <ImportDialogHost environmentId={threadRef.environmentId} />;
 
   // ⌘K finds jobs for the same part, from over everything (`StudioQuickFind`).
   const setWorkspace = useOpenWorkspaceStore((store) => store.setWorkspace);
@@ -174,7 +154,7 @@ export function StudioPanelBar(props: {
   return (
     <div className="flex items-center gap-2" data-studio-toolbar="">
       <StudioTour chatBusy={props.chatBusy} />
-      {/* Hide CAD tools, Import and New close the row; Home's Your projects ends in Import and New too. */}
+      {/* Hide CAD tools, then Find; New and Import are the + after the tabs. */}
       {toggle === "hidden" ? null : (
         <>
           <CadToolsButton
@@ -188,10 +168,11 @@ export function StudioPanelBar(props: {
           />
         </>
       )}
-      {importMenu}
+      {importHost}
+      <FindButton compact />
       {props.composerRef === null || folder === null || addPart === null ? null : (
         <StudioNew
-          buttonVariant="outline"
+          hideButton
           environmentId={threadRef.environmentId}
           cwd={folder}
           onCreate={(job) => {

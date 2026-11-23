@@ -24,6 +24,8 @@ const toggleVariants = cva(
         // An icon over its name, as a CAD ribbon's buttons are: for a few choices that share a row
         // equally. Its name stays small on a wide window too (the base's sm:text-sm).
         tile: "h-auto min-w-0 flex-col gap-1 rounded-md px-1 pt-2 pb-1.5 text-xs sm:text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-4",
+        // An icon beside its name, for a row of tabs under a popup's title: each sized by its name.
+        tab: "h-8 min-w-0 flex-auto gap-1.5 rounded-md px-2 text-xs sm:text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
         sm: "h-8 min-w-8 px-[calc(--spacing(1.5)-1px)] sm:h-7 sm:min-w-7",
         xs: "h-7 min-w-7 px-[calc(--spacing(1)-1px)] sm:h-6 sm:min-w-6 rounded-md",
       },
