@@ -21,7 +21,6 @@ const TONE_BADGE = {
   failed: { variant: "error", Icon: CircleXIcon },
   warning: { variant: "warning", Icon: TriangleAlertIcon },
   passed: { variant: "success", Icon: CircleCheckIcon },
-  none: { variant: "outline", Icon: null },
 } as const;
 
 /**
@@ -108,7 +107,7 @@ export function ProjectHeading(props: {
           const { variant, Icon } = TONE_BADGE[word.tone];
           return (
             <Badge key={word.text} variant={variant}>
-              {Icon === null ? null : <Icon aria-hidden="true" />}
+              <Icon aria-hidden="true" />
               {word.text}
             </Badge>
           );

@@ -29,12 +29,15 @@ export function projectStatus(input: {
   };
 }
 
-/** A count in words: "1 check failed", "2 warnings", "3 passed". */
+/**
+ * A count in words: "1 check failed", "2 warnings", "3 passed". None at all when no check ran: the
+ * lead part says so once, with a way to run one (`LeadPart`), so the strip shows only real results.
+ */
 export function statusWords(status: ProjectStatus): ReadonlyArray<{
-  readonly tone: "failed" | "warning" | "passed" | "none";
+  readonly tone: "failed" | "warning" | "passed";
   readonly text: string;
 }> {
-  if (!status.checked) return [{ tone: "none", text: "Not checked" }];
+  if (!status.checked) return [];
   return [
     ...(status.failed === 0
       ? []

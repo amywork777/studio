@@ -14,10 +14,10 @@ const result = (status: CheckResult["status"], part: string): CheckResult => ({
 });
 
 describe("the Overview's status strip", () => {
-  it("counts only what the runs wrote, and says Not checked when none ran", () => {
+  it("counts only what the runs wrote, and shows nothing when none ran", () => {
     const none = projectStatus({ results: [], waiting: 0 });
     expect(none.checked).toBe(false);
-    expect(statusWords(none)).toEqual([{ tone: "none", text: "Not checked" }]);
+    expect(statusWords(none)).toEqual([]);
   });
 
   it("says how the checks went, failures first, and how many chats wait", () => {

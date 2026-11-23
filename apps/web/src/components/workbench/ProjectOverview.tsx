@@ -16,6 +16,8 @@ import { useRightPanelStore } from "~/rightPanelStore";
 import { useThreadShellsForProjectRefs } from "~/state/entities";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { handToChat } from "./handToChat";
+import { HARDWARE_ACTIONS } from "./hardwareActions";
 import { CheckBadge, CHECK_STATUS as STATUS, OutOfDateIcon } from "./CheckBadge";
 import {
   type CheckIssue,
@@ -71,6 +73,9 @@ import { waitingChats } from "./allChats";
 import { OpenQuestions } from "./OpenQuestions";
 import { ProjectHeading } from "./ProjectHeading";
 import { projectStatus } from "./projectStatus";
+
+/** The check a part with none run is offered, as the Toolbox hands it to the chat. */
+const STRENGTH_JOB = HARDWARE_ACTIONS.find((job) => job.id === "strength")!;
 
 const STATUS_ORDER: Record<CheckStatus | "none", number> = {
   fix: 0,
@@ -196,6 +201,8 @@ function LeadPart(props: {
   readonly onOpen: () => void;
   /** Opens a file made from it, by its path in its folder. */
   readonly onOpenFile: (path: string) => void;
+  /** Hands the strength check to the chat, as the Toolbox's job does; null with no chat to take it. */
+  readonly onRunCheck: (() => void) | null;
 }) {
   const { part } = props;
   const pictures = usePictures({
@@ -236,9 +243,14 @@ function LeadPart(props: {
               ? `${sentenceCase(STATUS[status].caption)} on ${name}`
               : outOfDate
                 ? `${name} changed since its last check`
-                : `No checks run on ${name} yet`}
+                : "No checks run yet"}
             {props.where === undefined ? "" : ` · ${props.where}`}
           </p>
+          {status === null && !outOfDate && props.onRunCheck !== null ? (
+            <button type="button" onClick={props.onRunCheck} className={LEAD_LINK_CLASS}>
+              Run strength check
+            </button>
+          ) : null}
           {outOfDate ? (
             <div className="flex min-w-0 flex-wrap gap-x-3">
               {part.outdated.map((result) => (
@@ -648,6 +660,16 @@ export function ProjectOverview(props: {
               where={engineering ? undefined : lead.file.path}
               onOpen={() => props.onOpen(lead.root, lead.file.path)}
               onOpenFile={(path) => props.onOpen(lead.root, path)}
+              onRunCheck={
+                props.composerRef === null
+                  ? null
+                  : () => {
+                      const composerRef = props.composerRef;
+                      if (composerRef === null) return;
+                      showChat();
+                      handToChat(composerRef, STRENGTH_JOB.prompt(lead.file.title));
+                    }
+              }
             />
             {props.readme === null ? (props.heading === null ? issuesPanel : null) : props.readme}
           </div>
