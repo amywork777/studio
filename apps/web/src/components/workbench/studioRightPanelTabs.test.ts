@@ -53,4 +53,9 @@ describe("a tab's title cut in the middle", () => {
       tail: "crew",
     });
   });
+
+  it("cuts a mid-length title in the middle too, so a narrow tab still tells parts apart", () => {
+    expect(titleParts("LED module")).toEqual({ head: "LED mod", tail: "ule" });
+    expect(titleParts("Weight")).toEqual({ head: "Weight", tail: "" });
+  });
 });
