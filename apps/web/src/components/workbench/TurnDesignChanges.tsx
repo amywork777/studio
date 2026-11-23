@@ -3,7 +3,6 @@ import { type ReactNode, useState } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
 import { Button } from "../ui/button";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { type DesignChange, designChanges, foldChanges } from "./designChanges";
 import { FILE_ICONS, fileIconKey, fileTint } from "./kinds";
 import { useOpenWorkspaceStore } from "./openWorkspace";
@@ -12,71 +11,126 @@ import { useEngineeringInterface } from "./studioInterface";
 import { classifyProjectFile } from "./projectFiles";
 import { useFolderModels } from "./useFolderModels";
 import { useOpenInWorkbench } from "./useOpenInWorkbench";
-import { useVersionRequestStore } from "./useVersions";
+import { changeSentence, versionAround } from "./turnChange";
+import {
+  type CadPost,
+  useCadService,
+  useComparison,
+  usePartVersions,
+  useVersionRequestStore,
+} from "./useVersions";
+import { sizeChanges, sizeLine } from "./versions";
 
 /** A part's model, which has versions to compare (`PartVersions`). */
 const VERSIONED = /\.(?:step|stp)$/i;
 
-/** About what a chip shows before it truncates; a longer name says itself on hover. */
-const LONG_LABEL = 24;
-
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
-/** A change as a chip: what changed, opening it beside the thread where it can be shown. */
-function ChangeChip(props: {
+/** The parts whose sizes the card reads, first first: each is one comparison of its script. */
+const SIZED_ROWS = 3;
+
+/**
+ * The sizes a turn changed in a part's script, from the CAD service's comparison of its version
+ * before and after the turn (`versions/compare`, no solids built): "wall 2 to 3". Nothing when
+ * the turn made no version of it or the comparison has not answered.
+ */
+function useTurnSizes(input: {
+  readonly post: CadPost | null;
+  readonly folder: string;
+  readonly script: string | null;
+  readonly checkpointRef: string | null;
+}): { readonly lines: ReadonlyArray<string>; readonly version: number | null } {
+  const { post, folder, script, checkpointRef } = input;
+  const versions = usePartVersions({
+    post: checkpointRef === null ? null : post,
+    folder,
+    path: script,
+    mutationId: null,
+  });
+  const around =
+    versions === null || versions.versions === null || checkpointRef === null
+      ? null
+      : versionAround(versions.versions, checkpointRef);
+  const { state } = useComparison({
+    post: script === null ? null : post,
+    folder,
+    path: script ?? "",
+    older: around?.older ?? null,
+    newer: around?.newer ?? null,
+    model: null,
+    texts: [],
+  });
+  const compared = state?.comparison?.script;
+  const changed = sizeChanges(compared?.olderSizes ?? null, compared?.newerSizes ?? null, compared);
+  return {
+    lines: changed === null ? [] : changed.map((change) => sizeLine(change, "")),
+    version: around?.number ?? null,
+  };
+}
+
+/** One part or document the turn changed: its name, what of it changed, and the sizes that did. */
+function ChangeRow(props: {
   readonly change: DesignChange;
   readonly onOpen: (() => void) | null;
-  /** It opens what changed in the part, not the part itself. */
   readonly compares: boolean;
+  readonly post: CadPost | null;
+  readonly folder: string;
+  readonly checkpointRef: string | null;
+  readonly sized: boolean;
 }) {
   const { change } = props;
   const key = fileIconKey(change.kind);
   const Icon = FILE_ICONS[key];
-  // In its kind's color, as the reply's own file chips and the panel's tabs show it.
-  const tint = fileTint(key);
-  // The whole name, and which of a part's files changed with it (its model, its drawing), on hover.
-  const hint =
-    change.aspects.length < 2
-      ? change.label.length > LONG_LABEL
-        ? change.label
-        : undefined
-      : `${change.name}: ${change.aspects.join(", ")}`;
-  const chip =
-    "inline-flex h-6 min-w-0 max-w-44 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-foreground";
-  const body = (
+  const sizes = useTurnSizes({
+    post: props.sized ? props.post : null,
+    folder: props.folder,
+    script: props.sized ? change.script : null,
+    checkpointRef: props.checkpointRef,
+  });
+  const name = (
     <>
-      <Icon className={`size-3.5 shrink-0 ${tint}`} aria-hidden="true" />
-      <span className="truncate">{change.label}</span>
+      <Icon className={`size-3.5 shrink-0 ${fileTint(key)}`} aria-hidden="true" />
+      <span className="truncate font-medium text-foreground">{change.name}</span>
     </>
   );
-  const control =
-    props.onOpen === null ? (
-      <span className={chip}>{body}</span>
-    ) : (
-      <button
-        type="button"
-        onClick={props.onOpen}
-        aria-label={props.compares ? `See what changed in ${change.label}` : `Open ${change.label}`}
-        className={`${chip} outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset`}
-      >
-        {body}
-      </button>
-    );
   return (
-    <li className="flex min-w-0">
-      {hint === undefined ? (
-        control
-      ) : (
-        <Tooltip>
-          <TooltipTrigger render={control} />
-          <TooltipPopup side="top">{hint}</TooltipPopup>
-        </Tooltip>
+    <li className="flex min-w-0 flex-col gap-0.5" data-turn-change="">
+      <div className="flex min-w-0 items-center gap-1.5 text-sm leading-5">
+        {props.onOpen === null ? (
+          <span className="flex min-w-0 items-center gap-1.5">{name}</span>
+        ) : (
+          <button
+            type="button"
+            onClick={props.onOpen}
+            aria-label={
+              props.compares ? `See what changed in ${change.name}` : `Open ${change.name}`
+            }
+            className="-mx-1 flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1 outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          >
+            {name}
+          </button>
+        )}
+        <span className="shrink-0 text-muted-foreground">{changeSentence(change)}</span>
+        {sizes.version === null ? null : (
+          <span className="shrink-0 text-muted-foreground">· Version {sizes.version}</span>
+        )}
+      </div>
+      {sizes.lines.length === 0 ? null : (
+        <ul className="flex flex-col pl-5 text-xs leading-5 text-muted-foreground tabular-nums">
+          {sizes.lines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
       )}
     </li>
   );
 }
 
-/** What a turn changed, on one quiet line under its reply: "Changed" and a chip for each. */
+/**
+ * What a turn changed, as a card under its reply: each part or document, what of it changed, the
+ * sizes that changed from the version comparison and the version the turn made; a part opens what
+ * changed in it (Versions, where it can be restored).
+ */
 function DesignChanges(props: {
   readonly threadRef: ScopedThreadRef;
   readonly changes: ReadonlyArray<DesignChange>;
@@ -89,6 +143,7 @@ function DesignChanges(props: {
   const { shown, hidden } = foldChanges(changes, expanded);
   const workspace = useOpenWorkspaceStore((state) => state.workspace?.folder ?? "");
   const models = useFolderModels(threadRef.environmentId, workspace);
+  const post = useCadService(threadRef);
   const compares = (change: DesignChange) =>
     checkpointRef !== null &&
     change.open !== null &&
@@ -119,31 +174,39 @@ function DesignChanges(props: {
     <section
       aria-label="What changed"
       data-design-changes=""
-      className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5"
+      className="mt-3 flex min-w-0 flex-col gap-2 rounded-md border border-border px-3 py-2"
     >
       {changes.length === 0 ? null : (
         <>
-          <h3 className="text-xs text-muted-foreground">Changed</h3>
-          <ul className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {shown.map((change) => (
-              <ChangeChip
+          <h3 className="text-xs text-muted-foreground">What changed</h3>
+          <ul className="flex min-w-0 flex-col gap-1.5">
+            {shown.map((change, index) => (
+              <ChangeRow
                 key={`${change.kind}\n${change.label}`}
                 change={change}
                 onOpen={showChange(change)}
                 compares={compares(change)}
+                post={post}
+                folder={workspace}
+                checkpointRef={checkpointRef}
+                sized={index < SIZED_ROWS && change.script !== null && workspace !== ""}
               />
             ))}
           </ul>
-          {hidden === 0 ? null : (
-            <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(true)}>
-              {hidden} more
-            </Button>
+          {hidden === 0 && !expanded ? null : (
+            <div className="flex gap-1">
+              {hidden === 0 ? null : (
+                <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(true)}>
+                  {hidden} more
+                </Button>
+              )}
+              {expanded ? (
+                <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(false)}>
+                  Show less
+                </Button>
+              ) : null}
+            </div>
           )}
-          {expanded ? (
-            <Button size="xs" variant="ghost-muted" onClick={() => setExpanded(false)}>
-              Show less
-            </Button>
-          ) : null}
         </>
       )}
       {other === 0 ? null : (
