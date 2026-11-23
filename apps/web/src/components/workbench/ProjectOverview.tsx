@@ -139,6 +139,8 @@ function LeadFacts(props: {
   readonly units: string;
   /** Opens a check's result, by its path in the part's folder. */
   readonly onOpenFile: (path: string) => void;
+  /** The checks alone: the project's heading already says its units, material and last build. */
+  readonly checksOnly: boolean;
 }) {
   const { part } = props;
   useNowMinute();
@@ -158,13 +160,13 @@ function LeadFacts(props: {
   const checks = part.results.length === 0 ? [] : [...part.results, ...part.outdated];
   return (
     <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-      <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>
-      {material === null ? null : (
+      {props.checksOnly ? null : <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>}
+      {material === null || props.checksOnly ? null : (
         <LeadFact label="Material" tone={material.missing ? "faint" : "default"}>
           {material.text}
         </LeadFact>
       )}
-      {build === null ? null : (
+      {build === null || props.checksOnly ? null : (
         <LeadFact label="Build" labelHidden tone={build.failed ? "error" : "default"}>
           {build.text}
         </LeadFact>
@@ -203,6 +205,8 @@ function LeadPart(props: {
   readonly onOpenFile: (path: string) => void;
   /** Hands the strength check to the chat, as the Toolbox's job does; null with no chat to take it. */
   readonly onRunCheck: (() => void) | null;
+  /** Under the project's heading, which already says the part's units, material and build. */
+  readonly underHeading: boolean;
 }) {
   const { part } = props;
   const pictures = usePictures({
@@ -272,6 +276,7 @@ function LeadPart(props: {
           threadRef={props.threadRef}
           units={props.units}
           onOpenFile={props.onOpenFile}
+          checksOnly={props.underHeading}
         />
         {part.drawings.length + part.made.length === 0 ? null : (
           <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
@@ -660,6 +665,7 @@ export function ProjectOverview(props: {
               where={engineering ? undefined : lead.file.path}
               onOpen={() => props.onOpen(lead.root, lead.file.path)}
               onOpenFile={(path) => props.onOpen(lead.root, path)}
+              underHeading={props.heading !== null}
               onRunCheck={
                 props.composerRef === null
                   ? null

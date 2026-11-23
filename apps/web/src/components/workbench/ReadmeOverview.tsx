@@ -121,6 +121,8 @@ function WritingOverview() {
 }
 
 const README = "README.md";
+const OPEN_README =
+  "self-start text-xs text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-sm";
 const noPending = () => {};
 
 /**
@@ -329,6 +331,8 @@ export function ReadmeOverview(props: {
   const file = heldReadme(`${environmentId}\n${cwd}`, readme.data);
   const sections = readmeSections(file === null || file.truncated ? null : file.contents);
   const whatItIs = sections.whatItIs ?? (props.purpose.trim() || null);
+  // The Overview's heading carries the brief's line; a project with none reads it here instead.
+  const describedAbove = props.purpose.trim() !== "";
   const { waiting, writingIn } = useReadmeWriteIn({
     writing: props.writing,
     written: sections.whatItIs === null ? null : (file?.contents ?? null),
@@ -426,25 +430,34 @@ export function ReadmeOverview(props: {
             {rows.rest.map(row)}
           </div>
         )}
-        <div className={SECTION_STACK}>
-          <h2 className={MODULE_HEADING}>
-            What it is
-            {sections.whatItIs === null ? null : (
-              <span className={MODULE_NOTE}>From the README</span>
+        {/* The project's own line under its title says what it is; the README stays a press away. */}
+        {describedAbove ? (
+          file === null ? null : (
+            <button type="button" onClick={() => props.onOpenPath(README)} className={OPEN_README}>
+              Open the README
+            </button>
+          )
+        ) : (
+          <div className={SECTION_STACK}>
+            <h2 className={MODULE_HEADING}>
+              What it is
+              {sections.whatItIs === null ? null : (
+                <span className={MODULE_NOTE}>From the README</span>
+              )}
+            </h2>
+            {whatItIs === null ? (
+              <p className="text-sm text-muted-foreground">
+                Not written yet. Studio writes it from the project's chats.
+              </p>
+            ) : (
+              <FoldedWords>
+                <Typed words={sections.whatItIs} multiline onSave={save}>
+                  <ReadmeText text={whatItIs} onOpenPath={props.onOpenPath} />
+                </Typed>
+              </FoldedWords>
             )}
-          </h2>
-          {whatItIs === null ? (
-            <p className="text-sm text-muted-foreground">
-              Not written yet. Studio writes it from the project's chats.
-            </p>
-          ) : (
-            <FoldedWords>
-              <Typed words={sections.whatItIs} multiline onSave={save}>
-                <ReadmeText text={whatItIs} onOpenPath={props.onOpenPath} />
-              </Typed>
-            </FoldedWords>
-          )}
-        </div>
+          </div>
+        )}
         {longDecisions ? null : (
           <div className={SECTION_STACK}>
             <h2 className={MODULE_HEADING}>Decisions</h2>
