@@ -277,7 +277,7 @@ function SizeRow(props: {
           type="button"
           onClick={() => setEditing(true)}
           aria-label={`Change ${size.name}, now ${size.text}`}
-          className="-mx-1.5 w-fit max-w-full truncate rounded-md px-1.5 py-0.5 text-start text-foreground tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="-mx-1.5 w-fit max-w-full truncate rounded-md px-1.5 py-0.5 text-start text-foreground tabular-nums outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           {size.text}
         </button>

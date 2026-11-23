@@ -19,7 +19,7 @@ export function PinStar(props: { readonly jobId: string; readonly name: string }
       aria-pressed={pinned}
       onClick={() => toggle(props.jobId)}
       className={cn(
-        "absolute end-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md outline-none transition-opacity duration-150 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none",
+        "absolute end-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md outline-none transition-opacity duration-150 hover:bg-accent/50 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none",
         pinned
           ? "text-primary"
           : "text-muted-foreground opacity-0 group-hover/pin:opacity-100 group-focus-within/pin:opacity-100",

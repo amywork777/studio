@@ -20,14 +20,14 @@ import { useProjectCover } from "./useProjectCover";
 
 /** The control a project is chosen with: a bordered button, its picture and its name on one line. */
 export const PROJECT_CONTROL_CLASS =
-  "flex min-w-0 max-w-full items-center gap-2 rounded-lg py-1 ps-1 pe-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[popup-open]:bg-accent";
+  "flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-md py-1 ps-1 pe-2 text-left outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[popup-open]:bg-accent";
 
 /** A row of the list, or an action under it: the row is the one hover. */
 export const PROJECT_ROW_CLASS =
-  "flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none transition-colors duration-150 hover:bg-accent focus-visible:bg-accent";
+  "flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent";
 /** A project row: the row is the one hover, its star a quiet part of it. */
 const projectRowClass =
-  "group/row flex min-w-0 items-center rounded-md pe-1 transition-colors duration-150 hover:bg-accent has-[button:focus-visible]:bg-accent";
+  "group/row flex min-w-0 items-center rounded-md pe-1 transition-colors duration-150 hover:bg-accent/50 has-[button:focus-visible]:bg-accent";
 /** Starred and Recent, as Home and the menus label a group. */
 const groupClass = "px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground";
 

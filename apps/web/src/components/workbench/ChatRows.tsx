@@ -129,7 +129,7 @@ export function ChatRows(props: {
                       const box = event.currentTarget.getBoundingClientRect();
                       void showMenu(chat, { x: box.left, y: box.bottom });
                     }}
-                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100"
+                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100"
                   >
                     <EllipsisIcon className="size-4" aria-hidden="true" />
                   </button>

@@ -112,7 +112,7 @@ export function ProjectTile(props: {
             const box = event.currentTarget.getBoundingClientRect();
             props.onMenu?.({ x: box.left, y: box.bottom });
           }}
-          className="absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset group-hover/tile:opacity-100"
+          className="absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset group-hover/tile:opacity-100"
         >
           <EllipsisIcon className="size-4" aria-hidden="true" />
         </button>

@@ -288,7 +288,7 @@ function TabMoreAtEnd(props: {
       aria-haspopup="menu"
       data-tab-more=""
       className={cn(
-        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-muted focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
+        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent/50 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         props.active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
       )}
       onClick={(event) => {
@@ -338,7 +338,7 @@ function TabClose(props: {
       aria-label={props.label}
       data-tab-close=""
       className={cn(
-        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-muted focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
+        "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent/50 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         props.active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
       )}
       onClick={(event) => {

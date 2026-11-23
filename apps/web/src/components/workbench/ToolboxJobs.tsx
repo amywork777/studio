@@ -80,7 +80,7 @@ export function SectionJobs(props: {
 const TILE =
   "flex min-h-9 min-w-0 items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-start outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-default disabled:opacity-64 motion-reduce:transition-none";
 const TILE_LIVE =
-  "enabled:hover:border-border enabled:hover:bg-accent/60 dark:enabled:hover:bg-input/48 enabled:active:bg-accent";
+  "enabled:hover:border-border enabled:hover:bg-accent/50 dark:enabled:hover:bg-input/48 enabled:active:bg-accent";
 
 /**
  * A job's tile, a compact row: its picture in its tab's hue beside its name, which takes two lines

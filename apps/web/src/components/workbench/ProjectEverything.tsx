@@ -133,7 +133,7 @@ function ListRows(props: {
         role="row"
         onClick={() => props.onOpenFile(file.root, file.file.path)}
         className={cn(
-          "grid items-center gap-3 border-b border-border p-3 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/60 focus-visible:bg-accent/60",
+          "grid items-center gap-3 border-b border-border p-3 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent/60",
           LIST_COLUMNS,
         )}
       >

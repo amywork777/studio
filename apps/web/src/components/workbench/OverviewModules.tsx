@@ -121,7 +121,7 @@ export function OverviewModule(props: {
           onClick={props.onFold}
           className={cn(
             props.row
-              ? "-mx-2 flex min-h-7 min-w-0 flex-1 items-center gap-2 px-2 text-left text-sm font-medium text-foreground hover:bg-accent"
+              ? "-mx-2 flex min-h-7 min-w-0 flex-1 items-center gap-2 px-2 text-left text-sm font-medium text-foreground hover:bg-accent/50"
               : MODULE_HEADING,
             "rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
           )}

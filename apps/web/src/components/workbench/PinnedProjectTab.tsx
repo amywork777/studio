@@ -60,7 +60,7 @@ export function PinnedProjectTab(props: {
               "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               pressed
                 ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
             )}
           >
             <Icon className="size-3.5" aria-hidden="true" />

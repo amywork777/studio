@@ -48,7 +48,7 @@ import { useSaveStudioProject } from "./useStudioProjects";
 import { useVersionRequestStore } from "./useVersions";
 
 const actionClass =
-  "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground outline-none transition-colors duration-150 hover:bg-accent focus-visible:bg-accent [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
+  "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
 
 /**
  * The project switcher in the top bar, opened by a click or Cmd+O: the open project's menu on top,

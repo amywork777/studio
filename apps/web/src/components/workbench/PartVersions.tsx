@@ -341,7 +341,7 @@ export function PartVersions(props: {
                         aria-current={current ? "true" : undefined}
                         onClick={() => pick(choice.id, null)}
                         className={cn(
-                          "flex h-9 w-full min-w-0 items-center gap-3 px-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                          "flex h-9 w-full min-w-0 items-center gap-3 px-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                           current && "bg-accent/60",
                         )}
                       >
