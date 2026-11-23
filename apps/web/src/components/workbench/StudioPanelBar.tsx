@@ -163,7 +163,7 @@ export function StudioPanelBar(props: {
         </>
       )}
       {importHost}
-      <FindButton compact />
+      <FindButton />
       {props.composerRef === null || folder === null || addPart === null ? null : (
         <StudioNew
           hideButton
