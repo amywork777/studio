@@ -71,7 +71,6 @@ const KINDS: ReadonlyArray<{
   { ending: ".dxf", kind: "Drawing", units: null },
   { ending: ".urdf", kind: "Robot", units: "m" },
   { ending: ".srdf", kind: "Planning groups", units: "m" },
-  { ending: ".sdf", kind: "Simulation model", units: "m" },
 ];
 
 /**

@@ -18,7 +18,7 @@ const HEIGHT = 360;
 const RUN_MS = 4 * 60_000;
 
 /** The files the CAD server renders, by ending. */
-const RENDERABLE = /\.(?:step|stp|xbf|stl|3mf|glb|dxf|urdf|srdf|sdf)$/i;
+const RENDERABLE = /\.(?:step|stp|xbf|stl|3mf|glb|dxf|urdf|srdf)$/i;
 
 /** The files drawn on their own paper. */
 const DRAWING = /\.dxf$/i;
@@ -36,7 +36,6 @@ const DOCUMENT_TYPES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\.dxf$/i, "dxf"],
   [/\.urdf$/i, "urdf"],
   [/\.srdf$/i, "srdf"],
-  [/\.sdf$/i, "sdf"],
 ];
 
 /** The type `cad <type> snapshot` draws a document of: a model by its id, a file by its ending. */

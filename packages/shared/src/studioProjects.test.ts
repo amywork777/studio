@@ -41,7 +41,7 @@ describe("studio projects", () => {
     expect(context).toContain("- Material: 6061-T6 aluminum");
     expect(context).toContain("- Quantity: Not decided");
     expect(context).toContain("In `/work/rover-cad`, keep the project's work");
-    expect(context).toContain("- `robots/`: robot descriptions (URDF, SRDF, SDF)");
+    expect(context).toContain("- `robots/`: robot descriptions (URDF, SRDF)");
     expect(context).not.toContain("## Requirements");
     expect(context).toContain("## Show your work");
     expect(context).toContain("## References");

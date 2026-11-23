@@ -86,7 +86,7 @@ export const STUDIO_PROJECT_KINDS: ReadonlyArray<StudioProjectKind> = [
     description: "Links, joints and actuators, described for simulation.",
     layout: [
       ...MECHANICAL.slice(0, 2),
-      ["robots/", "robot descriptions (URDF, SRDF, SDF)"],
+      ["robots/", "robot descriptions (URDF, SRDF)"],
       ...ELECTRICAL,
       ...MECHANICAL.slice(3),
     ],
