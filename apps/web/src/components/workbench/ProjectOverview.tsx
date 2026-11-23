@@ -152,7 +152,7 @@ function LeadFacts(props: {
   // With every check out of date they stand under the amber line above (`LeadPart`), not here too.
   const checks = part.results.length === 0 ? [] : [...part.results, ...part.outdated];
   return (
-    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-1">
+    <dl className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
       <LeadFact label="Units">{facts?.units ?? props.units}</LeadFact>
       {material === null ? null : (
         <LeadFact label="Material" tone={material.missing ? "faint" : "default"}>
@@ -254,7 +254,7 @@ function LeadPart(props: {
           ) : null}
         </div>
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
         <LeadFacts
           part={part}
           threadRef={props.threadRef}
@@ -262,7 +262,7 @@ function LeadPart(props: {
           onOpenFile={props.onOpenFile}
         />
         {part.drawings.length + part.made.length === 0 ? null : (
-          <div className="flex max-w-full flex-wrap items-center gap-x-5 gap-y-1">
+          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
             <MadeBadges part={part} onOpen={props.onOpenFile} lead />
           </div>
         )}

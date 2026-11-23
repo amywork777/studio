@@ -24,7 +24,7 @@ export const PROJECT_CONTROL_CLASS =
 
 /** A row of the list, or an action under it: the row is the one hover. */
 export const PROJECT_ROW_CLASS =
-  "flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent";
+  "flex min-h-7 min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-foreground outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent";
 /** A project row: the row is the one hover, its star a quiet part of it. */
 const projectRowClass =
   "group/row flex min-w-0 items-center rounded-md pe-1 transition-colors duration-150 hover:bg-accent/50 has-[button:focus-visible]:bg-accent";
@@ -116,7 +116,7 @@ export function ProjectChoices(props: {
       <div key={card.id} className={projectRowClass}>
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left text-sm text-foreground outline-none"
+          className="flex min-h-7 min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left text-sm text-foreground outline-none"
           onClick={() => onChoose(card)}
         >
           <ProjectThumb environmentId={environmentId} project={card.project} />

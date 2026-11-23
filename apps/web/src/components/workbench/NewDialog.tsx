@@ -451,7 +451,7 @@ export function NewDialog(props: {
               ) : null}
             </div>
             {selected === null ? null : (
-              <div className="flex min-w-0 flex-col gap-2.5 border-t border-border pt-3 md:border-s md:border-t-0 md:ps-4 md:pt-0">
+              <div className="flex min-w-0 flex-col gap-2 border-t border-border pt-3 md:border-s md:border-t-0 md:ps-4 md:pt-0">
                 <TemplatePreview
                   key={selected.id}
                   template={selected}

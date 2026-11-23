@@ -191,7 +191,7 @@ export function ProjectSwitcher(props: {
         </Tooltip>
         <PopoverPopup width="md" padding="compact" align="start" initialFocus={input}>
           <section aria-label="This project" className="mb-2 border-b border-border pb-2">
-            <div className="flex min-w-0 items-center gap-2.5 px-1 pb-1.5">
+            <div className="flex min-w-0 items-center gap-2 px-1 pb-1.5">
               <ProjectThumb environmentId={environmentId} project={current?.project ?? null} />
               {renaming === null ? (
                 <>
