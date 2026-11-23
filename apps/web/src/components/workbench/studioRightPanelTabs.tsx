@@ -194,10 +194,17 @@ export function useStudioTabs(props: {
   ) : null;
   // The project's name most of its files' titles start with is said once, by the project.
   const shortened = engineering
-    ? withoutSharedPrefix(tabSurfaces.map((surface) => studioTitle(surface, modelTitles, resolve)))
+    ? withoutSharedPrefix(
+        tabSurfaces.map((surface) => studioTitle(surface, modelTitles, resolve) ?? ""),
+      )
     : null;
   const shortTitles = new Map(
-    shortened === null ? [] : tabSurfaces.map((surface, index) => [surface.id, shortened[index]!]),
+    shortened === null
+      ? []
+      : tabSurfaces.flatMap((surface, index) => {
+          const short = shortened[index];
+          return short === undefined || short === "" ? [] : [[surface.id, short] as const];
+        }),
   );
   return {
     engineering,

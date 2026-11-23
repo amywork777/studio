@@ -617,7 +617,7 @@ function ImportDialog(props: {
                 </section>
               )}
               {lookCount === 0 ? null : (
-                <section aria-label="Needs a look" className="mt-4 flex flex-col">
+                <section aria-label="Needs a look" className="mt-5 flex flex-col">
                   <h3 className={`${MODULE_HEADING} border-b border-border pb-2`}>Needs a look</h3>
                   <ul className="flex flex-col">
                     {[
