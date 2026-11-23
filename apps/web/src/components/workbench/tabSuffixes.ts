@@ -57,3 +57,34 @@ export function tabSuffixes(tabs: ReadonlyArray<TitledTab>): ReadonlyMap<string,
   }
   return suffixes;
 }
+
+/**
+ * Open tabs' titles without the words most of them start with, the project's name as their files
+ * are named: "Desk lamp work instructions" reads "Work instructions" beside "Desk lamp" itself. A
+ * prefix two tabs or more share; a tab of the prefix alone keeps it.
+ */
+export function withoutSharedPrefix(titles: ReadonlyArray<string>): ReadonlyArray<string> {
+  const counts = new Map<string, number>();
+  for (const title of titles) {
+    const words = title.trim().split(/\s+/);
+    for (let length = 1; length < words.length; length += 1) {
+      const prefix = words.slice(0, length).join(" ").toLowerCase();
+      counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
+    }
+  }
+  let shared: string | null = null;
+  for (const [prefix, count] of counts) {
+    if (count >= 2 && (shared === null || prefix.length > shared.length)) shared = prefix;
+  }
+  if (shared === null) return titles;
+  const cut = shared;
+  return titles.map((title) => {
+    const words = title.trim().split(/\s+/);
+    const length = cut.split(" ").length;
+    if (words.slice(0, length).join(" ").toLowerCase() !== cut || words.length <= length) {
+      return title;
+    }
+    const rest = words.slice(length).join(" ");
+    return rest.charAt(0).toUpperCase() + rest.slice(1);
+  });
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { partLabel } from "./partNames";
-import { tabSuffixes } from "./tabSuffixes";
+import { tabSuffixes, withoutSharedPrefix } from "./tabSuffixes";
 
 const MODEL = "11111111-2222-4333-8444-555555555555";
 const OTHER_MODEL = "21111111-2222-4333-8444-555555555555";
@@ -63,5 +63,19 @@ describe("tabSuffixes", () => {
   it("names a drawing's sheet as a drawing, so it never clashes with its part", () => {
     expect(partLabel("motor_mount_drawing.pdf")).toBe("Motor mount drawing");
     expect(partLabel("drawing.pdf")).toBe("Drawing");
+  });
+});
+
+describe("tab titles without the project's name they share", () => {
+  it("drops the words most tabs start with, keeps a tab of those words alone, and leaves the rest", () => {
+    expect(
+      withoutSharedPrefix([
+        "Desk lamp",
+        "Desk lamp work instructions",
+        "Desk lamp drawing",
+        "LED module",
+      ]),
+    ).toEqual(["Desk lamp", "Work instructions", "Drawing", "LED module"]);
+    expect(withoutSharedPrefix(["Bracket", "Plate"])).toEqual(["Bracket", "Plate"]);
   });
 });
