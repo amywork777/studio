@@ -652,21 +652,3 @@ html[data-studio-focus="hardware"] [data-active-tab] > button:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--ring);
 }
-
-/*
- * A panel tab brought back to front (`KeptSurface`, kept mounted behind the others) fades in once:
- * opacity alone, on the compositor, nothing that repaints after it settles.
- */
-@keyframes studio-surface-in {
-  from {
-    opacity: 0;
-  }
-}
-html[data-studio-focus="hardware"] [data-studio-surface]:not([hidden]) {
-  animation: studio-surface-in 140ms ease-out;
-}
-@media (prefers-reduced-motion: reduce) {
-  html[data-studio-focus="hardware"] [data-studio-surface]:not([hidden]) {
-    animation: none;
-  }
-}

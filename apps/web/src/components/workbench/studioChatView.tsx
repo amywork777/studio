@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
+import { cn } from "~/lib/utils";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { useWorkspaceMutationRefresh } from "../../hooks/useWorkspaceMutationRefresh";
 import { useComposerDraftStore } from "../../composerDraftStore";
@@ -516,26 +517,41 @@ export function StudioRightPanelSurfaceContent({
   const ours =
     (surface?.kind === "plugin-app" && thread !== null) ||
     (surface?.kind === "files" && overviewHere);
+  if (overviewPanel === null && (viewPanels === null || viewPanels.length === 0)) {
+    return <RightPanelSurfaceContent {...props} />;
+  }
   return (
-    <>
+    // The kept surfaces stand on one another at the panel's full size, so the one behind keeps its
+    // size and its model's framing: a switch only shows another, with nothing to lay out. Another
+    // kind of tab in front stands over them the same way.
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-studio-kept-surfaces="">
       {overviewPanel}
       {viewPanels}
-      {ours ? null : <RightPanelSurfaceContent {...props} />}
-    </>
+      {ours ? null : (
+        <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col">
+          <RightPanelSurfaceContent {...props} />
+        </div>
+      )}
+    </div>
   );
 }
 
 /**
- * A kept surface: in front it fills the panel and fades in once (`data-studio-surface`, 140ms, none
- * with reduced motion); behind, it is hidden and inert, its frame and model kept.
+ * A kept surface: in front it fills the panel at once; behind, it keeps the panel's full size,
+ * unseen and inert (`visibility: hidden`, never `display: none` or no width), so its frame keeps its
+ * canvas and framing and a switch to it is only a change of which one shows.
  */
 function KeptSurface(props: { readonly shown: boolean; readonly children: ReactNode }) {
   return (
     <div
-      hidden={!props.shown}
       inert={!props.shown}
+      aria-hidden={props.shown ? undefined : true}
       data-studio-surface=""
-      className="flex h-full min-h-0 w-full min-w-0 flex-col"
+      data-shown={props.shown ? "" : undefined}
+      className={cn(
+        "absolute inset-0 flex min-h-0 min-w-0 flex-col",
+        props.shown ? "visible" : "pointer-events-none invisible",
+      )}
     >
       {props.children}
     </div>
