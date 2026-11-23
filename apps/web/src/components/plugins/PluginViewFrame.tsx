@@ -59,6 +59,7 @@ import {
   type ViewerFocusPlace,
 } from "../workbench/references/viewerFocus";
 import { useViewerSelect, useViewerSelectStore } from "../workbench/references/viewerSelect";
+import { useViewerWorking } from "../workbench/references/viewerWorking";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 import { useViewerControls } from "../workbench/viewerControls";
 
@@ -279,6 +280,8 @@ export function PluginViewFrame(props: {
   const focus = useViewerFocus(props.focusPlace);
   // Studio: the picks a chat's message carried, to select again (`workbench/references/viewerSelect.ts`).
   const select = useViewerSelect(props.focusPlace?.threadKey);
+  // Studio: the chat beside it has a turn running, so the view says the part is being changed.
+  const working = useViewerWorking(props.focusPlace?.threadKey);
   const openChatFile = useOpenChatFile(
     props.focusPlace == null || target.threadId === null
       ? null
@@ -294,6 +297,7 @@ export function PluginViewFrame(props: {
     editLayout,
     focus,
     select,
+    working,
     openChatFile,
     viewerControls,
   };
@@ -344,6 +348,7 @@ export function PluginViewFrame(props: {
         "studio/editLayout": current.editLayout,
         "studio/focus": current.focus,
         "studio/select": current.select,
+        "studio/working": current.working,
         "studio/viewerControls": current.viewerControls,
       } as McpAppHostContext;
     };
@@ -554,7 +559,7 @@ export function PluginViewFrame(props: {
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.
-  }, [theme, size, editLayout, focus, select, viewerControls]);
+  }, [theme, size, editLayout, focus, select, working, viewerControls]);
 
   const reload = () => {
     setClosed(false);

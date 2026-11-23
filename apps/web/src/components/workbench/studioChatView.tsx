@@ -30,6 +30,7 @@ import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
 import { handToChat, sendViewMessage } from "./handToChat";
+import { useViewerWorkingStore } from "./references/viewerWorking";
 import { useStudioTabFileMenu } from "./studioRightPanelTabs";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
 import { PartContextStrip } from "./PartContextStrip";
@@ -202,6 +203,12 @@ export function useStudioChatView(input: {
     useToolboxOpen.getState().setOpen(!toolboxOpen);
   });
   const chatBusy = input.isWorking || input.pendingUserInputCount > 0;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- tells the module store the CAD views beside this chat read (`studio/working`) whether its turn is running
+  useEffect(() => {
+    if (embedded || activeThreadKey === null) return;
+    useViewerWorkingStore.getState().set(activeThreadKey, input.isWorking);
+    return () => useViewerWorkingStore.getState().set(activeThreadKey, false);
+  }, [activeThreadKey, embedded, input.isWorking]);
   const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
   // A file tab's menu: what the viewer's own row offered, now that the tab names the file.
   const tabFileMenu = useStudioTabFileMenu(environmentId, activeWorkspaceRoot ?? null);
