@@ -1051,7 +1051,7 @@ function RightPanelTab(
                 onDoubleClick={() => {
                   if (surface.kind === "device" && props.canRename) onStartRename(surface.id);
                 }}
-                className="cursor-pointer flex min-w-0 items-center"
+                className="cursor-pointer flex min-w-0 flex-1 items-center"
                 aria-label={
                   sideChatState === null
                     ? undefined
@@ -1060,7 +1060,6 @@ function RightPanelTab(
                         state: messages(SIDE_CHAT_STATE_LABELS[sideChatState]),
                       })
                 }
-                onClick={() => onActivate(surface)}
               >
                 <span className="truncate">{title}</span>
                 <studioTabs.TabSuffix suffix={props.suffix} />
@@ -1096,6 +1095,8 @@ function RightPanelTab(
       data-tab-surface={surface.id}
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
+      // The whole tab is its press target (icon, title, padding); its title button bubbles here.
+      onClick={() => onActivate(surface)}
       onAuxClick={(event) => onAuxClick(event, surface)}
       onContextMenu={(event) => onContextMenu(event, surface)}
       {...listeners}

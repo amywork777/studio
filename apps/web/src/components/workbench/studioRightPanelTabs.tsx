@@ -258,9 +258,12 @@ export function TabIcon(props: {
       {props.children}
     </span>
   ) : (
-    <PanelTabCloseButton label={props.label} onClick={props.onClick}>
-      {props.children}
-    </PanelTabCloseButton>
+    // T3's icon is the tab's close: its press closes the tab, never also brings it forward.
+    <span className="contents" onClick={(event) => event.stopPropagation()}>
+      <PanelTabCloseButton label={props.label} onClick={props.onClick}>
+        {props.children}
+      </PanelTabCloseButton>
+    </span>
   );
 }
 
@@ -331,7 +334,7 @@ export function TabCloseAtEnd(props: {
 }) {
   if (!WORKBENCH_LAYOUT) return null;
   return (
-    <span className="ms-auto flex shrink-0 items-center gap-0.5">
+    <span className="ms-auto flex shrink-0 items-center gap-0.5" data-tab-end="">
       {props.menu === undefined ? null : (
         <TabMoreAtEnd
           surface={props.menu.surface}
