@@ -350,6 +350,133 @@ ok(
   JSON.stringify(history),
 );
 
+// Reviews: Dana holds Version 2 (checked in with keep) and asks Amy and Vic to review it.
+const ask = (p, version, reviewers) =>
+  rpc(p, "request_review", { p_project: project, p_version: version, p_reviewers: reviewers });
+ok(
+  refusal(await ask(dana, 1, [amy.email])) === "changed-elsewhere",
+  "only the latest Version is reviewed",
+);
+ok(
+  refusal(await ask(dana, 2, [amy.email, olly.email])) === "not-on-team",
+  "reviewers must be on the team",
+);
+ok(
+  refusal(await ask(dana, 2, [dana.email])) === "no-reviewers",
+  "nobody reviews their own Version alone",
+);
+ok(refusal(await ask(vic, 2, [amy.email])) === "not-allowed", "a viewer cannot ask for a review");
+const review = (await ask(dana, 2, [amy.email, vic.email.toUpperCase()])).data;
+ok(typeof review === "string", "admin asks the editor and the viewer to review", review);
+ok(refusal(await ask(dana, 2, [amy.email])) === "already-in-review", "a Version is reviewed once");
+const peek = await call("GET", `/rest/v1/team_reviews?select=id&project_id=eq.${project}`, {
+  token: olly.token,
+});
+ok(Array.isArray(peek.data) && peek.data.length === 0, "outsider sees no reviews");
+ok(
+  refusal(await rpc(olly, "comment_review", { p_review: review, p_body: "hi" })) === "not-allowed",
+  "outsider cannot comment",
+);
+ok(
+  refusal(await rpc(olly, "decide_review", { p_review: review, p_decision: "approved" })) ===
+    "not-allowed",
+  "outsider cannot decide",
+);
+ok(
+  (await rpc(vic, "comment_review", { p_review: review, p_body: "Holes need more clearance" }))
+    .status < 300,
+  "a viewer comments",
+);
+ok(
+  refusal(await rpc(vic, "comment_review", { p_review: review, p_body: "   " })) === "empty",
+  "an empty comment is refused",
+);
+const seen = (
+  await call("GET", `/rest/v1/team_review_comments?select=by_email,body&review_id=eq.${review}`, {
+    token: amy.token,
+  })
+).data;
+ok(
+  seen.length === 1 && seen[0].by_email === vic.email,
+  "teammates read the comment and who wrote it",
+  JSON.stringify(seen),
+);
+ok(
+  refusal(await rpc(dana, "decide_review", { p_review: review, p_decision: "approved" })) ===
+    "not-a-reviewer",
+  "only a named reviewer decides",
+);
+ok(
+  refusal(await rpc(dana, "release_version", { p_project: project, p_version: 2 })) ===
+    "not-approved",
+  "nothing is released before every reviewer approves",
+);
+ok(
+  (await rpc(amy, "decide_review", { p_review: review, p_decision: "approved" })).status < 300,
+  "editor approves",
+);
+ok(
+  (await rpc(vic, "decide_review", { p_review: review, p_decision: "changes" })).status < 300,
+  "viewer requests changes",
+);
+ok(
+  refusal(await rpc(dana, "release_version", { p_project: project, p_version: 2 })) ===
+    "not-approved",
+  "a change request blocks release",
+);
+ok(
+  (await rpc(vic, "decide_review", { p_review: review, p_decision: "approved" })).status < 300,
+  "a reviewer may change their mind",
+);
+ok(
+  refusal(await rpc(amy, "release_version", { p_project: project, p_version: 2 })) ===
+    "not-allowed",
+  "only an admin releases",
+);
+const revA = await rpc(dana, "release_version", { p_project: project, p_version: 2 });
+ok(revA.data === "A", "admin releases Version 2 as Rev A", JSON.stringify(revA.data));
+ok(
+  refusal(await rpc(dana, "release_version", { p_project: project, p_version: 2 })) ===
+    "already-released",
+  "a Version is released once",
+);
+ok(
+  refusal(await rpc(vic, "decide_review", { p_review: review, p_decision: "changes" })) ===
+    "already-released",
+  "decisions close at release",
+);
+const object3 = `${team}/${project}/3-${run}.bundle`;
+made.files.push(object3);
+await call("POST", `/storage/v1/object/projects/${object3}`, {
+  token: dana.token,
+  bytes: new TextEncoder().encode("bundle v3"),
+});
+await rpc(dana, "check_in", {
+  p_project: project,
+  p_base: 2,
+  p_head: "ccc",
+  p_bundle: object3,
+  p_note: "Rev B work",
+  p_keep: true,
+});
+const review3 = (await ask(dana, 3, [amy.email])).data;
+await rpc(amy, "decide_review", { p_review: review3, p_decision: "approved" });
+const revB = await rpc(dana, "release_version", { p_project: project, p_version: 3 });
+ok(revB.data === "B", "the next released Version is Rev B", JSON.stringify(revB.data));
+const revs = (
+  await call(
+    "GET",
+    `/rest/v1/team_project_versions?select=version,released_rev&project_id=eq.${project}&order=version`,
+    { token: vic.token },
+  )
+).data;
+ok(
+  revs.map((v) => v.released_rev).join(",") === ",A,B",
+  "check-ins carry their revision letter",
+  JSON.stringify(revs),
+);
+await rpc(dana, "release_project", { p_project: project });
+
 ok((await rpc(amy, "check_out", { p_project: plate })).status < 300, "editor checks out the plate");
 ok(
   (await rpc(dana, "remove_member", { p_team: team, p_email: amy.email })).status < 300,

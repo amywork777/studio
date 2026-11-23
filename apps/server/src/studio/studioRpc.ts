@@ -73,5 +73,8 @@ export const STUDIO_RPC_AGGREGATES = {
   [WS_METHODS.studioTeamsCheckIn]: "source-control",
   [WS_METHODS.studioTeamsGetLatest]: "source-control",
   [WS_METHODS.studioTeamsRelease]: "source-control",
+  [WS_METHODS.studioTeamsReviewComment]: "source-control",
+  [WS_METHODS.studioTeamsReviewDecide]: "source-control",
+  [WS_METHODS.studioTeamsReleaseVersion]: "source-control",
   [WS_METHODS.projectsStartHistory]: "orchestration",
 } as const;

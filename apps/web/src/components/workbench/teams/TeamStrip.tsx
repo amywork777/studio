@@ -22,6 +22,7 @@ import {
 } from "../../ui/dialog";
 import { Textarea } from "../../ui/textarea";
 import { toastManager } from "../../ui/toast";
+import { ReviewBadge, ReviewPanel } from "./ReviewPanel";
 import { ROLE_LABEL, useTeamAction } from "./teamWords";
 
 type Shared = NonNullable<StudioTeamsFolderStatusResult>;
@@ -33,10 +34,15 @@ function CheckInDialog(props: {
   readonly environmentId: EnvironmentId;
   readonly folder: string;
   readonly shared: Shared;
+  /** Everyone else on the team, who may be asked to review the new Version. */
+  readonly teammates: ReadonlyArray<string>;
 }) {
   const checkIn = useAtomCommand(studioTeamsEnvironment.checkIn, { reportFailure: false });
   const [note, setNote] = useState("");
   const [keep, setKeep] = useState(false);
+  const [askReview, setAskReview] = useState(false);
+  const [reviewers, setReviewers] = useState<ReadonlyArray<string> | null>(null);
+  const chosen = reviewers ?? props.teammates;
   const action = useTeamAction();
   const next = props.shared.project.version + 1;
   const submit = (event: FormEvent) => {
@@ -44,7 +50,12 @@ function CheckInDialog(props: {
     action.run(async () => {
       const result = await checkIn({
         environmentId: props.environmentId,
-        input: { cwd: props.folder, note: note.trim(), keep },
+        input: {
+          cwd: props.folder,
+          note: note.trim(),
+          keep,
+          reviewers: askReview ? [...chosen] : [],
+        },
       });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       props.onOpenChange(false);
@@ -52,7 +63,10 @@ function CheckInDialog(props: {
       toastManager.add({
         type: "success",
         title: `Checked in Version ${next}`,
-        description: `${props.shared.project.teamName} can get it now.`,
+        description:
+          askReview && chosen.length > 0
+            ? `Asked ${chosen.join(", ")} to review it.`
+            : `${props.shared.project.teamName} can get it now.`,
       });
     });
   };
@@ -79,6 +93,36 @@ function CheckInDialog(props: {
                 <Checkbox checked={keep} onCheckedChange={(checked) => setKeep(checked === true)} />
                 Keep it checked out to me
               </label>
+              {props.teammates.length === 0 ? null : (
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <Checkbox
+                    checked={askReview}
+                    onCheckedChange={(checked) => setAskReview(checked === true)}
+                  />
+                  Ask for review
+                </label>
+              )}
+              {askReview ? (
+                <ul className="flex flex-col gap-1.5 ps-6" aria-label="Reviewers">
+                  {props.teammates.map((email) => (
+                    <li key={email}>
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <Checkbox
+                          checked={chosen.includes(email)}
+                          onCheckedChange={(checked) =>
+                            setReviewers(
+                              checked === true
+                                ? [...chosen, email]
+                                : chosen.filter((each) => each !== email),
+                            )
+                          }
+                        />
+                        {email}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {action.error === null ? null : (
                 <p className="text-xs text-destructive">{action.error}</p>
               )}
@@ -86,7 +130,7 @@ function CheckInDialog(props: {
           </DialogPanel>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={action.busy}>
+            <Button type="submit" disabled={action.busy || (askReview && chosen.length === 0)}>
               {action.busy ? "Checking in" : "Check in"}
             </Button>
           </DialogFooter>
@@ -106,6 +150,11 @@ function stateLine(shared: Shared): string {
   }
   if (behind)
     return `Version ${project.version} is newer than this copy (Version ${shared.localVersion}).`;
+  if (shared.review?.status === "changes") {
+    return "Changes were requested. Check it out to make them.";
+  }
+  if (shared.review?.status === "review") return "Out for review. It can still be checked out.";
+  if (shared.review?.status === "approved") return "Approved. An Admin can release it.";
   return shared.changesHere
     ? "This copy has changes that are not checked in. Check it out to keep them."
     : "Up to date. Check it out to change it.";
@@ -123,6 +172,9 @@ export function TeamStrip(props: {
   const query = useEnvironmentQuery(
     studioTeamsEnvironment.folderStatus({ environmentId, input: { cwd: folder } }),
   );
+  const statusQuery = useEnvironmentQuery(
+    studioTeamsEnvironment.status({ environmentId, input: {} }),
+  );
   const checkOut = useAtomCommand(studioTeamsEnvironment.checkOut, { reportFailure: false });
   const getLatest = useAtomCommand(studioTeamsEnvironment.getLatest, { reportFailure: false });
   const release = useAtomCommand(studioTeamsEnvironment.release, { reportFailure: false });
@@ -138,6 +190,13 @@ export function TeamStrip(props: {
     );
   }
   const { project } = shared;
+  const account = statusQuery.data?.account ?? null;
+  const teammates = (
+    statusQuery.data?.teams.find((team) => team.id === project.teamId)?.members ?? []
+  )
+    .map((member) => member.email)
+    .filter((email) => email !== account);
+  const review = shared.review;
   const editor = shared.role !== "viewer";
   const behind = project.version > shared.localVersion;
   const call = (run: typeof checkOut, done: string | null) =>
@@ -167,6 +226,7 @@ export function TeamStrip(props: {
               Version {shared.localVersion}
               {behind ? ` of ${project.version}` : ""}
             </span>
+            {review === null ? null : <ReviewBadge review={review} />}
           </span>
           <span className="text-xs text-muted-foreground">{stateLine(shared)}</span>
         </span>
@@ -240,6 +300,9 @@ export function TeamStrip(props: {
                 Version {each.version}
               </span>
               <span className="min-w-32 flex-1 truncate text-xs text-foreground">
+                {each.releasedRev === null ? null : (
+                  <span className="me-2 font-medium">Rev {each.releasedRev}</span>
+                )}
                 {each.note ?? "No note"}
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">
@@ -249,6 +312,15 @@ export function TeamStrip(props: {
           ))}
         </ol>
       ) : null}
+      {review === null ? null : (
+        <ReviewPanel
+          environmentId={environmentId}
+          folder={folder}
+          shared={shared}
+          review={review}
+          account={account}
+        />
+      )}
       <span className="sr-only">Your role: {ROLE_LABEL[shared.role]}</span>
       <CheckInDialog
         open={checkingIn}
@@ -256,6 +328,7 @@ export function TeamStrip(props: {
         environmentId={environmentId}
         folder={folder}
         shared={shared}
+        teammates={teammates}
       />
     </section>
   );

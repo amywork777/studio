@@ -63,6 +63,8 @@ import {
   StudioTeamsInviteInput,
   StudioTeamsProjectsResult,
   StudioTeamsRemoveInput,
+  StudioTeamsReviewCommentInput,
+  StudioTeamsReviewDecideInput,
   StudioTeamsShareInput,
   StudioTeamsSignInCheckInput,
   StudioTeamsSignInStartInput,
@@ -108,6 +110,9 @@ export const STUDIO_WS_METHODS = {
   studioTeamsCheckIn: "studioTeams.checkIn",
   studioTeamsGetLatest: "studioTeams.getLatest",
   studioTeamsRelease: "studioTeams.release",
+  studioTeamsReviewComment: "studioTeams.reviewComment",
+  studioTeamsReviewDecide: "studioTeams.reviewDecide",
+  studioTeamsReleaseVersion: "studioTeams.releaseVersion",
 } as const;
 
 // Starts a history in a project folder that has none: what is there is its first commit.
@@ -341,6 +346,24 @@ const WsStudioTeamsReleaseRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsRelease, {
   error: StudioTeamsError,
 });
 
+const WsStudioTeamsReviewCommentRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsReviewComment, {
+  payload: StudioTeamsReviewCommentInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsReviewDecideRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsReviewDecide, {
+  payload: StudioTeamsReviewDecideInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsReleaseVersionRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsReleaseVersion, {
+  payload: StudioTeamsFolderInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
 export const STUDIO_RPCS = [
   WsProjectsStartHistoryRpc,
   WsPluginsCatalogRpc,
@@ -380,6 +403,9 @@ export const STUDIO_RPCS = [
   WsStudioTeamsCheckInRpc,
   WsStudioTeamsGetLatestRpc,
   WsStudioTeamsReleaseRpc,
+  WsStudioTeamsReviewCommentRpc,
+  WsStudioTeamsReviewDecideRpc,
+  WsStudioTeamsReleaseVersionRpc,
 ] as const;
 
 /** Studio's calls the client checks before sending; the server requires the same scopes. */
@@ -410,4 +436,7 @@ export const STUDIO_CLIENT_GUARDED_RPC_SCOPES = {
   [STUDIO_WS_METHODS.studioTeamsCheckIn]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsGetLatest]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsRelease]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsReviewComment]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsReviewDecide]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsReleaseVersion]: AuthSourceControlWriteScope,
 } as const;

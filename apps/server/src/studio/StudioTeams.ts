@@ -8,6 +8,7 @@ import {
   StudioProjectBrief,
   type StudioTeam,
   type StudioTeamCheckIn,
+  type StudioTeamReview,
   type StudioTeamProject,
   type StudioTeamsCheckInInput,
   type StudioTeamsCreateInput,
@@ -19,6 +20,8 @@ import {
   type StudioTeamsInviteInput,
   type StudioTeamsProjectsResult,
   type StudioTeamsRemoveInput,
+  type StudioTeamsReviewCommentInput,
+  type StudioTeamsReviewDecideInput,
   type StudioTeamsShareInput,
   type StudioTeamsSignInCheckInput,
   type StudioTeamsSignInStartInput,
@@ -96,7 +99,31 @@ const CheckInRow = Schema.Struct({
   by_email: Schema.String,
   note: Schema.NullOr(Schema.String),
   at: Schema.String,
+  released_rev: Schema.NullOr(Schema.String),
 });
+
+const ReviewRow = Schema.Struct({
+  id: Schema.String,
+  version: Schema.Number,
+  requested_email: Schema.String,
+  team_review_people: Schema.Array(
+    Schema.Struct({
+      email: Schema.String,
+      decision: Schema.NullOr(Schema.Literals(["approved", "changes"])),
+    }),
+  ),
+  team_review_comments: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      by_email: Schema.String,
+      body: Schema.String,
+      at: Schema.String,
+    }),
+  ),
+});
+type ReviewRow = typeof ReviewRow.Type;
+const REVIEW_COLUMNS =
+  "id,version,requested_email,team_review_people(email,decision),team_review_comments(id,by_email,body,at)";
 
 const TeamsBody = Schema.Array(
   Schema.Struct({
@@ -118,7 +145,6 @@ const TeamsBody = Schema.Array(
   }),
 );
 
-/** A refusal from one of the hub's functions: the reason is the exception's message. */
 /** Supabase Auth's answers, given as a 400 rather than a 401, for a sign-in it no longer has. */
 const SIGN_IN_GONE = new Set([
   "refresh_token_not_found",
@@ -129,6 +155,7 @@ const SIGN_IN_GONE = new Set([
   "bad_jwt",
 ]);
 
+/** A refusal from one of the hub's functions: the reason is the exception's message. */
 const HubRefusal = Schema.Struct({
   message: Schema.optional(Schema.String),
   details: Schema.optional(Schema.NullOr(Schema.String)),
@@ -170,6 +197,20 @@ const refusal = (message: string, details: string | null | undefined) => {
       return fail("last-admin", "A team needs at least one Admin.");
     case "not-found":
       return fail("not-found", "This project is no longer on the team.");
+    case "no-reviewers":
+      return fail("not-allowed", "Choose at least one teammate to review it.");
+    case "not-on-team":
+      return fail("not-allowed", "Reviewers have to be on the team. Invite them first.");
+    case "already-in-review":
+      return fail("not-allowed", "This Version is already out for review.");
+    case "not-a-reviewer":
+      return fail("not-allowed", "Only the people asked to review it can approve it.");
+    case "not-approved":
+      return fail("not-allowed", "Every reviewer has to approve it before it is released.");
+    case "already-released":
+      return fail("not-allowed", "This Version is already released.");
+    case "empty":
+      return fail("not-allowed", "Write a comment first.");
     default:
       return fail("hub", "The team hub refused that. Try again.");
   }
@@ -222,6 +263,18 @@ export class StudioTeams extends Context.Service<
     ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
     /** Lets a check-out go without checking in; the work stays in this folder. */
     readonly release: (
+      input: StudioTeamsFolderInput,
+    ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
+    /** Comments on the latest Version's review; anyone on the team may. */
+    readonly reviewComment: (
+      input: StudioTeamsReviewCommentInput,
+    ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
+    /** A reviewer approves the latest Version or asks for changes. */
+    readonly reviewDecide: (
+      input: StudioTeamsReviewDecideInput,
+    ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
+    /** An Admin releases the approved latest Version as the next revision letter. */
+    readonly releaseVersion: (
       input: StudioTeamsFolderInput,
     ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
   }
@@ -499,7 +552,7 @@ const make = Effect.gen(function* () {
 
   const checkInsOf = (id: string) =>
     select(
-      `team_project_versions?select=version,by_email,note,at&project_id=eq.${encodeURIComponent(id)}&order=version.desc&limit=${SHOWN_CHECK_INS}`,
+      `team_project_versions?select=version,by_email,note,at,released_rev&project_id=eq.${encodeURIComponent(id)}&order=version.desc&limit=${SHOWN_CHECK_INS}`,
       Schema.Array(CheckInRow),
     ).pipe(
       Effect.map((rows) =>
@@ -508,9 +561,54 @@ const make = Effect.gen(function* () {
           by: row.by_email,
           note: row.note,
           at: row.at,
+          releasedRev: row.released_rev,
         })),
       ),
     );
+
+  const reviewRow = (projectId: string, version: number) =>
+    select(
+      `team_reviews?select=${REVIEW_COLUMNS}&project_id=eq.${encodeURIComponent(projectId)}&version=eq.${version}&team_review_people.order=email.asc&team_review_comments.order=at.asc`,
+      Schema.Array(ReviewRow),
+    ).pipe(Effect.map((rows) => rows[0] ?? null));
+
+  const reviewOf = (review: ReviewRow, releasedRev: string | null): StudioTeamReview => {
+    const decisions = review.team_review_people.map((person) => person.decision);
+    return {
+      version: review.version,
+      requestedBy: review.requested_email,
+      status:
+        releasedRev !== null
+          ? "released"
+          : decisions.includes("changes")
+            ? "changes"
+            : decisions.every((decision) => decision === "approved")
+              ? "approved"
+              : "review",
+      releasedRev,
+      people: review.team_review_people.map((person) => ({
+        email: person.email,
+        decision: person.decision,
+      })),
+      comments: review.team_review_comments.map((comment) => ({
+        id: comment.id,
+        by: comment.by_email,
+        body: comment.body,
+        at: comment.at,
+      })),
+    };
+  };
+
+  /** The latest Version's review, which the review calls act on. */
+  const latestReview = Effect.fnUntraced(function* (cwd: string) {
+    const place = yield* requirePlace(cwd);
+    const row = yield* projectRow(place.project);
+    const review = yield* reviewRow(row.id, row.version);
+    if (review === null) {
+      return yield* fail("not-found", "Nobody was asked to review this Version.");
+    }
+    return { place, review };
+  });
 
   const roleOn = (teamId: string) =>
     rpc("my_teams", {}, TeamsBody).pipe(
@@ -661,13 +759,17 @@ const make = Effect.gen(function* () {
     const s = yield* session;
     const row = yield* projectRow(place.project);
     const role = yield* roleOn(row.team_id);
+    const checkIns = yield* checkInsOf(row.id);
+    const review = yield* reviewRow(row.id, row.version);
+    const releasedRev = checkIns.find((each) => each.version === row.version)?.releasedRev ?? null;
     return {
       project: projectOf(row),
       role,
       localVersion: place.version,
       mine: row.checked_out_email !== null && row.checked_out_email === s.email,
       changesHere: yield* changesHere(cwd, row, place.version),
-      checkIns: yield* checkInsOf(row.id),
+      checkIns,
+      review: review === null ? null : reviewOf(review, releasedRev),
     };
   });
 
@@ -856,6 +958,14 @@ const make = Effect.gen(function* () {
       if (row.version !== place.version) return yield* refusal("changed-elsewhere", null);
       yield* checkInFolder(cwd, row, place.version, input.note, input.keep);
       const now = yield* placeOf(cwd);
+      const reviewers = input.reviewers ?? [];
+      if (reviewers.length > 0) {
+        yield* rpc(
+          "request_review",
+          { p_project: place.project, p_version: now.version, p_reviewers: reviewers },
+          Schema.String,
+        );
+      }
       return yield* folderStatusOf(cwd, { project: place.project, version: now.version });
     },
   );
@@ -878,6 +988,34 @@ const make = Effect.gen(function* () {
     return yield* folderStatusOf(cwd, place);
   });
 
+  const reviewComment: StudioTeams["Service"]["reviewComment"] = Effect.fn(
+    "StudioTeams.reviewComment",
+  )(function* ({ cwd, body }) {
+    const { place, review } = yield* latestReview(cwd);
+    yield* rpc("comment_review", { p_review: review.id, p_body: body }, Schema.String);
+    return yield* folderStatusOf(cwd, place);
+  });
+
+  const reviewDecide: StudioTeams["Service"]["reviewDecide"] = Effect.fn(
+    "StudioTeams.reviewDecide",
+  )(function* ({ cwd, decision }) {
+    const { place, review } = yield* latestReview(cwd);
+    yield* rpc("decide_review", { p_review: review.id, p_decision: decision }, Schema.Unknown);
+    return yield* folderStatusOf(cwd, place);
+  });
+
+  const releaseVersion: StudioTeams["Service"]["releaseVersion"] = Effect.fn(
+    "StudioTeams.releaseVersion",
+  )(function* ({ cwd }) {
+    const { place, review } = yield* latestReview(cwd);
+    yield* rpc(
+      "release_version",
+      { p_project: place.project, p_version: review.version },
+      Schema.String,
+    );
+    return yield* folderStatusOf(cwd, place);
+  });
+
   return StudioTeams.of({
     status,
     signInStart,
@@ -894,6 +1032,9 @@ const make = Effect.gen(function* () {
     checkIn,
     getLatest,
     release,
+    reviewComment,
+    reviewDecide,
+    releaseVersion,
   });
 });
 

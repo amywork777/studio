@@ -16,6 +16,10 @@ There is no server of Studio's own to run.
   project's history in the private Storage bucket `projects`, at `<team>/<project>/<file>`.
   `check_in` takes it only from the person holding the check-out and only on top of the Version they
   started from, so a check-in never lands over someone else's.
+- **Reviews:** `team_reviews`, `team_review_people`, `team_review_comments`. Whoever checks in a
+  Version may ask teammates (Viewers too) to review it; each reviewer approves or requests changes,
+  anyone on the team may comment, and an Admin releases a Version every reviewer approved as the
+  project's next revision letter (`team_project_versions.released_rev`: A, B, …).
 - **Who may do what:** members read their team's rows and files; every change goes through a
   `security definer` function in
   [`supabase/migrations/20261123000000_teams.sql`](supabase/migrations/20261123000000_teams.sql)

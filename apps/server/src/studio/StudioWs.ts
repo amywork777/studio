@@ -224,6 +224,9 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
     [WS_METHODS.studioTeamsGetLatest]: (input) =>
       studioTeams.getLatest(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
     [WS_METHODS.studioTeamsRelease]: (input) => studioTeams.release(input),
+    [WS_METHODS.studioTeamsReviewComment]: (input) => studioTeams.reviewComment(input),
+    [WS_METHODS.studioTeamsReviewDecide]: (input) => studioTeams.reviewDecide(input),
+    [WS_METHODS.studioTeamsReleaseVersion]: (input) => studioTeams.releaseVersion(input),
     [WS_METHODS.projectsStartHistory]: (input) =>
       managedFolders.startHistory(input).pipe(
         Effect.tap(() => refreshGitStatus(input.cwd)),

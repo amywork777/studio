@@ -106,6 +106,8 @@ export const StudioTeamsCheckInInput = Schema.Struct({
   note: Schema.String,
   /** Keep it checked out after this check-in. */
   keep: Schema.Boolean,
+  /** Teammates' emails to ask to review the new Version; none asks for no review. */
+  reviewers: Schema.optional(Schema.Array(Schema.String)),
 });
 export type StudioTeamsCheckInInput = typeof StudioTeamsCheckInInput.Type;
 
@@ -114,8 +116,42 @@ export const StudioTeamCheckIn = Schema.Struct({
   by: Schema.String,
   note: Schema.NullOr(Schema.String),
   at: Schema.String,
+  /** The revision letter this Version was released as, or null. */
+  releasedRev: Schema.NullOr(Schema.String),
 });
 export type StudioTeamCheckIn = typeof StudioTeamCheckIn.Type;
+
+export const StudioTeamReviewDecision = Schema.Literals(["approved", "changes"]);
+export type StudioTeamReviewDecision = typeof StudioTeamReviewDecision.Type;
+
+/** The review of one Version: who was asked, what each decided, and the comments. */
+export const StudioTeamReview = Schema.Struct({
+  version: Schema.Number,
+  requestedBy: Schema.String,
+  /** Released once an Admin releases it; until then it follows the reviewers' decisions. */
+  status: Schema.Literals(["review", "changes", "approved", "released"]),
+  releasedRev: Schema.NullOr(Schema.String),
+  people: Schema.Array(
+    Schema.Struct({ email: Schema.String, decision: Schema.NullOr(StudioTeamReviewDecision) }),
+  ),
+  /** Oldest first. */
+  comments: Schema.Array(
+    Schema.Struct({ id: Schema.String, by: Schema.String, body: Schema.String, at: Schema.String }),
+  ),
+});
+export type StudioTeamReview = typeof StudioTeamReview.Type;
+
+export const StudioTeamsReviewCommentInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  body: TrimmedNonEmptyString,
+});
+export type StudioTeamsReviewCommentInput = typeof StudioTeamsReviewCommentInput.Type;
+
+export const StudioTeamsReviewDecideInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  decision: StudioTeamReviewDecision,
+});
+export type StudioTeamsReviewDecideInput = typeof StudioTeamsReviewDecideInput.Type;
 
 /** A folder's place on its team: null when it is not a team project. */
 export const StudioTeamsFolderStatusResult = Schema.NullOr(
@@ -130,6 +166,8 @@ export const StudioTeamsFolderStatusResult = Schema.NullOr(
     changesHere: Schema.Boolean,
     /** Latest first. */
     checkIns: Schema.Array(StudioTeamCheckIn),
+    /** The latest Version's review, or null when nobody was asked to review it. */
+    review: Schema.NullOr(StudioTeamReview),
   }),
 );
 export type StudioTeamsFolderStatusResult = typeof StudioTeamsFolderStatusResult.Type;

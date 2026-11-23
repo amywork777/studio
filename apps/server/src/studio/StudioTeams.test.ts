@@ -33,7 +33,13 @@ interface HubProject {
   head: string | null;
   bundle: string | null;
   holder: string | null;
-  checkIns: Array<{ version: number; by_email: string; note: string | null; at: string }>;
+  checkIns: Array<{
+    version: number;
+    by_email: string;
+    note: string | null;
+    at: string;
+    released_rev: string | null;
+  }>;
 }
 
 /**
@@ -44,6 +50,14 @@ interface HubProject {
 const makeHub = () => {
   const projects = new Map<string, HubProject>();
   const files = new Map<string, Uint8Array>();
+  const reviews: Array<{
+    id: string;
+    project: string;
+    version: number;
+    requested_email: string;
+    team_review_people: Array<{ email: string; decision: "approved" | "changes" | null }>;
+    team_review_comments: Array<{ id: string; by_email: string; body: string; at: string }>;
+  }> = [];
   let shared = 0;
   const refuse = (message: string, details: string | null = null) => ({
     status: 400,
@@ -89,6 +103,11 @@ const makeHub = () => {
         readonly p_bundle: string;
         readonly p_note: string;
         readonly p_keep: boolean;
+        readonly p_version: number;
+        readonly p_reviewers: ReadonlyArray<string>;
+        readonly p_review: string;
+        readonly p_body: string;
+        readonly p_decision: "approved" | "changes";
       };
     const route = url.pathname;
     if (route.startsWith("/storage/v1/object/authenticated/projects/")) {
@@ -107,6 +126,11 @@ const makeHub = () => {
     if (route === "/rest/v1/team_project_versions") {
       const id = url.searchParams.get("project_id")?.replace(/^eq\./, "");
       return ok((projects.get(id ?? "")?.checkIns ?? []).toReversed());
+    }
+    if (route === "/rest/v1/team_reviews") {
+      const id = url.searchParams.get("project_id")?.replace(/^eq\./, "");
+      const version = Number(url.searchParams.get("version")?.replace(/^eq\./, ""));
+      return ok(reviews.filter((r) => r.project === id && r.version === version));
     }
     const fn = route.replace("/rest/v1/rpc/", "");
     const args = json();
@@ -169,8 +193,67 @@ const makeHub = () => {
           by_email: who,
           note: args.p_note === "" ? null : args.p_note,
           at: "2026-11-23T10:00:00Z",
+          released_rev: null,
         });
         return ok(p.version);
+      }
+      case "request_review": {
+        const p = projects.get(args.p_project);
+        if (p === undefined) return refuse("not-found");
+        if (!editor) return refuse("not-allowed");
+        if (p.version !== args.p_version) return refuse("changed-elsewhere");
+        const wanted = args.p_reviewers.map((e) => e.toLowerCase()).filter((e) => e !== who);
+        if (wanted.length === 0) return refuse("no-reviewers");
+        if (wanted.some((e) => ROLES[e] === undefined)) return refuse("not-on-team");
+        if (reviews.some((r) => r.project === p.id && r.version === p.version)) {
+          return refuse("already-in-review");
+        }
+        const id = `r-${reviews.length + 1}`;
+        reviews.push({
+          id,
+          project: p.id,
+          version: p.version,
+          requested_email: who,
+          team_review_people: wanted.map((email) => ({ email, decision: null })),
+          team_review_comments: [],
+        });
+        return ok(id);
+      }
+      case "comment_review": {
+        const r = reviews.find((each) => each.id === args.p_review);
+        if (r === undefined) return refuse("not-allowed");
+        const id = `c-${r.team_review_comments.length + 1}`;
+        r.team_review_comments.push({
+          id,
+          by_email: who,
+          body: args.p_body,
+          at: "2026-11-23T11:00:00Z",
+        });
+        return ok(id);
+      }
+      case "decide_review": {
+        const r = reviews.find((each) => each.id === args.p_review);
+        const person = r?.team_review_people.find((each) => each.email === who);
+        if (person === undefined) return refuse("not-a-reviewer");
+        person.decision = args.p_decision;
+        return ok(null);
+      }
+      case "release_version": {
+        const p = projects.get(args.p_project);
+        const r = reviews.find(
+          (each) => each.project === args.p_project && each.version === args.p_version,
+        );
+        if (p === undefined) return refuse("not-found");
+        if (role !== "admin") return refuse("not-allowed");
+        if (r === undefined || r.team_review_people.some((each) => each.decision !== "approved")) {
+          return refuse("not-approved");
+        }
+        const rev = String.fromCharCode(
+          65 + p.checkIns.filter((c) => c.released_rev !== null).length,
+        );
+        const entry = p.checkIns.find((c) => c.version === args.p_version);
+        if (entry !== undefined) entry.released_rev = rev;
+        return ok(rev);
       }
       default:
         return { status: 404, body: "{}" };
@@ -398,6 +481,50 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
       const again = yield* stale.status;
       assert.strictEqual(again.account, null);
     }),
+  );
+
+  it.effect("a Version is reviewed, approved by everyone asked, and released as Rev A", () =>
+    withTeam(({ amy, dana, vic, root, work, write }) =>
+      Effect.gen(function* () {
+        const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
+        const got = yield* dana.get({ projectId: shared!.project.id, root: `${root}/dana` });
+        const seen = yield* vic.get({ projectId: shared!.project.id, root: `${root}/vic` });
+        yield* dana.checkOut({ cwd: got.folder });
+        yield* write(got.folder, "part.py", "wall = 5\n");
+        const asked = yield* dana.checkIn({
+          cwd: got.folder,
+          note: "Thicker wall",
+          keep: false,
+          reviewers: [AMY, VIC],
+        });
+        assert.strictEqual(asked?.review?.status, "review");
+        assert.deepStrictEqual(
+          asked?.review?.people.map((p) => p.email),
+          [AMY, VIC],
+        );
+
+        const commented = yield* vic.reviewComment({ cwd: seen.folder, body: "Holes too tight" });
+        assert.strictEqual(commented?.review?.comments[0]?.by, VIC);
+        const early = yield* amy.releaseVersion({ cwd: work }).pipe(Effect.flip);
+        assert.strictEqual(
+          early.message,
+          "Every reviewer has to approve it before it is released.",
+        );
+
+        yield* amy.reviewDecide({ cwd: work, decision: "approved" });
+        const changes = yield* vic.reviewDecide({ cwd: seen.folder, decision: "changes" });
+        assert.strictEqual(changes?.review?.status, "changes");
+        const approved = yield* vic.reviewDecide({ cwd: seen.folder, decision: "approved" });
+        assert.strictEqual(approved?.review?.status, "approved");
+
+        const notAdmin = yield* dana.releaseVersion({ cwd: got.folder }).pipe(Effect.flip);
+        assert.strictEqual(notAdmin.reason, "not-allowed");
+        const released = yield* amy.releaseVersion({ cwd: work });
+        assert.strictEqual(released?.review?.status, "released");
+        assert.strictEqual(released?.review?.releasedRev, "A");
+        assert.strictEqual(released?.checkIns[0]?.releasedRev, "A");
+      }),
+    ),
   );
 
   it.effect("a Viewer gets the project but cannot check it out", () =>

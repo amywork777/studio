@@ -138,5 +138,26 @@ export function createStudioTeamsEnvironmentAtoms<R, E>(
       concurrency: serial,
       onSettled: settled,
     }),
+    reviewComment: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:review-comment",
+      tag: WS_METHODS.studioTeamsReviewComment,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
+    reviewDecide: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:review-decide",
+      tag: WS_METHODS.studioTeamsReviewDecide,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
+    releaseVersion: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:release-version",
+      tag: WS_METHODS.studioTeamsReleaseVersion,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
   };
 }
