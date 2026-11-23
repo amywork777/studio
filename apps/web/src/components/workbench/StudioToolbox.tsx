@@ -112,11 +112,9 @@ export function StudioToolbox(props: {
       {/* Capped by the window, not --available-height: Base UI measures the opening popup with
         that set to max-content, which voids a cap built on it, so it opened at full length. */}
       <div className="flex max-h-[min(40rem,calc(100dvh-var(--workspace-controls-top)-var(--workspace-topbar-height)-0.5rem))] flex-col">
-        {/* The title and the groups' tabs on one tinted strip, as the panel's tabs are
-          (`brand/theme.css`): the group in front a card in the popup's color, joined to its jobs
-          over the strip's bottom edge. The title bar's Toolbox button shuts it, so it has no button
-          of its own. */}
-        <div className="shrink-0" data-studio-tab-strip="">
+        {/* The title, then the groups as the CAD ribbon's tabs: the one in front underlined. The
+          title bar's Toolbox button shuts it, so it has no button of its own. */}
+        <div className="shrink-0 border-b border-border">
           <div className="flex h-11 items-center gap-3 ps-3 pe-2">
             <h2 className="text-sm font-medium text-foreground">Toolbox</h2>
             <InputGroup className="ms-auto max-w-60">
@@ -146,7 +144,7 @@ export function StudioToolbox(props: {
             <ToggleGroup
               aria-label="Toolbox group"
               value={searching ? [] : [tab]}
-              variant="browser-tab"
+              variant="underline"
               size="tab"
               className="w-full"
               onValueChange={(value) => {
