@@ -13,6 +13,8 @@ export interface TourStep {
   readonly target: string;
   readonly title: string;
   readonly body: string;
+  /** What it points at is in the sidebar, which a project opens folded: the step opens it. */
+  readonly sidebar?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export interface TourStep {
 export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
   {
     target: '[data-tour="project"]',
+    sidebar: true,
     title: "This is your project",
     body: `Everything you make lives inside it. Every project is listed here, with its chats under it: click one to fold it, or its … to rename it, back it up or show it in ${getLocalFileManagerName(platform)}.`,
   },
@@ -115,6 +118,26 @@ interface Box {
   readonly left: number;
   readonly width: number;
   readonly height: number;
+}
+
+/**
+ * A target's box as the tour points at it: null for one with no size or wholly outside the window
+ * (a folded sidebar slides its rows off screen), so its card is centered rather than pointing at
+ * nothing.
+ */
+export function shownBox(
+  rect: Box | undefined,
+  window: { readonly width: number; readonly height: number },
+): Box | null {
+  if (rect === undefined || rect.width === 0 || rect.height === 0) return null;
+  const outside =
+    rect.left + rect.width <= 0 ||
+    rect.top + rect.height <= 0 ||
+    rect.left >= window.width ||
+    rect.top >= window.height;
+  return outside
+    ? null
+    : { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
 }
 
 /**
