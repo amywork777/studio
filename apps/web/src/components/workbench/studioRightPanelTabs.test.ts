@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { RightPanelSurface } from "~/rightPanelStore";
-import { tabFilePath, tabOffersCopyPath } from "./studioRightPanelTabs";
+import { tabFilePath, tabOffersCopyPath, titleParts } from "./studioRightPanelTabs";
 
 describe("Copy path on a tab", () => {
   it("is offered on a file tab outside the engineering interface only", () => {
@@ -42,5 +42,15 @@ describe("a file tab's file on disk, for Show in Finder", () => {
         "/p",
       ),
     ).toBeNull();
+  });
+});
+
+describe("a tab's title cut in the middle", () => {
+  it("keeps a short title whole and a long one's last characters", () => {
+    expect(titleParts("Base")).toEqual({ head: "Base", tail: "" });
+    expect(titleParts("M3x8 socket head screw")).toEqual({
+      head: "M3x8 socket head s",
+      tail: "crew",
+    });
   });
 });

@@ -12,11 +12,16 @@ import type {
 } from "@t3tools/contracts";
 import { useEffect } from "react";
 
-import { type RightPanelSurface, useRightPanelStore } from "~/rightPanelStore";
+import {
+  type RightPanelSurface,
+  selectThreadRightPanelState,
+  useRightPanelStore,
+} from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
 import type { TurnDiffSummary } from "~/types";
 import { pluginAppSurface } from "../plugins/pluginSurfaces";
+import { openPartTab } from "./partTabs";
 import { shownView } from "./shownModels";
 import { useEngineeringSurfaces } from "./studioInterface";
 
@@ -183,6 +188,15 @@ export function useDocumentFollow(input: {
       if (pick === null) return;
       run.done = true;
       const panels = useRightPanelStore.getState();
+      // A part already open (its file, or its STEP's built document) comes to the front in its tab.
+      const part = openPartTab(
+        selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces,
+        pick.path,
+      );
+      if (part !== null) {
+        panels.openProactive(threadRef, part, run.revision);
+        return;
+      }
       if (pick.kind === "file") {
         const surface: Extract<RightPanelSurface, { kind: "file" }> = {
           id: `file:${pick.path}`,

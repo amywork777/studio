@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { CHAT_PILL, CHAT_PILL_BUTTON } from "./chatPill";
-import { useViewerSelectStore } from "./references/viewerSelect";
+import { frontSelectView, useViewerSelectStore } from "./references/viewerSelect";
 import { pickWords, viewContextOf } from "./viewMessage";
 
 /**
@@ -53,11 +53,12 @@ export function ViewContextChip(props: {
                 data-view-context=""
                 aria-label={`${names === "" ? "" : `${names}, `}${context.count}: select them in the model`}
                 className={CHAT_PILL_BUTTON}
-                onClick={() =>
+                onClick={() => {
+                  frontSelectView(threadKey, context.file);
                   setNonce(
                     useViewerSelectStore.getState().select(threadKey, context.picks, context.file),
-                  )
-                }
+                  );
+                }}
               />
             ) : (
               <span data-view-context="" className={CHAT_PILL} />

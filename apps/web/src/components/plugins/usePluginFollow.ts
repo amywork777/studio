@@ -14,6 +14,7 @@ import {
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
 import { sameFile, surfaceFile } from "../workbench/sameFile";
+import { partnerTab } from "../workbench/partTabs";
 import { agentViewSurface, pluginAppSurface } from "./pluginSurfaces";
 
 interface ThreadFollowState {
@@ -112,8 +113,22 @@ export function usePluginFollow(input: {
           panels.closeSurface(threadRef, surface.id);
         }
       }
+      // A part the agent opens by its STEP while its built document's tab is open (or the other way)
+      // brings that tab to the front: one part, one tab (`workbench/partTabs.ts`).
+      const partner =
+        shown === null
+          ? null
+          : partnerTab(
+              selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces,
+              shown,
+              agentSurface.id,
+            );
       // The agent asked for this view, so it opens over any panel choice.
-      panels.openProactive(threadRef, agentSurface, panels.getUserActionRevision(threadRef));
+      panels.openProactive(
+        threadRef,
+        partner ?? agentSurface,
+        panels.getUserActionRevision(threadRef),
+      );
       return;
     }
     if (fileFollow === null) return;
