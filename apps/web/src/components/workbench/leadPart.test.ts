@@ -58,6 +58,31 @@ describe("leadPartOf", () => {
     ).toBe("/b");
   });
 
+  it("counts a board's fabrication set once, not a file per layer, and a part's derived parts", () => {
+    // The servo example: a bracket with its drawing, study and flat pattern, and a small board
+    // whose Gerbers are a file per copper, mask, paste and silkscreen layer.
+    const layers = ["F_Cu", "B_Cu", "F_Mask", "B_Mask", "F_Paste", "B_Paste", "Edge_Cuts"];
+    const lead = leadPartOf([
+      {
+        root: "/work/servo",
+        paths: [
+          "electronics/servo_power.kicad_pcb",
+          ...layers.map((layer) => `electronics/fab/servo_power-${layer}.gbr`),
+          "electronics/fab/servo_power.drl",
+          "electronics/fab/servo_power-pos.csv",
+          "parts/servo_bracket.step",
+          "parts/servo_bracket_flat.step",
+          "drawings/servo_bracket_drawing.pdf",
+          "studies/servo_bracket.study.json",
+          "studies/servo_bracket/result.json",
+          "studies/servo_bracket/result.glb",
+          "cut/servo_bracket_cut.dxf",
+        ],
+      },
+    ]);
+    expect(lead?.file.path).toBe("parts/servo_bracket.step");
+  });
+
   it("leads with an assembly ahead of a newer part when neither has more made from it", () => {
     const part = { id: "plate", name: "plate", script: "parts/plate.py", updated: "300" };
     const whole = { id: "mount", name: "mount", script: "mount.py", updated: "100" };
