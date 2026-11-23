@@ -119,6 +119,10 @@ export function ProjectSwitcher(props: {
       void save(current.id, { ...current.project, name });
     }
   };
+  const showProjectOverview = () => {
+    const workspace = useOpenWorkspaceStore.getState().workspace;
+    if (workspace !== null) showOverview(workspace.threadRef);
+  };
   const showVersions = () => {
     const workspace = useOpenWorkspaceStore.getState().workspace;
     if (workspace === null) return;
@@ -140,17 +144,15 @@ export function ProjectSwitcher(props: {
           else close();
         }}
       >
+        {/* The breadcrumb's project: its name opens its Overview, its chevron switches project. */}
         <Tooltip>
           <TooltipTrigger
             render={
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={`Project ${props.title}: switch project`}
-                    className={cn(PROJECT_CONTROL_CLASS, "h-7 max-w-full ps-1.5")}
-                  />
-                }
+              <button
+                type="button"
+                aria-label={`${props.title}: open the Overview`}
+                className={cn(PROJECT_CONTROL_CLASS, "h-7 max-w-full ps-1.5")}
+                onClick={showProjectOverview}
               />
             }
           >
@@ -162,8 +164,25 @@ export function ProjectSwitcher(props: {
             <span className="min-w-0 truncate text-sm font-medium text-foreground">
               {props.title}
             </span>
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">Overview, everything in the project</TooltipPopup>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Project ${props.title}: switch project`}
+                    className={cn(PROJECT_CONTROL_CLASS, "h-7 shrink-0 px-1")}
+                  />
+                }
+              />
+            }
+          >
             <ChevronsUpDownIcon
-              className={cn("size-3.5 shrink-0 text-muted-foreground", "ms-0.5")}
+              className="size-3.5 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
           </TooltipTrigger>
