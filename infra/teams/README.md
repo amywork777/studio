@@ -18,12 +18,33 @@ There is no server of Studio's own to run.
   started from, so a check-in never lands over someone else's.
 - **Reviews:** `team_reviews`, `team_review_people`, `team_review_comments`. Whoever checks in a
   Version may ask teammates (Viewers too) to review it; each reviewer approves or requests changes,
-  anyone on the team may comment, and an Admin releases a Version every reviewer approved as the
-  project's next revision letter (`team_project_versions.released_rev`: A, B, …).
+  anyone on the team may comment or reply, and an Admin releases a Version every reviewer approved
+  as the project's next revision letter (`team_project_versions.released_rev`: A, B, …). A comment
+  may pin a spot on a model (`anchor`: `{"file", "point"}`), and a later Version may resolve it
+  (`resolved_in`).
+- **Files for browser review:** when a check-in asks for review, Studio uploads the Version's models
+  and drawings (`.stl`, `.glb`, `.pdf`, `.png`) to `<team>/<project>/v<n>/<path>` and records them in
+  `team_version_files`, so the review page can show them without the project's git bundle.
 - **Who may do what:** members read their team's rows and files; every change goes through a
   `security definer` function in
   [`supabase/migrations/20261123000000_teams.sql`](supabase/migrations/20261123000000_teams.sql)
   that checks the caller's role first. No table has an insert, update or delete policy.
+
+## The review page
+
+[`review/`](review) is a static page (no build step) for reviewers without Studio: sign in with the
+emailed code, see a Version's models in 3D and its drawings, pin comments on the model, reply, and
+approve or request changes. It is the Vercel project `studio-review`
+(<https://studio-review-delta.vercel.app>), deployed with `vercel deploy --prod` from `review/`.
+Studio's Copy review link points at it (`STUDIO_REVIEW_URL`). For a local hub, open it as
+`?hub=http://127.0.0.1:54321&key=<anon key>`; it accepts only a localhost hub that way.
+
+## The agent's tools
+
+`studio_team_review` and `studio_team_check_in` (`apps/server/src/studio/StudioTeamsTools.ts`) let a
+chat's agent read the latest review and check the project in once it has addressed it, answering
+each comment and asking the same reviewers again. Ask the agent to address comments, on a project's
+review, hands the chat the open comments and these steps.
 
 Studio finds the hub from two variables on its server: `STUDIO_TEAMS_URL` (the project's API URL)
 and `STUDIO_TEAMS_KEY` (its public anon or publishable key, which is safe to ship). Without them

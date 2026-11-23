@@ -108,6 +108,10 @@ export const StudioTeamsCheckInInput = Schema.Struct({
   keep: Schema.Boolean,
   /** Teammates' emails to ask to review the new Version; none asks for no review. */
   reviewers: Schema.optional(Schema.Array(Schema.String)),
+  /** Replies to the last review's comments, each marked resolved by this new Version. */
+  answers: Schema.optional(
+    Schema.Array(Schema.Struct({ comment: Schema.String, reply: TrimmedNonEmptyString })),
+  ),
 });
 export type StudioTeamsCheckInInput = typeof StudioTeamsCheckInInput.Type;
 
@@ -124,8 +128,16 @@ export type StudioTeamCheckIn = typeof StudioTeamCheckIn.Type;
 export const StudioTeamReviewDecision = Schema.Literals(["approved", "changes"]);
 export type StudioTeamReviewDecision = typeof StudioTeamReviewDecision.Type;
 
+/** Where a comment points: a file of the Version and, on a model, a spot on it. */
+export const StudioTeamPin = Schema.Struct({
+  file: Schema.String,
+  point: Schema.optional(Schema.Array(Schema.Number)),
+});
+export type StudioTeamPin = typeof StudioTeamPin.Type;
+
 /** The review of one Version: who was asked, what each decided, and the comments. */
 export const StudioTeamReview = Schema.Struct({
+  id: Schema.String,
   version: Schema.Number,
   requestedBy: Schema.String,
   /** Released once an Admin releases it; until then it follows the reviewers' decisions. */
@@ -136,14 +148,27 @@ export const StudioTeamReview = Schema.Struct({
   ),
   /** Oldest first. */
   comments: Schema.Array(
-    Schema.Struct({ id: Schema.String, by: Schema.String, body: Schema.String, at: Schema.String }),
+    Schema.Struct({
+      id: Schema.String,
+      by: Schema.String,
+      body: Schema.String,
+      at: Schema.String,
+      pin: Schema.NullOr(StudioTeamPin),
+      /** The comment this one answers. */
+      replyTo: Schema.NullOr(Schema.String),
+      /** The later Version that resolved it. */
+      resolvedIn: Schema.NullOr(Schema.Number),
+    }),
   ),
+  /** The browser page where reviewers without Studio review it, or null when this build has none. */
+  link: Schema.NullOr(Schema.String),
 });
 export type StudioTeamReview = typeof StudioTeamReview.Type;
 
 export const StudioTeamsReviewCommentInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   body: TrimmedNonEmptyString,
+  replyTo: Schema.optional(Schema.String),
 });
 export type StudioTeamsReviewCommentInput = typeof StudioTeamsReviewCommentInput.Type;
 
@@ -152,6 +177,17 @@ export const StudioTeamsReviewDecideInput = Schema.Struct({
   decision: StudioTeamReviewDecision,
 });
 export type StudioTeamsReviewDecideInput = typeof StudioTeamsReviewDecideInput.Type;
+
+/** One thing that happened to a team project, for its activity list. */
+export const StudioTeamActivity = Schema.Struct({
+  kind: Schema.Literals(["check-in", "review-asked", "approved", "changes", "comment", "released"]),
+  by: Schema.String,
+  at: Schema.String,
+  version: Schema.Number,
+  /** The check-in note, the comment, or the revision letter. */
+  text: Schema.NullOr(Schema.String),
+});
+export type StudioTeamActivity = typeof StudioTeamActivity.Type;
 
 /** A folder's place on its team: null when it is not a team project. */
 export const StudioTeamsFolderStatusResult = Schema.NullOr(
@@ -168,6 +204,10 @@ export const StudioTeamsFolderStatusResult = Schema.NullOr(
     checkIns: Schema.Array(StudioTeamCheckIn),
     /** The latest Version's review, or null when nobody was asked to review it. */
     review: Schema.NullOr(StudioTeamReview),
+    /** The latest review before the current Version's, which a new Version may answer. */
+    previousReview: Schema.NullOr(StudioTeamReview),
+    /** Newest first. */
+    activity: Schema.Array(StudioTeamActivity),
   }),
 );
 export type StudioTeamsFolderStatusResult = typeof StudioTeamsFolderStatusResult.Type;

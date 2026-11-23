@@ -93,6 +93,7 @@ import { MessageToolkit } from "./toolkits/message/tools.ts";
 import * as MessageHandlers from "./toolkits/message/handlers.ts";
 import { HtmlPreviewTool, HtmlPreviewToolkit, HtmlRenderToolkit } from "./toolkits/html/tools.ts";
 import * as PluginTools from "./toolkits/plugins/tools.ts";
+import * as StudioTeamsTools from "../studio/StudioTeamsTools.ts";
 import { MCP_HTTP_PATH } from "../httpCors.ts";
 import { requestUrl } from "../requestUrl.ts";
 
@@ -1394,6 +1395,10 @@ export const layerTools = Layer.mergeAll(
   // Plugin tools follow installs, so they register through addTool for as long as the server runs.
   Layer.effectDiscard(
     Effect.flatMap(McpServer.McpServer, (server) => PluginTools.register(server.addTool)),
+  ).pipe(Layer.provide(McpServer.McpServer.layer)),
+  // Studio Teams' review tools, on servers that run Studio Teams.
+  Layer.effectDiscard(
+    Effect.flatMap(McpServer.McpServer, (server) => StudioTeamsTools.register(server.addTool)),
   ).pipe(Layer.provide(McpServer.McpServer.layer)),
   layerMessageToolkit,
 );

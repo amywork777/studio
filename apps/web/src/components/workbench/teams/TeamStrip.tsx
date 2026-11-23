@@ -1,7 +1,11 @@
 import { useAtomValue } from "@effect/atom-react";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId, StudioTeamsFolderStatusResult } from "@t3tools/contracts";
-import { LockIcon, LockOpenIcon, UsersIcon } from "lucide-react";
+import type {
+  EnvironmentId,
+  StudioTeamActivity,
+  StudioTeamsFolderStatusResult,
+} from "@t3tools/contracts";
+import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
 import { formatRelativeTimeLabel } from "~/timestampFormat";
@@ -22,7 +26,10 @@ import {
 } from "../../ui/dialog";
 import { Textarea } from "../../ui/textarea";
 import { toastManager } from "../../ui/toast";
-import { ReviewBadge, ReviewPanel } from "./ReviewPanel";
+import type { ComposerHandleRef } from "~/composerHandleContext";
+import { handToChat } from "../handToChat";
+import { ReviewBadge, ReviewPanel, reviewPrompt } from "./ReviewPanel";
+import { TeamAvatar, TeamAvatarStack } from "./TeamAvatar";
 import { ROLE_LABEL, useTeamAction } from "./teamWords";
 
 type Shared = NonNullable<StudioTeamsFolderStatusResult>;
@@ -160,6 +167,54 @@ function stateLine(shared: Shared): string {
     : "Up to date. Check it out to change it.";
 }
 
+function activityWords(event: StudioTeamActivity): string {
+  switch (event.kind) {
+    case "check-in":
+      return `checked in Version ${event.version}`;
+    case "review-asked":
+      return `asked ${event.text ?? "teammates"} to review Version ${event.version}`;
+    case "approved":
+      return `approved Version ${event.version}`;
+    case "changes":
+      return `requested changes on Version ${event.version}`;
+    case "comment":
+      return `commented on Version ${event.version}`;
+    case "released":
+      return `Version ${event.version} was released as Rev ${event.text ?? ""}`;
+  }
+}
+
+/** What happened on the project, newest first, as a shared document's activity reads. */
+function ActivityList(props: { readonly activity: ReadonlyArray<StudioTeamActivity> }) {
+  return (
+    <ol className="flex flex-col border-t border-border">
+      {props.activity.map((event, index) => (
+        <li
+          // oxlint-disable-next-line react/no-array-index-key -- Events have no id; the list is rebuilt whole.
+          key={`${event.kind}-${event.at}-${index}`}
+          className="flex min-w-0 gap-2.5 border-b border-border py-2 last:border-b-0"
+        >
+          {event.by === "" ? (
+            <span className="size-5 shrink-0" aria-hidden="true" />
+          ) : (
+            <TeamAvatar email={event.by} />
+          )}
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-xs text-foreground">
+              {event.by === "" ? null : <span className="font-medium">{event.by} </span>}
+              {activityWords(event)}
+              <span className="text-muted-foreground"> · {formatRelativeTimeLabel(event.at)}</span>
+            </span>
+            {(event.kind === "check-in" || event.kind === "comment") && event.text !== null ? (
+              <span className="truncate text-xs text-muted-foreground">{event.text}</span>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /**
  * A team project's place on its team, at the top of its Overview: its Version, who has it checked
  * out, and the one or two things this copy can do next. Nothing for a project that is not shared.
@@ -167,6 +222,8 @@ function stateLine(shared: Shared): string {
 export function TeamStrip(props: {
   readonly environmentId: EnvironmentId;
   readonly folder: string;
+  /** The project's chat, which "Ask the agent to address comments" hands the review to. */
+  readonly composerRef: ComposerHandleRef | null;
 }) {
   const { environmentId, folder } = props;
   const query = useEnvironmentQuery(
@@ -191,11 +248,10 @@ export function TeamStrip(props: {
   }
   const { project } = shared;
   const account = statusQuery.data?.account ?? null;
-  const teammates = (
+  const members = (
     statusQuery.data?.teams.find((team) => team.id === project.teamId)?.members ?? []
-  )
-    .map((member) => member.email)
-    .filter((email) => email !== account);
+  ).map((member) => member.email);
+  const teammates = members.filter((email) => email !== account);
   const review = shared.review;
   const editor = shared.role !== "viewer";
   const behind = project.version > shared.localVersion;
@@ -205,6 +261,21 @@ export function TeamStrip(props: {
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       if (done !== null) toastManager.add({ type: "success", title: done });
     });
+  const composerRef = props.composerRef;
+  const askAgent =
+    composerRef === null || review === null || !editor
+      ? null
+      : () =>
+          action.run(async () => {
+            if (!shared.mine) {
+              if (project.checkedOutBy !== null) {
+                throw new Error(`${project.checkedOutBy} has it checked out.`);
+              }
+              const result = await checkOut({ environmentId, input: { cwd: folder } });
+              if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+            }
+            handToChat(composerRef, reviewPrompt(review, project.teamName, folder));
+          });
 
   return (
     <section
@@ -212,16 +283,17 @@ export function TeamStrip(props: {
       className="flex min-w-0 flex-col gap-2 rounded-lg border border-border px-3 py-2.5"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-        {shared.mine ? (
-          <LockIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
-        ) : project.checkedOutBy !== null ? (
-          <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {project.checkedOutBy !== null ? (
+          <TeamAvatar email={project.checkedOutBy} size="md" locked />
         ) : (
-          <UsersIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <TeamAvatarStack emails={members.length > 0 ? members : [project.teamName]} max={3} />
         )}
         <span className="flex min-w-48 flex-1 flex-col">
           <span className="flex items-baseline gap-2">
             <span className="text-sm font-medium text-foreground">{project.teamName}</span>
+            {project.checkedOutBy !== null && members.length > 0 ? (
+              <TeamAvatarStack emails={members} max={4} />
+            ) : null}
             <span className="text-xs text-muted-foreground tabular-nums">
               Version {shared.localVersion}
               {behind ? ` of ${project.version}` : ""}
@@ -281,44 +353,24 @@ export function TeamStrip(props: {
               Take back
             </Button>
           ) : null}
-          {shared.checkIns.length === 0 ? null : (
+          {shared.activity.length === 0 ? null : (
             <Button variant="ghost-muted" size="sm" onClick={() => setHistory(!history)}>
-              {history ? "Hide check-ins" : "Check-ins"}
+              {history ? "Hide activity" : "Activity"}
             </Button>
           )}
         </span>
       </div>
       {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
-      {history ? (
-        <ol className="flex flex-col border-t border-border">
-          {shared.checkIns.map((each) => (
-            <li
-              key={each.version}
-              className="flex min-w-0 flex-wrap items-baseline gap-x-3 border-b border-border py-1.5 last:border-b-0"
-            >
-              <span className="w-20 shrink-0 text-xs font-medium text-foreground tabular-nums">
-                Version {each.version}
-              </span>
-              <span className="min-w-32 flex-1 truncate text-xs text-foreground">
-                {each.releasedRev === null ? null : (
-                  <span className="me-2 font-medium">Rev {each.releasedRev}</span>
-                )}
-                {each.note ?? "No note"}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {each.by}, {formatRelativeTimeLabel(each.at)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
+      {history ? <ActivityList activity={shared.activity} /> : null}
       {review === null ? null : (
         <ReviewPanel
           environmentId={environmentId}
           folder={folder}
           shared={shared}
           review={review}
+          previous={shared.previousReview}
           account={account}
+          onAskAgent={askAgent}
         />
       )}
       <span className="sr-only">Your role: {ROLE_LABEL[shared.role]}</span>

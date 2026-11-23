@@ -54,6 +54,9 @@ export function applyStudioAppBundle(input: {
   if (settings.teams !== undefined) {
     setDefault(env, "STUDIO_TEAMS_URL", settings.teams.url);
     setDefault(env, "STUDIO_TEAMS_KEY", settings.teams.key);
+    if (settings.teams.review !== undefined) {
+      setDefault(env, "STUDIO_REVIEW_URL", settings.teams.review);
+    }
   }
   for (const [name, value] of Object.entries(studioEngineEnv(home, { dev: false }))) {
     setDefault(env, name, value);
@@ -92,7 +95,7 @@ interface StudioSettings {
   /** Studio's usage receiver (`infra/usage`), which counts go to; absent in a build made without one. */
   readonly usageUrl?: string;
   /** Studio's team hub (`infra/teams`) and its public key; absent in a build made without one. */
-  readonly teams?: { readonly url: string; readonly key: string };
+  readonly teams?: { readonly url: string; readonly key: string; readonly review?: string };
 }
 
 /**
@@ -142,8 +145,18 @@ function readSettings(file: string): StudioSettings | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const { name, home, profile, plugins, version, textToCad, usageUrl, teamsUrl, teamsKey } =
-    parsed as Record<string, unknown>;
+  const {
+    name,
+    home,
+    profile,
+    plugins,
+    version,
+    textToCad,
+    usageUrl,
+    teamsUrl,
+    teamsKey,
+    reviewUrl,
+  } = parsed as Record<string, unknown>;
   if (typeof name !== "string" || typeof home !== "string" || typeof profile !== "string") {
     return null;
   }
@@ -159,7 +172,13 @@ function readSettings(file: string): StudioSettings | null {
     ...(isVersion(textToCad) ? { textToCad } : {}),
     ...(isHttps(usageUrl) ? { usageUrl } : {}),
     ...(isHttps(teamsUrl) && typeof teamsKey === "string" && /^[\w.-]{20,}$/.test(teamsKey)
-      ? { teams: { url: teamsUrl, key: teamsKey } }
+      ? {
+          teams: {
+            url: teamsUrl,
+            key: teamsKey,
+            ...(isHttps(reviewUrl) ? { review: reviewUrl } : {}),
+          },
+        }
       : {}),
   };
 }

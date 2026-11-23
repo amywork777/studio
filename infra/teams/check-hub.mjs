@@ -475,6 +475,127 @@ ok(
   "check-ins carry their revision letter",
   JSON.stringify(revs),
 );
+// Model files for browser review, pinned comments, replies, and resolving.
+const model3 = `${team}/${project}/v3/parts/arm.stl`;
+made.files.push(model3);
+await call("POST", `/storage/v1/object/projects/${model3}`, {
+  token: dana.token,
+  bytes: new TextEncoder().encode("solid arm"),
+});
+const files = [{ path: "parts/arm.stl", object: model3, size: 9 }];
+ok(
+  refusal(
+    await rpc(amy, "record_version_files", { p_project: project, p_version: 3, p_files: files }),
+  ) === "not-allowed",
+  "only the Version's author records its files",
+);
+ok(
+  refusal(
+    await rpc(dana, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: [{ path: "x.stl", object: "elsewhere/x.stl", size: 1 }],
+    }),
+  ) === "not-allowed",
+  "files must sit in the project's folder",
+);
+ok(
+  (await rpc(dana, "record_version_files", { p_project: project, p_version: 3, p_files: files }))
+    .data === 1,
+  "the author records Version 3's model",
+);
+const listed = (
+  await call(
+    "GET",
+    `/rest/v1/team_version_files?select=path,object&project_id=eq.${project}&version=eq.3`,
+    { token: vic.token },
+  )
+).data;
+ok(
+  listed.length === 1 && listed[0].path === "parts/arm.stl",
+  "a viewer sees the Version's files",
+  JSON.stringify(listed),
+);
+ok(
+  (
+    await call("GET", `/rest/v1/team_version_files?select=path&project_id=eq.${project}`, {
+      token: olly.token,
+    })
+  ).data.length === 0,
+  "outsider sees no files",
+);
+const pinned = await rpc(amy, "comment_review", {
+  p_review: review3,
+  p_body: "Fillet here",
+  p_anchor: { file: "parts/arm.stl", point: [1, 2, 3] },
+});
+ok(typeof pinned.data === "string", "a comment pins a spot on a model");
+ok(
+  refusal(
+    await rpc(amy, "comment_review", { p_review: review3, p_body: "x", p_anchor: { point: [1] } }),
+  ) === "not-allowed",
+  "a pin names its file",
+);
+const firstComment = (
+  await call("GET", `/rest/v1/team_review_comments?select=id&review_id=eq.${review}`, {
+    token: amy.token,
+  })
+).data[0].id;
+ok(
+  refusal(
+    await rpc(amy, "comment_review", { p_review: review3, p_body: "re", p_reply_to: firstComment }),
+  ) === "not-found",
+  "a reply stays in its own review",
+);
+ok(
+  typeof (
+    await rpc(dana, "comment_review", {
+      p_review: review3,
+      p_body: "Done",
+      p_reply_to: pinned.data,
+    })
+  ).data === "string",
+  "a reply answers a comment",
+);
+ok(
+  refusal(await rpc(vic, "resolve_comment", { p_comment: pinned.data, p_version: 3 })) ===
+    "not-allowed",
+  "a viewer cannot resolve",
+);
+ok(
+  refusal(await rpc(dana, "resolve_comment", { p_comment: pinned.data, p_version: 3 })) ===
+    "not-allowed",
+  "resolving needs a later Version",
+);
+ok(
+  refusal(await rpc(dana, "resolve_comment", { p_comment: firstComment, p_version: 2 })) ===
+    "not-allowed",
+  "resolving cannot point back in time",
+);
+ok(
+  (await rpc(dana, "resolve_comment", { p_comment: firstComment, p_version: 3 })).status < 300,
+  "an admin resolves a comment by a later Version",
+);
+const back = (
+  await call(
+    "GET",
+    `/rest/v1/team_review_comments?select=resolved_in,anchor,reply_to&review_id=eq.${review3}&order=at`,
+    { token: vic.token },
+  )
+).data;
+ok(
+  back[0].anchor.file === "parts/arm.stl" && back[1].reply_to === pinned.data,
+  "pins and replies read back",
+  JSON.stringify(back),
+);
+const when = (
+  await call(
+    "GET",
+    `/rest/v1/team_project_versions?select=released_at&project_id=eq.${project}&version=eq.3`,
+    { token: vic.token },
+  )
+).data[0];
+ok(when.released_at !== null, "a release records when");
 await rpc(dana, "release_project", { p_project: project });
 
 ok((await rpc(amy, "check_out", { p_project: plate })).status < 300, "editor checks out the plate");

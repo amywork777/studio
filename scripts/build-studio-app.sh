@@ -222,10 +222,16 @@ fi
 # publishable one, which is safe to ship: the hub's row-level security decides what a person may do.
 STUDIO_TEAMS_URL="${STUDIO_TEAMS_URL-https://bkzigrvifxdsahgiaijx.supabase.co}"
 STUDIO_TEAMS_KEY="${STUDIO_TEAMS_KEY-sb_publishable_ytw47YKEsyyn-h261DOE5g_4XXmiXM5}"
+# Where reviewers without Studio review a Version (infra/teams/review), for Copy review link.
+STUDIO_REVIEW_URL="${STUDIO_REVIEW_URL-https://studio-review-delta.vercel.app}"
 if [ -n "$STUDIO_TEAMS_URL" ] && [ -n "$STUDIO_TEAMS_KEY" ]; then
   hosted="$hosted,
   \"teamsUrl\": \"$STUDIO_TEAMS_URL\",
   \"teamsKey\": \"$STUDIO_TEAMS_KEY\""
+  if [ -n "$STUDIO_REVIEW_URL" ]; then
+    hosted="$hosted,
+  \"reviewUrl\": \"$STUDIO_REVIEW_URL\""
+  fi
 fi
 # Its version, for the server to say to clients and in usage counts (studioAppBundle.ts), as the
 # web client's build is told below; and the text-to-cad it includes, which projects are stamped with.

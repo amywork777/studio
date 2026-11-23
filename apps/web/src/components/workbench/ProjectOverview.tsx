@@ -651,7 +651,11 @@ export function ProjectOverview(props: {
       )}
       {/* A team project's check-out, under its name, as a vault shows who has a file. */}
       {props.folders.length === 1 ? (
-        <TeamStrip environmentId={props.environmentId} folder={props.folders[0]!} />
+        <TeamStrip
+          environmentId={props.environmentId}
+          folder={props.folders[0]!}
+          composerRef={props.composerRef}
+        />
       ) : null}
       {lead === null ? (
         <>

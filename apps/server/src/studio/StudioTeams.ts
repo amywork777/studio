@@ -8,6 +8,7 @@ import {
   StudioProjectBrief,
   type StudioTeam,
   type StudioTeamCheckIn,
+  type StudioTeamActivity,
   type StudioTeamReview,
   type StudioTeamProject,
   type StudioTeamsCheckInInput,
@@ -100,16 +101,19 @@ const CheckInRow = Schema.Struct({
   note: Schema.NullOr(Schema.String),
   at: Schema.String,
   released_rev: Schema.NullOr(Schema.String),
+  released_at: Schema.NullOr(Schema.String),
 });
 
 const ReviewRow = Schema.Struct({
   id: Schema.String,
   version: Schema.Number,
   requested_email: Schema.String,
+  created_at: Schema.String,
   team_review_people: Schema.Array(
     Schema.Struct({
       email: Schema.String,
       decision: Schema.NullOr(Schema.Literals(["approved", "changes"])),
+      decided_at: Schema.NullOr(Schema.String),
     }),
   ),
   team_review_comments: Schema.Array(
@@ -118,12 +122,34 @@ const ReviewRow = Schema.Struct({
       by_email: Schema.String,
       body: Schema.String,
       at: Schema.String,
+      anchor: Schema.NullOr(
+        Schema.Struct({
+          file: Schema.String,
+          point: Schema.optional(Schema.Array(Schema.Number)),
+        }),
+      ),
+      reply_to: Schema.NullOr(Schema.String),
+      resolved_in: Schema.NullOr(Schema.Number),
     }),
   ),
 });
 type ReviewRow = typeof ReviewRow.Type;
 const REVIEW_COLUMNS =
-  "id,version,requested_email,team_review_people(email,decision),team_review_comments(id,by_email,body,at)";
+  "id,version,requested_email,created_at,team_review_people(email,decision,decided_at),team_review_comments(id,by_email,body,at,anchor,reply_to,resolved_in)";
+/** Reviews read for a project's activity and its last review. */
+const SHOWN_REVIEWS = 8;
+
+/** The files a browser can show for a review, by extension, and what each is. */
+const VIEWABLE_TYPES: Readonly<Record<string, string>> = {
+  stl: "model/stl",
+  glb: "model/gltf-binary",
+  pdf: "application/pdf",
+  png: "image/png",
+};
+const MAX_VIEWABLE_FILES = 40;
+const MAX_VIEWABLE_FILE_BYTES = 30 * 1024 * 1024;
+const MAX_VIEWABLE_TOTAL_BYTES = 120 * 1024 * 1024;
+const ACTIVITY_SHOWN = 20;
 
 const TeamsBody = Schema.Array(
   Schema.Struct({
@@ -284,9 +310,14 @@ export class StudioTeams extends Context.Service<
 const hubConfig = Effect.all({
   url: Config.String("STUDIO_TEAMS_URL").pipe(Config.withDefault("")),
   key: Config.String("STUDIO_TEAMS_KEY").pipe(Config.withDefault("")),
+  review: Config.String("STUDIO_REVIEW_URL").pipe(Config.withDefault("")),
 }).pipe(
-  Effect.map(({ url, key }) => ({ url: url.trim().replace(/\/+$/, ""), key: key.trim() })),
-  Effect.orElseSucceed(() => ({ url: "", key: "" })),
+  Effect.map(({ url, key, review }) => ({
+    url: url.trim().replace(/\/+$/, ""),
+    key: key.trim(),
+    review: review.trim().replace(/\/+$/, ""),
+  })),
+  Effect.orElseSucceed(() => ({ url: "", key: "", review: "" })),
 );
 
 const make = Effect.gen(function* () {
@@ -320,6 +351,7 @@ const make = Effect.gen(function* () {
     readonly token?: string;
     readonly json?: unknown;
     readonly bytes?: Uint8Array;
+    readonly contentType?: string;
     readonly timeout?: Duration.Input;
   };
 
@@ -333,7 +365,11 @@ const make = Effect.gen(function* () {
     }
     if (call.json !== undefined) request = HttpClientRequest.bodyJsonUnsafe(request, call.json);
     if (call.bytes !== undefined) {
-      request = HttpClientRequest.bodyUint8Array(request, call.bytes, "application/octet-stream");
+      request = HttpClientRequest.bodyUint8Array(
+        request,
+        call.bytes,
+        call.contentType ?? "application/octet-stream",
+      );
     }
     const response = yield* httpClient
       .execute(request)
@@ -552,29 +588,36 @@ const make = Effect.gen(function* () {
 
   const checkInsOf = (id: string) =>
     select(
-      `team_project_versions?select=version,by_email,note,at,released_rev&project_id=eq.${encodeURIComponent(id)}&order=version.desc&limit=${SHOWN_CHECK_INS}`,
+      `team_project_versions?select=version,by_email,note,at,released_rev,released_at&project_id=eq.${encodeURIComponent(id)}&order=version.desc&limit=${SHOWN_CHECK_INS}`,
       Schema.Array(CheckInRow),
     ).pipe(
       Effect.map((rows) =>
-        rows.map((row): StudioTeamCheckIn => ({
+        rows.map((row): StudioTeamCheckIn & { readonly releasedAt: string | null } => ({
           version: row.version,
           by: row.by_email,
           note: row.note,
           at: row.at,
           releasedRev: row.released_rev,
+          releasedAt: row.released_at,
         })),
       ),
     );
 
-  const reviewRow = (projectId: string, version: number) =>
+  const reviewRows = (projectId: string) =>
     select(
-      `team_reviews?select=${REVIEW_COLUMNS}&project_id=eq.${encodeURIComponent(projectId)}&version=eq.${version}&team_review_people.order=email.asc&team_review_comments.order=at.asc`,
+      `team_reviews?select=${REVIEW_COLUMNS}&project_id=eq.${encodeURIComponent(projectId)}&order=version.desc&limit=${SHOWN_REVIEWS}&team_review_people.order=email.asc&team_review_comments.order=at.asc`,
       Schema.Array(ReviewRow),
-    ).pipe(Effect.map((rows) => rows[0] ?? null));
+    );
+
+  const reviewRow = (projectId: string, version: number) =>
+    reviewRows(projectId).pipe(
+      Effect.map((rows) => rows.find((each) => each.version === version) ?? null),
+    );
 
   const reviewOf = (review: ReviewRow, releasedRev: string | null): StudioTeamReview => {
     const decisions = review.team_review_people.map((person) => person.decision);
     return {
+      id: review.id,
       version: review.version,
       requestedBy: review.requested_email,
       status:
@@ -595,9 +638,117 @@ const make = Effect.gen(function* () {
         by: comment.by_email,
         body: comment.body,
         at: comment.at,
+        pin: comment.anchor,
+        replyTo: comment.reply_to,
+        resolvedIn: comment.resolved_in,
       })),
+      link: hub.review === "" ? null : `${hub.review}/?review=${encodeURIComponent(review.id)}`,
     };
   };
+
+  /** What happened to the project, newest first: check-ins, reviews, decisions, comments, releases. */
+  const activityOf = (
+    checkIns: ReadonlyArray<StudioTeamCheckIn & { readonly releasedAt: string | null }>,
+    reviews: ReadonlyArray<ReviewRow>,
+  ): ReadonlyArray<StudioTeamActivity> => {
+    const events: StudioTeamActivity[] = [];
+    for (const each of checkIns) {
+      events.push({
+        kind: "check-in",
+        by: each.by,
+        at: each.at,
+        version: each.version,
+        text: each.note,
+      });
+      if (each.releasedRev !== null && each.releasedAt !== null) {
+        events.push({
+          kind: "released",
+          by: "",
+          at: each.releasedAt,
+          version: each.version,
+          text: each.releasedRev,
+        });
+      }
+    }
+    for (const review of reviews) {
+      events.push({
+        kind: "review-asked",
+        by: review.requested_email,
+        at: review.created_at,
+        version: review.version,
+        text: review.team_review_people.map((person) => person.email).join(", "),
+      });
+      for (const person of review.team_review_people) {
+        if (person.decision !== null && person.decided_at !== null) {
+          events.push({
+            kind: person.decision,
+            by: person.email,
+            at: person.decided_at,
+            version: review.version,
+            text: null,
+          });
+        }
+      }
+      for (const comment of review.team_review_comments) {
+        events.push({
+          kind: "comment",
+          by: comment.by_email,
+          at: comment.at,
+          version: review.version,
+          text: comment.body,
+        });
+      }
+    }
+    return events
+      .toSorted((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      .slice(0, ACTIVITY_SHOWN);
+  };
+
+  /** Uploads a Version's models and drawings beside its bundle, so a browser can show them. */
+  const uploadViewable = Effect.fnUntraced(function* (
+    cwd: string,
+    row: ProjectRow,
+    version: number,
+  ) {
+    const s = yield* session;
+    const listed = yield* git(cwd, ["ls-files", "-z"]);
+    const wanted = listed
+      .split("\0")
+      .filter(
+        (file) => (VIEWABLE_TYPES[file.split(".").pop()?.toLowerCase() ?? ""] ?? null) !== null,
+      )
+      .slice(0, MAX_VIEWABLE_FILES);
+    const files: Array<{ path: string; object: string; size: number }> = [];
+    let total = 0;
+    for (const file of wanted) {
+      const bytes = yield* fileSystem
+        .readFile(path.join(cwd, ...file.split("/")))
+        .pipe(Effect.orElseSucceed(() => null));
+      if (bytes === null || bytes.byteLength > MAX_VIEWABLE_FILE_BYTES) continue;
+      if (total + bytes.byteLength > MAX_VIEWABLE_TOTAL_BYTES) break;
+      // Git names files with forward slashes on every system, which is what Storage keys use.
+      const object = `${row.team_id}/${row.id}/v${version}/${file}`;
+      const uploaded = yield* send({
+        method: "POST",
+        path: `/storage/v1/object/${BUCKET}/${object.split("/").map(encodeURIComponent).join("/")}`,
+        token: s.accessToken,
+        bytes,
+        contentType:
+          VIEWABLE_TYPES[file.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        timeout: TRANSFER_TIMEOUT,
+      });
+      if (uploaded.status >= 400) continue;
+      total += bytes.byteLength;
+      files.push({ path: file, object, size: bytes.byteLength });
+    }
+    if (files.length > 0) {
+      yield* rpc(
+        "record_version_files",
+        { p_project: row.id, p_version: version, p_files: files },
+        Schema.Number,
+      );
+    }
+  });
 
   /** The latest Version's review, which the review calls act on. */
   const latestReview = Effect.fnUntraced(function* (cwd: string) {
@@ -760,16 +911,22 @@ const make = Effect.gen(function* () {
     const row = yield* projectRow(place.project);
     const role = yield* roleOn(row.team_id);
     const checkIns = yield* checkInsOf(row.id);
-    const review = yield* reviewRow(row.id, row.version);
-    const releasedRev = checkIns.find((each) => each.version === row.version)?.releasedRev ?? null;
+    const reviews = yield* reviewRows(row.id);
+    const review = reviews.find((each) => each.version === row.version) ?? null;
+    const previous = reviews.find((each) => each.version < row.version) ?? null;
+    const releasedOf = (version: number) =>
+      checkIns.find((each) => each.version === version)?.releasedRev ?? null;
+    const releasedRev = releasedOf(row.version);
     return {
       project: projectOf(row),
       role,
       localVersion: place.version,
       mine: row.checked_out_email !== null && row.checked_out_email === s.email,
       changesHere: yield* changesHere(cwd, row, place.version),
-      checkIns,
+      checkIns: checkIns.map(({ releasedAt: _releasedAt, ...each }) => each),
       review: review === null ? null : reviewOf(review, releasedRev),
+      previousReview: previous === null ? null : reviewOf(previous, releasedOf(previous.version)),
+      activity: activityOf(checkIns, reviews),
     };
   });
 
@@ -956,14 +1113,30 @@ const make = Effect.gen(function* () {
         return yield* refusal("checked-out", row.checked_out_email);
       }
       if (row.version !== place.version) return yield* refusal("changed-elsewhere", null);
+      const answered = yield* reviewRow(row.id, row.version);
       yield* checkInFolder(cwd, row, place.version, input.note, input.keep);
       const now = yield* placeOf(cwd);
       const reviewers = input.reviewers ?? [];
       if (reviewers.length > 0) {
+        yield* uploadViewable(cwd, row, now.version);
         yield* rpc(
           "request_review",
           { p_project: place.project, p_version: now.version, p_reviewers: reviewers },
           Schema.String,
+        );
+      }
+      for (const answer of input.answers ?? []) {
+        if (answered === null) break;
+        if (!answered.team_review_comments.some((each) => each.id === answer.comment)) continue;
+        yield* rpc(
+          "comment_review",
+          { p_review: answered.id, p_body: answer.reply, p_reply_to: answer.comment },
+          Schema.String,
+        );
+        yield* rpc(
+          "resolve_comment",
+          { p_comment: answer.comment, p_version: now.version },
+          Schema.Unknown,
         );
       }
       return yield* folderStatusOf(cwd, { project: place.project, version: now.version });
@@ -990,9 +1163,17 @@ const make = Effect.gen(function* () {
 
   const reviewComment: StudioTeams["Service"]["reviewComment"] = Effect.fn(
     "StudioTeams.reviewComment",
-  )(function* ({ cwd, body }) {
+  )(function* ({ cwd, body, replyTo }) {
     const { place, review } = yield* latestReview(cwd);
-    yield* rpc("comment_review", { p_review: review.id, p_body: body }, Schema.String);
+    yield* rpc(
+      "comment_review",
+      {
+        p_review: review.id,
+        p_body: body,
+        ...(replyTo === undefined ? {} : { p_reply_to: replyTo }),
+      },
+      Schema.String,
+    );
     return yield* folderStatusOf(cwd, place);
   });
 
