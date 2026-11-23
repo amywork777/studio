@@ -13,7 +13,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { FileKindIcon } from "./FileKindIcon";
 import { folderLabel } from "./folderLabel";
 import { KIND_ICONS, KIND_TINT } from "./kinds";
-import { partLabel } from "./partNames";
+import { partLabel, resultTabLabel } from "./partNames";
 import { PinnedProjectTab } from "./PinnedProjectTab";
 import { useProjectViewStore } from "./projectView";
 import { surfaceFile, viewTabTitle } from "./sameFile";
@@ -135,7 +135,7 @@ function studioTitle(
       const name = surface.relativePath.slice(
         Math.max(surface.relativePath.lastIndexOf("/"), surface.relativePath.lastIndexOf("\\")) + 1,
       );
-      return partLabel(name);
+      return resultTabLabel(surface.relativePath) ?? partLabel(name);
     }
     case "plugin-app":
       return isEngineeringInterface() ? viewTabTitle(surface, modelTitles) : surface.title;

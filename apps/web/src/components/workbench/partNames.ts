@@ -230,3 +230,15 @@ export function partName(path: string): PartName | null {
 export function partLabel(path: string): string {
   return partName(path)?.label ?? baseName(path);
 }
+
+/**
+ * A study's or a CAM job's result as a panel tab names it, from its whole path: every one is a
+ * `result.glb`, so its folder names it ("FEA · Motor bracket", "CAM · Base plate"). Null for any
+ * other file.
+ */
+export function resultTabLabel(path: string): string | null {
+  const result = folderResult(path);
+  if (result === null) return null;
+  if (result.name === null) return result.kind;
+  return `${result.kind === "CAM job" ? "CAM" : "FEA"} · ${result.name}`;
+}
