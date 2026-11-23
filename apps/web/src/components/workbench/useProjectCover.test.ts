@@ -59,5 +59,7 @@ describe("a project with nothing to picture", () => {
     expect(projectPage(["README.md", "docs/prd.md", "assets/icon.svg"])).toBe("docs/prd.md");
     expect(projectPage(["README.md", "assets/icon.svg"])).toBe("README.md");
     expect(projectPage(["assets/icon.svg"])).toBeNull();
+    // A project of parts with no picture yet shows its placeholder, not its notes as raw text.
+    expect(projectPage(["README.md", "checks/printing.md", "parts/keychain.step"])).toBeNull();
   });
 });

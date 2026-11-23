@@ -96,9 +96,8 @@ function StudioHomeFor(props: { readonly environmentId: EnvironmentId }) {
         <ImportDropZone>
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-gutter-both">
             <WorkspacePageContainer>
-              <PageTitle
-                title={layout === "start" ? "Where would you like to start?" : "Welcome back"}
-              />
+              {/* With projects, the Start box leads the page: a greeting over it said nothing. */}
+              {layout === "start" ? <PageTitle title="Where would you like to start?" /> : null}
               <NewFilesNotice environmentId={environmentId} />
               {layout === "start" ? (
                 <StartChoices
