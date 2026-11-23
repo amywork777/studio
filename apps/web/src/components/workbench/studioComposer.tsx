@@ -78,6 +78,12 @@ export interface StudioInsertOptions {
 }
 
 /** One model a chat in the engineering interface: no side-by-side runs of several. */
+export { ConnectAgentCard } from "./ConnectAgentCard";
+
+/** Studio: the chat box gives way to a Connect an agent card while no AI agent can take a message. */
+export const connectsAgent = (providerUnavailable: boolean) =>
+  providerUnavailable && isEngineeringInterface();
+
 export const multipleModelsEnabled = (enabled: boolean) => enabled && !isEngineeringInterface();
 
 /** The empty composer's prompt in the engineering interface, in place of T3's coding hints. */

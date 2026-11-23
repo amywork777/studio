@@ -3449,6 +3449,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       sketch={studio.sketch}
     />
   ) : null;
+  if (studioComposer.connectsAgent(showProviderUnavailable)) {
+    return (
+      <studioComposer.ConnectAgentCard
+        environmentId={environmentId}
+        onConnect={
+          providerSetupInstanceId ? () => onOpenProviderSetup(providerSetupInstanceId) : null
+        }
+      />
+    );
+  }
   return (
     <form
       ref={composerFormRef}
