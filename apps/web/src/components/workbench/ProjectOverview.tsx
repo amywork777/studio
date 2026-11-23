@@ -18,6 +18,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { handToChat } from "./handToChat";
 import { HARDWARE_ACTIONS } from "./hardwareActions";
+import { TeamStrip } from "./teams/TeamStrip";
 import { CheckBadge, CHECK_STATUS as STATUS, OutOfDateIcon } from "./CheckBadge";
 import {
   type CheckIssue,
@@ -648,6 +649,10 @@ export function ProjectOverview(props: {
           {checked || issues.length > 0 ? issuesPanel : null}
         </div>
       )}
+      {/* A team project's check-out, under its name, as a vault shows who has a file. */}
+      {props.folders.length === 1 ? (
+        <TeamStrip environmentId={props.environmentId} folder={props.folders[0]!} />
+      ) : null}
       {lead === null ? (
         <>
           {props.readme}

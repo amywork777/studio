@@ -14,6 +14,7 @@ import * as TurnFailure from "../telemetry/TurnFailure.ts";
 import * as StudioGitHubSignIn from "./StudioGitHubSignIn.ts";
 import * as StudioProjects from "./StudioProjects.ts";
 import * as StudioSync from "./StudioSync.ts";
+import * as StudioTeams from "./StudioTeams.ts";
 
 /** Studio's usage counts in place of T3's analytics; reads the usage-data setting on each event. */
 export const layerAnalytics = StudioAnalytics.layer;
@@ -32,7 +33,7 @@ export const layerCoreServices = Layer.mergeAll(
 );
 
 /**
- * Studio projects, Sync and GitHub sign-in, below the orchestration runtime so a turn reads its
+ * Studio projects, Sync, Teams and GitHub sign-in, below the orchestration runtime so a turn reads its
  * thread's Studio project; the WebSocket lists and saves them. The repository service carries the
  * source control host that GitHub's credentials read.
  */
@@ -42,10 +43,16 @@ export const layerProjects = <E, R>(
   StudioProjects.layer.pipe(
     Layer.provide(ProcessRunner.layer),
     Layer.provideMerge(
-      StudioSync.layer.pipe(
+      // Teams checks in through Sync's own checks and commit.
+      StudioTeams.layer.pipe(
         Layer.provide(ProcessRunner.layer),
-        Layer.provide(GitHubCredentials.layer),
-        Layer.provide(repositories),
+        Layer.provideMerge(
+          StudioSync.layer.pipe(
+            Layer.provide(ProcessRunner.layer),
+            Layer.provide(GitHubCredentials.layer),
+            Layer.provide(repositories),
+          ),
+        ),
       ),
     ),
     Layer.provideMerge(StudioGitHubSignIn.layer),

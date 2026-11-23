@@ -1,0 +1,437 @@
+import { useAtomValue } from "@effect/atom-react";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import type {
+  EnvironmentId,
+  StudioTeam,
+  StudioTeamProject,
+  StudioTeamRole,
+} from "@t3tools/contracts";
+import { UsersIcon } from "lucide-react";
+import { type FormEvent, useState } from "react";
+
+import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
+import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { waitForProject } from "~/state/entities";
+import { useEnvironmentQuery } from "~/state/query";
+import { studioTeamsEnvironment } from "~/state/studioTeams";
+import { useAtomCommand } from "~/state/use-atom-command";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../../ui/select";
+import { toastManager } from "../../ui/toast";
+import { copyName } from "../examples/examples";
+import { showProject } from "../overviewPanel";
+import { MODULE_HEADING, SECTION_STACK } from "../studioLayout";
+import { useImportProjects } from "../useImportProjects";
+import { useStudioProjects } from "../useStudioProjects";
+import { ROLE_LABEL, useTeamAction } from "./teamWords";
+
+const ROLES: ReadonlyArray<StudioTeamRole> = ["editor", "viewer", "admin"];
+
+/** Sign in with an emailed code: no password, and the same way on every computer. */
+function TeamSignIn(props: { readonly environmentId: EnvironmentId }) {
+  const { environmentId } = props;
+  const start = useAtomCommand(studioTeamsEnvironment.signInStart, { reportFailure: false });
+  const check = useAtomCommand(studioTeamsEnvironment.signInCheck, { reportFailure: false });
+  const [email, setEmail] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const action = useTeamAction();
+
+  const send = (event: FormEvent) => {
+    event.preventDefault();
+    const to = email.trim();
+    if (to === "") return;
+    action.run(async () => {
+      const result = await start({ environmentId, input: { email: to } });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      setSentTo(to);
+    });
+  };
+  const verify = (event: FormEvent) => {
+    event.preventDefault();
+    if (sentTo === null || code.trim() === "") return;
+    action.run(async () => {
+      const result = await check({ environmentId, input: { email: sentTo, code: code.trim() } });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+      <div className="flex items-start gap-3">
+        <UsersIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-foreground">Work with your team</span>
+          <span className="text-xs leading-snug text-muted-foreground">
+            Share a project with your team. One person checks it out to change it, then checks it in
+            as a new Version everyone can get.
+          </span>
+        </div>
+      </div>
+      {sentTo === null ? (
+        <form className="flex flex-wrap items-center gap-2" onSubmit={send}>
+          <Input
+            type="email"
+            size="sm"
+            className="max-w-72"
+            placeholder="you@company.com"
+            aria-label="Your work email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={action.busy || email.trim() === ""}>
+            {action.busy ? "Sending" : "Email me a code"}
+          </Button>
+        </form>
+      ) : (
+        <form className="flex flex-wrap items-center gap-2" onSubmit={verify}>
+          <span className="text-xs text-muted-foreground">Code sent to {sentTo}.</span>
+          <Input
+            size="sm"
+            className="w-28"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            aria-label="Sign-in code"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={action.busy || code.trim() === ""}>
+            {action.busy ? "Signing in" : "Sign in"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost-muted"
+            size="sm"
+            disabled={action.busy}
+            onClick={() => {
+              setSentTo(null);
+              setCode("");
+            }}
+          >
+            Use another email
+          </Button>
+        </form>
+      )}
+      {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
+    </div>
+  );
+}
+
+function MakeTeam(props: { readonly environmentId: EnvironmentId }) {
+  const create = useAtomCommand(studioTeamsEnvironment.create, { reportFailure: false });
+  const [name, setName] = useState("");
+  const action = useTeamAction();
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (name.trim() === "") return;
+    action.run(async () => {
+      const result = await create({
+        environmentId: props.environmentId,
+        input: { name: name.trim() },
+      });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+    });
+  };
+  return (
+    <form className="flex flex-col gap-2 rounded-lg border border-border p-4" onSubmit={submit}>
+      <span className="text-sm font-medium text-foreground">Make a team</span>
+      <span className="text-xs leading-snug text-muted-foreground">
+        You are on no team yet. Make one and invite people, or ask a teammate to invite this email.
+      </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          size="sm"
+          className="max-w-72"
+          placeholder="Team name"
+          aria-label="Team name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Button type="submit" size="sm" disabled={action.busy || name.trim() === ""}>
+          Make team
+        </Button>
+      </div>
+      {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
+    </form>
+  );
+}
+
+/** A team's people, with Invite and Remove for an Admin and Leave team for everyone. */
+function TeamPeople(props: {
+  readonly environmentId: EnvironmentId;
+  readonly team: StudioTeam;
+  readonly account: string;
+}) {
+  const { environmentId, team, account } = props;
+  const invite = useAtomCommand(studioTeamsEnvironment.invite, { reportFailure: false });
+  const remove = useAtomCommand(studioTeamsEnvironment.remove, { reportFailure: false });
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<StudioTeamRole>("editor");
+  const action = useTeamAction();
+  const admin = team.role === "admin";
+  const paid = [...team.members, ...team.invites].filter((person) => person.role !== "viewer");
+
+  const send = (event: FormEvent) => {
+    event.preventDefault();
+    const to = email.trim();
+    if (to === "") return;
+    action.run(async () => {
+      const result = await invite({ environmentId, input: { teamId: team.id, email: to, role } });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      setEmail("");
+      toastManager.add({
+        type: "success",
+        title: `Invited ${to}`,
+        description: "They join when they sign in to Studio with that email.",
+      });
+    });
+  };
+  const takeOff = (who: string) =>
+    action.run(async () => {
+      const result = await remove({ environmentId, input: { teamId: team.id, email: who } });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+    });
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-muted-foreground">
+          {paid.length} of {team.seats} paid seats used. Viewers are free.
+        </span>
+      </div>
+      <ul className="flex flex-col border-t border-border">
+        {[
+          ...team.members.map((person) => ({ ...person, invited: false })),
+          ...team.invites.map((person) => ({ ...person, invited: true })),
+        ].map((person) => (
+          <li
+            key={person.email}
+            className="flex min-w-0 items-center gap-3 border-b border-border py-2 pe-1"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+              {person.email}
+              {person.email === account ? (
+                <span className="text-muted-foreground"> (you)</span>
+              ) : null}
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {person.invited ? `Invited, ${ROLE_LABEL[person.role]}` : ROLE_LABEL[person.role]}
+            </span>
+            {admin && person.email !== account ? (
+              <Button
+                variant="ghost-muted"
+                size="sm"
+                disabled={action.busy}
+                onClick={() => takeOff(person.email)}
+              >
+                {person.invited ? "Withdraw" : "Remove"}
+              </Button>
+            ) : person.email === account ? (
+              <Button
+                variant="ghost-muted"
+                size="sm"
+                disabled={action.busy}
+                onClick={() => takeOff(account)}
+              >
+                Leave team
+              </Button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {admin ? (
+        <form className="flex flex-wrap items-center gap-2 pt-1" onSubmit={send}>
+          <Input
+            type="email"
+            size="sm"
+            className="max-w-64"
+            placeholder="teammate@company.com"
+            aria-label="Email to invite"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <div className="w-36">
+            <Select value={role} onValueChange={(value) => value !== null && setRole(value)}>
+              <SelectTrigger size="sm" aria-label="Their role">
+                <SelectValue>{ROLE_LABEL[role]}</SelectValue>
+              </SelectTrigger>
+              <SelectPopup alignItemWithTrigger={false}>
+                {ROLES.map((each) => (
+                  <SelectItem key={each} value={each}>
+                    {ROLE_LABEL[each]}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          </div>
+          <Button type="submit" size="sm" disabled={action.busy || email.trim() === ""}>
+            Invite
+          </Button>
+        </form>
+      ) : null}
+      {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
+    </div>
+  );
+}
+
+/** One team project: who has it, its Version, and Get to bring a copy to this computer. */
+function TeamProjectRow(props: {
+  readonly project: StudioTeamProject;
+  readonly here: boolean;
+  readonly busy: boolean;
+  readonly onGet: () => void;
+}) {
+  const { project } = props;
+  return (
+    <li className="flex min-w-0 items-center gap-3 border-b border-border py-2 pe-1">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+        {project.name}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        {project.version === 0 ? "Not checked in yet" : `Version ${project.version}`}
+      </span>
+      <span className="hidden w-56 shrink-0 truncate text-xs text-muted-foreground @xl:inline">
+        {project.checkedOutBy === null
+          ? `Checked in ${formatRelativeTimeLabel(project.updatedAt)}`
+          : `Checked out by ${project.checkedOutBy}`}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={props.busy || project.version === 0}
+        onClick={props.onGet}
+      >
+        {props.here ? "Get another copy" : "Get"}
+      </Button>
+    </li>
+  );
+}
+
+/**
+ * The Projects page's Team section: sign in, the team's people, and its shared projects to get onto
+ * this computer. Absent from a build that names no team hub.
+ */
+export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
+  const { environmentId } = props;
+  const statusQuery = useEnvironmentQuery(
+    studioTeamsEnvironment.status({ environmentId, input: {} }),
+  );
+  const status = statusQuery.data ?? null;
+  const signedIn = status?.account !== null && status?.account !== undefined;
+  const projectsQuery = useEnvironmentQuery(
+    signedIn && (status?.teams.length ?? 0) > 0
+      ? studioTeamsEnvironment.projects({ environmentId, input: {} })
+      : null,
+  );
+  const signOut = useAtomCommand(studioTeamsEnvironment.signOut, { reportFailure: true });
+  const get = useAtomCommand(studioTeamsEnvironment.get, { reportFailure: false });
+  const canGet = useAtomValue(studioTeamsEnvironment.get.permissionAtom(environmentId));
+  const runImport = useImportProjects(environmentId);
+  const handleNewThread = useNewThreadHandler();
+  const local = useStudioProjects(environmentId);
+  const action = useTeamAction();
+
+  if (status === null || !status.available) return null;
+
+  const localNames = Object.values(local).map((project) => project.name);
+  const bring = (project: StudioTeamProject) =>
+    action.run(async () => {
+      const result = await get({ environmentId, input: { projectId: project.id } });
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      const title = copyName(project.name, localNames);
+      const { made, first } = await runImport({
+        projects: [
+          {
+            folder: result.value.folder,
+            name: title,
+            files: [],
+            ...(result.value.brief === null ? {} : { brief: result.value.brief }),
+          },
+        ],
+        placements: [],
+        newProjectName: title,
+      });
+      if (made === 0) throw new Error("The project came, but Studio could not add it.");
+      toastManager.add({
+        type: "success",
+        title: `Got ${title}`,
+        description: `Version ${project.version}, with every Version before it.`,
+      });
+      if (first === null) return;
+      const projectRef = scopeProjectRef(environmentId, first);
+      const opened = await waitForProject(projectRef).catch(() => null);
+      const draft = opened === null ? null : await handleNewThread(projectRef).catch(() => null);
+      if (draft !== null) showProject(scopeThreadRef(environmentId, draft.threadId));
+    });
+
+  const projects = projectsQuery.data?.projects ?? [];
+  return (
+    <section aria-label="Team" className={SECTION_STACK}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className={MODULE_HEADING}>Team</h2>
+        {signedIn ? (
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            Signed in as {status.account}
+            <Button
+              variant="ghost-muted"
+              size="sm"
+              onClick={() => void signOut({ environmentId, input: {} })}
+            >
+              Sign out
+            </Button>
+          </span>
+        ) : null}
+      </div>
+      {!signedIn ? (
+        <TeamSignIn environmentId={environmentId} />
+      ) : status.teams.length === 0 ? (
+        <MakeTeam environmentId={environmentId} />
+      ) : (
+        status.teams.map((team) => {
+          const shared = projects.filter((project) => project.teamId === team.id);
+          return (
+            <div
+              key={team.id}
+              className="@container flex flex-col gap-4 rounded-lg border border-border p-4"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium text-foreground">{team.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  You are {ROLE_LABEL[team.role]}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Projects</span>
+                {shared.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No shared projects yet. Open a project and choose Share with team in its menu.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col border-t border-border">
+                    {shared.map((project) => (
+                      <TeamProjectRow
+                        key={project.id}
+                        project={project}
+                        here={localNames.includes(project.name)}
+                        busy={action.busy || !canGet}
+                        onGet={() => bring(project)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-medium text-muted-foreground">People</span>
+                <TeamPeople environmentId={environmentId} team={team} account={status.account!} />
+              </div>
+            </div>
+          );
+        })
+      )}
+      {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
+    </section>
+  );
+}

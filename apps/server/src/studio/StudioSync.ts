@@ -102,6 +102,15 @@ export class StudioSync extends Context.Service<
     readonly restore: (
       input: StudioSyncRestoreInput & { readonly root: string },
     ) => Effect.Effect<StudioSyncRestoreResult, StudioSyncError>;
+    /**
+     * What a send does before anything leaves, for a team check-in: the ignores, the size limits,
+     * then one commit of the working changes as `author` when given, with `message`.
+     */
+    readonly record: (input: {
+      readonly cwd: string;
+      readonly message: string;
+      readonly author?: { readonly name: string; readonly email: string };
+    }) => Effect.Effect<void, StudioSyncError>;
   }
 >()("t3/studio/StudioSync") {}
 
@@ -337,24 +346,34 @@ const make = Effect.fn("StudioSync.make")(function* (maxFileBytes: number) {
   });
 
   /** Records every working change on the current line; nothing changed makes no commit. */
-  const commitWork = Effect.fnUntraced(function* (cwd: string) {
+  const commitWork = Effect.fnUntraced(function* (
+    cwd: string,
+    message = "Backed up from Studio",
+    author?: { readonly name: string; readonly email: string },
+  ) {
     yield* gitOrFail(cwd, ["add", "--all"], "prepare", { timeout: "10 minutes" });
     const staged = yield* runGit(cwd, ["diff", "--cached", "--quiet"]).pipe(
       Effect.mapError((cause) => new StudioSyncError({ failure: "prepare", cwd, cause })),
     );
     if (staged.code === 0) return;
     const identified = (yield* gitValue(cwd, ["config", "user.email"])) !== undefined;
+    const identity =
+      author === undefined
+        ? identified
+          ? []
+          : FALLBACK_IDENTITY
+        : ["-c", `user.name=${author.name}`, "-c", `user.email=${author.email}`];
     yield* gitOrFail(
       cwd,
       [
         // A signing prompt has nobody to answer it here.
         "-c",
         "commit.gpgsign=false",
-        ...(identified ? [] : FALLBACK_IDENTITY),
+        ...identity,
         "commit",
         "--quiet",
         "--message",
-        "Backed up from Studio",
+        message,
       ],
       "prepare",
     );
@@ -573,7 +592,19 @@ const make = Effect.fn("StudioSync.make")(function* (maxFileBytes: number) {
     },
   );
 
-  return StudioSync.of({ send, status, receive, restore });
+  const record: StudioSync["Service"]["record"] = Effect.fn("StudioSync.record")(function* (input) {
+    const { cwd } = input;
+    if (!(yield* hasHistory(cwd))) {
+      return yield* new StudioSyncError({ failure: "no-history", cwd });
+    }
+    yield* addIgnores(cwd);
+    yield* untrackNeverSent(cwd);
+    yield* checkWorkingFiles(cwd);
+    yield* checkVersions(cwd);
+    yield* commitWork(cwd, input.message, input.author);
+  });
+
+  return StudioSync.of({ send, status, receive, restore, record });
 });
 
 /** The service with its own limit on one file, for a test that needs no big fixture. */

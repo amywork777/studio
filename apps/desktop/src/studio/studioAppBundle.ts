@@ -50,6 +50,11 @@ export function applyStudioAppBundle(input: {
   setDefault(env, "T3CODE_DEFAULT_PLUGINS", settings.plugins.join(","));
   // A build made with a usage receiver sends anonymous usage counts there, which Settings can turn off.
   if (settings.usageUrl !== undefined) setDefault(env, "T3CODE_USAGE_URL", settings.usageUrl);
+  // A build made with a team hub (infra/teams) shows Teams; its key is the hub's public one.
+  if (settings.teams !== undefined) {
+    setDefault(env, "STUDIO_TEAMS_URL", settings.teams.url);
+    setDefault(env, "STUDIO_TEAMS_KEY", settings.teams.key);
+  }
   for (const [name, value] of Object.entries(studioEngineEnv(home, { dev: false }))) {
     setDefault(env, name, value);
   }
@@ -86,6 +91,8 @@ interface StudioSettings {
   readonly textToCad?: string;
   /** Studio's usage receiver (`infra/usage`), which counts go to; absent in a build made without one. */
   readonly usageUrl?: string;
+  /** Studio's team hub (`infra/teams`) and its public key; absent in a build made without one. */
+  readonly teams?: { readonly url: string; readonly key: string };
 }
 
 /**
@@ -124,6 +131,9 @@ function writeIfChanged(file: string, content: string, mode: number): void {
 const isVersion = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9A-Za-z.+-]{1,64}$/.test(value);
 
+const isHttps = (value: unknown): value is string =>
+  typeof value === "string" && /^https:\/\/[^\s"]+$/.test(value);
+
 function readSettings(file: string): StudioSettings | null {
   let parsed: unknown;
   try {
@@ -132,10 +142,8 @@ function readSettings(file: string): StudioSettings | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const { name, home, profile, plugins, version, textToCad, usageUrl } = parsed as Record<
-    string,
-    unknown
-  >;
+  const { name, home, profile, plugins, version, textToCad, usageUrl, teamsUrl, teamsKey } =
+    parsed as Record<string, unknown>;
   if (typeof name !== "string" || typeof home !== "string" || typeof profile !== "string") {
     return null;
   }
@@ -149,7 +157,10 @@ function readSettings(file: string): StudioSettings | null {
     plugins: names,
     ...(isVersion(version) ? { version } : {}),
     ...(isVersion(textToCad) ? { textToCad } : {}),
-    ...(typeof usageUrl === "string" && /^https:\/\/[^\s"]+$/.test(usageUrl) ? { usageUrl } : {}),
+    ...(isHttps(usageUrl) ? { usageUrl } : {}),
+    ...(isHttps(teamsUrl) && typeof teamsKey === "string" && /^[\w.-]{20,}$/.test(teamsKey)
+      ? { teams: { url: teamsUrl, key: teamsKey } }
+      : {}),
   };
 }
 

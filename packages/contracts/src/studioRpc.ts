@@ -52,6 +52,22 @@ import {
   StudioSyncStatusInput,
   StudioSyncStatusResult,
 } from "./studioProjects.ts";
+import {
+  StudioTeamsCheckInInput,
+  StudioTeamsCreateInput,
+  StudioTeamsError,
+  StudioTeamsFolderInput,
+  StudioTeamsFolderStatusResult,
+  StudioTeamsGetInput,
+  StudioTeamsGetResult,
+  StudioTeamsInviteInput,
+  StudioTeamsProjectsResult,
+  StudioTeamsRemoveInput,
+  StudioTeamsShareInput,
+  StudioTeamsSignInCheckInput,
+  StudioTeamsSignInStartInput,
+  StudioTeamsStatusResult,
+} from "./studioTeams.ts";
 
 export const STUDIO_WS_METHODS = {
   projectsStartHistory: "projects.startHistory",
@@ -77,6 +93,21 @@ export const STUDIO_WS_METHODS = {
   studioSyncStatus: "studioSync.status",
   studioGitHubSignInStart: "studioGitHub.signInStart",
   studioGitHubSignInCheck: "studioGitHub.signInCheck",
+  studioTeamsStatus: "studioTeams.status",
+  studioTeamsSignInStart: "studioTeams.signInStart",
+  studioTeamsSignInCheck: "studioTeams.signInCheck",
+  studioTeamsSignOut: "studioTeams.signOut",
+  studioTeamsCreate: "studioTeams.create",
+  studioTeamsInvite: "studioTeams.invite",
+  studioTeamsRemove: "studioTeams.remove",
+  studioTeamsProjects: "studioTeams.projects",
+  studioTeamsShare: "studioTeams.share",
+  studioTeamsGet: "studioTeams.get",
+  studioTeamsFolderStatus: "studioTeams.folderStatus",
+  studioTeamsCheckOut: "studioTeams.checkOut",
+  studioTeamsCheckIn: "studioTeams.checkIn",
+  studioTeamsGetLatest: "studioTeams.getLatest",
+  studioTeamsRelease: "studioTeams.release",
 } as const;
 
 // Starts a history in a project folder that has none: what is there is its first commit.
@@ -219,6 +250,97 @@ const WsStudioSyncStatusRpc = Rpc.make(STUDIO_WS_METHODS.studioSyncStatus, {
   success: StudioSyncStatusResult,
 });
 
+// Studio Teams (`studioTeams.ts`): sign-in, the team's people, and check-out and check-in.
+const WsStudioTeamsStatusRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsStatus, {
+  payload: Schema.Struct({}),
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsSignInStartRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsSignInStart, {
+  payload: StudioTeamsSignInStartInput,
+  success: Schema.Struct({}),
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsSignInCheckRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsSignInCheck, {
+  payload: StudioTeamsSignInCheckInput,
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsSignOutRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsSignOut, {
+  payload: Schema.Struct({}),
+  success: Schema.Struct({}),
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsCreateRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsCreate, {
+  payload: StudioTeamsCreateInput,
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsInviteRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsInvite, {
+  payload: StudioTeamsInviteInput,
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsRemoveRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsRemove, {
+  payload: StudioTeamsRemoveInput,
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsProjectsRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsProjects, {
+  payload: Schema.Struct({}),
+  success: StudioTeamsProjectsResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsShareRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsShare, {
+  payload: StudioTeamsShareInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsGetRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsGet, {
+  payload: StudioTeamsGetInput,
+  success: StudioTeamsGetResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsFolderStatusRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsFolderStatus, {
+  payload: StudioTeamsFolderInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsCheckOutRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsCheckOut, {
+  payload: StudioTeamsFolderInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsCheckInRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsCheckIn, {
+  payload: StudioTeamsCheckInInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsGetLatestRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsGetLatest, {
+  payload: StudioTeamsFolderInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsReleaseRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsRelease, {
+  payload: StudioTeamsFolderInput,
+  success: StudioTeamsFolderStatusResult,
+  error: StudioTeamsError,
+});
+
 export const STUDIO_RPCS = [
   WsProjectsStartHistoryRpc,
   WsPluginsCatalogRpc,
@@ -243,6 +365,21 @@ export const STUDIO_RPCS = [
   WsStudioSyncStatusRpc,
   WsStudioGitHubSignInStartRpc,
   WsStudioGitHubSignInCheckRpc,
+  WsStudioTeamsStatusRpc,
+  WsStudioTeamsSignInStartRpc,
+  WsStudioTeamsSignInCheckRpc,
+  WsStudioTeamsSignOutRpc,
+  WsStudioTeamsCreateRpc,
+  WsStudioTeamsInviteRpc,
+  WsStudioTeamsRemoveRpc,
+  WsStudioTeamsProjectsRpc,
+  WsStudioTeamsShareRpc,
+  WsStudioTeamsGetRpc,
+  WsStudioTeamsFolderStatusRpc,
+  WsStudioTeamsCheckOutRpc,
+  WsStudioTeamsCheckInRpc,
+  WsStudioTeamsGetLatestRpc,
+  WsStudioTeamsReleaseRpc,
 ] as const;
 
 /** Studio's calls the client checks before sending; the server requires the same scopes. */
@@ -260,4 +397,17 @@ export const STUDIO_CLIENT_GUARDED_RPC_SCOPES = {
   [STUDIO_WS_METHODS.studioSyncRestore]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioGitHubSignInStart]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioGitHubSignInCheck]: AuthSourceControlWriteScope,
+  // Team calls act as the person signed in on this environment and move project files.
+  [STUDIO_WS_METHODS.studioTeamsSignInStart]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsSignInCheck]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsSignOut]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsCreate]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsInvite]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsRemove]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsShare]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsGet]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsCheckOut]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsCheckIn]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsGetLatest]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsRelease]: AuthSourceControlWriteScope,
 } as const;

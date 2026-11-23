@@ -178,6 +178,7 @@ import * as PluginService from "./plugins/PluginService.ts";
 import * as StudioGitHubSignIn from "./studio/StudioGitHubSignIn.ts";
 import * as StudioProjects from "./studio/StudioProjects.ts";
 import * as StudioSync from "./studio/StudioSync.ts";
+import * as StudioTeams from "./studio/StudioTeams.ts";
 import {
   layerWsRpc,
   resolveOpenDiscoveryForConfig,
@@ -886,6 +887,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(StudioGitHubSignIn.StudioGitHubSignIn)({}),
   Layer.mock(StudioProjects.StudioProjects)({}),
   Layer.mock(StudioSync.StudioSync)({}),
+  Layer.mock(StudioTeams.StudioTeams)({}),
   Layer.mock(SourceControlSignIn.SourceControlSignIn)({}),
   Layer.mock(StorageCleanup.StorageCleanup)({}),
   Layer.mock(DatabaseStorage.DatabaseStorage)({}),
