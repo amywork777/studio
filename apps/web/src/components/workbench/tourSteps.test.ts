@@ -6,10 +6,10 @@ const card = { width: 320, height: 160 };
 const window = { width: 1200, height: 800 };
 
 describe("tour", () => {
-  it("has five steps, each pointing somewhere, the last at the Toolbox", () => {
+  it("has eight steps, the model and its checks among them, each pointing somewhere, the last at the Toolbox", () => {
     for (const platform of ["MacIntel", "Win32"]) {
       const steps = tourSteps(platform);
-      expect(steps).toHaveLength(5);
+      expect(steps).toHaveLength(8);
       expect(steps.at(-1)?.target).toBe("[data-right-panel-toggle]");
       expect(steps.every((step) => step.target !== "" && !step.body.includes("—"))).toBe(true);
     }

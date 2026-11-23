@@ -4,8 +4,9 @@ import { formatShortcutLabel } from "~/keybindings";
 import { getLocalFileManagerName } from "~/lib/utils";
 
 /**
- * Studio's tour, five steps the first time a workspace opens (`StudioTour`): the project, its
- * Overview, the tabs, the toolbar and the Toolbox, each pointed at where it is on screen.
+ * Studio's tour, the first time a workspace opens (`StudioTour`): the project, its Overview, the
+ * tabs, New, the model and how to change it by pick or by hand, how checks report, and the Toolbox,
+ * each pointed at where it is on screen.
  */
 export interface TourStep {
   /** The element pointed at: `[data-tour="…"]`, or another selector. */
@@ -41,6 +42,22 @@ export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
     target: "[data-studio-new-tab]",
     title: "New",
     body: "The + after your tabs starts a part, a board or a document, as a browser's opens a new tab.",
+  },
+  {
+    // The model view in front, whichever tab holds it (`KeptSurface`).
+    target: "[data-studio-surface]:not([hidden])",
+    title: "Pick, then say what to change",
+    body: "Click faces, edges or parts on the model, then write what to change in Describe a change at its foot. It goes to the chat with your picks.",
+  },
+  {
+    target: "[data-studio-cad-tools]",
+    title: "Edit it by hand",
+    body: "Show CAD tools opens the ribbon and the FeatureManager, as in SolidWorks. A change you make there is written into the part's script.",
+  },
+  {
+    target: "[data-pinned-project-tab]",
+    title: "How checks report",
+    body: "A check says passed, warning or failed, with its numbers, on the Overview and under the part. A check that has not run says so and offers to run it.",
   },
   {
     // The Toolbox's button, the one way in, there whether the Toolbox is open or not.
