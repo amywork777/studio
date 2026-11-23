@@ -613,3 +613,28 @@ html[data-studio-focus="hardware"] [data-slot="tooltip-popup"] {
   --text-xs: 0.6875rem;
   --text-xs--line-height: 1rem;
 }
+
+/*
+ * Menus, selects and tooltips as Jake's viewer draws them (`primitives/dropdown-menu.jsx`,
+ * `tooltip.jsx`): a solid card in the popover's colour with a hairline border, his medium radius
+ * and a small shadow, not frosted glass; a tooltip 12px by 6px in.
+ */
+html[data-studio-focus="hardware"] :is([data-slot="menu-popup"], [data-slot="select-popup"]) {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+html[data-studio-focus="hardware"] [data-slot="tooltip-viewport"] {
+  padding: 0.375rem 0.75rem;
+}
+/* A row of underlined tabs reads in the chrome's regular weight; the one in front is medium. */
+html[data-studio-focus="hardware"]
+  [data-slot="toggle-group"][data-variant="underline"]
+  [data-slot="toggle"]:not([data-pressed]) {
+  font-weight: 400;
+}

@@ -157,7 +157,7 @@ function StopGenerationButton({
           <button
             type="button"
             // Red only means failed, so Stop is a plain grey square beside the send arrow.
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-secondary text-secondary-foreground shadow-xs transition-colors duration-150 hover:bg-secondary/80 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-secondary [&_svg]:pointer-events-none"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-secondary text-secondary-foreground transition-colors duration-150 hover:bg-secondary/80 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-secondary [&_svg]:pointer-events-none"
             onPointerDown={preserveComposerFocusOnPointerDown ? preventPointerFocus : undefined}
             disabled={!canOperateThread || isStopDisabled}
             onClick={() => {
@@ -436,11 +436,11 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
     <button
       type={showResume ? "button" : "submit"}
       className={cn(
-        "relative isolate flex size-8 items-center justify-center overflow-hidden rounded-lg shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none disabled:hover:scale-100 [&_svg]:pointer-events-none",
-        // Blue only while it can send; grey until then, as Home's Start is.
+        // As the model view's Quick Edit sends: a 28px square, flat, the primary ink while it can send.
+        "relative isolate flex size-7 items-center justify-center overflow-hidden rounded-md transition-colors duration-150 enabled:cursor-pointer disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none",
         sendDisabled
           ? "bg-secondary text-secondary-foreground"
-          : "bg-message-action text-message-action-foreground enabled:shadow-message-action/24 hover:bg-message-action-hover",
+          : "bg-primary text-primary-foreground hover:bg-primary/90",
       )}
       {...pointerFocusProps}
       onClick={(event) => {
