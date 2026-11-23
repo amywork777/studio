@@ -275,6 +275,12 @@ export function makeMcpAppHost(options: McpAppHostOptions): McpAppHost {
   const handleRequest = (id: JsonRpcId, method: string, params: Record<PropertyKey, unknown>) => {
     switch (method) {
       case "ui/initialize": {
+        // A second initialize is the frame's document loaded again (an iframe moved in the DOM
+        // reloads): it starts from nothing, so it is sent the tool input and result once more.
+        if (initialized) {
+          initialized = false;
+          toolCallSent = false;
+        }
         const requested = params.protocolVersion;
         const declared = Predicate.isObject(params.appCapabilities)
           ? params.appCapabilities.availableDisplayModes
