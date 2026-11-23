@@ -572,9 +572,7 @@ export function ProjectPage(props: {
                     ["overview", "Overview"],
                     ["files", "Files"],
                     ["references", "References"],
-                    ...(isProject
-                      ? [["threads", plainWords ? "History" : "Threads"] as const]
-                      : []),
+                    ...(isProject ? [["threads", plainWords ? "Chats" : "Threads"] as const] : []),
                   ] as const
                 ).map(([id, label]) => (
                   <Toggle key={id} value={id}>
@@ -612,7 +610,7 @@ export function ProjectPage(props: {
                 ? "Find a part, board or document"
                 : tab === "threads"
                   ? plainWords
-                    ? "Find in the history"
+                    ? "Find a chat"
                     : "Find a thread"
                   : "Find a reference"
             }

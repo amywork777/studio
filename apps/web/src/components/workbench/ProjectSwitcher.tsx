@@ -240,7 +240,7 @@ export function ProjectSwitcher(props: {
               {hasDesign ? (
                 <button type="button" className={actionClass} onClick={go(showVersions)}>
                   <HistoryIcon aria-hidden="true" />
-                  Version history
+                  Versions
                 </button>
               ) : null}
               {current === null ? null : (

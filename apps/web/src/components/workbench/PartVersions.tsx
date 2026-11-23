@@ -125,7 +125,7 @@ export function PartVersions(props: {
   const needsGit = useStudioProjectsList(props.environmentId).data?.git === false;
   const byScope = useChatsByScope(props.chats);
 
-  // Each new request, or the switcher's Version history, opens the module and brings it into view, once.
+  // Each new request, or the switcher's Versions, opens the module and brings it into view, once.
   const shownRequest = useRef<typeof request>(null);
   const revealAt = useVersionRequestStore((store) => store.revealAt);
   const revealed = useVersionRequestStore((store) => store.revealed);

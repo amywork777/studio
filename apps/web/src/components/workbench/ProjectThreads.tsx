@@ -77,7 +77,7 @@ export function ProjectThreads(props: {
     );
   }
   return (
-    <div className="flex flex-col gap-3" aria-label={plainWords ? "History" : "Threads"}>
+    <div className="flex flex-col gap-3" aria-label={plainWords ? "Chats" : "Threads"}>
       {days.map(({ day, threads }) => (
         <section key={day} aria-label={day} className={SECTION_STACK}>
           <h3 className={GROUP_LABEL}>{day}</h3>

@@ -123,8 +123,7 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   `setChatsWorking`). The sidebar's update button then says "Restart to update", for installing it now;
   a check someone asks for still offers the download as a button. Releases up to 0.1.9 download only
   on a click, so reaching the first release with this takes the two clicks once. The button is at
-  the foot of the list beside the rail, and on the rail above Settings while the list is folded and
-  an update waits (`StudioRail.tsx`). Under the hardened runtime without those
+  the foot of the sidebar while an update waits (`SidebarUpdatePill.tsx`). Under the hardened runtime without those
   entitlements, the bundled Python can't load its own library; with them it runs (checked
   2026-10-22, signed ad hoc with `--options runtime`).
   - **Once, on Amy's Mac:** join the Apple Developer Program; in Xcode, Settings, Accounts, Manage
@@ -353,7 +352,7 @@ like a shop drawing: a title block over the viewer with the part's type, units, 
 and documents the agent writes (plans, reports) opening beside the thread as documents with a title
 block of their own. Engineering with code keeps those surfaces (the projects home, the project's
 overview, the title block, documents) and brings every coding tool back in T3 Code's own words, with
-Source beside the pinned Project tab for the explorer. Code shows T3 Code's surfaces as they are.
+Source beside the pinned Overview tab for the explorer. Code shows T3 Code's surfaces as they are.
 `<html data-studio-focus>` (`hardware`, `both` or `code`) carries the choice for `brand/theme.css`.
 
 Settings in Engineering leave out what a programmer sets (`CODE_SETTINGS_ROWS` in
@@ -381,7 +380,7 @@ Engineering also has no pull requests or usage page: `/pull-requests` and `/usag
 replaced history entry), and the usage shortcut does nothing. The code interfaces keep all of these
 as they were.
 
-- **The project's overview.** The Project tab (Overview, in Engineering) opens on it: the project's
+- **The project's overview.** The Overview tab opens on it: the project's
   README in its folder first, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
   asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
@@ -518,8 +517,8 @@ as they were.
   robot description a robot, the rest a mechanical part: `projectKindFor`). There is one New: ⌘K's
   and the project switcher's New project open it, and Make a project on a folder in no project makes
   a mechanical part project of it at once, its brief filled in later. New's Part is New part, with
-  no agent turn (`useNewPart.ts`, `newPart.ts`): on Home a project named "Untitled part" (then
-  "Untitled part 2", past Trash's names too) with a starter part, `parts/part.py`, a CAD
+  no agent turn (`useNewPart.ts`, `newPart.ts`): on Home a project named "Untitled project" (then
+  "Untitled project 2", past Trash's names too) with a starter part, `parts/part.py`, a CAD
   model of one block sketched from three named sizes as the cad skill writes its smallest part. Its
   Overview opens beside its new chat at once; the script is built by Studio's CAD service (edit
   mode's builds: the engine never builds a model because a view opened it), and the part opens in
@@ -542,19 +541,13 @@ as they were.
   (`openPartInCad`). Projects are listed as a
   recents list orders them, the one opened last on this device first (or worked on, if that came
   later), and the starred ones (kept on this computer) apart at the top of Home and the switcher.
-  The sidebar is a rail of places down the far left, as Slack's (Amy, 2026-10-22, `StudioRail.tsx`):
-  Home, Chats (with how many chats wait on you), Projects and Library, and Trash and Settings at its
-  foot, each icon labelled and each opening its own page, as Claude's and ChatGPT's open Chats and
-  Projects (Amy: "each one should open its own page"): Chats, every chat with a box to find one and
-  an All | Needs you switch (`ChatPages.tsx`, `allChats.ts`), Needs you being the chats waiting on
-  your answer or approval in any project, kept in the URL (`/chats?filter=needs-you`, where the old
-  `/needs-you` lands); Projects, the Projects page; Library, the examples, document types and skills
-  in one place. The rail marks the page that shows, and Projects inside a project
-  (`studioPlaces.ts`). Beside the rail the column says where you are (`StudioSidebar.tsx`): on
-  Studio's pages the recent chats, each with its project's name; inside a project, the project; on
-  Settings, its sections (T3's settings list inside Studio's frame, `StudioSidebarFrame`), so the
-  rail stays there too. Folding it (the panel button beside the window's controls, or its shortcut)
-  keeps the rail (`collapsible="icon"`). The column is the same on every page: every project with
+  The sidebar is one column (`StudioSidebar.tsx`, `StudioNavLinks.tsx`): Home on top (with how
+  many chats wait on you), then Toolbox, then every project with its chats nested under it, and
+  Feedback, Trash and Settings at its foot. Home lists the projects and the chats waiting on you;
+  Toolbox opens the Toolbox's popup in a project and its page elsewhere (`toolboxOpen.ts`). On
+  Settings the column shows its sections (T3's settings list inside Studio's frame,
+  `StudioSidebarFrame`). Folding it (the panel button beside the window's controls, or its shortcut)
+  hides it. The column is the same on every page: every project with
   its chats nested under it, as Claude lists folders and their sessions, so several projects can be
   worked on at once and their chats gone between in a click (`StudioSidebar.tsx`,
   `sidebarProjects.ts`). Projects order by work, never by opening, so a row stays under the pointer.
@@ -572,15 +565,15 @@ as they were.
   read dark, with the lists' labels quiet (`brand/theme.css`). T3 Code drew the button white for its
   stage artwork, which a fork's mark replaces, so on Studio's light sidebar it nearly vanished. The
   footer's Home icon is only in T3 Code's sidebar beside code tools, and its Settings only outside
-  Studio's rail. Opening a chat from another project opens that project. What the project holds is
+  Studio's sidebar. Opening a chat from another project opens that project. What the project holds is
   on its Overview. The top bar names the project and the open chat; with the sidebar folded (T3 Code's
   toggle or its shortcut, and a part opening in CAD starts so, `workbench/sidebarFold.ts`) it leads
   with the mark. The panel's tabs are what was opened
   lately in the project, along its top as a browser's are (`brand/theme.css`), and the same beside
   each of the folder's chats, as a Chrome window's (`projectTabs.ts`): the Overview pinned first as
   its icon, then each file with its kind's colored icon (`FileKindIcon.tsx`) at its left and its
-  close at its right, as Chrome's are, the one in front joined to the surface under it. There is
-  no + (New is the one way to add), a panel with every tab closed shows the Overview, and a tab's
+  close at its right, as Chrome's are, the one in front joined to the surface under it. The + at the
+  strip's end opens New, the one way to add (`NewTabButton.tsx`); a panel with every tab closed shows the Overview, and a tab's
   menu has no Copy path in Engineering (the code interfaces keep it). A tab opens just right of
   the one in front (from the Overview, at the end), and closing the one in front goes back to the
   tab you were on before it, as a browser does: a drawing opened from its part and closed returns
@@ -602,7 +595,7 @@ as they were.
   interface, through `useTrashHiddenFolderKeys`): the project, its folders' chats and the folders
   themselves (not offered as in no project, nor to import) leave Home, Projects, Chats, the
   sidebar and ⌘K (`hiddenByTrash` in `components/workbench/trash/trash.ts`), and every project in
-  Trash counts as none, so Home shows its start page. Trash, at the foot of the rail, lists them
+  Trash counts as none, so Home shows its start page. Trash, at the foot of the sidebar, lists them
   with Restore (back under the same id) and Delete forever, which asks first, deletes its folders'
   T3 projects with their chats (a folder another project holds is kept) and then the record.
   Studio never deletes files on disk: the work folders stay, and so does the project's own
@@ -665,7 +658,7 @@ as they were.
   or a folder, Scan this computer), the Start box right under them, then the examples' cards
   (`StartChoices.tsx`, `homeLayout` in `homeStart.ts`). With projects, the examples sit in a Get
   started strip under Starred and Recent, folded away and kept so on this device if you like
-  (`studio:get-started-folded`). The Library, on the rail, opens on Examples: every example Studio
+  (`studio:get-started-folded`). The Toolbox page (the sidebar's Toolbox, outside a project) opens on Examples: every example Studio
   ships, each on a page of its own (`/library/examples/<id>`; the old `/examples` addresses
   redirect), view only: its picture (bundled in `library/pictures/examples/`), What it is from its
   README, what it shows, and Make a copy to edit, which makes a new project of yours ("Phone stand",
@@ -868,7 +861,8 @@ as they were.
   it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
   nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It is
   a popup under the title bar's right button, the Toolbox's one way in (Amy, 11/18: one button, not
-  one per group), opening on the tab used last: it takes none of the panel, so the model keeps all
+  one per group; the sidebar's Toolbox row and the chat's More tools open the same popup in a project,
+  and the Toolbox page, with its Browse, elsewhere), opening on the tab used last: it takes none of the panel, so the model keeps all
   of it. The button opens it, with the panel if that is shut, and shuts it (`toolboxOpen.ts`), as
   do Escape and a press anywhere but the model; a press on the model leaves it open, so its tiles follow
   the part picked there (`ToolboxPopup.tsx`), and a tile's press shuts it as it starts the job. Every job the

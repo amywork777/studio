@@ -192,7 +192,7 @@ function BrowseLibrary(props: { readonly onBrowse: () => void }) {
 /**
  * New work across disciplines, like a CAD system's New dialog. A template whose skill is off shows
  * dimmed and names the skill. Create hands the job on (`onCreate`); Part skips the agent and makes
- * the part at once (`onNewPart`), named "Untitled part" on Home until renamed.
+ * the part at once (`onNewPart`), named "Untitled project" on Home until renamed.
  */
 export function NewDialog(props: {
   readonly open: boolean;

@@ -239,14 +239,14 @@ export interface VersionRequest {
 
 /**
  * The Changed chips ask, and the Overview's Versions takes the request (`PartVersions`). The
- * project switcher's Version history only asks it to show itself (`reveal`), taken when it next
+ * project switcher's Versions only asks it to show itself (`reveal`), taken when it next
  * shows, within a few seconds.
  */
 export const useVersionRequestStore = create<{
   readonly request: VersionRequest | null;
   readonly ask: (request: VersionRequest) => void;
   readonly take: () => void;
-  /** When Version history was last asked for; null once shown. */
+  /** When Versions was last asked for; null once shown. */
   readonly revealAt: number | null;
   readonly reveal: () => void;
   readonly revealed: () => void;

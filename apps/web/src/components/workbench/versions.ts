@@ -74,7 +74,7 @@ export function restoreNote(input: {
   readonly files: ReadonlyArray<string>;
 }): string {
   const files = input.files.length === 0 ? "" : ` (${input.files.join(", ")})`;
-  return `In Version history I restored ${inSentence(input.part)} to ${input.version}, from ${input.when}${files}.`;
+  return `In Versions I restored ${inSentence(input.part)} to ${input.version}, from ${input.when}${files}.`;
 }
 
 /** Why a restore did not happen, in plain words: the CAD service's own when it says one. */

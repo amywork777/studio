@@ -7,14 +7,14 @@ import { copyName } from "./examples/examples";
 import { fileStem } from "./newTemplates";
 import type { CadPost } from "./useVersions";
 
-/** What a new part's project is called until it is renamed: "Untitled part", "Untitled part 2". */
-export const UNTITLED_PART = "Untitled part";
+/** What a new part's project is called until it is renamed: "Untitled project", "Untitled project 2". */
+export const UNTITLED_PART = "Untitled project";
 
 /** Where a new part goes in its project's folder, as New's Part has it. */
 export const PART_FOLDER = "parts";
 
 /**
- * The name for a new part's project: "Untitled part", else the next one free among `existing`,
+ * The name for a new part's project: "Untitled project", else the next one free among `existing`,
  * every project's name and Trash's, so a restore never makes two of one name.
  */
 export function untitledName(existing: ReadonlyArray<string>): string {
