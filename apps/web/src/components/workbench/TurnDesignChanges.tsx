@@ -95,9 +95,9 @@ function ChangeRow(props: {
   );
   return (
     <li className="flex min-w-0 flex-col gap-0.5" data-turn-change="">
-      <div className="flex min-w-0 items-center gap-1.5 text-sm leading-5">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm leading-5">
         {props.onOpen === null ? (
-          <span className="flex min-w-0 items-center gap-1.5">{name}</span>
+          <span className="flex max-w-full min-w-0 items-center gap-1.5">{name}</span>
         ) : (
           <button
             type="button"
@@ -105,7 +105,7 @@ function ChangeRow(props: {
             aria-label={
               props.compares ? `See what changed in ${change.name}` : `Open ${change.name}`
             }
-            className="-mx-1 flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1 outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            className="-mx-1 flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1 outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           >
             {name}
           </button>

@@ -58,4 +58,9 @@ describe("a tab's title cut in the middle", () => {
     expect(titleParts("LED module")).toEqual({ head: "LED mod", tail: "ule" });
     expect(titleParts("Weight")).toEqual({ head: "Weight", tail: "" });
   });
+
+  it("keeps a space that falls at the cut, which a span's edge would drop", () => {
+    // "Horn link STL" read "Horn linkSTL".
+    expect(titleParts("Horn link STL")).toEqual({ head: "Horn link", tail: "\u00a0STL" });
+  });
 });
