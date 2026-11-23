@@ -175,6 +175,30 @@ describe("makeMcpAppHost", () => {
     ]);
   });
 
+  it("replays the tool input and result to a document that loads again and initializes anew", () => {
+    const { host, sent } = setup();
+    host.setToolCall({
+      arguments: { city: "Oslo" },
+      result: { content: [{ type: "text", text: "Sunny" }] },
+    });
+    initialize(host);
+    sent.length = 0;
+    // The iframe was moved in the DOM, so its document reloaded and starts over.
+    initialize(host);
+    expect(sent.filter((m) => typeof m.method === "string")).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-input",
+        params: { arguments: { city: "Oslo" } },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: { content: [{ type: "text", text: "Sunny" }] },
+      },
+    ]);
+  });
+
   it("sends a later result for a call that had none, without repeating its input", () => {
     const { host, sent } = setup();
     initialize(host);
