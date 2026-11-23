@@ -12,6 +12,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { useComposerDraftStore } from "~/composerDraftStore";
+import { toastManager } from "../ui/toast";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { readOpened, rememberOpened, threadToOpen } from "./openedThreads";
@@ -28,10 +29,27 @@ export function useRememberOpened(threadRef: ScopedThreadRef | null): void {
   }, [threadKey]);
 }
 
+/** What Studio says when a project's folder is not where the project says (moved, renamed, deleted). */
+export function missingFolderNotice(
+  project: {
+    readonly name: string;
+    readonly folders: ReadonlyArray<string>;
+  } | null,
+): { readonly title: string; readonly description: string } {
+  const name = project?.name.trim() || "this project";
+  const where = project?.folders[0];
+  return {
+    title: `Studio can't find ${name}'s folder`,
+    description: where
+      ? `It should be at ${where}. Move the folder back there, then open the project again.`
+      : "Its folder was moved or deleted. Move it back, then open the project again.",
+  };
+}
+
 /**
  * Opens in the thread last open, else the last worked on, else a new one in the first folder, with
  * `show` (or `showProject`) beside it. Without a `show`, a chat waiting on the person wins and
- * opens beside its own panel.
+ * opens beside its own panel. A project whose folder Studio cannot find says so (`project` names it).
  */
 export function useOpenProject() {
   const navigate = useNavigate();
@@ -40,6 +58,7 @@ export function useOpenProject() {
     folder: EnvironmentProject | null,
     threads: ReadonlyArray<EnvironmentThreadShell>,
     show?: (ref: ScopedThreadRef) => void,
+    project: { readonly name: string; readonly folders: ReadonlyArray<string> } | null = null,
   ) => {
     const asking = show === undefined ? waitingChat(threads) : null;
     const thread = asking ?? threadToOpen(threads, readOpened());
@@ -50,7 +69,10 @@ export function useOpenProject() {
       await navigate({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
       return;
     }
-    if (folder === null) return;
+    if (folder === null) {
+      toastManager.add({ type: "error", ...missingFolderNotice(project) });
+      return;
+    }
     const projectRef = scopeProjectRef(folder.environmentId, folder.id);
     // A project with only a chat not sent yet opens in it, with what was written in it.
     const unsent = unsentChat(

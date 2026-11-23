@@ -245,8 +245,11 @@ function QuickFindBody(props: {
       const path = studioFolderKey(found.root) === here ? found.file.path : full;
       openPartInCad(plugins, workspace.threadRef, path);
     } else if (found.project !== null) {
-      void openProject(found.project.folder, found.project.threads, (ref) =>
-        openPartInCad(plugins, ref, full),
+      void openProject(
+        found.project.folder,
+        found.project.threads,
+        (ref) => openPartInCad(plugins, ref, full),
+        found.project.project,
       );
     }
   };
@@ -435,7 +438,8 @@ function QuickFindBody(props: {
           waiting: standing.waiting,
           ...(card === current ? { trailing: "Open" } : {}),
           run: go(() => {
-            if (card !== current) void openProject(card.folder, card.threads);
+            if (card !== current)
+              void openProject(card.folder, card.threads, undefined, card.project);
           }),
         };
       }),
@@ -471,7 +475,7 @@ function QuickFindBody(props: {
             run: go(() => {
               const last = cards[0];
               if (workspace === null && last !== undefined) {
-                void openProject(last.folder, last.threads);
+                void openProject(last.folder, last.threads, undefined, last.project);
               }
               useTourStore.getState().start();
             }),

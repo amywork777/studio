@@ -137,7 +137,9 @@ export function PluginViewFrame(props: {
    */
   readonly onAddContext?: ((content: ReadonlyArray<unknown>) => void) | undefined;
   /** Opens a file beside the thread in a view of its own (a CAD view's Open Part); without it the view is told no. */
-  readonly onOpenFile?: ((path: string) => void) | undefined;
+  readonly onOpenFile?:
+    | ((path: string, options?: { readonly replace?: boolean }) => void)
+    | undefined;
   /**
    * Where Studio's bar finds what this CAD view says of its part, for Simple view
    * (`workbench/viewerEditState.ts`); without it the view is not asked.
@@ -449,11 +451,11 @@ export function PluginViewFrame(props: {
       ...(props.onOpenFile === undefined
         ? {}
         : {
-            openFile: async (path: string) => {
+            openFile: async (path: string, options?: { readonly replace?: boolean }) => {
               const open = latest.current.props.onOpenFile;
               if (open === undefined)
                 throw new McpAppHostRefusal({ message: "Files open only beside a thread." });
-              open(path);
+              open(path, options);
             },
           }),
       ...(editKey === undefined

@@ -102,7 +102,7 @@ function ProjectActions(props: {
           onClick={() => {
             done();
             if (panelRef !== null) showOverview(panelRef);
-            else void openProject(folder, entry.threads, showOverview);
+            else void openProject(folder, entry.threads, showOverview, entry.card?.project ?? null);
           }}
         >
           <LayoutDashboardIcon aria-hidden="true" />
@@ -306,7 +306,7 @@ function ProjectsList(props: { readonly environmentId: EnvironmentId }) {
   const menu = useProjectMenu({
     environmentId,
     cards,
-    onOpen: (card) => void openProject(card.folder, card.threads),
+    onOpen: (card) => void openProject(card.folder, card.threads, undefined, card.project),
   });
   const currentFolderId = inWorkspace ? folderId : null;
   const entries = sidebarProjects({
