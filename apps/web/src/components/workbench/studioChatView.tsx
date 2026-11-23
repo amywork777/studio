@@ -30,6 +30,7 @@ import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
 import { handToChat, sendViewMessage } from "./handToChat";
+import { useStudioTabFileMenu } from "./studioRightPanelTabs";
 import { frontTab, useShowWaitingChat } from "./overviewPanel";
 import { PartContextStrip } from "./PartContextStrip";
 import { ChatTitleRow } from "./ChatTitleRow";
@@ -202,6 +203,8 @@ export function useStudioChatView(input: {
   });
   const chatBusy = input.isWorking || input.pendingUserInputCount > 0;
   const onTryAgainStable = useStableCallback(() => handToChat(composerRef, TRY_AGAIN_PROMPT));
+  // A file tab's menu: what the viewer's own row offered, now that the tab names the file.
+  const tabFileMenu = useStudioTabFileMenu(environmentId, activeWorkspaceRoot ?? null);
   /** Studio: a view's message in a chat not started yet starts it through the composer (`sendViewMessage`). */
   const sendAppMessageThroughComposerStable = useStableCallback(async (text: string) =>
     sendViewMessage(composerRef, text),
@@ -356,6 +359,7 @@ export function useStudioChatView(input: {
         />
       ) : null,
     panelSlots: {
+      fileMenu: tabFileMenu,
       // A narrow window's panel keeps Studio's toolbar too: New and the AI | CAD switch.
       ...(engineeringInterface && activeThreadRef
         ? {

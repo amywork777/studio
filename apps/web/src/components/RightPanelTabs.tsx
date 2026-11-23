@@ -216,6 +216,7 @@ const SURFACE_UNAVAILABLE_HINTS = {
 } as const;
 
 type TabContextMenuAction =
+  | studioTabs.StudioTabAction
   | "rename"
   | "copy-path"
   | "toggle-mute"
@@ -1083,6 +1084,7 @@ function RightPanelTab(
         label={gt("Close {title}", { title })}
         active={props.active}
         onClose={() => onClose(surface)}
+        menu={{ surface, onOpen: (event) => onContextMenu(event, surface) }}
       />
     </>
   );
@@ -1282,6 +1284,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     if (studioTabs.tabOffersCopyPath(surface, studio.engineering)) {
       items.push({ id: "copy-path", label: gt("Copy path") });
     }
+    items.push(...(props.fileMenu?.items(surface) ?? []));
     const menuPreviewTabId = previewTabIdOf(surface, props.previewSessions);
     const menuOverlay = menuPreviewTabId ? (props.desktopByTabId[menuPreviewTabId] ?? null) : null;
     const menuMuted = menuOverlay?.audioMuted ?? false;
@@ -1347,6 +1350,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         break;
       case "close-all":
         props.onCloseAllSurfaces();
+        break;
+      case "show-in-folder":
+        props.fileMenu?.run(action, surface);
         break;
       case null:
         break;
