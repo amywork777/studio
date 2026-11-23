@@ -15,6 +15,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "../
 import { useAllChats, waitingChats } from "./allChats";
 import { libraryHref } from "./library/librarySearch";
 import { useOpenWorkspaceStore } from "./openWorkspace";
+import { openToolbox, useToolboxOpen } from "./toolboxOpen";
 import { railMark } from "./studioPlaces";
 
 /** Where each place's page is. */
@@ -46,6 +47,7 @@ export function StudioHomeLink(props: { readonly environmentId: EnvironmentId })
   const waiting = waitingChats(useAllChats(props.environmentId).chats).length;
   const { mark, go, leave } = usePlaces();
   const openLibrary = useOpenLibrary();
+  const toolboxShown = useToolboxOpen((state) => state.open);
   return (
     <SidebarMenu aria-label="Studio">
       <PlaceItem
@@ -58,10 +60,11 @@ export function StudioHomeLink(props: { readonly environmentId: EnvironmentId })
       <PlaceItem
         icon={ToolCaseIcon}
         label="Toolbox"
-        marked={mark === "library"}
+        marked={mark === "library" || toolboxShown}
         onClick={() => {
           leave();
-          openLibrary();
+          // In a project the Toolbox is its popup, the one way in; elsewhere, its page.
+          if (!openToolbox()) openLibrary();
         }}
       />
     </SidebarMenu>

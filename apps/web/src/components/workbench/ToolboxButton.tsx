@@ -24,6 +24,7 @@ export function ToolboxButton(props: {
         // Pressed while its popup is open, as Import's menu trigger is.
         data-pressed={props.open ? "" : undefined}
         data-right-panel-toggle=""
+        data-studio-toolbox-button=""
         disabled={props.disabled}
         onClick={props.onToggle}
       >
