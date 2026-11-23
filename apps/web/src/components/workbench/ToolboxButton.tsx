@@ -15,7 +15,7 @@ export function ToolboxButton(props: {
   return (
     <span className="flex shrink-0" data-studio-tab-row-control="">
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         aria-label={props.label}
         title={props.label}
@@ -24,6 +24,7 @@ export function ToolboxButton(props: {
         // Pressed while its popup is open, as Import's menu trigger is.
         data-pressed={props.open ? "" : undefined}
         data-right-panel-toggle=""
+        data-studio-toolbox-button=""
         disabled={props.disabled}
         onClick={props.onToggle}
       >

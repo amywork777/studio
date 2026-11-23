@@ -14,7 +14,7 @@ export function PageTitle(props: {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">
+        <h1 className="text-base leading-5 font-semibold text-foreground">
           {props.title}
           {props.label === undefined ? null : (
             <>

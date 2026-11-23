@@ -1,13 +1,12 @@
 /**
- * Every page: `WorkspacePageContainer`, `PageTitle` 24px; `gap-6` between sections, `gap-3` label to
+ * Every page: `WorkspacePageContainer`, `PageTitle` 16/20 semibold (the scale's nearest to Jake's 15/20 heading); `gap-6` between sections, `gap-3` label to
  * content, `gap-2` between siblings, `p-3` inside cards. Controls `size="sm"`/`"icon-sm"` (28px);
  * `rounded-lg` outside, `rounded-md` only inside. Type: `MODULE_HEADING`, `GROUP_LABEL`, body
  * `text-sm`, secondary `text-xs`; nothing smaller but the rail's count.
  */
 
 /** A section's label, on every page and in Settings. */
-export const MODULE_HEADING =
-  "flex items-baseline gap-2 text-xs font-medium text-muted-foreground uppercase";
+export const MODULE_HEADING = "flex items-baseline gap-2 text-xs text-muted-foreground";
 
 /** Said quietly in a section's label: where its words came from, or when they were written. */
 export const MODULE_NOTE = "font-normal text-muted-foreground normal-case";

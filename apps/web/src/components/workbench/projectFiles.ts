@@ -65,7 +65,7 @@ const RULES: ReadonlyArray<{ readonly test: RegExp; readonly group: ProjectGroup
   { test: /\.(?:step|stp|xbf)$/i, group: "CAD" },
   { test: /\.solidcraft$/i, group: "CAD" },
   { test: /\.(?:stl|3mf|obj|glb)$/i, group: "CAD" },
-  { test: /\.(?:urdf|sdf|srdf)$/i, group: "CAD" },
+  { test: /\.(?:urdf|srdf)$/i, group: "CAD" },
   { test: /\.kicad_pcb$/i, group: "Electronics" },
   { test: /\.kicad_sch$/i, group: "Electronics" },
   { test: /\.harness\.ya?ml$/i, group: "Electronics" },

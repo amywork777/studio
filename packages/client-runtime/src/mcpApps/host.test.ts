@@ -630,4 +630,26 @@ describe("makeMcpAppHost", () => {
     // A notification is never answered, taken or not.
     expect(sent).toHaveLength(answered);
   });
+
+  it("offers the select ask only with a listener, and forwards how many picks the view found and missed", () => {
+    const selectCapability = (sent: ReadonlyArray<Record<string, unknown>>) =>
+      (sent[0]?.result as { hostCapabilities: Record<string, unknown> } | undefined)
+        ?.hostCapabilities.studioSelect;
+    const taken: Array<{ nonce: number; found: number; missing: number }> = [];
+    const { host, sent } = setup({ onSelectTaken: (answer) => void taken.push(answer) });
+    initialize(host);
+    expect(selectCapability(sent)).toEqual({});
+    for (const params of [
+      { nonce: 2, found: 6, missing: 1 },
+      { nonce: 2, found: "6", missing: 1 },
+      { nonce: 2, found: 6 },
+      {},
+    ]) {
+      host.receive({ jsonrpc: "2.0", method: "studio/notifications/select-taken", params });
+    }
+    expect(taken).toEqual([{ nonce: 2, found: 6, missing: 1 }]);
+    const plain = setup();
+    initialize(plain.host);
+    expect(selectCapability(plain.sent)).toBeUndefined();
+  });
 });

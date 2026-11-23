@@ -21,6 +21,8 @@ import { useRightPanelStore } from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
+import { shellEnvironment } from "~/state/shell";
+import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
@@ -123,7 +125,7 @@ function FileRow(props: {
     <button
       type="button"
       onClick={props.onOpen}
-      className="grid w-full grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] items-center gap-3 border-b border-border p-3 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className="grid w-full grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] items-center gap-3 border-b border-border p-3 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <span className="flex min-w-0 items-center gap-2">
         <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -417,6 +419,7 @@ export function ProjectPage(props: {
   };
   const composerRef = useComposerHandleContext();
   const plainWords = useEngineeringInterface();
+  const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
   // New asked for from outside the page (the library's Make
   // one): where this page shows its New, it takes the request and opens on it, once.
   const showsNew = composerRef !== null && !plainWords;
@@ -538,7 +541,7 @@ export function ProjectPage(props: {
       <header className={cn("border-b border-border px-6 pt-6 pb-3", plainWords && "hidden")}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold text-foreground">{name}</h1>
+            <h1 className="truncate text-base leading-5 font-semibold text-foreground">{name}</h1>
             {purpose === "" || plainWords ? null : (
               <p className="mt-1 truncate text-sm text-muted-foreground">{purpose}</p>
             )}
@@ -572,9 +575,7 @@ export function ProjectPage(props: {
                     ["overview", "Overview"],
                     ["files", "Files"],
                     ["references", "References"],
-                    ...(isProject
-                      ? [["threads", plainWords ? "History" : "Threads"] as const]
-                      : []),
+                    ...(isProject ? [["threads", plainWords ? "Chats" : "Threads"] as const] : []),
                   ] as const
                 ).map(([id, label]) => (
                   <Toggle key={id} value={id}>
@@ -612,7 +613,7 @@ export function ProjectPage(props: {
                 ? "Find a part, board or document"
                 : tab === "threads"
                   ? plainWords
-                    ? "Find in the history"
+                    ? "Find a chat"
                     : "Find a thread"
                   : "Find a reference"
             }
@@ -661,6 +662,30 @@ export function ProjectPage(props: {
             linkTo={(root, path) => serializeComposerFileLink(threadPath(root, path))}
             onShowThreads={isProject && !plainWords ? () => setTab("threads") : null}
             onNewDocument={composerRef === null ? null : () => openNew("Documents")}
+            heading={
+              plainWords
+                ? {
+                    name,
+                    purpose,
+                    brief: studio?.project.brief ?? null,
+                    setup:
+                      composerRef === null ? null : (
+                        <ProjectSetup
+                          environmentId={environmentId}
+                          cwd={cwd}
+                          composerRef={composerRef}
+                          workspaceMutationId={props.workspaceMutationId}
+                        />
+                      ),
+                    onShowFolder: () =>
+                      void openInEditor({
+                        environmentId,
+                        input: { cwd, editor: "file-manager" },
+                      }),
+                    cwd,
+                  }
+                : null
+            }
             byHand={byHand}
             onStartPart={startPart}
             threadRef={threadRef}

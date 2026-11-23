@@ -216,6 +216,7 @@ const SURFACE_UNAVAILABLE_HINTS = {
 } as const;
 
 type TabContextMenuAction =
+  | studioTabs.StudioTabAction
   | "rename"
   | "copy-path"
   | "toggle-mute"
@@ -1050,7 +1051,7 @@ function RightPanelTab(
                 onDoubleClick={() => {
                   if (surface.kind === "device" && props.canRename) onStartRename(surface.id);
                 }}
-                className="cursor-pointer flex min-w-0 items-center"
+                className="cursor-pointer flex min-w-0 flex-1 items-center"
                 aria-label={
                   sideChatState === null
                     ? undefined
@@ -1059,7 +1060,6 @@ function RightPanelTab(
                         state: messages(SIDE_CHAT_STATE_LABELS[sideChatState]),
                       })
                 }
-                onClick={() => onActivate(surface)}
               >
                 <span className="truncate">{title}</span>
                 <studioTabs.TabSuffix suffix={props.suffix} />
@@ -1074,7 +1074,9 @@ function RightPanelTab(
                 title={title}
               />
             ) : (
-              <studioTabs.TitleWithSuffix title={title} suffix={props.suffix} />
+              <studioTabs.TabHoverCard surface={surface} environmentId={props.environmentId}>
+                <studioTabs.TitleWithSuffix title={title} suffix={props.suffix} />
+              </studioTabs.TabHoverCard>
             )}
           </TooltipPopup>
         </Tooltip>
@@ -1083,14 +1085,18 @@ function RightPanelTab(
         label={gt("Close {title}", { title })}
         active={props.active}
         onClose={() => onClose(surface)}
+        menu={{ surface, onOpen: (event) => onContextMenu(event, surface) }}
       />
     </>
   );
   return (
     <div
       data-active-tab={props.active}
+      data-tab-surface={surface.id}
       onMouseDown={preventTabMiddleButtonDefault}
       onMouseUp={preventTabMiddleButtonDefault}
+      // The whole tab is its press target (icon, title, padding); its title button bubbles here.
+      onClick={() => onActivate(surface)}
       onAuxClick={(event) => onAuxClick(event, surface)}
       onContextMenu={(event) => onContextMenu(event, surface)}
       {...listeners}
@@ -1282,6 +1288,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     if (studioTabs.tabOffersCopyPath(surface, studio.engineering)) {
       items.push({ id: "copy-path", label: gt("Copy path") });
     }
+    items.push(...(props.fileMenu?.items(surface) ?? []));
     const menuPreviewTabId = previewTabIdOf(surface, props.previewSessions);
     const menuOverlay = menuPreviewTabId ? (props.desktopByTabId[menuPreviewTabId] ?? null) : null;
     const menuMuted = menuOverlay?.audioMuted ?? false;
@@ -1347,6 +1354,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         break;
       case "close-all":
         props.onCloseAllSurfaces();
+        break;
+      case "show-in-folder":
+        props.fileMenu?.run(action, surface);
         break;
       case null:
         break;
@@ -1583,6 +1593,14 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             ) : null}
           </div>
         </ScrollArea>
+        {studio.engineering && tabScrollState.hasOverflow ? (
+          <studioTabs.TabOverflowMenu
+            list={tabListRef}
+            surfaces={studio.tabSurfaces}
+            titleOf={titleOf}
+            onActivate={onActivateTab}
+          />
+        ) : null}
         {tabScrollState.hasOverflow ? (
           <div
             className="flex shrink-0 items-center gap-0.5 [-webkit-app-region:no-drag]"

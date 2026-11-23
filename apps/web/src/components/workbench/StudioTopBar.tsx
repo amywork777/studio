@@ -18,7 +18,7 @@ function StudioNav() {
     <nav aria-label={APP_BASE_NAME} className="flex shrink-0 items-center">
       <Link
         to="/"
-        className="flex items-center gap-1.5 rounded-md text-sm font-semibold text-foreground outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset"
+        className="flex items-center gap-1.5 rounded-md text-sm font-medium text-foreground outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset"
       >
         <T3Wordmark aria-hidden className="h-4 w-auto shrink-0" />
         {APP_BASE_NAME}

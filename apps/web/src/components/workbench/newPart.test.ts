@@ -18,15 +18,15 @@ import {
 } from "./newPart";
 
 describe("untitledName", () => {
-  it("names the first new part's project Untitled part", () => {
+  it("names the first new part's project Untitled project", () => {
     expect(untitledName([])).toBe(UNTITLED_PART);
-    expect(untitledName(["Servo bracket"])).toBe("Untitled part");
+    expect(untitledName(["Servo bracket"])).toBe("Untitled project");
   });
 
   it("numbers the next past every name taken, Trash's too, whatever their case", () => {
-    expect(untitledName(["Untitled part"])).toBe("Untitled part 2");
-    expect(untitledName(["untitled part", "Untitled Part 2", "Servo bracket"])).toBe(
-      "Untitled part 3",
+    expect(untitledName(["Untitled project"])).toBe("Untitled project 2");
+    expect(untitledName(["untitled project", "Untitled Project 2", "Servo bracket"])).toBe(
+      "Untitled project 3",
     );
   });
 });
@@ -215,8 +215,8 @@ describe("New part, step by step", () => {
   }
 
   it("opens the project at once, builds its part, then swaps to it by its id", async () => {
-    expect(await run(written, ["Untitled part"])).toEqual([
-      "made Untitled part 2",
+    expect(await run(written, ["Untitled project"])).toEqual([
+      "made Untitled project 2",
       "overview beside chat",
       "built /projects/untitled-part/parts/part.py for chat",
       `${id} beside chat`,
@@ -228,10 +228,10 @@ describe("New part, step by step", () => {
     // Build again's own build settles after `makeNewPart` does.
     await vi.waitFor(() =>
       expect(seen).toEqual([
-        "made Untitled part",
+        "made Untitled project",
         "overview beside chat",
         "built /projects/untitled-part/parts/part.py for chat",
-        "Made Untitled part, but its part did not build: part.py: the build failed",
+        "Made Untitled project, but its part did not build: part.py: the build failed",
         "built /projects/untitled-part/parts/part.py for chat",
         `${id} beside chat`,
       ]),
@@ -244,9 +244,9 @@ describe("New part, step by step", () => {
         throw new Error("parts/part.py could not be written.");
       }),
     ).toEqual([
-      "made Untitled part",
+      "made Untitled project",
       "overview beside chat",
-      "Made Untitled part, but its starter part could not be written: parts/part.py could not be written.",
+      "Made Untitled project, but its starter part could not be written: parts/part.py could not be written.",
     ]);
   });
 

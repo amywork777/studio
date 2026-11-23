@@ -40,6 +40,23 @@ const TYPE_OF: Readonly<Record<ProjectGroup, ItemType>> = {
 
 export const itemType = (group: ProjectGroup): ItemType => TYPE_OF[group];
 
+/** What each type holds, as its filter's tooltip says: a model is any of its formats. */
+export const ITEM_TYPE_FORMATS: Readonly<Record<ItemType, string>> = {
+  CAD: "STEP · STL · GLB · 3MF · XBF · DXF drawings",
+  Electronics: "KiCad boards and schematics",
+  Analysis: "Strength studies and their results",
+  Manufacturing: "CAM jobs · G-code · Gerbers · parts lists",
+  Documents: "Markdown · PDF · spreadsheets",
+  References: "Pictures and reference files",
+};
+
+/** How many of a project's items are of each type, for its filter. */
+export function itemTypeCounts(items: ReadonlyArray<{ readonly type: ItemType }>) {
+  const counts = new Map<ItemType, number>();
+  for (const item of items) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
+  return counts;
+}
+
 /** A file of the project as its list shows it: once, by the file that shows it. */
 export interface FileItem {
   /** The project folder it is in. */

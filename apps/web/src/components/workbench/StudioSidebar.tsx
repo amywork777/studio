@@ -252,8 +252,8 @@ function ProjectRow(props: {
                 menu({ x: box.left, y: box.bottom });
               }}
               className={cn(
-                "absolute top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity duration-150 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100",
-                folder === null ? "right-1.5" : "right-8",
+                "absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none transition-[opacity,background-color,color] duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset group-hover/chat:opacity-100",
+                folder === null ? "right-2" : "right-9",
               )}
             >
               <EllipsisIcon className="size-4" aria-hidden="true" />
@@ -267,7 +267,7 @@ function ProjectRow(props: {
                 if (isMobile) setOpenMobile(false);
                 void handleNewThread(scopeProjectRef(folder.environmentId, folder.id));
               }}
-              className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+              className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <PlusIcon className="size-4" aria-hidden="true" />
             </button>

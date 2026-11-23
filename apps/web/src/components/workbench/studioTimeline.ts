@@ -17,7 +17,34 @@ import { turnReferences, type AnswerReference } from "./references/turnReference
 // (`chat/MessagesTimeline.logic.ts`) calls these where it names a step, and keeps its own words
 // everywhere else. Copy that is only a different sentence is in `i18n/engineeringWords.ts`.
 
-export { quietTurnRow, quietTurnRowUnchanged, type QuietTurnRow } from "./quietTurn";
+import { quietTurnRow as quietRow, turnStepsLine, type QuietTurnRow } from "./quietTurn";
+
+export { quietTurnRowUnchanged, type QuietTurnRow } from "./quietTurn";
+
+/** A work entry's step in an engineer's words while it runs ("Rebuilding the head"), else null. */
+function runningStep(entry: TimelineEntry): string | null {
+  if (entry.kind !== "work") return null;
+  const work = entry.entry;
+  if (work.itemType === "reasoning") return null;
+  const command = work.command?.trim();
+  const step = command ? engineeringStepLabel(command) : toolStep(work);
+  return step?.doing ?? null;
+}
+
+/**
+ * The working row's quiet-turn fields (`quietTurn.ts`), and in the engineering interface its steps
+ * so far, "Reading the script → Rebuilding the head", so a running turn says what it is doing.
+ */
+export function quietTurnRow(
+  entries: ReadonlyArray<TimelineEntry>,
+  fromIndex: number,
+  turnStartedAt: string | null,
+): QuietTurnRow {
+  const row = quietRow(entries, fromIndex, turnStartedAt);
+  if (!isEngineeringInterface()) return row;
+  const steps = turnStepsLine(entries, fromIndex, runningStep);
+  return steps === null ? row : { ...row, steps };
+}
 export type { AnswerReference } from "./references/turnReferences";
 
 /** A step on T3's own tools, its threads read as chats in the engineering interface. */

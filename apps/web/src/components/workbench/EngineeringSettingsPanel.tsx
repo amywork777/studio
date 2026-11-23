@@ -23,6 +23,7 @@ import { DraftInput } from "../ui/draft-input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
+import { STANDARD_LABELS } from "./briefFolder";
 
 const MOUSE_LABELS: Record<ViewerMouse, string> = {
   studio: "Studio",
@@ -43,11 +44,6 @@ const MOUSE_HOW: Record<ViewerMouse, string> = {
     "Orbit with Shift and a middle drag, pan with a middle drag, zoom with the wheel or Ctrl, Shift and a middle drag.",
   onshape:
     "Orbit with a right drag, pan with a middle drag or Ctrl and a right drag, zoom with the wheel.",
-};
-
-const STANDARD_LABELS: Record<DraftingStandard, string> = {
-  ISO: "ISO",
-  ASME: "ASME Y14.5",
 };
 
 const STANDARD_HOW: Record<DraftingStandard, string> = {
@@ -97,7 +93,7 @@ export function EngineeringSettingsPanel() {
               <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Navigate like">
                 <SelectValue>{MOUSE_LABELS[mouse]}</SelectValue>
               </SelectTrigger>
-              <SelectPopup align="end" alignItemWithTrigger={false}>
+              <SelectPopup align="end" alignItemWithTrigger={false} sideOffset={6}>
                 {VIEWER_MICE.map((value) => (
                   <SelectItem key={value} hideIndicator value={value}>
                     {MOUSE_LABELS[value]}
@@ -194,7 +190,7 @@ function NewProjectSettings() {
             <SelectTrigger size="sm" className="w-full sm:w-44" aria-label="Drafting standard">
               <SelectValue>{STANDARD_LABELS[standard]}</SelectValue>
             </SelectTrigger>
-            <SelectPopup align="end" alignItemWithTrigger={false}>
+            <SelectPopup align="end" alignItemWithTrigger={false} sideOffset={6}>
               {DRAFTING_STANDARDS.map((value) => (
                 <SelectItem key={value} hideIndicator value={value}>
                   {STANDARD_LABELS[value]}

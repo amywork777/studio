@@ -135,7 +135,7 @@ export function SkillDetail(props: {
                   disabled={editing}
                   aria-current={path === file ? "true" : undefined}
                   onClick={() => setFile(path)}
-                  className="truncate rounded-md px-2 py-1 text-left text-sm text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-64 aria-[current]:bg-accent"
+                  className="truncate rounded-md px-2 py-1 text-left text-sm text-foreground outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-64 aria-[current]:bg-accent"
                 >
                   {path ?? "Instructions"}
                 </button>

@@ -3,7 +3,6 @@ import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "~/lib/utils";
-import { Button } from "../ui/button";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { CHECK_STATUS } from "./CheckBadge";
 import { worstStatus } from "./checkResults";
@@ -15,7 +14,9 @@ import type { ProjectGroup } from "./projectFiles";
 import { byLatest, pictureVersions, type ProjectModel } from "./projectModels";
 import {
   type FileItem,
+  ITEM_TYPE_FORMATS,
   ITEM_TYPES,
+  itemTypeCounts,
   type ItemType,
   itemType,
   projectFileItems,
@@ -131,7 +132,7 @@ function ListRows(props: {
         role="row"
         onClick={() => props.onOpenFile(file.root, file.file.path)}
         className={cn(
-          "grid items-center gap-3 border-b border-border p-3 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/60 focus-visible:bg-accent/60",
+          "grid items-center gap-3 border-b border-border p-3 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent/50 focus-visible:bg-accent/60",
           LIST_COLUMNS,
         )}
       >
@@ -182,7 +183,8 @@ export function ProjectEverything(props: {
       type: itemType(file.file.group),
       file,
     }));
-  const present = ITEM_TYPES.filter((entry) => items.some((item) => item.type === entry));
+  const counts = itemTypeCounts(items);
+  const present = ITEM_TYPES.filter((entry) => counts.has(entry));
   const shownType = type !== "All" && present.includes(type) ? type : "All";
   const matching = shownType === "All" ? items : items.filter((item) => item.type === shownType);
   const shown = all ? matching : matching.slice(0, FIRST);
@@ -204,26 +206,24 @@ export function ProjectEverything(props: {
           Files
           <span className="tabular-nums text-muted-foreground">{items.length}</span>
         </h2>
-        <div role="group" aria-label="View" className="flex shrink-0 gap-2">
-          <Button
-            variant={view === "list" ? "secondary" : "ghost-muted"}
-            size="icon-sm"
-            aria-label="Show as a list"
-            aria-pressed={view === "list"}
-            onClick={() => chooseView("list")}
-          >
+        {/* One segmented toggle, so which view is on reads at a glance. */}
+        <ToggleGroup
+          aria-label="View"
+          variant="segmented"
+          value={[view]}
+          onValueChange={(next) => {
+            const value = next[0];
+            if (value === "list" || value === "grid") chooseView(value);
+          }}
+          className="shrink-0"
+        >
+          <Toggle value="list" aria-label="Show as a list">
             <ListIcon />
-          </Button>
-          <Button
-            variant={view === "grid" ? "secondary" : "ghost-muted"}
-            size="icon-sm"
-            aria-label="Show as cards"
-            aria-pressed={view === "grid"}
-            onClick={() => chooseView("grid")}
-          >
+          </Toggle>
+          <Toggle value="grid" aria-label="Show as cards">
             <LayoutGridIcon />
-          </Button>
-        </div>
+          </Toggle>
+        </ToggleGroup>
       </div>
       {present.length < 2 ? null : (
         <ToggleGroup
@@ -239,11 +239,14 @@ export function ProjectEverything(props: {
           }}
           className="flex-wrap"
         >
-          <Toggle value="All">All</Toggle>
+          <Toggle value="All">
+            All<span className="tabular-nums text-muted-foreground">{items.length}</span>
+          </Toggle>
           {present.map((entry) => (
-            <Toggle key={entry} value={entry}>
+            <Toggle key={entry} value={entry} title={ITEM_TYPE_FORMATS[entry]}>
               <KindMark group={entry} className="size-3.5" />
               {entry}
+              <span className="tabular-nums text-muted-foreground">{counts.get(entry)}</span>
             </Toggle>
           ))}
         </ToggleGroup>
@@ -259,7 +262,7 @@ export function ProjectEverything(props: {
           <div
             role="row"
             className={cn(
-              "grid gap-3 border-b border-border px-3 pb-3 text-xs font-medium text-muted-foreground uppercase",
+              "grid gap-3 border-b border-border px-3 pb-3 text-xs text-muted-foreground",
               LIST_COLUMNS,
             )}
           >

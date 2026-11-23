@@ -51,6 +51,10 @@
       "types": "./src/studioProjects.ts",
       "import": "./src/studioProjects.ts"
     },
+    "./studioCadPath": {
+      "types": "./src/studioCadPath.ts",
+      "import": "./src/studioCadPath.ts"
+    },
     "./studioImport": {
       "types": "./src/studioImport.ts",
       "import": "./src/studioImport.ts"

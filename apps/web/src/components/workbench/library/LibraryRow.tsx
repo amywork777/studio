@@ -27,7 +27,7 @@ export function LibraryRow({
       type="button"
       onClick={props.onOpen}
       className={cn(
-        "flex w-full min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-2 text-left outline-none transition-colors duration-150 hover:border-foreground/25 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none",
+        "flex w-full min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-2 text-left outline-none transition-colors duration-150 hover:border-foreground/25 hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none",
         pin !== null && "pe-9",
       )}
     >

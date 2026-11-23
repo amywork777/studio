@@ -35,6 +35,13 @@ export const CHECK_STATUS: Record<
 /** How a check of a part since changed is marked, wherever it is said. */
 export const OutOfDateIcon = HistoryIcon;
 
+/** A check's line's icon, in its status color. */
+const ROW_TONE = {
+  error: "text-destructive",
+  warning: "text-warning",
+  success: "text-success",
+} as const;
+
 /** What a check of a part since changed says, in place of its verdict. */
 export const OUT_OF_DATE = "Part changed since this check";
 
@@ -47,9 +54,11 @@ export function CheckBadge(props: {
   readonly result: CheckResult;
   readonly outOfDate?: boolean;
   readonly markedOutOfDate?: boolean;
+  /** As a line: its name, how it went and its numbers ("Strength under load · passes · safety factor 2.4"). */
+  readonly row?: boolean;
   readonly onOpen: () => void;
 }) {
-  const { result, outOfDate = false, markedOutOfDate = false } = props;
+  const { result, outOfDate = false, markedOutOfDate = false, row = false } = props;
   const { variant, word, Icon } = CHECK_STATUS[result.status];
   return (
     <Tooltip>
@@ -67,7 +76,18 @@ export function CheckBadge(props: {
           />
         }
       >
-        {markedOutOfDate ? (
+        {row && !outOfDate ? (
+          <span className="flex min-w-0 items-center gap-1.5 text-xs">
+            <Icon aria-hidden="true" className={`size-3.5 shrink-0 ${ROW_TONE[variant]}`} />
+            <span className="shrink-0 text-foreground">{result.check}</span>
+            <span className="shrink-0 text-muted-foreground">· {word}</span>
+            {result.headline === "" ? null : (
+              <span className="min-w-0 truncate text-muted-foreground tabular-nums">
+                · {result.headline}
+              </span>
+            )}
+          </span>
+        ) : markedOutOfDate ? (
           <span className="text-xs text-muted-foreground hover:text-foreground">
             {result.check}
           </span>

@@ -98,7 +98,7 @@ describe("a project's models", () => {
   it("give a project with only models a picture, versions, ⌘K's parts and a new chat's starters", () => {
     const models = readFolderModels(reply);
     const paths = ["parts/mounting_plate.py", "assemblies/rig.py", "README.md"];
-    // Home's tile and the switcher's picture: the whole product, the assembly. Version history is
+    // Home's tile and the switcher's picture: the whole product, the assembly. Versions is
     // offered while a project has something to picture.
     expect(projectCover(paths, models)).toBe(RIG);
     expect(projectCover(paths, [])).toBeNull();

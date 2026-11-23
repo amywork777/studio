@@ -69,7 +69,7 @@ export function Choice(props: {
       disabled={props.disabled}
       onClick={props.onSelect}
       className={cn(
-        "flex min-w-0 items-start gap-3 rounded-lg border p-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60",
+        "flex min-w-0 items-start gap-3 rounded-lg border p-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-64",
         props.selected ? "border-primary bg-primary/5" : "border-border hover:border-foreground/25",
       )}
     >

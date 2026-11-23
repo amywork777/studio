@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { itemType, projectFileItems } from "./projectItems";
+import { itemType, itemTypeCounts, projectFileItems } from "./projectItems";
 
 describe("project items", () => {
   it("shows a study once, whatever a solve left beside it", () => {
@@ -59,6 +59,17 @@ describe("project items", () => {
     expect(items.find((item) => item.label === "Bumper FEA study")?.file.path).toBe(
       "parts/bumper.fea.glb",
     );
+  });
+
+  it("counts a mesh as a model: an STL, a GLB and a 3MF are CAD beside a STEP, a result is not", () => {
+    const items = projectFileItems([
+      {
+        root: "/p/enclosure",
+        paths: ["enclosure_base.glb", "lid.stl", "clip.3mf", "l_bracket.step", "l_bracket.fea.glb"],
+      },
+    ]);
+    const counts = itemTypeCounts(items.map((item) => ({ type: itemType(item.file.group) })));
+    expect([counts.get("CAD"), counts.get("Analysis")]).toEqual([4, 1]);
   });
 
   it("lists nothing for a folder still being read", () => {

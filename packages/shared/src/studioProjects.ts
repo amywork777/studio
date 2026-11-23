@@ -113,7 +113,7 @@ export const STUDIO_PROJECT_KINDS: ReadonlyArray<StudioProjectKind> = [
     description: "Links, joints and actuators, described for simulation.",
     layout: [
       ...MECHANICAL.slice(0, 2),
-      ["robots/", "robot descriptions (URDF, SRDF, SDF)"],
+      ["robots/", "robot descriptions (URDF, SRDF)"],
       ...ELECTRICAL,
       ...MECHANICAL.slice(3),
     ],
@@ -212,7 +212,8 @@ const THE_README = [
   "- `#` and the project's name.",
   "- `## What it is`: a short paragraph on what the part or product is for, what it must do, and how it is made.",
   "- `## Decisions`: one line per decision, newest last, exactly as `- <what was decided> (<YYYY-MM-DD>, asked)`, for example `- Support the bike by its front wheel (2026-10-19, asked)`, with `by hand` in place of `asked` for a change the person made by hand (a Hand edit note). Add a line whenever a change settles something. Leave earlier lines as they are; when a decision is reversed, say so on the new line.",
-  "- Anything else worth keeping in view, such as open questions or requirements, under its own `##` heading with a short name. Studio shows every section, folded to its heading, so add to the section a point belongs in rather than starting a dated one.",
+  "- `## Open questions`: one line per question you could not settle, as `- <question> [<what you assumed> | <another answer>]`, for example `- Wall thickness? [2 mm | 3 mm]`, the answer you built with first. Studio asks each as taps on the Overview and sends the person's answer to the chat; take the question out once it is answered and add its decision line.",
+  "- Anything else worth keeping in view, such as requirements, under its own `##` heading with a short name. Studio shows every section, folded to its heading, so add to the section a point belongs in rather than starting a dated one.",
   "- Past `What it is`, write short points, not paragraphs: one point a line, its detail nested two spaces under it, and `###` to split a long section.",
 ].join("\n");
 

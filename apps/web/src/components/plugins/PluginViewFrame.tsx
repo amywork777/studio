@@ -1,4 +1,4 @@
-import { cadToolsCause } from "../workbench/cadToolsCause";
+import { viewFailure, viewFailureRequest } from "../workbench/cadToolsCause";
 import { partLabel } from "../workbench/partNames";
 import { hasEngineeringSurfaces, isEngineeringInterface } from "../workbench/studioInterface";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
@@ -58,21 +58,12 @@ import {
   useViewerFocus,
   type ViewerFocusPlace,
 } from "../workbench/references/viewerFocus";
+import { useViewerSelect, useViewerSelectStore } from "../workbench/references/viewerSelect";
+import { useViewerWorking } from "../workbench/references/viewerWorking";
 import { useOpenChatFile } from "../workbench/useOpenInWorkbench";
 import { useViewerControls } from "../workbench/viewerControls";
 
 /** What opens one plugin view: the tool whose result is the view, and where it runs. */
-
-/**
- * Why a view could not open, in plain words: the server says it with paths and view names. The two
- * causes a person can act on when the CAD tools did not start are said (`cadToolsCause`).
- */
-function plainViewError(message: string): string {
-  if (/outside the thread's workspace/i.test(message)) {
-    return "The viewer can only open files in this chat's folder.";
-  }
-  return cadToolsCause(message) ?? "The viewer couldn't open this.";
-}
 
 export interface PluginViewTarget {
   readonly environmentId: EnvironmentId;
@@ -157,6 +148,8 @@ export function PluginViewFrame(props: {
    * file, `workbench/references/viewerFocus.ts`); without it the view is asked nothing.
    */
   readonly focusPlace?: ViewerFocusPlace | null | undefined;
+  /** Studio: whether this view is the tab in front beside its chat (a kept one behind is not). */
+  readonly front?: boolean;
 }) {
   const { target } = props;
   const theme = useHtmlRenderTheme();
@@ -276,6 +269,10 @@ export function PluginViewFrame(props: {
   // Studio: where a reference opens this part's view (`workbench/references/viewerFocus.ts`), and
   // its script, where no feature of the part holds the cited line.
   const focus = useViewerFocus(props.focusPlace);
+  // Studio: the picks a chat's message carried, to select again (`workbench/references/viewerSelect.ts`).
+  const select = useViewerSelect(props.focusPlace, props.front ?? true);
+  // Studio: the chat beside it has a turn running, so the view says the part is being changed.
+  const working = useViewerWorking(props.focusPlace?.threadKey);
   const openChatFile = useOpenChatFile(
     props.focusPlace == null || target.threadId === null
       ? null
@@ -283,7 +280,18 @@ export function PluginViewFrame(props: {
   );
   // How the mouse moves the view, from this device's Settings, Engineering.
   const viewerControls = useViewerControls();
-  const live = { theme, size, props, request, editLayout, focus, openChatFile, viewerControls };
+  const live = {
+    theme,
+    size,
+    props,
+    request,
+    editLayout,
+    focus,
+    select,
+    working,
+    openChatFile,
+    viewerControls,
+  };
   const latest = useRef(live);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes committed props and state to the long-lived MCP App host, which reads them asynchronously
   useEffect(() => {
@@ -330,6 +338,8 @@ export function PluginViewFrame(props: {
         "openai/modelContext": modelContext.current,
         "studio/editLayout": current.editLayout,
         "studio/focus": current.focus,
+        "studio/select": current.select,
+        "studio/working": current.working,
         "studio/viewerControls": current.viewerControls,
       } as McpAppHostContext;
     };
@@ -476,6 +486,8 @@ export function PluginViewFrame(props: {
               // script opens there, as Simple view opens it, so the press is never lost.
               if (!found && asked?.nonce === nonce) openChatFile(asked.path, asked.line);
             },
+            onSelectTaken: ({ nonce, found, missing }) =>
+              useViewerSelectStore.getState().answer(nonce, { found, missing }),
           }),
       downloadFile: async (files) => {
         await ask(`Save ${files.map((file) => file.name).join(", ")} from ${target.title}?`);
@@ -538,7 +550,7 @@ export function PluginViewFrame(props: {
   useEffect(() => {
     hostRef.current?.updateHostContext();
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Context changes trigger a resend.
-  }, [theme, size, editLayout, focus, viewerControls]);
+  }, [theme, size, editLayout, focus, select, working, viewerControls]);
 
   const reload = () => {
     setClosed(false);
@@ -554,11 +566,16 @@ export function PluginViewFrame(props: {
           actionLabel="Reopen"
         />
       ) : loaded._tag === "error" ? (
-        <Notice
-          text={isEngineeringInterface() ? plainViewError(loaded.message) : loaded.message}
-          action={reload}
-          actionLabel="Try again"
-        />
+        isEngineeringInterface() ? (
+          <FailureCard
+            name={partLabel(target.title)}
+            message={loaded.message}
+            retry={reload}
+            ask={props.onSendMessage}
+          />
+        ) : (
+          <Notice text={loaded.message} action={reload} actionLabel="Try again" />
+        )
       ) : frame === null ? (
         <div className="flex flex-1 items-center justify-center">
           <Spinner />
@@ -582,6 +599,44 @@ export function PluginViewFrame(props: {
           />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Studio: a view that did not open, as a card: what was not done, why in plain words, and one
+ * thing to do: try again, or ask Studio's agent to fix it with the reason as it came.
+ */
+function FailureCard(props: {
+  readonly name: string;
+  readonly message: string;
+  readonly retry: () => void;
+  readonly ask: ((text: string) => Promise<void>) | undefined;
+}) {
+  const failure = viewFailure(props.message, props.name);
+  const ask = failure.action === "ask" ? props.ask : undefined;
+  return (
+    <div className="flex flex-1 items-center justify-center px-6">
+      <div
+        role="alert"
+        className="flex max-w-sm flex-col items-start gap-1 rounded-md border border-border px-4 py-3"
+        data-view-failure=""
+      >
+        <p className="text-sm font-medium text-foreground">{failure.headline}</p>
+        <p className="text-xs text-muted-foreground">{failure.why}</p>
+        <Button
+          className="mt-2"
+          size="xs"
+          variant="outline"
+          onClick={
+            ask === undefined
+              ? props.retry
+              : () => void ask(viewFailureRequest(props.name, props.message))
+          }
+        >
+          {ask === undefined ? "Try again" : "Ask Studio to fix it"}
+        </Button>
+      </div>
     </div>
   );
 }

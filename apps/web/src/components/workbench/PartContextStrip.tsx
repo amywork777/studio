@@ -80,7 +80,7 @@ function ThreadPartContext(props: { readonly threadRef: ScopedThreadRef }) {
               data-part-context=""
               aria-label={`Show ${part.name} in the viewer`}
               onClick={() => useRightPanelStore.getState().activateSurface(threadRef, view.id)}
-              className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <BoxIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="min-w-0 shrink truncate font-medium text-foreground">

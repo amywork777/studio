@@ -1,4 +1,5 @@
 import { TOOLBOX_ACTIONS, type HardwareAction } from "./hardwareActions";
+import { viewMessageOf } from "./viewMessage";
 
 /** The line, on its own or after a draft, which the composer joins to a job with a space. */
 const TOOL_LINE = /(?:^|\s+)Tool: ([^\n]+)\n+/g;
@@ -34,9 +35,14 @@ export function toolUsed(text: string): {
   return tools.length === 0 ? null : { tools, words, message: message.trim() };
 }
 
-/** What a chat a tool opened is titled from: the person's words, else the tool. */
+/**
+ * What a chat is titled from: the person's words, else the tool that opened it, else (a send from the
+ * model view with no words of its own) what it picked.
+ */
 export function chatTitleText(text: string): string {
   const used = toolUsed(text);
-  if (used === null) return text;
-  return used.words === "" ? used.tools[0]!.label : used.words;
+  if (used !== null) return used.words === "" ? used.tools[0]!.label : used.words;
+  const view = viewMessageOf(text);
+  if (view === null) return text;
+  return view.words === "" ? view.label : view.words;
 }

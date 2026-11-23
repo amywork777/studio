@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import { ContextChip, ContextChipLabel } from "../ContextChip";
+import { CHAT_PILL } from "./chatPill";
 import type { HardwareAction } from "./hardwareActions";
 import { MENU_TINTS } from "./kinds";
 import { toolIcon } from "./toolIcons";
@@ -13,9 +13,9 @@ export function ToolChip(props: { readonly tool: HardwareAction }) {
 function ToolChipBody(props: { readonly tool: HardwareAction; readonly icon: LucideIcon }) {
   const { tool, icon: Icon } = props;
   return (
-    <ContextChip>
+    <span className={CHAT_PILL}>
       <Icon aria-hidden="true" className={MENU_TINTS[tool.group]} />
-      <ContextChipLabel>{tool.label}</ContextChipLabel>
-    </ContextChip>
+      <span className="min-w-0 truncate">{tool.label}</span>
+    </span>
   );
 }

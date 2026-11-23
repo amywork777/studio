@@ -26,7 +26,7 @@ export function StarButton(props: {
       }}
       className={cn(
         "group/star flex size-7 shrink-0 items-center justify-center rounded-md outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        !props.quiet && "hover:bg-accent",
+        !props.quiet && "hover:bg-accent/50",
         props.className,
       )}
     >

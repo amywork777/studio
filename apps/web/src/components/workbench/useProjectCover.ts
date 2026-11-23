@@ -37,11 +37,15 @@ function coverFile(
 }
 
 /**
- * The document that stands for a project with nothing to picture yet, as a page of words: its
- * first document, else its README (what it is). Null when it has neither.
+ * The document that stands for a project of documents, as a page of words: its first document,
+ * else its README (what it is). Null when it has neither, and for a project with parts.
  */
 export function projectPage(paths: ReadonlyArray<string>): string | null {
-  const documents = groupProjectFiles(paths).find((entry) => entry.group === "Documents")?.files;
+  const groups = groupProjectFiles(paths);
+  // A project of parts waits for its picture under a plain placeholder: a page of a check's report
+  // or notes would stand for it as raw text.
+  if (groups.some((entry) => entry.group === "CAD" || entry.group === "Electronics")) return null;
+  const documents = groups.find((entry) => entry.group === "Documents")?.files;
   const first = documents?.find((file) => !/^readme\.md$/i.test(file.path)) ?? documents?.[0];
   if (first !== undefined) return first.path;
   return paths.find((path) => /^readme\.md$/i.test(path)) ?? null;

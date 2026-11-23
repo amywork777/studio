@@ -177,7 +177,7 @@ export function WhatChanged(props: {
           <SelectTrigger size="sm" variant="ghost" aria-label="Version to compare with">
             <SelectValue>{props.older.label}</SelectValue>
           </SelectTrigger>
-          <SelectPopup alignItemWithTrigger={false}>
+          <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
             {props.olderChoices.map((choice) => (
               <SelectItem key={choice.id} hideIndicator value={choice.id}>
                 {choice.label}, {choice.detail}
