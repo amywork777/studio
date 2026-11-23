@@ -157,12 +157,13 @@ export class ManagedProjectFolders extends Context.Service<
       NamedProjectError
     >;
     /**
-     * `git init` and a first commit of everything in a folder that keeps no history; only `.git` is
-     * written. A folder with a history is left alone. A failed commit keeps the history and returns why
-     * in `commitError`; a folder Git could not make a repository fails.
+     * `git init` and a first commit of everything in a folder that keeps no history (a failed
+     * commit returns why in `commitError`). A folder with a history is left alone, or with `keep`
+     * has what is in it now committed under that message. A folder Git cannot init fails.
      */
     readonly startHistory: (input: {
       readonly cwd: string;
+      readonly keep?: string;
     }) => Effect.Effect<{ readonly commitError?: string }, StartHistoryError>;
   }
 >()("t3/project/ManagedProjectFolders") {}
@@ -606,6 +607,36 @@ const make = Effect.gen(function* () {
     };
   });
 
+  // What is in the folder now, kept as one version; nothing is committed when nothing changed.
+  // Returns why the commit failed, when it did.
+  const keepVersion = Effect.fn("ManagedProjectFolders.keepVersion")(function* (
+    cwd: string,
+    message: string,
+  ) {
+    yield* git.execute({
+      operation: "ManagedProjectFolders.keepAdd",
+      cwd,
+      args: ["-c", "core.safecrlf=false", "add", "--all"],
+      timeoutMs: 120_000,
+    });
+    const staged = yield* git.execute({
+      operation: "ManagedProjectFolders.keepStaged",
+      cwd,
+      args: ["diff", "--cached", "--quiet"],
+      allowNonZeroExit: true,
+      timeoutMs: 10_000,
+    });
+    if (staged.exitCode === 0) return undefined;
+    const result = yield* git.execute({
+      operation: "ManagedProjectFolders.keepCommit",
+      cwd,
+      args: ["commit", "--message", message],
+      allowNonZeroExit: true,
+      timeoutMs: 30_000,
+    });
+    return result.exitCode === 0 ? undefined : describeCommitFailure(result.stderr);
+  });
+
   const startHistory: ManagedProjectFolders["Service"]["startHistory"] = Effect.fn(
     "ManagedProjectFolders.startHistory",
   )(function* (input) {
@@ -613,8 +644,15 @@ const make = Effect.gen(function* () {
       Effect.map((root) => root !== null),
       Effect.orElseSucceed(() => false),
     );
-    // Inside a checkout already, its own or a parent folder's: nothing to start.
-    if (yield* keepsHistory) return {};
+    // Inside a checkout already, its own or a parent folder's: nothing to start, unless what is
+    // there now is to be kept as a version.
+    if (yield* keepsHistory) {
+      if (input.keep === undefined) return {};
+      const commitError = yield* keepVersion(input.cwd, input.keep).pipe(
+        Effect.catch((cause) => Effect.succeed(cause.message)),
+      );
+      return commitError === undefined ? {} : { commitError };
+    }
     // Everything in the folder but what its ignore rules leave out. A real
     // folder can hold large models, so the add gets longer than a new project's.
     const commitError = yield* initWithFirstCommit(input.cwd, ["--all"], 120_000).pipe(
