@@ -172,13 +172,18 @@ function LeadFacts(props: {
         </LeadFact>
       )}
       {checks.length === 0 ? null : (
-        <LeadFact label="Checks">
-          <span className="flex min-w-0 flex-wrap gap-1">
+        <LeadFact label="Checks" labelHidden={props.checksOnly}>
+          <span
+            className={
+              props.checksOnly ? "flex min-w-0 flex-col gap-1" : "flex min-w-0 flex-wrap gap-1"
+            }
+          >
             {checks.map((result) => (
               <CheckBadge
                 key={result.path}
                 result={result}
                 outOfDate={checkOutOfDate(result, part.file)}
+                row={props.checksOnly}
                 onOpen={() => props.onOpenFile(result.model)}
               />
             ))}
