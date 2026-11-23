@@ -455,7 +455,10 @@ describe("makeMcpAppHost", () => {
 
   it("opens a file beside the thread only where the host can, and says so", async () => {
     const opened: Array<string> = [];
-    const { host, sent } = setup({ openFile: async (path) => void opened.push(path) });
+    const replaced: Array<string> = [];
+    const { host, sent } = setup({
+      openFile: async (path, options) => void (options?.replace ? replaced : opened).push(path),
+    });
     initialize(host);
     const capabilities = (
       sent[0]?.result as { hostCapabilities: Record<string, unknown> } | undefined
@@ -472,6 +475,18 @@ describe("makeMcpAppHost", () => {
     expect(opened).toEqual(["/project/parts/tray.step"]);
     expect(sent.find((m) => m.id === 1)?.result).toEqual({});
     expect(sent.find((m) => m.id === 2)?.error).toMatchObject({ code: -32602 });
+    // A view's own part shown by its built document asks for its own tab (`replace`).
+    host.receive({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "studio/open-file",
+      params: { path: "3f2b0c1e-0000-4000-8000-000000000001", replace: true },
+    });
+    await flush();
+    expect([opened, replaced]).toEqual([
+      ["/project/parts/tray.step"],
+      ["3f2b0c1e-0000-4000-8000-000000000001"],
+    ]);
 
     // A host that opens no files offers none, and refuses the method.
     const plain = setup();
