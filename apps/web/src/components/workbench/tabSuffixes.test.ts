@@ -78,4 +78,10 @@ describe("tab titles without the project's name they share", () => {
     ).toEqual(["Desk lamp", "Work instructions", "Drawing", "LED module"]);
     expect(withoutSharedPrefix(["Bracket", "Plate"])).toEqual(["Bracket", "Plate"]);
   });
+
+  it("keeps a first word two tabs share when no tab is that name itself", () => {
+    // The servo example: two horn files, and no "Horn" open, so neither is cut to "Link STL".
+    const titles = ["Servo bracket", "Horn link STL", "Horn adapter bottom G-code"];
+    expect(withoutSharedPrefix(titles)).toEqual(titles);
+  });
 });
