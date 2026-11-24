@@ -39,11 +39,11 @@ describe("a Home tile's check badge", () => {
   it("says the worst check, a failure before a warning, counting several", () => {
     expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "ready")])).toEqual({
       tone: "warning",
-      text: "Printing: passes with warnings",
+      text: "Passes with warnings: Printing",
     });
     expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "fix")])).toEqual({
       tone: "failed",
-      text: "Strength: failed",
+      text: "Failed: Strength",
     });
     expect(tileCheckBadge([result("Strength", "fix"), result("Casting", "fix")])?.text).toBe(
       "2 checks failed",
