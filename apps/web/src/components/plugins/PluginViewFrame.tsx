@@ -560,7 +560,14 @@ export function PluginViewFrame(props: {
   };
 
   return (
-    <div ref={boxRef} className="relative flex min-h-0 flex-1 flex-col">
+    // Opening a view focuses the view, not the panel's first tab, whose tooltip that focus opens:
+    // its iframe has nothing focusable on this side.
+    <div
+      ref={boxRef}
+      tabIndex={-1}
+      data-workspace-focus-default=""
+      className="relative flex min-h-0 flex-1 flex-col outline-none"
+    >
       {closed ? (
         <Notice
           text={`${isEngineeringInterface() ? partLabel(target.title) : target.title} was closed`}
