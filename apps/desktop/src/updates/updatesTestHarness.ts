@@ -44,12 +44,15 @@ export interface UpdatesHarnessOptions {
   readonly savedChannel?: DesktopAppSettings.DesktopSettings["updateChannel"];
   /** Adds a WSL backend beside the primary, as on a Windows host with WSL enabled. */
   readonly wslBackend?: boolean;
+  /** Where electron-updater keeps the waiting download; `removeDownload` deletes it. */
+  readonly downloadedFile?: string;
 }
 
 export function makeHarness(options: UpdatesHarnessOptions = {}) {
   let checkCount = 0;
   let quitAndInstallCount = 0;
   let downloadCount = 0;
+  let downloadOnDisk = true;
   let autoDownload: boolean | null = null;
   let autoInstallOnAppQuit: boolean | null = null;
   let allowDowngrade = false;
@@ -108,12 +111,14 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     }).pipe(Effect.andThen(options.checkForUpdates ?? Effect.void)),
     downloadUpdate: Effect.sync(() => {
       downloadCount += 1;
+      downloadOnDisk = true;
     }).pipe(Effect.andThen(options.downloadUpdate ?? Effect.void)),
     quitAndInstall: () =>
       Effect.sync(() => {
         quitAndInstallCount += 1;
         installSteps.push("quitAndInstall");
       }).pipe(Effect.andThen(options.quitAndInstall ?? Effect.void)),
+    downloadedFile: Effect.sync(() => options.downloadedFile ?? null),
     on: (eventName, listener) =>
       Effect.acquireRelease(
         Effect.sync(() => {
@@ -276,6 +281,7 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
             }),
           );
     },
+    exists: (path) => Effect.succeed(path === options.downloadedFile && downloadOnDisk),
     makeDirectory: () => Effect.void,
     writeFileString: (path, data) =>
       Effect.sync(() => {
@@ -336,6 +342,9 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     installRecords,
     previousInstallRecord: () => previousInstallRecord,
     downloadCount: () => downloadCount,
+    removeDownload: () => {
+      downloadOnDisk = false;
+    },
     autoDownload: () => autoDownload,
     autoInstallOnAppQuit: () => autoInstallOnAppQuit,
     feedUrls: (): ElectronUpdater.ElectronUpdaterFeedUrl[] => feedUrls,

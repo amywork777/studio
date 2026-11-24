@@ -89,6 +89,8 @@ export class ElectronUpdater extends Context.Service<
     readonly setDisableDifferentialDownload: (value: boolean) => Effect.Effect<void>;
     readonly checkForUpdates: Effect.Effect<void, ElectronUpdaterCheckForUpdatesError>;
     readonly downloadUpdate: Effect.Effect<void, ElectronUpdaterDownloadUpdateError>;
+    /** The waiting update's file, or null before a download. */
+    readonly downloadedFile: Effect.Effect<string | null>;
     readonly quitAndInstall: (options: {
       readonly isSilent: boolean;
       readonly isForceRunAfter: boolean;
@@ -167,6 +169,11 @@ export const make = ElectronUpdater.of({
       catch: (cause) => new ElectronUpdaterDownloadUpdateError({ channel, cause }),
     }).pipe(Effect.asVoid);
   }),
+  downloadedFile: Effect.sync(
+    () =>
+      (autoUpdater as unknown as { downloadedUpdateHelper?: { file: string | null } | null })
+        .downloadedUpdateHelper?.file ?? null,
+  ),
   quitAndInstall: Effect.fn("ElectronUpdater.quitAndInstall")(function ({
     isSilent,
     isForceRunAfter,
