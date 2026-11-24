@@ -387,7 +387,11 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     skill: "cad",
     kinds: SOLID,
     checks: false,
-    prompt: (file) => `Export ${file} as STEP, STL and 3MF.`,
+    // An imported STEP is the person's own file: written again it changes, if only in its header.
+    prompt: (file) =>
+      /\.(?:step|stp)\b/i.test(file)
+        ? `Export ${file} as STL and 3MF. It is a STEP file already: leave it as it is.`
+        : `Export ${file} as STEP, STL and 3MF.`,
     short: (name) => `Export ${name}`,
   },
   {
