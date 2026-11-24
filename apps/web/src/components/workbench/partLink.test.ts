@@ -1,3 +1,4 @@
+import { isMarkdownFileLinkLabel } from "@t3tools/shared/markdownLinks";
 import { describe, expect, it } from "vite-plus/test";
 
 import { partLink } from "./partLink";
@@ -6,10 +7,12 @@ const DOCUMENT = "6f1c0d8e-2b7a-4c1e-9d3f-5a6b7c8d9e0f";
 const scripts = new Map([[DOCUMENT, "/work/servo bracket/parts/horn_adapter.py"]]);
 
 describe("a part's link in a job's message", () => {
-  it("names a model and links its script, never its id", () => {
+  it("links a model's script, never its id, as one chip and not its name beside a chip", () => {
     const link = partLink({ path: DOCUMENT, name: "Horn adapter" }, (id) => scripts.get(id));
-    expect(link).toBe("[Horn adapter](/work/servo%20bracket/parts/horn_adapter.py)");
+    expect(link).toBe("[horn\\_adapter.py](/work/servo%20bracket/parts/horn_adapter.py)");
     expect(link).not.toContain(DOCUMENT);
+    const [, label, href] = /^\[(.*)\]\((.*)\)$/.exec(link)!;
+    expect(isMarkdownFileLinkLabel(label!.replaceAll("\\", ""), href!)).toBe(true);
   });
 
   it("names a model whose script is not known yet, and still no id", () => {
