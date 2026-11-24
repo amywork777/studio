@@ -55,7 +55,7 @@ export const tourSteps = (platform: string): ReadonlyArray<TourStep> => [
   {
     target: "[data-studio-cad-tools]",
     title: "Edit it by hand",
-    body: "Show CAD tools opens the ribbon and the FeatureManager, as in SolidWorks. A change you make there is written into the part's script.",
+    body: "This button shows or hides the ribbon and the FeatureManager, as in SolidWorks. A change you make there is written into the part's script.",
   },
   {
     target: "[data-pinned-project-tab]",
