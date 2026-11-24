@@ -200,6 +200,10 @@ async function main() {
     }
   } finally {
     await stop(app);
+    // The CAD engine the app started can outlive it holding these pipes, which keep this check
+    // running until the engine exits (it hung a build for 1 h 40 min).
+    app.stdout.destroy();
+    app.stderr.destroy();
     await removeHome(home);
   }
 }
