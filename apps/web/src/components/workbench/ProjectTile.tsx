@@ -37,7 +37,7 @@ export function ProjectTile(props: {
   const { environmentId, project } = props;
   const waiting = props.waiting ?? [];
   const picture = useProjectCover(environmentId, project);
-  // The worst check the project's runs wrote, if any needs a look: "Printing: passes with warnings".
+  // The worst check the project's runs wrote, if any needs a look: "Passes with warnings: Printing".
   const checks = useProjectChecks({ environmentId, folders: project.folders, mutationId: null });
   const badge = tileCheckBadge(checks.flatMap((folder) => folder.results));
   // A project of documents is pictured by its first one, as a page of words.
@@ -104,7 +104,11 @@ export function ProjectTile(props: {
           <span className="truncate text-xs text-muted-foreground tabular-nums">{line}</span>
           {badge === null ? null : (
             <span className="flex min-w-0 max-w-full">
-              <Badge variant={badge.tone === "failed" ? "error" : "warning"}>
+              <Badge
+                variant={badge.tone === "failed" ? "error" : "warning"}
+                className="min-w-0 max-w-full"
+                title={badge.text}
+              >
                 <span className="truncate">{badge.text}</span>
               </Badge>
             </span>
