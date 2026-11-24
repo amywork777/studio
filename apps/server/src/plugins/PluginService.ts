@@ -48,6 +48,7 @@ import * as PluginFiles from "./pluginFiles.ts";
 import * as ModelPictures from "./modelPictures.ts";
 import * as PluginHost from "./PluginHost.ts";
 import * as PluginStore from "./PluginStore.ts";
+import * as RebuildUnsaved from "./rebuildUnsaved.ts";
 
 /** A plugin tool as agents see it on T3's MCP server. */
 export interface AgentTool {
@@ -337,11 +338,33 @@ const make = Effect.gen(function* () {
       }
       return yield* fail("not_found", `${input.pluginId} has no view called ${input.tool}`);
     }
-    const toolResult = yield* call("tools/call", {
+    const open = call("tools/call", {
       name: input.tool,
       arguments: toolInput,
       ...(meta === undefined ? {} : { _meta: meta }),
     });
+    let toolResult = yield* open;
+    // A model the engine lost in a restart is built again by its own command, then opened.
+    const words = AppCapability.isErrorResult(toolResult)
+      ? RebuildUnsaved.rebuildWords(
+          RebuildUnsaved.errorText(toolResult),
+          yield* HostProcess.isWindows,
+        )
+      : null;
+    const launch =
+      words === null
+        ? null
+        : (yield* store.enabledPlugins)
+            .filter((plugin) => plugin.id === input.pluginId)
+            .map((plugin) => ModelPictures.snapshotLaunch(plugin, environment))
+            .find((candidate) => candidate !== null);
+    if (words !== null && launch !== null && launch !== undefined) {
+      const built = yield* Effect.tryPromise({
+        try: () => RebuildUnsaved.buildAgain(launch, words, roots[0] ?? launch.cwd),
+        catch: () => "not built" as const,
+      }).pipe(Effect.isSuccess);
+      if (built) toolResult = yield* open;
+    }
     // The launch's `_meta` goes to the view whole (its capability among it), and is remembered for
     // Studio's own reads of the same server.
     remember(capabilityKey(input.threadId, input.pluginId, input.server), toolResult);
