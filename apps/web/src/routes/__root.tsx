@@ -201,7 +201,8 @@ function RootRouteBranch() {
       <CustomSnoozeDialogHost />
       <GuestShareDialogHost />
       <ProjectCloneToastCoordinator />
-      {primaryEnvironmentAuthenticated ? <UsageDataNotice /> : null}
+      {/* Studio: told on the home, not over the welcome page's text; nothing is sent until then. */}
+      {primaryEnvironmentAuthenticated && !isWelcome ? <UsageDataNotice /> : null}
       <ConnectDeviceApprovalCoordinator />
       <AddProjectToMachineDialogHost />
       <UseInAnotherAppDialogHost />
