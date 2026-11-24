@@ -24,6 +24,7 @@ export const STUDIO_RPC_REQUIRED_SCOPES = {
   [WS_METHODS.pluginsOpenView]: AuthOrchestrationOperateScope,
   [WS_METHODS.pluginsRequest]: AuthOrchestrationOperateScope,
   [WS_METHODS.pluginsModelPictures]: AuthOrchestrationOperateScope,
+  [WS_METHODS.pluginsExport]: AuthOrchestrationOperateScope,
   // Projects are files on this machine; listing them reads like listing a folder.
   [WS_METHODS.studioProjectsList]: AuthFilesystemReadScope,
   [WS_METHODS.studioProjectsSave]: AuthOrchestrationOperateScope,
@@ -47,6 +48,7 @@ export const STUDIO_RPC_AGGREGATES = {
   [WS_METHODS.pluginsOpenView]: "server",
   [WS_METHODS.pluginsRequest]: "server",
   [WS_METHODS.pluginsModelPictures]: "server",
+  [WS_METHODS.pluginsExport]: "server",
   [WS_METHODS.studioProjectsList]: "server",
   [WS_METHODS.studioProjectsSave]: "server",
   [WS_METHODS.studioProjectsTrash]: "server",

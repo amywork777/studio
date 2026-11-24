@@ -128,6 +128,10 @@ export function createPluginEnvironmentAtoms<R, E>(
       label: "environment-command:plugins:model-pictures",
       tag: WS_METHODS.pluginsModelPictures,
     }),
+    exportModel: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:plugins:export",
+      tag: WS_METHODS.pluginsExport,
+    }),
   };
 }
 
