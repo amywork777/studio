@@ -7,6 +7,7 @@ import { useThreadShell } from "~/state/entities";
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
 import { useAtomCommand } from "~/state/use-atom-command";
+import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { cadHttpArguments, readTunnelJson } from "./partContext";
 import type { Comparison, PartVersion } from "./versions";
 
@@ -70,6 +71,28 @@ export function useEnvironmentCadGet(environmentId: EnvironmentId | null): CadGe
   return environmentId === null || pluginId === null || server === null ? null : get;
 }
 
+/**
+ * The environment's CAD service as it is now, its plugins read again: for a build that outlives
+ * the page that started it, which no longer renders to see the service come on.
+ */
+export function useEnvironmentCadServiceNow(
+  environmentId: EnvironmentId | null,
+): () => Promise<CadPost | null> {
+  const request = usePluginRequest();
+  const listPlugins = useAtomQueryRunner(pluginEnvironment.list, {
+    reportFailure: false,
+    refresh: true,
+  });
+  return async () => {
+    if (environmentId === null) return null;
+    const listed = await listPlugins({ environmentId, input: {} });
+    if (listed._tag !== "Success") return null;
+    return cadPostFrom(environmentId, listed.value.plugins, request, ENVIRONMENT_SCOPE);
+  };
+}
+
+const usePluginRequest = () => useAtomCommand(pluginEnvironment.request, { reportFailure: false });
+
 function useCadPost(
   environmentId: EnvironmentId | null,
   scope: { readonly threadId: ThreadId | null } | null,
@@ -77,7 +100,16 @@ function useCadPost(
   const plugins = useEnvironmentQuery(
     environmentId === null ? null : pluginEnvironment.list({ environmentId, input: {} }),
   ).data?.plugins;
-  const request = useAtomCommand(pluginEnvironment.request, { reportFailure: false });
+  const request = usePluginRequest();
+  return cadPostFrom(environmentId, plugins, request, scope);
+}
+
+function cadPostFrom(
+  environmentId: EnvironmentId | null,
+  plugins: Parameters<typeof pluginFileHandlers>[0] | undefined,
+  request: ReturnType<typeof usePluginRequest>,
+  scope: { readonly threadId: ThreadId | null } | null,
+): CadPost | null {
   const viewer = plugins === undefined ? undefined : pluginFileHandlers(plugins, "part.step")[0];
   const pluginId = viewer?.pluginId ?? null;
   const server = viewer?.view.server ?? null;
