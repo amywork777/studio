@@ -16,6 +16,8 @@ import {
   PluginIdInput,
   PluginInstallInput,
   PluginListResult,
+  PluginExportInput,
+  PluginExportResult,
   PluginModelPicturesInput,
   PluginModelPicturesResult,
   PluginOpenViewInput,
@@ -69,6 +71,7 @@ export const STUDIO_WS_METHODS = {
   pluginsOpenView: "plugins.openView",
   pluginsRequest: "plugins.request",
   pluginsModelPictures: "plugins.modelPictures",
+  pluginsExport: "plugins.export",
   studioProjectsList: "studioProjects.list",
   studioProjectsSave: "studioProjects.save",
   studioProjectsTrash: "studioProjects.trash",
@@ -172,6 +175,12 @@ const WsPluginsModelPicturesRpc = Rpc.make(STUDIO_WS_METHODS.pluginsModelPicture
   error: PluginOperationError,
 });
 
+const WsPluginsExportRpc = Rpc.make(STUDIO_WS_METHODS.pluginsExport, {
+  payload: PluginExportInput,
+  success: PluginExportResult,
+  error: PluginOperationError,
+});
+
 const WsStudioProjectsListRpc = Rpc.make(STUDIO_WS_METHODS.studioProjectsList, {
   payload: StudioProjectsListInput,
   success: StudioProjectsListResult,
@@ -235,6 +244,7 @@ export const STUDIO_RPCS = [
   WsPluginsOpenViewRpc,
   WsPluginsRequestRpc,
   WsPluginsModelPicturesRpc,
+  WsPluginsExportRpc,
   WsStudioProjectsListRpc,
   WsStudioProjectsSaveRpc,
   WsStudioProjectsTrashRpc,

@@ -1355,11 +1355,10 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       case "close-all":
         props.onCloseAllSurfaces();
         break;
-      case "show-in-folder":
-        props.fileMenu?.run(action, surface);
-        break;
       case null:
         break;
+      default:
+        props.fileMenu?.run(action, surface);
     }
   };
   const handleTabAuxClick = (event: ReactMouseEvent, surface: RightPanelSurface) => {
