@@ -56,7 +56,7 @@ function CheckReport(props: { readonly result: CheckResult; readonly onOpenModel
                 : CHECK_STATUS[issue.severity === "error" ? "fix" : "warnings"].Icon;
             return (
               <li
-                key={`${issue.severity}:${issue.summary}:${issue.fix ?? ""}`}
+                key={`${issue.severity}:${issue.summary}:${issue.detail ?? ""}`}
                 className="flex gap-2 text-sm"
               >
                 <Mark
@@ -71,8 +71,8 @@ function CheckReport(props: { readonly result: CheckResult; readonly onOpenModel
                 />
                 <span className="flex min-w-0 flex-col gap-1">
                   <span className="text-foreground">{issue.summary}</span>
-                  {issue.fix === null ? null : (
-                    <span className="text-muted-foreground">Fix: {issue.fix}</span>
+                  {issue.detail === null ? null : (
+                    <span className="text-muted-foreground">{issue.detail}</span>
                   )}
                 </span>
               </li>

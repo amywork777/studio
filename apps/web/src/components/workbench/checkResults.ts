@@ -40,8 +40,11 @@ export type CheckStatus = "fix" | "warnings" | "ready";
 export interface CheckIssue {
   readonly severity: "error" | "warning";
   readonly summary: string;
-  /** What the check says to change, when it names a fix. */
-  readonly fix: string | null;
+  /**
+   * What the check adds to its finding: an older check's fix, or 0.11's `hint`, which is a fix
+   * for some checks and the numbers behind the finding for others (FEA's "safety factor 1.4").
+   */
+  readonly detail: string | null;
   /**
    * It is about the run, not the part (text-to-cad's `solver_note`: a slow solve, a finer solve
    * skipped, pictures not drawn). Listed with its result, after the rest, and no part of the
@@ -123,9 +126,9 @@ export function parseCheckResult(
       const severity = finding.severity;
       const summary = text(finding.summary) ?? text(finding.message);
       if ((severity !== "error" && severity !== "warning") || summary === null) return [];
-      const fix = isRecord(finding.fix) ? text(finding.fix.summary) : text(finding.hint);
+      const detail = isRecord(finding.fix) ? text(finding.fix.summary) : text(finding.hint);
       const note = severity === "warning" && finding.code === RUN_NOTE;
-      return [note ? { severity, summary, fix, note } : { severity, summary, fix }];
+      return [note ? { severity, summary, detail, note } : { severity, summary, detail }];
     })
     .toSorted((a, b) => issueRank(a) - issueRank(b));
   // What the check found on the part: a note about the run is neither a warning nor the verdict.
@@ -395,7 +398,7 @@ export function proposeFixPrompt(
   part: string = result.part,
 ): string {
   const check = result.check.toLowerCase();
-  const suggestion = issue.fix === null ? "" : ` The check suggests: ${sentence(issue.fix)}.`;
+  const suggestion = issue.detail === null ? "" : ` The check adds: ${sentence(issue.detail)}.`;
   return (
     `The ${check} check on ${part} found: ${sentence(issue.summary)}.${suggestion} ` +
     `Propose a fix: ask me with the change you recommend first and what you expect it to give, and wait for my pick before changing the part.`

@@ -92,12 +92,12 @@ describe("check results", () => {
         {
           severity: "error",
           summary: "An isolated hot spot in the boss freezes last.",
-          fix: "Feed it from #o1.f7: a riser of modulus 2.9 mm.",
+          detail: "Feed it from #o1.f7: a riser of modulus 2.9 mm.",
         },
         {
           severity: "warning",
           summary: "Niyama falls to 0.044 near the boss",
-          fix: "Feed it from #o1.f7",
+          detail: "Feed it from #o1.f7",
         },
       ],
     });
@@ -358,7 +358,7 @@ describe("check results", () => {
     });
     expect(passed.onStudyCopy).toBeUndefined();
     expect(resultsFor(file("parts/bar.step"), [passed])).toHaveLength(1);
-    // 0.11's findings say themselves in `message`, and what to do in `hint`.
+    // 0.11's findings say themselves in `message`, and add a fix or their numbers in `hint`.
     const weak = parseCheckResult(
       "studies/tip-load/result.json",
       answer(
@@ -376,7 +376,7 @@ describe("check results", () => {
     )!;
     expect(weak.status).toBe("fix");
     expect(weak.issues).toEqual([
-      { severity: "error", summary: "The peak is above yield", fix: "Thicken the arm" },
+      { severity: "error", summary: "The peak is above yield", detail: "Thicken the arm" },
     ]);
     // A model solved by its document id is that model's check; a copy in a study folder is a copy's.
     const id = "7dde5cd8-809d-5212-afd0-2a5e48278472";
@@ -411,7 +411,7 @@ describe("check results", () => {
     expect(passed.status).toBe("ready");
     expect(passed.headline).toBe("Holds the load, safety factor 521");
     expect(passed.issues).toEqual([
-      { severity: "warning", summary: slow.message, fix: null, note: true },
+      { severity: "warning", summary: slow.message, detail: null, note: true },
     ]);
 
     // A real warning beside it still makes the status and the headline, and is listed first.
@@ -426,6 +426,10 @@ describe("check results", () => {
     expect(thin.status).toBe("warnings");
     expect(thin.headline).toBe(margin.message);
     expect(thin.issues.map((issue) => issue.note ?? false)).toEqual([false, true]);
+    // A hint that is the finding's numbers, not a fix, is asked about as what the check adds.
+    expect(proposeFixPrompt(thin, thin.issues[0]!)).toContain(
+      "The check adds: safety factor 1.4, margin 2.",
+    );
 
     // An error is an error whatever its code, and a verdict's own headline still leads.
     const failed = parseCheckResult(
@@ -602,7 +606,7 @@ describe("check results", () => {
     const result = parseCheckResult("bossbar.casting.result.json", casting)!;
     expect(proposeFixPrompt(result, result.issues[0]!)).toBe(
       "The casting check on bossbar.step found: An isolated hot spot in the boss freezes last. " +
-        "The check suggests: Feed it from #o1.f7: a riser of modulus 2.9 mm. " +
+        "The check adds: Feed it from #o1.f7: a riser of modulus 2.9 mm. " +
         "Propose a fix: ask me with the change you recommend first and what you expect it to give, and wait for my pick before changing the part.",
     );
     expect(
