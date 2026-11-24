@@ -2081,7 +2081,12 @@ code {
 }
 
 /* Studio: in a document's table a part's chip wraps, so a long name stays inside its column. */
-[data-document] .chat-markdown :is(th, td) .chat-markdown-file-link {
+[data-document] .chat-markdown :is(th, td) .chat-markdown-file-link,
+[data-document]
+  .chat-markdown
+  :is(th, td)
+  .chat-markdown-file-link
+  > [data-slot="context-chip-label"] {
   white-space: normal;
 }
 
