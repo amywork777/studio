@@ -37,10 +37,10 @@ describe("part names", () => {
     expect(partName("studies/tip-load/result.glb")).toEqual({
       name: "Tip load",
       kind: "FEA study",
-      label: "Tip load FEA study",
+      label: "Tip load FEA results",
     });
-    expect(partLabel("studies\\servo_bracket-fea\\result.json")).toBe("Servo bracket FEA study");
-    expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter CAM job");
+    expect(partLabel("studies\\servo_bracket-fea\\result.json")).toBe("Servo bracket FEA results");
+    expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter toolpaths");
     // A folder that only says what it holds names nothing more.
     expect(partLabel("CAM/result.glb")).toBe("CAM job");
     expect(partLabel("FEA/result.json")).toBe("FEA study");

@@ -196,7 +196,12 @@ export function partName(path: string): PartName | null {
     const { kind } = result;
     return result.name === null
       ? { name: kind, kind, label: kind }
-      : { name: result.name, kind, label: `${result.name} ${kind}` };
+      : // Its job's or study's own file is "<name> CAM job"; the result is what that made.
+        {
+          name: result.name,
+          kind,
+          label: `${result.name} ${kind === "CAM job" ? "toolpaths" : "FEA results"}`,
+        };
   }
   // A named study, kept as the FEA skill keeps several: `FEA/bracket.bracket-load.glb`.
   const study = /(?:^|\/)FEA\/([^/]+?)(?:\.fea)?\.(?:json|glb)$/i.exec(normalized);
