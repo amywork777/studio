@@ -508,8 +508,8 @@ function ImportDialog(props: {
                 {plan.loose.length === 0 ? null : (
                   <Button variant="link" size="sm" onClick={() => setStep("sort")}>
                     {plan.loose.length === 1
-                      ? "1 file is in no project"
-                      : `${plan.loose.length} files are in no project`}
+                      ? "Sort 1 loose file"
+                      : `Sort ${plan.loose.length} loose files`}
                   </Button>
                 )}
                 {lookCount === 0 ? null : (
@@ -552,8 +552,8 @@ function ImportDialog(props: {
             </DialogHeader>
             <DialogPanel>
               {plan.loose.length === 0 ? null : (
-                <section aria-label="In no project" className="flex flex-col">
-                  <h3 className={`${MODULE_HEADING} border-b border-border pb-2`}>In no project</h3>
+                <section aria-label="Loose files" className="flex flex-col">
+                  <h3 className={`${MODULE_HEADING} border-b border-border pb-2`}>Loose files</h3>
                   <ul className="flex flex-col">
                     {plan.loose.map((file) => {
                       const to = placementOf(file);
