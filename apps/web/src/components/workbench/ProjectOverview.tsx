@@ -365,11 +365,8 @@ function OpenIssues(props: {
                 <p className="text-xs text-muted-foreground">
                   {issuePart(entry)} · {entry.result.check}
                 </p>
-                {entry.issue.fix === null ? null : (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">
-                    <span className="text-foreground/80">Suggested fix: </span>
-                    {entry.issue.fix}
-                  </p>
+                {entry.issue.detail === null ? null : (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{entry.issue.detail}</p>
                 )}
                 <div className="flex flex-wrap gap-2">
                   {props.composerRef === null ? null : (

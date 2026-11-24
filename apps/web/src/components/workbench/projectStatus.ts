@@ -30,7 +30,7 @@ export function projectStatus(input: {
 }
 
 /**
- * A count in words: "1 check failed", "2 warnings", "3 passed". None at all when no check ran: the
+ * A count of checks in words: "1 check failed", "2 checks with warnings", "3 passed". None at all when no check ran: the
  * lead part says so once, with a way to run one (`LeadPart`), so the strip shows only real results.
  */
 export function statusWords(status: ProjectStatus): ReadonlyArray<{
@@ -52,7 +52,7 @@ export function statusWords(status: ProjectStatus): ReadonlyArray<{
       : [
           {
             tone: "warning" as const,
-            text: `${status.warnings} ${status.warnings === 1 ? "warning" : "warnings"}`,
+            text: `${status.warnings} ${status.warnings === 1 ? "check" : "checks"} with warnings`,
           },
         ]),
     ...(status.passed === 0 ? [] : [{ tone: "passed" as const, text: `${status.passed} passed` }]),

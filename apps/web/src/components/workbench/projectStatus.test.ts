@@ -28,7 +28,7 @@ describe("the Overview's status strip", () => {
     expect(status).toEqual({ failed: 1, warnings: 1, passed: 1, checked: true, waiting: 2 });
     expect(statusWords(status).map((word) => word.text)).toEqual([
       "1 check failed",
-      "1 warning",
+      "1 check with warnings",
       "1 passed",
     ]);
   });
