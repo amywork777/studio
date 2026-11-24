@@ -28,7 +28,7 @@ import { useCreateStudioProject } from "./useCreateStudioProject";
 import { useOneAtATime } from "./useOneAtATime";
 import { modelsChanged } from "./useFolderModels";
 import { openPartInCad } from "./useOpenInWorkbench";
-import { useEnvironmentCadService } from "./useVersions";
+import { useEnvironmentCadService, useEnvironmentCadServiceNow } from "./useVersions";
 
 /** What a new part's project is, for its brief: a part. */
 const PART_KIND = STUDIO_PROJECT_KINDS.find((kind) => kind.id === "part")!;
@@ -81,16 +81,20 @@ export function useBuildPart(environmentId: EnvironmentId | null) {
   const service = useEnvironmentCadService(environmentId);
   // The build reads the service as it is when it asks, so one started while the tools come on waits.
   const currentService = useStableCallback(() => service);
+  const serviceNow = useEnvironmentCadServiceNow(environmentId);
   const listPlugins = useAtomQueryRunner(pluginEnvironment.list, {
     reportFailure: false,
     refresh: true,
   });
   return async (script: string): Promise<BuiltPart> => {
     const deadline = Date.now() + TOOLS_WAIT_MS;
-    while (currentService() === null && Date.now() < deadline) {
+    let post = currentService();
+    while (post === null && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, TOOLS_POLL_MS));
+      // A copy or a new part opens its project before it builds, so the page that asked may be
+      // gone and render no more: the plugins are read again to see the service come on.
+      post = currentService() ?? (await serviceNow());
     }
-    const post = currentService();
     if (post === null) {
       // Why a plugin's server did not start, as the server says it now.
       const listed =
