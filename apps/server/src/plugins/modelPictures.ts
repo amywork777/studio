@@ -176,7 +176,7 @@ function run(launch: SnapshotLaunch, type: string, jobFile: string): Promise<voi
   ]);
 }
 
-function runCad(launch: SnapshotLaunch, args: ReadonlyArray<string>): Promise<void> {
+export function runCad(launch: SnapshotLaunch, args: ReadonlyArray<string>): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = NodeChildProcess.spawn(launch.command, args, {
       cwd: launch.cwd,
