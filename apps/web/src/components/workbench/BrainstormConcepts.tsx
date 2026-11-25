@@ -35,6 +35,11 @@ import { useStudioProjectAt, useStudioProjectsList } from "./useStudioProjects";
 
 const BRAINSTORM_LABEL = HARDWARE_ACTIONS.find((action) => action.id === "brainstorm")?.label ?? "";
 
+/** A read says `exists: false` only of a file that is not there; one that is has no `exists`. */
+const isThere = <File extends { readonly exists?: boolean }>(
+  file: File | null | undefined,
+): file is File => file !== undefined && file !== null && file.exists !== false;
+
 /** A picture made before its script last changed by more than this is out of date (law 3). */
 const STALE_AFTER_MS = 1_000;
 
@@ -88,7 +93,7 @@ function BrainstormConcepts(props: {
     }),
   ).data;
   const models = useFolderModels(environmentId, conceptSetFolder(folder, set));
-  if (file === undefined || file === null || file.exists === false) return null;
+  if (!isThere(file)) return null;
   const read = readConceptSet(set, file.contents);
   if (read === null || read.concepts.length === 0) return null;
   const lightest = lightestConcept(read.concepts);
@@ -149,11 +154,13 @@ function ConceptCard(props: {
   // Where using it puts it, and whether that part is this concept: then it is in the project.
   const stem = partStem(concept.name);
   const partPath = `${PART_FOLDER}/${stem}.py`;
-  const part = useEnvironmentQuery(read(root, partPath)).data;
+  const partRead = useEnvironmentQuery(read(root, partPath));
+  const part = partRead.data;
   const projectModels = useFolderModels(environmentId, root);
-  const asPart =
-    script?.exists === true ? asProjectPart(script.contents, conceptStem(concept), stem) : null;
-  const used = asPart !== null && part?.exists === true && part.contents === asPart;
+  const asPart = isThere(script)
+    ? asProjectPart(script.contents, conceptStem(concept), stem)
+    : null;
+  const used = asPart !== null && isThere(part) && part.contents === asPart;
   // The code is the model (law 3): a script changed since its picture says so.
   const changed =
     script?.modifiedAt !== undefined &&
@@ -178,13 +185,16 @@ function ConceptCard(props: {
       open(projectModels.find((model) => model.script === partPath)?.id ?? partPath);
       return;
     }
-    if (addPart === null || script?.exists !== true) return;
+    if (addPart === null || !isThere(script)) return;
     const contents = script.contents;
     setAdding(true);
     void addPart({
       name: concept.name,
       script: (free) => asProjectPart(contents, conceptStem(concept), free),
-    }).finally(() => setAdding(false));
+    }).finally(() => {
+      setAdding(false);
+      partRead.refresh();
+    });
   };
   const moreLikeThis = () => {
     if (composerRef === null) return;
@@ -241,7 +251,7 @@ function ConceptCard(props: {
         <Button
           size="xs"
           variant={used ? "ghost-muted" : "outline"}
-          disabled={adding || (!used && (addPart === null || script?.exists !== true))}
+          disabled={adding || (!used && (addPart === null || asPart === null))}
           onClick={takeIntoProject}
           aria-label={used ? `Open ${partPath}` : `Use ${concept.name} in the project`}
         >

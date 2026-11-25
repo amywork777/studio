@@ -17,7 +17,10 @@ export const BRAINSTORM_GUIDE = `## What to start from
 
 The project context's Concepts section names this chat's concepts folder, \`<concepts>\`. Every
 concept lives there, never in the project's folders: the person moves the one they choose into the
-project from its card, and the rest stay in the chat. Take the next free set number \`<n>\`
+project from its card, and the rest stay in the chat. So does everything about them: each check,
+study, stress picture and note goes in the set's folder, and no report or document about the
+concepts goes in the project (the reply and its cards are the summary). In the project, write at
+most the brief in the README. Take the next free set number \`<n>\`
 (\`<concepts>/set-1/\` is the first; look at what is there) and make the set's folder.
 
 ## Make four real concepts
