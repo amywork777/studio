@@ -5,36 +5,33 @@ import { referencePaths } from "./startProject";
 import { readStudioImport } from "./studioImportBridge";
 
 /**
- * Attach in a project: a PRD or a data sheet goes in References for every chat; a picture goes
- * with its message and a copy in References too, so a drawing check can show where on a sketch it
- * read each size. One way, as Import: a copy, never over a file there.
+ * What Attach does in a project: a PRD or a data sheet is the project's, so it goes in its
+ * References, where every chat can read it. A picture belongs to its message and stays in the chat.
+ * It is one way, as Import is: a copy, never over a file there, and the original is not touched.
  */
 export function splitForReferences<File extends { readonly type: string }>(
   files: ReadonlyArray<File>,
   pathOf: (file: File) => string | null,
-  /** The Brief's own Attach: its sketches and photos are references only. */
+  /** The Brief's own Attach: its sketches and photos are references too. */
   pictures: "chat" | "references" = "chat",
 ): {
-  /** Files with a path on this computer, to copy in; `inChat` ones go with the message as well. */
-  readonly copied: ReadonlyArray<{
-    readonly file: File;
-    readonly path: string;
-    readonly inChat: boolean;
-  }>;
+  /** Files with a path on this computer, to copy in. */
+  readonly copied: ReadonlyArray<{ readonly file: File; readonly path: string }>;
   /** Files with no path, which the agent files from the chat. */
   readonly filedByAgent: ReadonlyArray<File>;
   readonly chat: ReadonlyArray<File>;
 } {
-  const copied: Array<{ readonly file: File; readonly path: string; readonly inChat: boolean }> =
-    [];
+  const copied: Array<{ readonly file: File; readonly path: string }> = [];
   const filedByAgent: File[] = [];
   const chat: File[] = [];
   for (const file of files) {
+    if (pictures === "chat" && file.type.startsWith("image/")) {
+      chat.push(file);
+      continue;
+    }
     const path = pathOf(file);
-    const inChat = pictures === "chat" && file.type.startsWith("image/");
-    if (inChat) chat.push(file);
-    if (path !== null) copied.push({ file, path, inChat });
-    else if (!inChat) filedByAgent.push(file);
+    if (path === null) filedByAgent.push(file);
+    else copied.push({ file, path });
   }
   return { copied, filedByAgent, chat };
 }

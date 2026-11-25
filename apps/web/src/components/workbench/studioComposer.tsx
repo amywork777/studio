@@ -125,8 +125,7 @@ interface SketchState {
 
 /**
  * Attach and drop: in a Studio project a PRD or a data sheet goes in its References and the message
- * links to it, and a picture goes with the message and in References too (`attachToReferences.ts`);
- * the rest, and everything elsewhere, is a chat attachment.
+ * links to it (`attachToReferences.ts`); the rest, and everything elsewhere, is a chat attachment.
  * A question waiting takes what is attached as its answer.
  */
 export function useStudioComposer(input: {
@@ -176,10 +175,7 @@ export function useStudioComposer(input: {
       });
     }
     // A copy that failed has said so: its files go with the message, so nothing is lost.
-    const forAgent = [
-      ...filedByAgent,
-      ...(references.length > 0 ? [] : copied.flatMap((c) => (c.inChat ? [] : [c.file]))),
-    ];
+    const forAgent = [...filedByAgent, ...(references.length > 0 ? [] : copied.map((c) => c.file))];
     const inserted = await addComposerAttachments([...chat, ...forAgent]);
     if (forAgent.length > 0) {
       insertComposerTextAtEnd(FILE_ATTACHED_REFERENCES, { ensureLeadingBoundary: true });
