@@ -1,6 +1,7 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import {
+  FrameIcon,
   HomeIcon,
   type LucideIcon,
   MessageCircleIcon,
@@ -19,7 +20,7 @@ import { openToolbox, useToolboxOpen } from "./toolboxOpen";
 import { railMark } from "./studioPlaces";
 
 /** Where each place's page is. */
-type PlacePage = "/" | "/trash" | "/settings";
+type PlacePage = "/" | "/canvas" | "/trash" | "/settings";
 
 /**
  * Opens the Library, or one of its entries, as the sidebar and ⌘K do: from a project, its Make one
@@ -45,7 +46,7 @@ export function useOpenLibrary() {
  */
 export function StudioHomeLink(props: { readonly environmentId: EnvironmentId }) {
   const waiting = waitingChats(useAllChats(props.environmentId).chats).length;
-  const { mark, go, leave } = usePlaces();
+  const { mark, go, leave, pathname } = usePlaces();
   const openLibrary = useOpenLibrary();
   const toolboxShown = useToolboxOpen((state) => state.open);
   return (
@@ -66,6 +67,12 @@ export function StudioHomeLink(props: { readonly environmentId: EnvironmentId })
           // In a project the Toolbox is its popup, the one way in; elsewhere, its page.
           if (!openToolbox()) openLibrary();
         }}
+      />
+      <PlaceItem
+        icon={FrameIcon}
+        label="Canvas"
+        marked={pathname === "/canvas"}
+        onClick={() => go("/canvas")}
       />
     </SidebarMenu>
   );
@@ -120,7 +127,7 @@ function usePlaces() {
     leave();
     void navigate({ to });
   };
-  return { mark: railMark(pathname), go, leave };
+  return { mark: railMark(pathname), go, leave, pathname };
 }
 
 function PlaceItem(props: {
