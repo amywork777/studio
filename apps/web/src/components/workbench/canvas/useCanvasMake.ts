@@ -5,6 +5,7 @@ import {
   DEFAULT_SERVER_SETTINGS,
   type EnvironmentId,
   type ProjectId,
+  type RuntimeRequestId,
   type ThreadId,
 } from "@t3tools/contracts";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -48,6 +49,9 @@ export function useCanvasMake(environmentId: EnvironmentId) {
   const createNew = useAtomCommand(projectEnvironment.createNew, { reportFailure: false });
   const save = useSaveStudioProject(environmentId);
   const startTurn = useOrchestrationCommand(threadEnvironment.startTurn, { reportFailure: false });
+  const dismissQuestion = useAtomCommand(threadEnvironment.dismissUserInput, {
+    reportFailure: false,
+  });
   const units = useEnvironmentSettings(environmentId, (settings) => settings.newProjectUnits);
   const standard = useEnvironmentSettings(environmentId, (settings) => settings.newProjectStandard);
   const generalTolerance = useEnvironmentSettings(
@@ -159,13 +163,29 @@ export function useCanvasMake(environmentId: EnvironmentId) {
     return true;
   };
 
-  /** Four more options grown from `from`, asked in the board's chat. */
+  /**
+   * Four more options grown from `from`, asked in the board's chat. The question the last set
+   * ended on (`questions`) is closed first: this is its answer, and the chat holds a new message
+   * while it is open.
+   */
   const makeMore = async (
     board: CanvasBoard,
     from: DesignOption,
     taken: ReadonlyArray<string>,
+    questions: ReadonlyArray<RuntimeRequestId>,
   ): Promise<boolean> => {
     if (board.projectId === null) return false;
+    for (const requestId of questions) {
+      if (board.threadId === null) break;
+      const closed = await dismissQuestion({
+        environmentId,
+        input: { threadId: board.threadId as ThreadId, requestId },
+      });
+      if (closed._tag === "Failure") {
+        failed("Could not close the chat's open question", squashAtomCommandFailure(closed));
+        return false;
+      }
+    }
     const text = optionsMessage({ description: "", references: [], keys: nextKeys(taken), from });
     const threadId = await send({
       projectId: board.projectId as ProjectId,

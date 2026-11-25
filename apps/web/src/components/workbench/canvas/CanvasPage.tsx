@@ -42,7 +42,7 @@ import {
 import { type CanvasBoard, type CanvasPicture, previewOf, useCanvasStore } from "./canvasStore";
 import { OptionCard, PendingCard } from "./OptionCard";
 import { type MeshSize, START_ANGLE, type ViewAngle } from "./meshView";
-import { useBoardOptions, useBoardWorking } from "./useCanvasOptions";
+import { useBoardOptions, useBoardQuestions, useBoardWorking } from "./useCanvasOptions";
 import { useCanvasMake } from "./useCanvasMake";
 
 /** Where the first set of options starts, right of what they were made from. */
@@ -78,6 +78,7 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
   const update = useCanvasStore((state) => state.update);
   const { makeFirst, makeMore } = useCanvasMake(environmentId);
   const working = useBoardWorking(environmentId, board.threadId);
+  const questions = useBoardQuestions(environmentId, board.threadId);
   const { options, stamp } = useBoardOptions({ environmentId, folder: board.folder, working });
   const models = useFolderModels(environmentId, board.folder ?? "");
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
@@ -177,6 +178,8 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
   const panning = useRef<{ x: number; y: number; view: typeof view } | null>(null);
   const onSurfaceDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 && event.button !== 1) return;
+    // A press on a control is the control's: capturing it here to pan would take its click.
+    if ((event.target as HTMLElement).closest("button, textarea, input, a") !== null) return;
     setSelected(null);
     event.currentTarget.setPointerCapture(event.pointerId);
     panning.current = { x: event.clientX, y: event.clientY, view };
@@ -304,7 +307,7 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     if (sending || working) return;
     setSending(true);
     const taken = options.map((candidate) => candidate.key);
-    const sent = await makeMore(board, option, taken).finally(() => setSending(false));
+    const sent = await makeMore(board, option, taken, questions).finally(() => setSending(false));
     if (sent) {
       setAsked({ from: option.key });
     }

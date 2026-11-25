@@ -90,7 +90,7 @@ export function nextKeys(taken: ReadonlyArray<string>): string[] {
 const entryLine = (key: string, from: string | null) =>
   `{"key": "${key}", "name": "<2 to 4 words>", "idea": "<one plain sentence on how it differs>", ` +
   `"script": "parts/option_${key}.py", "model": "<its document id>", "glb": "canvas/option_${key}.glb", ` +
-  `"material": "<its material>", "mass_g": <the mass cad model inspect reports, in grams, or null>` +
+  `"material": "<its material, as a person names it: 6061-T6 aluminium>", "mass_g": <the mass cad model inspect reports, in grams, or null>` +
   `${from === null ? "" : `, "from": "${from}"`}}`;
 
 /**

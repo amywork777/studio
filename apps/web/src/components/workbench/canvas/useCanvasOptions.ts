@@ -1,10 +1,11 @@
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
+import { derivePendingThreadRequests } from "@t3tools/client-runtime/state/thread-requests";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 
 import { useStableCallback } from "~/hooks/useStableCallback";
-import { useThreadShell } from "~/state/entities";
+import { useQuietThreadProjection, useThreadShell } from "~/state/entities";
 import { pluginEnvironment } from "~/state/plugins";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
@@ -28,6 +29,19 @@ export function useBoardWorking(environmentId: EnvironmentId, threadId: string |
     threadId === null ? null : scopeThreadRef(environmentId, threadId as ThreadId),
   );
   return shell?.latestRun != null && RUNNING.has(shell.latestRun.status);
+}
+
+/**
+ * The questions the board's chat has open: a set ends by asking which option to take further, and
+ * a chat holds the next message until that is answered. More like this answers it by asking.
+ */
+export function useBoardQuestions(environmentId: EnvironmentId, threadId: string | null) {
+  const projection = useQuietThreadProjection(
+    threadId === null ? null : scopeThreadRef(environmentId, threadId as ThreadId),
+  )?.projection;
+  return projection === undefined
+    ? []
+    : derivePendingThreadRequests(projection).userInputs.map((input) => input.requestId);
 }
 
 /**
