@@ -160,7 +160,7 @@ export function useStudioComposer(input: {
     );
     drawAttachedPages(
       gitCwd,
-      references.map((reference, index) => ({ file: copied[index]!.file, reference })),
+      references.map((reference, index) => ({ source: copied[index]!.file, reference })),
     );
     for (const reference of references) {
       insertComposerTextAtEnd(`${serializeComposerFileLink(`${gitCwd}/${reference}`)} `, {

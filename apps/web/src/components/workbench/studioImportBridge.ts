@@ -27,6 +27,8 @@ export interface StudioImportBridge {
   ): Promise<ReadonlyArray<string>>;
   /** Prints a page Studio made to a PDF at the path (a drawing check's report). */
   savePdf?(html: string, path: string): Promise<void>;
+  /** A PDF on this computer, to draw its pages (`drawingPages.ts`). */
+  readPdf?(path: string): Promise<Uint8Array>;
 }
 
 /** Null outside the desktop app (the hosted or a remote web app), where Import is not offered. */

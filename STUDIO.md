@@ -680,6 +680,18 @@ as they were.
   belongs to its message and stays in the chat; the Brief's Attach files pictures too. On a remote
   project, or with no path on this computer, the file goes with the message and the agent files it
   (`attachToReferences.ts`).
+- **A drawing read, and checked.** A PDF attached in a project (a drop on the chat, Attach, or
+  Home's Start) also has its sheets drawn on this computer with pdf.js into `<name>-pages/` beside
+  it: `page-01.png` and on, and `pages.json` with each sheet's size and every callout's words and
+  box, so any agent reads a 29-sheet set or a scan as pages (`drawingPages.ts`, written by the
+  desktop app only into a `-pages` folder). Check against the drawing (Evaluate, `$drawing-check`)
+  has the agent write every dimension it reads into `checks/<part>.drawing-check.json`, flag each
+  that does not add up, and measure each on the built model with a script. Studio grades it
+  (`drawingCheck.ts`): a measured size held to its own limits, else the title block's tolerance
+  for its printed decimals, fractions or angles, else the digit printed; the agent never says
+  pass. It shows with the part's checks and opens as a report, each row at its place on the
+  drawing, exported as Markdown or PDF beside it (Amy, 2026-11-25: a power user's drawings, where the
+  numbers that disagree were the find). An inch drawing stays in inches throughout.
 - **Chats in no project.** Home's Ask, which made them, is gone (Amy, 2026-10-26: one Start
   box). The chats it made stay: they run in the folder that holds the Studio projects, registered
   as the workspace "No project", and Chats and the sidebar still list them under No project

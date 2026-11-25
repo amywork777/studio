@@ -20,8 +20,9 @@ What they get: Each dimension on the drawing beside what the model measures, and
 - **A PDF** in `brief/references/` has its sheets beside it in `<name>-pages/`: `page-01.png`
   and on, and `pages.json` with each sheet's size in inches and every callout's words and box. A
   sheet with `words: false` is a scan: read its picture. Take numbers from the words where there
-  are any, never from the picture alone, and the views and leaders from the picture. Until
-  `pages.json` is there, read the PDF itself.
+  are any, never from the picture alone, and the views and leaders from the picture. A drawing's
+  symbol font comes through as letters (SolidWorks' Ø as `n`, ⌴ and ↧ as others): check each
+  symbol against the picture. Until `pages.json` is there, read the PDF itself.
 - **A photo or a sketch:** read the picture. Where callouts are small, crop and enlarge the part
   you need (Pillow is in the `cad` environment) into `tmp/` and read the crop.
 - Find the title block first: units, scale, projection (first or third angle), general tolerances

@@ -8,6 +8,7 @@ import {
   STUDIO_IMPORT_SCAN_CHANNEL,
   STUDIO_OPEN_FILE_CHANNEL,
   STUDIO_PICK_FOLDER_CHANNEL,
+  STUDIO_READ_PDF_CHANNEL,
   STUDIO_SAVE_PDF_CHANNEL,
   STUDIO_WRITE_DRAWING_PAGES_CHANNEL,
 } from "./studioImportChannels.ts";
@@ -29,4 +30,5 @@ export const studioImportBridge = {
     files: ReadonlyArray<{ readonly name: string; readonly bytes: Uint8Array }>,
   ) => ipcRenderer.invoke(STUDIO_WRITE_DRAWING_PAGES_CHANNEL, folder, files),
   savePdf: (html: string, path: string) => ipcRenderer.invoke(STUDIO_SAVE_PDF_CHANNEL, html, path),
+  readPdf: (path: string) => ipcRenderer.invoke(STUDIO_READ_PDF_CHANNEL, path),
 };

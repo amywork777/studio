@@ -8,8 +8,9 @@ export const DRAWING_CHECK_GUIDE = `## Read the drawing
 - **A PDF** in \`brief/references/\` has its sheets beside it in \`<name>-pages/\`: \`page-01.png\`
   and on, and \`pages.json\` with each sheet's size in inches and every callout's words and box. A
   sheet with \`words: false\` is a scan: read its picture. Take numbers from the words where there
-  are any, never from the picture alone, and the views and leaders from the picture. Until
-  \`pages.json\` is there, read the PDF itself.
+  are any, never from the picture alone, and the views and leaders from the picture. A drawing's
+  symbol font comes through as letters (SolidWorks' Ø as \`n\`, ⌴ and ↧ as others): check each
+  symbol against the picture. Until \`pages.json\` is there, read the PDF itself.
 - **A photo or a sketch:** read the picture. Where callouts are small, crop and enlarge the part
   you need (Pillow is in the \`cad\` environment) into \`tmp/\` and read the crop.
 - Find the title block first: units, scale, projection (first or third angle), general tolerances
@@ -60,19 +61,44 @@ matched or out of tolerance itself.
   "model": "parts/flange.step",
   "units": "in",
   "measuredBy": "checks/flange_drawing_check.py",
-  "generalTolerance": { "decimals": { "2": 0.010, "3": 0.005 }, "fraction": 0.03125, "angle": 0.5 },
+  "generalTolerance": { "decimals": { "2": 0.01, "3": 0.005 }, "fraction": 0.03125, "angle": 0.5 },
   "sources": [
-    { "id": "FL-100", "file": "brief/references/FL-100.pdf",
-      "pages": "brief/references/FL-100-pages", "title": "Flange FL-100" }
+    {
+      "id": "FL-100",
+      "file": "brief/references/FL-100.pdf",
+      "pages": "brief/references/FL-100-pages",
+      "title": "Flange FL-100"
+    }
   ],
   "dimensions": [
-    { "id": "front-bore", "text": "Ø1.000/1.002", "nominal": 1.001, "limits": [6.250, 1.002],
-      "feature": "Front bore", "featureRef": "flange/face 12",
-      "where": { "source": "FL-100", "page": 1, "view": "A-A", "box": [0.58, 0.497, 0.038, 0.031] },
-      "confidence": "high", "measured": 1.0010, "measuredHow": "bore cylinder radius x 2" },
-    { "id": "lip", "text": "5", "nominal": 5, "units": "mm", "feature": "Lip height",
-      "flag": "conflict", "related": ["stack", "band-1", "band-2"],
-      "note": "20 - 8 - 8 = 4, not 5. Modelled 4 so the stack closes.", "measured": 4 }
+    {
+      "id": "front-bore",
+      "text": "Ø1.000/1.002",
+      "nominal": 1.001,
+      "limits": [1, 1.002],
+      "feature": "Front bore",
+      "featureRef": "flange/face 12",
+      "where": {
+        "source": "FL-100",
+        "page": 1,
+        "view": "A-A",
+        "box": [0.58, 0.497, 0.038, 0.031]
+      },
+      "confidence": "high",
+      "measured": 1.001,
+      "measuredHow": "bore cylinder radius x 2"
+    },
+    {
+      "id": "lip",
+      "text": "5",
+      "nominal": 5,
+      "units": "mm",
+      "feature": "Lip height",
+      "flag": "conflict",
+      "related": ["stack", "band-1", "band-2"],
+      "note": "20 - 8 - 8 = 4, not 5. Modelled 4 so the stack closes.",
+      "measured": 4
+    }
   ]
 }
 \`\`\`

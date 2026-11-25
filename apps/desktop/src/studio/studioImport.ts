@@ -13,6 +13,7 @@ import {
   STUDIO_IMPORT_SCAN_CHANNEL,
   STUDIO_OPEN_FILE_CHANNEL,
   STUDIO_PICK_FOLDER_CHANNEL,
+  STUDIO_READ_PDF_CHANNEL,
   STUDIO_SAVE_PDF_CHANNEL,
   STUDIO_WRITE_DRAWING_PAGES_CHANNEL,
 } from "./studioImportChannels.ts";
@@ -96,6 +97,12 @@ export const installStudioImport = Effect.fn("desktop.studioImport.install")(fun
         return writeDrawingPages(folder, files);
       },
     );
+    ipcMain.handle(STUDIO_READ_PDF_CHANNEL, async (_event, path: unknown) => {
+      if (!isAbsolutePath(path) || !/\.pdf$/i.test(path)) {
+        throw new Error("Only a PDF is read, by its full path.");
+      }
+      return new Uint8Array(await NodeFSP.readFile(path));
+    });
     ipcMain.handle(STUDIO_SAVE_PDF_CHANNEL, async (_event, html: unknown, path: unknown) => {
       if (typeof html !== "string" || !isAbsolutePath(path) || !/\.pdf$/i.test(path)) {
         throw new Error("Saving a PDF needs its page and a full path ending in .pdf.");

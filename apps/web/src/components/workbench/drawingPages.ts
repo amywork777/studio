@@ -143,19 +143,30 @@ async function keepDrawingPages(
  */
 export function drawAttachedPages(
   folder: string,
-  attached: ReadonlyArray<{ readonly file: File; readonly reference: string }>,
+  attached: ReadonlyArray<{
+    /** The file as dropped, or its path on this computer, read through the desktop app. */
+    readonly source: File | string;
+    readonly reference: string;
+  }>,
 ): void {
+  const readPdf = readStudioImport()?.readPdf;
+  const bytesOf = async (source: File | string): Promise<ArrayBuffer> => {
+    if (typeof source !== "string") return source.arrayBuffer();
+    if (readPdf === undefined) throw new Error("This Studio cannot read the PDF's pages.");
+    const bytes = await readPdf(source);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  };
   if (readStudioImport()?.writeDrawingPages === undefined) return;
   void (async () => {
-    for (const { file, reference } of attached) {
+    for (const { source, reference } of attached) {
       if (!/\.pdf$/i.test(reference)) continue;
-      const name = file.name;
+      const name = reference.split("/").at(-1) ?? reference;
       const toastId = toastManager.add({ type: "loading", title: `Reading ${name}`, timeout: 0 });
       try {
         const index = await keepDrawingPages(
           folder,
           reference,
-          await file.arrayBuffer(),
+          await bytesOf(source),
           (page, count) =>
             toastManager.update(toastId, {
               type: "loading",

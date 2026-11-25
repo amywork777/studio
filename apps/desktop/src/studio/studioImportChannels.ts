@@ -9,3 +9,4 @@ export const STUDIO_BACKUP_CHANNEL = "studio:backup";
 export const STUDIO_OPEN_FILE_CHANNEL = "studio:open-file";
 export const STUDIO_WRITE_DRAWING_PAGES_CHANNEL = "studio:write-drawing-pages";
 export const STUDIO_SAVE_PDF_CHANNEL = "studio:save-pdf";
+export const STUDIO_READ_PDF_CHANNEL = "studio:read-pdf";
