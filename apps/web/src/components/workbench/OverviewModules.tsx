@@ -10,6 +10,7 @@ import { workspaceAssetResource } from "../files/filePreviewMode";
 import { Button } from "../ui/button";
 import { fileTint, KIND_ICONS } from "./kinds";
 import { readmeInline } from "./projectReadme";
+import { PdfPageThumb } from "./PdfPageThumb";
 import { filePlaces, type ProjectFile, type ProjectGroup } from "./projectFiles";
 import { useEngineeringInterface } from "./studioInterface";
 import { CARD_GRID, MODULE_HEADING, MODULE_NOTE, SECTION_STACK } from "./studioLayout";
@@ -21,6 +22,8 @@ const FIRST_FILES = 8;
 const PHOTO = /\.(?:png|jpe?g|webp|gif)$/i;
 /** Documents shown as a page: their title and how they open. */
 const PAGE = /\.(?:md|mdx|txt)$/i;
+/** PDFs shown by their first page: a drawing's sheet (`PdfPageThumb`). */
+const PDF = /\.pdf$/i;
 
 const FOLDED_KEY = "studio:overview-folded";
 
@@ -253,6 +256,17 @@ export function FileCard(props: {
           <img src={props.picture} alt="" className="size-full object-contain" />
         ) : PAGE.test(props.file.path) ? (
           <Page environmentId={props.environmentId} root={props.root} path={props.file.path} />
+        ) : PDF.test(props.file.path) ? (
+          <PdfPageThumb
+            environmentId={props.environmentId}
+            threadRef={props.threadRef}
+            root={props.root}
+            path={props.file.path}
+            className="size-full object-contain"
+            fallback={
+              <Icon className={cn("size-8", fileTint(props.file.group))} aria-hidden="true" />
+            }
+          />
         ) : photo ? (
           <Photo
             environmentId={props.environmentId}

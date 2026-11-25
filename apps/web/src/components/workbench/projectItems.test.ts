@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { itemType, itemTypeCounts, projectFileItems } from "./projectItems";
+import { itemMatches, itemType, itemTypeCounts, projectFileItems } from "./projectItems";
 
 describe("project items", () => {
   it("shows a study once, whatever a solve left beside it", () => {
@@ -70,6 +70,30 @@ describe("project items", () => {
     ]);
     const counts = itemTypeCounts(items.map((item) => ({ type: itemType(item.file.group) })));
     expect([counts.get("CAD"), counts.get("Analysis")]).toEqual([4, 1]);
+  });
+
+  it("calls a STEP in an assemblies folder an Assembly, and filters by name, kind and folder", () => {
+    const items = projectFileItems([
+      {
+        root: "/p/mount",
+        paths: [
+          "assemblies/motor_mount.step",
+          "parts/motor_plate.step",
+          "drawings/plate_drawing.pdf",
+        ],
+      },
+    ]);
+    expect(items.map((item) => [item.label, item.kind])).toEqual([
+      ["Motor mount", "Assembly"],
+      ["Motor plate", "Part"],
+      ["Plate drawing", "Drawing"],
+    ]);
+    const found = (query: string) =>
+      items.filter((item) => itemMatches(item, query)).map((item) => item.label);
+    expect(found("assembly")).toEqual(["Motor mount"]);
+    expect(found("motor_plate")).toEqual(["Motor plate"]);
+    expect(found("plate drawings")).toEqual(["Plate drawing"]);
+    expect(found("  ")).toHaveLength(3);
   });
 
   it("lists nothing for a folder still being read", () => {
