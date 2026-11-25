@@ -43,6 +43,21 @@ interface HubProject {
   }>;
 }
 
+type HubComment = {
+  id: string;
+  project: string;
+  version: number;
+  by_email: string;
+  body: string;
+  at: string;
+  anchor: { file: string; point?: number[] } | null;
+  reply_to: string | null;
+  resolved_in: number | null;
+  agent_sees: boolean;
+  fix_by: string | null;
+  fix_at: string | null;
+};
+
 /**
  * The team hub's HTTP surface as `infra/teams` serves it (PostgREST functions and tables, Storage),
  * kept in memory, with the same refusals its SQL functions raise. Each person's calls carry their
@@ -62,16 +77,11 @@ const makeHub = () => {
       decision: "approved" | "changes" | null;
       decided_at: string | null;
     }>;
-    team_review_comments: Array<{
-      id: string;
-      by_email: string;
-      body: string;
-      at: string;
-      anchor: { file: string; point?: number[] } | null;
-      reply_to: string | null;
-      resolved_in: number | null;
-    }>;
+    team_review_comments: Array<HubComment>;
   }> = [];
+  /** Comments on a Version nobody asked to review. */
+  const loose: Array<HubComment> = [];
+  const allComments = () => [...reviews.flatMap((r) => r.team_review_comments), ...loose];
   const versionFiles: Array<{ project: string; version: number; path: string; object: string }> =
     [];
   const owners = new Map<string, string>();
@@ -169,6 +179,21 @@ const makeHub = () => {
     if (route === "/rest/v1/team_project_versions") {
       const id = url.searchParams.get("project_id")?.replace(/^eq\./, "");
       return ok((projects.get(id ?? "")?.checkIns ?? []).toReversed());
+    }
+    if (route === "/rest/v1/team_review_comments") {
+      const param = (name: string) => url.searchParams.get(name) ?? "";
+      const ids = param("id")
+        .replace(/^in\.\(|\)$/g, "")
+        .split(",");
+      return ok(
+        allComments().filter(
+          (c) =>
+            c.project === param("project_id").replace(/^eq\./, "") &&
+            (param("id") === "" || ids.includes(c.id)) &&
+            (param("fix_at") === "" || (c.fix_at !== null && c.agent_sees)) &&
+            (param("resolved_in") === "" || c.resolved_in === null),
+        ),
+      );
     }
     if (route === "/rest/v1/team_reviews") {
       const id = url.searchParams.get("project_id")?.replace(/^eq\./, "");
@@ -288,20 +313,31 @@ const makeHub = () => {
         });
         return ok(id);
       }
-      case "comment_review": {
-        const r = reviews.find((each) => each.id === args.p_review);
-        if (r === undefined) return refuse("not-allowed");
-        const id = `c-${r.team_review_comments.length + 1}`;
-        r.team_review_comments.push({
-          id: `${r.id}-${id}`,
+      case "comment_review":
+      case "comment_version": {
+        const r =
+          fn === "comment_review"
+            ? reviews.find((each) => each.id === args.p_review)
+            : reviews.find(
+                (each) => each.project === args.p_project && each.version === args.p_version,
+              );
+        if (fn === "comment_review" && r === undefined) return refuse("not-allowed");
+        const id = `00000000-0000-4000-8000-${String(allComments().length + 1).padStart(12, "0")}`;
+        (r?.team_review_comments ?? loose).push({
+          id,
+          project: r?.project ?? args.p_project,
+          version: r?.version ?? args.p_version,
           by_email: who,
           body: args.p_body,
           at: now(),
           anchor: null,
           reply_to: args.p_reply_to ?? null,
           resolved_in: null,
+          agent_sees: editor,
+          fix_by: null,
+          fix_at: null,
         });
-        return ok(`${r.id}-${id}`);
+        return ok(id);
       }
       case "decide_review": {
         const r = reviews.find((each) => each.id === args.p_review);
@@ -313,9 +349,7 @@ const makeHub = () => {
       }
       case "resolve_comment": {
         if (!editor) return refuse("not-allowed");
-        const comment = reviews
-          .flatMap((r) => r.team_review_comments)
-          .find((each) => each.id === args.p_comment);
+        const comment = allComments().find((each) => each.id === args.p_comment);
         if (comment === undefined) return refuse("not-found");
         comment.resolved_in = args.p_version;
         return ok(null);
@@ -381,7 +415,7 @@ const makeHub = () => {
       }),
     );
 
-  return { projects, versionFiles, files, limit, client };
+  return { projects, versionFiles, files, limit, client, comments: allComments };
 };
 
 type Hub = ReturnType<typeof makeHub>;
@@ -653,13 +687,22 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
         yield* dana.checkIn({ cwd: got.folder, note: "Wall", keep: false, reviewers: [VIC] });
         assert.deepStrictEqual(
           hub.versionFiles.map((file) => `${file.version}:${file.path}`),
-          ["2:part.stl"],
+          ["1:part.stl", "2:part.stl"],
         );
         assert.isTrue([...hub.files.keys()].some((key) => key.endsWith("/v2/part.stl")));
 
         const asked = yield* vic.reviewComment({ cwd: seen.folder, body: "Fillet the corner" });
         const comment = asked!.review!.comments[0]!;
+        assert.isFalse(comment.agentSees);
         yield* vic.reviewDecide({ cwd: seen.folder, decision: "changes" });
+        // In the hub, someone presses Fix this on it: it comes to the desktop as the fix queue.
+        const queued = hub.comments().find((each) => each.id === comment.id)!;
+        Object.assign(queued, { agent_sees: true, fix_by: AMY, fix_at: "2026-11-23T12:30:00Z" });
+        const waiting = yield* dana.folderStatus({ cwd: got.folder });
+        assert.deepStrictEqual(
+          waiting!.fixQueue.map((each) => [each.id, each.body, each.queuedBy]),
+          [[comment.id, "Fillet the corner", AMY]],
+        );
 
         yield* dana.checkOut({ cwd: got.folder });
         yield* write(got.folder, "part.py", "wall = 5\nfillet = 2\n");
@@ -672,6 +715,7 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
         });
         assert.strictEqual(fixed?.project.version, 3);
         assert.strictEqual(fixed?.review?.status, "review");
+        assert.deepStrictEqual(fixed?.fixQueue, []);
         const answered = fixed!.previousReview!.comments;
         assert.strictEqual(answered[0]?.resolvedIn, 3);
         assert.strictEqual(answered[1]?.replyTo, comment.id);

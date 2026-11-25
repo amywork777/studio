@@ -18,8 +18,9 @@ import { fromInside, openComments, type ReviewComment } from "./reviewPrompt";
 import { ROLE_LABEL } from "./teamWords";
 
 /**
- * Before the agent reads a review: each open comment quoted, and which to hand it. Comments from
- * outside reviewers start unticked, so nothing a customer wrote reaches the agent unread.
+ * Before the agent reads a review: each open comment quoted, and which to hand it. Only comments
+ * the agent may see start ticked (a teammate's, or one an Admin or Editor let through in the hub),
+ * so nothing a customer wrote reaches the agent unread.
  */
 export function AddressCommentsDialog(props: {
   readonly open: boolean;
@@ -30,9 +31,7 @@ export function AddressCommentsDialog(props: {
 }) {
   const open = openComments(props.review);
   const [ticked, setTicked] = useState<ReadonlySet<string> | null>(null);
-  const chosenIds =
-    ticked ??
-    new Set(open.filter((each) => fromInside(props.roleOf(each.by))).map((each) => each.id));
+  const chosenIds = ticked ?? new Set(open.filter((each) => each.agentSees).map((each) => each.id));
   const chosen = open.filter((each) => chosenIds.has(each.id));
   const toggle = (id: string, on: boolean) => {
     const next = new Set(chosenIds);

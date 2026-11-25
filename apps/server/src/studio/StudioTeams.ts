@@ -133,12 +133,34 @@ const ReviewRow = Schema.Struct({
       ),
       reply_to: Schema.NullOr(Schema.String),
       resolved_in: Schema.NullOr(Schema.Number),
+      agent_sees: Schema.Boolean,
     }),
   ),
 });
 type ReviewRow = typeof ReviewRow.Type;
 const REVIEW_COLUMNS =
-  "id,version,requested_email,created_at,team_review_people(email,decision,decided_at),team_review_comments(id,by_email,body,at,anchor,reply_to,resolved_in)";
+  "id,version,requested_email,created_at,team_review_people(email,decision,decided_at),team_review_comments(id,by_email,body,at,anchor,reply_to,resolved_in,agent_sees)";
+
+const Anchor = Schema.NullOr(
+  Schema.Struct({ file: Schema.String, point: Schema.optional(Schema.Array(Schema.Number)) }),
+);
+const FixRow = Schema.Struct({
+  id: Schema.String,
+  version: Schema.Number,
+  by_email: Schema.String,
+  body: Schema.String,
+  at: Schema.String,
+  anchor: Anchor,
+  fix_by: Schema.String,
+});
+/** At most this many queued comments are handed over at once. */
+const FIX_QUEUE_SHOWN = 20;
+const AnsweredRow = Schema.Struct({
+  id: Schema.String,
+  version: Schema.Number,
+  reply_to: Schema.NullOr(Schema.String),
+  resolved_in: Schema.NullOr(Schema.Number),
+});
 /** Reviews read for a project's activity and its last review. */
 const SHOWN_REVIEWS = 8;
 
@@ -150,6 +172,14 @@ const VIEWABLE_TYPES: Readonly<Record<string, string>> = {
   png: "image/png",
 };
 const MAX_VIEWABLE_FILES = 40;
+/**
+ * A browser cannot read STEP, so each check-in also sends a GLB of its first few STEP files and a
+ * picture of the first for the hub's project card, all under `.hub/` among the Version's files.
+ */
+const HUB_FILES = ".hub";
+const MAX_HUB_MODELS = 6;
+const CAD_TIMEOUT = "2 minutes";
+const COMMENT_ID = /^[0-9a-f-]{36}$/i;
 const MAX_VIEWABLE_FILE_BYTES = 30 * 1024 * 1024;
 const MAX_VIEWABLE_TOTAL_BYTES = 120 * 1024 * 1024;
 const ACTIVITY_SHOWN = 20;
@@ -677,10 +707,30 @@ const make = Effect.gen(function* () {
         pin: comment.anchor,
         replyTo: comment.reply_to,
         resolvedIn: comment.resolved_in,
+        agentSees: comment.agent_sees,
       })),
       link: hub.review === "" ? null : `${hub.review}/?review=${encodeURIComponent(review.id)}`,
     };
   };
+
+  /** Comments pressed Fix this on in the hub that the agent may read and no Version resolved. */
+  const fixQueueOf = (projectId: string) =>
+    select(
+      `team_review_comments?select=id,version,by_email,body,at,anchor,fix_by&project_id=eq.${encodeURIComponent(projectId)}&fix_at=not.is.null&agent_sees=is.true&resolved_in=is.null&reply_to=is.null&order=fix_at.asc&limit=${FIX_QUEUE_SHOWN}`,
+      Schema.Array(FixRow),
+    ).pipe(
+      Effect.map((rows) =>
+        rows.map((row) => ({
+          id: row.id,
+          version: row.version,
+          by: row.by_email,
+          body: row.body,
+          at: row.at,
+          pin: row.anchor,
+          queuedBy: row.fix_by,
+        })),
+      ),
+    );
 
   /** What happened to the project, newest first: check-ins, reviews, decisions, comments, releases. */
   const activityOf = (
@@ -740,51 +790,100 @@ const make = Effect.gen(function* () {
       .slice(0, ACTIVITY_SHOWN);
   };
 
-  /** Uploads a Version's models and drawings beside its bundle, so a browser can show them. */
-  const uploadViewable = Effect.fnUntraced(function* (
-    cwd: string,
-    row: ProjectRow,
-    version: number,
-  ) {
-    const s = yield* session;
-    const listed = yield* git(cwd, ["ls-files", "-z"]);
-    const wanted = listed
-      .split("\0")
-      .filter(
-        (file) => (VIEWABLE_TYPES[file.split(".").pop()?.toLowerCase() ?? ""] ?? null) !== null,
-      )
-      .slice(0, MAX_VIEWABLE_FILES);
-    const files: Array<{ path: string; object: string; size: number }> = [];
-    let total = 0;
-    for (const file of wanted) {
-      const bytes = yield* fileSystem
-        .readFile(path.join(cwd, ...file.split("/")))
-        .pipe(Effect.orElseSucceed(() => null));
-      if (bytes === null || bytes.byteLength > MAX_VIEWABLE_FILE_BYTES) continue;
-      if (total + bytes.byteLength > MAX_VIEWABLE_TOTAL_BYTES) break;
-      // Git names files with forward slashes on every system, which is what Storage keys use.
-      const object = `${row.team_id}/${row.id}/v${version}/${file}`;
-      const uploaded = yield* send({
-        method: "POST",
-        path: `/storage/v1/object/${BUCKET}/${object.split("/").map(encodeURIComponent).join("/")}`,
-        token: s.accessToken,
-        bytes,
-        contentType:
-          VIEWABLE_TYPES[file.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        timeout: TRANSFER_TIMEOUT,
-      });
-      if (uploaded.status >= 400) continue;
-      total += bytes.byteLength;
-      files.push({ path: file, object, size: bytes.byteLength });
-    }
-    if (files.length > 0) {
-      yield* rpc(
-        "record_version_files",
-        { p_project: row.id, p_version: version, p_files: files },
-        Schema.Number,
+  /**
+   * Runs Studio's `cad`, first on the app's PATH (`studioAppBundle.ts`); false when it could not,
+   * so a missing model or picture never stops a check-in.
+   */
+  const cad = (cwd: string, args: ReadonlyArray<string>) =>
+    processRunner
+      .run({
+        command: "cad",
+        args,
+        cwd,
+        timeout: CAD_TIMEOUT,
+        timeoutBehavior: "timedOutResult",
+        maxOutputBytes: 1024 * 1024,
+      })
+      .pipe(
+        Effect.map((result) => result.code === 0),
+        Effect.orElseSucceed(() => false),
       );
-    }
-  });
+
+  /**
+   * Uploads a Version's models and drawings beside its bundle, so a browser can show them, with a
+   * GLB of each of its first STEP files and a picture of the first, made by the CAD tools.
+   */
+  const uploadViewable = (cwd: string, row: ProjectRow, version: number) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const s = yield* session;
+        const listed = (yield* git(cwd, ["ls-files", "-z"]))
+          .split("\0")
+          .filter((file) => file !== "");
+        const extOf = (file: string) => file.split(".").pop()?.toLowerCase() ?? "";
+        const wanted: Array<{ path: string; source: string }> = listed
+          .filter((file) => VIEWABLE_TYPES[extOf(file)] !== undefined)
+          .slice(0, MAX_VIEWABLE_FILES)
+          .map((file) => ({ path: file, source: path.join(cwd, ...file.split("/")) }));
+        // Assemblies first: the whole product is what a teammate wants to see on the card.
+        const steps = listed
+          .filter((file) => extOf(file) === "step" || extOf(file) === "stp")
+          .toSorted(
+            (a, b) => Number(!a.startsWith("assemblies/")) - Number(!b.startsWith("assemblies/")),
+          )
+          .slice(0, MAX_HUB_MODELS);
+        const dir =
+          steps.length === 0
+            ? null
+            : yield* fileSystem
+                .makeTempDirectoryScoped({ prefix: "studio-hub-" })
+                .pipe(Effect.orElseSucceed(() => null));
+        if (dir !== null) {
+          for (const [index, file] of steps.entries()) {
+            const source = path.join(cwd, ...file.split("/"));
+            const out = path.join(dir, `${index}.glb`);
+            if (yield* cad(cwd, ["step", "export", source, out])) {
+              wanted.push({ path: `${HUB_FILES}/${file}.glb`, source: out });
+            }
+            if (index === 0) {
+              const picture = path.join(dir, "thumb.png");
+              if (yield* cad(cwd, ["step", "snapshot", source, picture, "--camera", "iso"])) {
+                wanted.push({ path: `${HUB_FILES}/thumb.png`, source: picture });
+              }
+            }
+          }
+        }
+        const files: Array<{ path: string; object: string; size: number }> = [];
+        let total = 0;
+        for (const file of wanted) {
+          const bytes = yield* fileSystem
+            .readFile(file.source)
+            .pipe(Effect.orElseSucceed(() => null));
+          if (bytes === null || bytes.byteLength > MAX_VIEWABLE_FILE_BYTES) continue;
+          if (total + bytes.byteLength > MAX_VIEWABLE_TOTAL_BYTES) break;
+          // Git names files with forward slashes on every system, which is what Storage keys use.
+          const object = `${row.team_id}/${row.id}/v${version}/${file.path}`;
+          const uploaded = yield* send({
+            method: "POST",
+            path: `/storage/v1/object/${BUCKET}/${object.split("/").map(encodeURIComponent).join("/")}`,
+            token: s.accessToken,
+            bytes,
+            contentType: VIEWABLE_TYPES[extOf(file.path)] ?? "application/octet-stream",
+            timeout: TRANSFER_TIMEOUT,
+          });
+          if (uploaded.status >= 400) continue;
+          total += bytes.byteLength;
+          files.push({ path: file.path, object, size: bytes.byteLength });
+        }
+        if (files.length > 0) {
+          yield* rpc(
+            "record_version_files",
+            { p_project: row.id, p_version: version, p_files: files },
+            Schema.Number,
+          );
+        }
+      }),
+    );
 
   /** The latest Version's review, which the review calls act on. */
   const latestReview = Effect.fnUntraced(function* (cwd: string) {
@@ -1005,6 +1104,8 @@ const make = Effect.gen(function* () {
       review: review === null ? null : reviewOf(review, releasedRev),
       previousReview: previous === null ? null : reviewOf(previous, releasedOf(previous.version)),
       activity: activityOf(checkIns, reviews),
+      fixQueue: role === "viewer" ? [] : yield* fixQueueOf(row.id),
+      hubLink: hub.review === "" ? null : `${hub.review}/?project=${encodeURIComponent(row.id)}`,
     };
   });
 
@@ -1124,6 +1225,7 @@ const make = Effect.gen(function* () {
     yield* git(cwd, ["config", VERSION_KEY, "0"]);
     const row = yield* projectRow(id);
     yield* checkInFolder(cwd, row, 0, "Shared with the team", false);
+    yield* uploadViewable(cwd, row, 1);
     return yield* folderStatusOf(cwd, { project: id, version: 1 });
   });
 
@@ -1195,24 +1297,39 @@ const make = Effect.gen(function* () {
         return yield* refusal("checked-out", row.checked_out_email);
       }
       if (row.version !== place.version) return yield* refusal("changed-elsewhere", null);
-      const answered = yield* reviewRow(row.id, row.version);
       yield* checkInFolder(cwd, row, place.version, input.note, input.keep);
       const now = yield* placeOf(cwd);
+      // Every Version shows in the hub, so its models and drawings go up whether or not it is reviewed.
+      yield* uploadViewable(cwd, row, now.version);
       const reviewers = input.reviewers ?? [];
       if (reviewers.length > 0) {
-        yield* uploadViewable(cwd, row, now.version);
         yield* rpc(
           "request_review",
           { p_project: place.project, p_version: now.version, p_reviewers: reviewers },
           Schema.String,
         );
       }
-      for (const answer of input.answers ?? []) {
-        if (answered === null) break;
-        if (!answered.team_review_comments.some((each) => each.id === answer.comment)) continue;
+      const answers = (input.answers ?? []).filter((each) => COMMENT_ID.test(each.comment));
+      const open =
+        answers.length === 0
+          ? []
+          : yield* select(
+              `team_review_comments?select=id,version,reply_to,resolved_in&project_id=eq.${encodeURIComponent(row.id)}&id=in.(${answers.map((each) => encodeURIComponent(each.comment)).join(",")})`,
+              Schema.Array(AnsweredRow),
+            );
+      for (const answer of answers) {
+        const answered = open.find((each) => each.id === answer.comment);
+        if (answered === undefined || answered.reply_to !== null || answered.resolved_in !== null) {
+          continue;
+        }
         yield* rpc(
-          "comment_review",
-          { p_review: answered.id, p_body: answer.reply, p_reply_to: answer.comment },
+          "comment_version",
+          {
+            p_project: row.id,
+            p_version: answered.version,
+            p_body: answer.reply,
+            p_reply_to: answer.comment,
+          },
           Schema.String,
         );
         yield* rpc(

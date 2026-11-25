@@ -795,6 +795,157 @@ const when = (
   )
 ).data[0];
 ok(when.released_at !== null, "a release records when");
+
+// The hub: comments on any Version, what the agent may read, the fix queue, and share links.
+const commentRows = async (p, filter) =>
+  (
+    await call(
+      "GET",
+      `/rest/v1/team_review_comments?select=id,review_id,version,by_email,agent_sees,fix_by,fix_at&project_id=eq.${project}${filter}`,
+      { token: p.token },
+    )
+  ).data;
+const onV1 = await rpc(vic, "comment_version", {
+  p_project: project,
+  p_version: 1,
+  p_body: "Can this be 2 mm thinner?",
+  p_anchor: { file: "parts/arm.stl", point: [0, 0, 1] },
+});
+ok(typeof onV1.data === "string", "a viewer comments on a Version nobody asked to review");
+const [v1Row] = await commentRows(dana, `&id=eq.${onV1.data}`);
+ok(
+  v1Row?.review_id === null && v1Row.version === 1 && v1Row.agent_sees === false,
+  "an outside reviewer's comment starts hidden from the agent",
+  JSON.stringify(v1Row),
+);
+const [amyPin] = await commentRows(dana, `&id=eq.${pinned.data}`);
+ok(
+  amyPin?.agent_sees === true && amyPin.version === 3,
+  "an editor's comment reaches the agent, and a review comment knows its Version",
+  JSON.stringify(amyPin),
+);
+ok(
+  refusal(
+    await rpc(olly, "comment_version", { p_project: project, p_version: 1, p_body: "hi" }),
+  ) === "not-allowed",
+  "an outsider cannot comment",
+);
+ok(
+  refusal(await rpc(vic, "queue_fix", { p_comment: onV1.data, p_on: true })) === "not-allowed" &&
+    refusal(await rpc(vic, "let_agent_see", { p_comment: onV1.data, p_on: true })) ===
+      "not-allowed",
+  "a viewer cannot hand a comment to the agent",
+);
+ok(
+  (await rpc(amy, "queue_fix", { p_comment: onV1.data, p_on: true })).status < 300,
+  "an editor queues a comment to fix",
+);
+const [queued] = await commentRows(dana, `&id=eq.${onV1.data}`);
+ok(
+  queued.fix_by === amy.email && queued.fix_at !== null && queued.agent_sees === true,
+  "queuing lets the agent read it",
+  JSON.stringify(queued),
+);
+await rpc(amy, "let_agent_see", { p_comment: onV1.data, p_on: false });
+const [hidden] = await commentRows(dana, `&id=eq.${onV1.data}`);
+ok(
+  hidden.agent_sees === false && hidden.fix_at === null,
+  "hiding it from the agent takes it off the queue",
+  JSON.stringify(hidden),
+);
+const reply = (
+  await rpc(amy, "comment_version", {
+    p_project: project,
+    p_version: 1,
+    p_body: "Looking",
+    p_reply_to: onV1.data,
+  })
+).data;
+ok(
+  refusal(await rpc(amy, "queue_fix", { p_comment: reply, p_on: true })) === "not-allowed",
+  "a reply is not queued on its own",
+);
+
+ok(
+  refusal(await rpc(vic, "share_link", { p_project: project, p_on: true })) === "not-allowed",
+  "a viewer cannot make a share link",
+);
+const link = (await rpc(amy, "share_link", { p_project: project, p_on: true })).data;
+const linkAgain = (await rpc(dana, "share_link", { p_project: project, p_on: true })).data;
+ok(
+  typeof link === "string" && link.length >= 32 && link === linkAgain,
+  "an editor turns the share link on; it stays the same link",
+);
+ok(
+  (await call("GET", `/rest/v1/team_share_links?select=token`, { token: vic.token })).data
+    .length === 0,
+  "a viewer cannot read the link",
+);
+ok(
+  refusal(await rpc(olly, "open_share_link", { p_token: "x".repeat(64) })) === "link-off",
+  "a made-up link opens nothing",
+);
+ok(
+  (await rpc(olly, "open_share_link", { p_token: link })).data === project,
+  "an outsider opens the link",
+);
+const ollySees = (await call("GET", `/rest/v1/team_projects?select=id`, { token: olly.token }))
+  .data;
+ok(
+  ollySees.length === 1 && ollySees[0].id === project,
+  "a guest sees that one project, not the team's others",
+  JSON.stringify(ollySees),
+);
+ok(
+  (await call("GET", `/rest/v1/team_members?select=email`, { token: olly.token })).data.length ===
+    0,
+  "a guest does not see the team's people",
+);
+const ollyModel = await call("GET", `/storage/v1/object/authenticated/projects/${model3}`, {
+  token: olly.token,
+});
+ok(ollyModel.status === 200, "a guest downloads a review file", `${ollyModel.status}`);
+ok(
+  (
+    await call("GET", `/storage/v1/object/authenticated/projects/${script3}`, {
+      token: olly.token,
+    })
+  ).status >= 400 &&
+    (
+      await call("GET", `/storage/v1/object/authenticated/projects/${object3}`, {
+        token: olly.token,
+      })
+    ).status >= 400,
+  "a guest gets neither a script nor the project's bundle",
+);
+ok(
+  refusal(await rpc(olly, "project_bundle", { p_project: project })) === "not-allowed",
+  "a guest is handed no bundle",
+);
+const ollyComment = (
+  await rpc(olly, "comment_version", { p_project: project, p_version: 3, p_body: "Looks good" })
+).data;
+const [ollyRow] = await commentRows(dana, `&id=eq.${ollyComment}`);
+ok(ollyRow?.agent_sees === false, "a guest's comment starts hidden from the agent");
+ok(
+  refusal(await rpc(olly, "queue_fix", { p_comment: ollyComment, p_on: true })) === "not-allowed",
+  "a guest cannot queue a fix",
+);
+await rpc(amy, "open_share_link", { p_token: link });
+ok(
+  (
+    await call("GET", `/rest/v1/team_project_guests?select=email&project_id=eq.${project}`, {
+      token: amy.token,
+    })
+  ).data.length === 1,
+  "a teammate who opens the link stays a teammate, and the team sees its guest",
+);
+await rpc(amy, "share_link", { p_project: project, p_on: false });
+ok(
+  (await call("GET", `/rest/v1/team_projects?select=id`, { token: olly.token })).data.length ===
+    0 && refusal(await rpc(olly, "open_share_link", { p_token: link })) === "link-off",
+  "turning the link off lets every guest go, and the old link opens nothing",
+);
 await rpc(dana, "release_project", { p_project: project });
 
 // Storage: a team's files count against its plan, which only billing (the service role) sets.

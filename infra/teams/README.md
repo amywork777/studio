@@ -48,14 +48,31 @@ There is no server of Studio's own to run.
   [`supabase/migrations/20261123000000_teams.sql`](supabase/migrations/20261123000000_teams.sql)
   that checks the caller's role first. No table has an insert, update or delete policy.
 
-## The review page
+## The hub in a browser
 
-[`review/`](review) is a static page (no build step) for reviewers without Studio: sign in with the
-emailed code, see a Version's models in 3D and its drawings, pin comments on the model, reply, and
-approve or request changes. It is the Vercel project `studio-review`
+[`review/`](review) is a static page (no build step): Studio is where a project is built, and this
+page is where everyone else sees it. Sign in with the emailed code to see each team's projects (a
+card per project with its picture, latest Version, who changed it and who is editing), then a
+project's model in 3D, its drawings and pictures, every Version, its review, and comments pinned to
+a spot on the model. It is the Vercel project `studio-review`
 (<https://studio-review-delta.vercel.app>), deployed with `vercel deploy --prod` from `review/`.
-Studio's Copy review link points at it (`STUDIO_REVIEW_URL`). For a local hub, open it as
-`?hub=http://127.0.0.1:54321&key=<anon key>`; it accepts only a localhost hub that way.
+Studio's Copy review link (`?review=<id>`) and Open in browser (`?project=<id>`) point at it
+(`STUDIO_REVIEW_URL`). For a local hub, open it as `?hub=http://127.0.0.1:54321&key=<anon key>`;
+it accepts only a localhost hub that way.
+
+- **What it shows:** only a Version's files recorded in `team_version_files`. Each check-in sends its
+  models, drawings and pictures, plus a GLB of its first STEP files and a picture of the first
+  (`.hub/`), which Studio makes with its own `cad`; a browser cannot read STEP. Scripts and history
+  never come here.
+- **Comments** belong to a Version (`comment_version`), whether or not anyone asked for a review;
+  a review's comments are its Version's.
+- **Share by link:** an Admin or Editor turns on a project's link (`share_link`). Whoever opens it
+  and signs in becomes a guest of that one project (`open_share_link`, `team_project_guests`) and
+  sees it as a Viewer does. Turning the link off lets every guest go; `remove_guest` lets one go.
+  `project_role` is the role every read policy checks: the team role, or `viewer` for a guest.
+- **Fix this:** an Admin or Editor queues a comment for the agent (`queue_fix`). Studio's Team strip
+  then offers the queue to the project's chat, and `studio_team_review` lists it. A Version that
+  answers it resolves it, which takes it off the queue.
 
 ## The agent's tools
 
@@ -64,10 +81,12 @@ chat's agent read the latest review and check the project in once it has address
 each comment and asking the same reviewers again. Ask the agent to address comments, on a project's
 review, hands the chat the open comments and these steps.
 
-Reviewers' comments may come from customers, so the agent never reads them by itself:
-`studio_team_review` gives each comment's id, author and file but not its words. Ask the agent to
-address comments shows each open comment and hands over only the ones the person ticks (comments
-from Viewers start unticked), quoted as JSON lines the agent is told are not instructions.
+Comments may come from customers, so the agent reads a comment's words only when it may see it
+(`agent_sees`): an Admin's or Editor's comment may be seen from the start, and an outside
+reviewer's (a Viewer's or a guest's) only once an Admin or Editor turns on Let agent see this, or
+presses Fix this, in the hub. `studio_team_review` gives the rest without their words. Ask the
+agent to address comments starts with only those ticked, and every comment reaches the chat quoted
+as JSON lines the agent is told are not instructions.
 
 Studio finds the hub from two variables on its server: `STUDIO_TEAMS_URL` (the project's API URL)
 and `STUDIO_TEAMS_KEY` (its public anon or publishable key, which is safe to ship). Without them

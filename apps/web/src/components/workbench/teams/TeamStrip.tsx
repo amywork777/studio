@@ -5,9 +5,10 @@ import type {
   StudioTeamActivity,
   StudioTeamsFolderStatusResult,
 } from "@t3tools/contracts";
-import { LockIcon, LockOpenIcon } from "lucide-react";
+import { GlobeIcon, LockIcon, LockOpenIcon, BotIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
+import { readLocalApi } from "~/localApi";
 import { formatRelativeTimeLabel } from "~/timestampFormat";
 import { useEnvironmentQuery } from "~/state/query";
 import { studioTeamsEnvironment } from "~/state/studioTeams";
@@ -30,7 +31,7 @@ import type { ComposerHandleRef } from "~/composerHandleContext";
 import { handToChat } from "../handToChat";
 import { AddressCommentsDialog } from "./AddressCommentsDialog";
 import { ReviewBadge, ReviewPanel } from "./ReviewPanel";
-import { type ReviewComment, reviewPrompt } from "./reviewPrompt";
+import { fixPrompt, type ReviewComment, reviewPrompt } from "./reviewPrompt";
 import { TeamAvatar, TeamAvatarStack } from "./TeamAvatar";
 import { ROLE_LABEL, useTeamAction } from "./teamWords";
 
@@ -267,9 +268,10 @@ export function TeamStrip(props: {
   const composerRef = props.composerRef;
   const askAgent =
     composerRef === null || review === null || !editor ? null : () => setAddressing(true);
-  const handComments = (chosen: ReadonlyArray<ReviewComment>) =>
+  /** Checks the project out to this person first, then hands the job to the project's chat. */
+  const handJob = (job: () => string) =>
     action.run(async () => {
-      if (composerRef === null || review === null) return;
+      if (composerRef === null) return;
       if (!shared.mine) {
         if (project.checkedOutBy !== null) {
           throw new Error(`${project.checkedOutBy} has it checked out.`);
@@ -278,11 +280,27 @@ export function TeamStrip(props: {
         if (result._tag === "Failure") throw squashAtomCommandFailure(result);
       }
       setAddressing(false);
-      handToChat(
-        composerRef,
-        reviewPrompt({ review, teamName: project.teamName, folder, chosen, roleOf }),
-      );
+      handToChat(composerRef, job());
     });
+  const handComments = (chosen: ReadonlyArray<ReviewComment>) => {
+    if (review === null) return;
+    handJob(() => reviewPrompt({ review, teamName: project.teamName, folder, chosen, roleOf }));
+  };
+  const queue = shared.fixQueue;
+  const fixQueued =
+    composerRef === null || queue.length === 0 || !editor
+      ? null
+      : () => handJob(() => fixPrompt({ teamName: project.teamName, folder, queue, roleOf }));
+  const hubLink = shared.hubLink;
+  const openHub =
+    hubLink === null
+      ? null
+      : () =>
+          void readLocalApi()
+            ?.shell.openExternal(hubLink)
+            .catch(() =>
+              toastManager.add({ type: "info", title: "Team hub", description: hubLink }),
+            );
 
   return (
     <section
@@ -360,6 +378,12 @@ export function TeamStrip(props: {
               Take back
             </Button>
           ) : null}
+          {openHub === null ? null : (
+            <Button variant="ghost-muted" size="sm" onClick={openHub}>
+              <GlobeIcon aria-hidden="true" />
+              Open in browser
+            </Button>
+          )}
           {shared.activity.length === 0 ? null : (
             <Button variant="ghost-muted" size="sm" onClick={() => setHistory(!history)}>
               {history ? "Hide activity" : "Activity"}
@@ -367,6 +391,21 @@ export function TeamStrip(props: {
           )}
         </span>
       </div>
+      {queue.length === 0 || !editor ? null : (
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border pt-2">
+          <span className="min-w-48 flex-1 text-xs text-muted-foreground">
+            {queue.length === 1
+              ? `${queue[0]!.queuedBy} asked the agent to fix a comment from the hub.`
+              : `${queue.length} comments from the hub are waiting for the agent to fix.`}
+          </span>
+          {fixQueued === null ? null : (
+            <Button size="sm" disabled={action.busy || !allowed} onClick={fixQueued}>
+              <BotIcon aria-hidden="true" />
+              {queue.length === 1 ? "Fix it with the agent" : `Fix ${queue.length} with the agent`}
+            </Button>
+          )}
+        </div>
+      )}
       {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
       {history ? <ActivityList activity={shared.activity} /> : null}
       {review === null ? null : (

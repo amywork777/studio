@@ -3,23 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Studio Review</title>
+    <title>Studio Team Hub</title>
     <meta
       name="description"
-      content="Review a Studio team project's Version: see the model and drawings, pin comments, approve or request changes."
+      content="A Studio team's projects in a browser: every Version's models and drawings, comments pinned to the model, and Fix this for the agent in Studio."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
     />
     <link rel="stylesheet" href="./style.css" />
     <script type="importmap">
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+          "pdfjs": "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs"
         }
       }
     </script>
@@ -27,10 +28,7 @@
     <script type="module" src="./app.js"></script>
   </head>
   <body>
-    <header class="top">
-      <a class="brand" href="./">Studio <span>Review</span></a>
-      <span class="who" id="who"></span>
-    </header>
+    <header class="bar" id="bar"></header>
     <main id="app" class="page" aria-live="polite"></main>
   </body>
 </html>

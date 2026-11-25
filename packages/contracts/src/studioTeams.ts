@@ -171,6 +171,8 @@ export const StudioTeamReview = Schema.Struct({
       replyTo: Schema.NullOr(Schema.String),
       /** The later Version that resolved it. */
       resolvedIn: Schema.NullOr(Schema.Number),
+      /** The agent may read it: an Admin's or Editor's, or one an Admin or Editor let it see. */
+      agentSees: Schema.Boolean,
     }),
   ),
   /** The browser page where reviewers without Studio review it, or null when this build has none. */
@@ -190,6 +192,20 @@ export const StudioTeamsReviewDecideInput = Schema.Struct({
   decision: StudioTeamReviewDecision,
 });
 export type StudioTeamsReviewDecideInput = typeof StudioTeamsReviewDecideInput.Type;
+
+/** A comment someone pressed Fix this on in the hub, which the agent may read; oldest first. */
+export const StudioTeamFixComment = Schema.Struct({
+  id: Schema.String,
+  /** The Version it was written on. */
+  version: Schema.Number,
+  by: Schema.String,
+  body: Schema.String,
+  at: Schema.String,
+  pin: Schema.NullOr(StudioTeamPin),
+  /** Who pressed Fix this. */
+  queuedBy: Schema.String,
+});
+export type StudioTeamFixComment = typeof StudioTeamFixComment.Type;
 
 /** One thing that happened to a team project, for its activity list. */
 export const StudioTeamActivity = Schema.Struct({
@@ -221,6 +237,10 @@ export const StudioTeamsFolderStatusResult = Schema.NullOr(
     previousReview: Schema.NullOr(StudioTeamReview),
     /** Newest first. */
     activity: Schema.Array(StudioTeamActivity),
+    /** Comments queued in the hub for the agent to fix, not yet resolved by a Version. */
+    fixQueue: Schema.Array(StudioTeamFixComment),
+    /** The project's page in the hub, or null when this build has none. */
+    hubLink: Schema.NullOr(Schema.String),
   }),
 );
 export type StudioTeamsFolderStatusResult = typeof StudioTeamsFolderStatusResult.Type;
