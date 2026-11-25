@@ -268,7 +268,9 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 .btn:focus-visible,
-.file:focus-visible {
+.row-main:focus-visible,
+.group-head:focus-visible,
+.icon-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -487,8 +489,11 @@ select:focus-visible,
 .work {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: 248px minmax(0, 1fr) 380px;
   min-height: 0;
+}
+.work.files-shut {
+  grid-template-columns: 44px minmax(0, 1fr) 380px;
 }
 .canvas {
   display: flex;
@@ -526,7 +531,7 @@ select:focus-visible,
   position: relative;
   flex: 1;
   min-height: 320px;
-  margin: 0 16px;
+  margin: 0 16px 16px;
   border-radius: var(--radius);
   background: radial-gradient(120% 90% at 50% 35%, var(--surface) 0%, var(--canvas) 100%);
   border: 1px solid var(--line);
@@ -623,44 +628,247 @@ select:focus-visible,
   outline: 3px solid color-mix(in srgb, var(--pin) 35%, transparent);
   z-index: 1;
 }
-.files {
+/* The file panel: compact rows, as a CAD tree or a layers list. */
+.layers {
   display: flex;
-  gap: 6px;
-  padding: 12px 16px 16px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-.file {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 12px 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
+  flex-direction: column;
+  min-height: 0;
   background: var(--surface);
-  cursor: pointer;
-  white-space: nowrap;
-  font-size: 13px;
-  text-transform: capitalize;
+  border-right: 1px solid var(--line);
+  font-size: 12.5px;
 }
-.file[aria-selected="true"] {
-  border-color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--ink);
+.layers-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 8px;
+  flex: none;
 }
-.kind {
-  font-size: 10.5px;
+.layers-title {
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 6px;
-  border-radius: 999px;
+  font-size: 13px;
+}
+.layers .count {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.files-shut .layers-title,
+.files-shut .layers-body {
+  display: none;
+}
+.layers-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.layers-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px 6px;
+  padding: 0 8px;
+  height: 30px;
+  border-radius: 8px;
   background: var(--surface-2);
   color: var(--muted);
 }
-.kind.drawing {
+.layers-search:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.layers-search svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.layers-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--fg);
+  outline: none;
+}
+.layers-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 12px;
+  scrollbar-width: thin;
+}
+.layers-empty {
+  padding: 10px 8px;
+  color: var(--muted);
+}
+.group + .group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px 0 2px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.group-head:hover {
+  color: var(--fg);
+}
+.group-head svg,
+.twisty svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.12s;
+}
+.group-head[aria-expanded="true"] svg,
+.row[aria-expanded="true"] > .twisty svg {
+  transform: rotate(90deg);
+}
+.group-head .count {
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: calc(var(--depth) * 14px);
+}
+.twisty {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row-main:hover {
+  background: var(--surface-2);
+}
+.row-main > svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+.row-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nm-head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nm-tail {
+  flex: none;
+  white-space: pre;
+}
+.row-where {
+  flex: none;
+  margin-left: 6px;
+  color: var(--muted);
+}
+.ext,
+.row-open {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.row-open {
+  position: absolute;
+  right: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.row-open:hover {
+  color: var(--fg);
+  border-color: var(--ink);
+}
+.row-main.current,
+.row-main.picked {
   background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 500;
+}
+.row-main.current > svg,
+.row-main.picked > svg,
+.row-main.current .ext {
+  color: var(--accent);
+}
+.row-main.current-soft {
+  font-weight: 500;
+}
+.row-note {
+  padding: 4px 0 4px calc(var(--depth) * 14px + 22px);
+  color: var(--muted);
 }
 
 /* The side panel. */
@@ -1076,9 +1284,18 @@ select:focus-visible,
 }
 
 @media (max-width: 860px) {
-  .work {
+  .work,
+  .work.files-shut {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(420px, 62vh) auto;
+    grid-template-rows: auto minmax(420px, 62vh) auto;
+  }
+  .layers {
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .layers-list {
+    max-height: 36vh;
   }
   .side {
     border-left: 0;

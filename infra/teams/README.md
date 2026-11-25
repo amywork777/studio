@@ -61,9 +61,10 @@ Studio's Copy review link (`?review=<id>`) and Open in browser (`?project=<id>`)
 it accepts only a localhost hub that way.
 
 - **What it shows:** only a Version's files recorded in `team_version_files`. Each check-in sends its
-  models, drawings and pictures, plus a GLB of its first STEP files and a picture of the first
-  (`.hub/`), which Studio makes with its own `cad`; a browser cannot read STEP. Scripts and history
-  never come here.
+  models, drawings, pictures and videos, plus a GLB of its first 12 STEP files (assemblies first,
+  bought parts last) and a picture of the first (`.hub/`), which Studio makes with its own `cad`; a
+  browser cannot read STEP. Scripts and history never come here. The page lists them in a file
+  panel by kind, and an assembly opens onto its parts from the GLB's own node tree.
 - **Comments** belong to a Version (`comment_version`), whether or not anyone asked for a review;
   a review's comments are its Version's.
 - **Share by link:** an Admin or Editor turns on a project's link (`share_link`). Whoever opens it

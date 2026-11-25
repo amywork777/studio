@@ -170,6 +170,9 @@ const VIEWABLE_TYPES: Readonly<Record<string, string>> = {
   glb: "model/gltf-binary",
   pdf: "application/pdf",
   png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  mp4: "video/mp4",
 };
 const MAX_VIEWABLE_FILES = 40;
 /**
@@ -177,7 +180,7 @@ const MAX_VIEWABLE_FILES = 40;
  * picture of the first for the hub's project card, all under `.hub/` among the Version's files.
  */
 const HUB_FILES = ".hub";
-const MAX_HUB_MODELS = 6;
+const MAX_HUB_MODELS = 12;
 const CAD_TIMEOUT = "2 minutes";
 const COMMENT_ID = /^[0-9a-f-]{36}$/i;
 const MAX_VIEWABLE_FILE_BYTES = 30 * 1024 * 1024;
@@ -825,12 +828,12 @@ const make = Effect.gen(function* () {
           .filter((file) => VIEWABLE_TYPES[extOf(file)] !== undefined)
           .slice(0, MAX_VIEWABLE_FILES)
           .map((file) => ({ path: file, source: path.join(cwd, ...file.split("/")) }));
-        // Assemblies first: the whole product is what a teammate wants to see on the card.
+        // Assemblies first, the whole product being what the card shows; bought parts last.
+        const rank = (file: string) =>
+          file.startsWith("assemblies/") ? 0 : file.includes("/imported/") ? 2 : 1;
         const steps = listed
           .filter((file) => extOf(file) === "step" || extOf(file) === "stp")
-          .toSorted(
-            (a, b) => Number(!a.startsWith("assemblies/")) - Number(!b.startsWith("assemblies/")),
-          )
+          .toSorted((a, b) => rank(a) - rank(b))
           .slice(0, MAX_HUB_MODELS);
         const dir =
           steps.length === 0

@@ -150,7 +150,19 @@ export function makeViewer(container, { onPick, onPin }) {
         );
       } else {
         object = await new Promise((resolve, reject) =>
-          new GLTFLoader().parse(buffer, "", (gltf) => resolve(gltf.scene), reject),
+          new GLTFLoader().parse(
+            buffer,
+            "",
+            (gltf) => {
+              // Which glTF node each object is, so the file panel can pick a part by it.
+              gltf.scene.traverse((each) => {
+                const node = gltf.parser.associations.get(each)?.nodes;
+                if (node !== undefined) each.userData.node = node;
+              });
+              resolve(gltf.scene);
+            },
+            reject,
+          ),
         );
       }
       object.traverse((each) => {
@@ -184,16 +196,63 @@ export function makeViewer(container, { onPick, onPin }) {
       resize();
       frame();
     },
+    /** One part of an assembly drawn solid and the rest faint, or all solid for null. */
+    highlight(node) {
+      if (model === null) return;
+      let picked = null;
+      model.traverse((each) => {
+        if (picked === null && node !== null && each.userData.node === node) picked = each;
+      });
+      const inside = new Set();
+      picked?.traverse((each) => inside.add(each));
+      model.traverse((each) => {
+        if (!each.isMesh && !each.isLineSegments) return;
+        each.userData.solid ??= each.material;
+        const faint = picked !== null && !inside.has(each) && !inside.has(each.parent);
+        if (!faint) {
+          each.material = each.userData.solid;
+          return;
+        }
+        each.userData.faint ??= [each.userData.solid].flat().map((m) => {
+          const copy = m.clone();
+          copy.transparent = true;
+          copy.opacity = each.isLineSegments ? 0.08 : 0.14;
+          copy.depthWrite = false;
+          return copy;
+        });
+        each.material = Array.isArray(each.userData.solid)
+          ? each.userData.faint
+          : each.userData.faint[0];
+      });
+      draw();
+    },
     /** A drawing's pages drawn with pdf.js, so it looks the same in every browser. */
-    async showFile(blob, ext) {
+    async showFile(blob, ext, name = "") {
       if (model !== null) scene.remove(model);
       model = null;
-      if (ext !== "pdf") {
+      if (["png", "jpg", "jpeg"].includes(ext)) {
         const img = document.createElement("img");
         img.src = URL.createObjectURL(blob);
-        img.alt = "Picture";
+        img.alt = name;
         img.className = "stage-img";
         show(img);
+        return;
+      }
+      if (ext === "mp4") {
+        const video = document.createElement("video");
+        video.src = URL.createObjectURL(blob);
+        video.controls = true;
+        video.className = "stage-img";
+        show(video);
+        return;
+      }
+      if (ext !== "pdf") {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${name}.${ext}`;
+        link.textContent = `No preview for this file. Download ${name}`;
+        note.replaceChildren(link);
+        show(note);
         return;
       }
       const doc = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) })

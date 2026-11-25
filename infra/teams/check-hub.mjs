@@ -694,6 +694,22 @@ ok(
   "a viewer sees the Version's files",
   JSON.stringify(listed),
 );
+const video3 = `${team}/${project}/v3/pictures/turn.mp4`;
+made.files.push(video3);
+await call("POST", `/storage/v1/object/projects/${video3}`, {
+  token: dana.token,
+  bytes: new TextEncoder().encode("mp4"),
+});
+ok(
+  (
+    await rpc(dana, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: [{ path: "pictures/turn.mp4", object: video3, size: 3 }],
+    })
+  ).data === 1,
+  "a Version's video is recorded for the hub too",
+);
 ok(
   (
     await call("GET", `/rest/v1/team_version_files?select=path&project_id=eq.${project}`, {

@@ -14,6 +14,7 @@ import {
   signOut,
   verifyCode,
 } from "./hub.js";
+import { extOf, HUB_FILES, isModel, labelOf, makeFilePanel } from "./files.js";
 import { makeViewer } from "./viewer.js";
 
 const app = document.getElementById("app");
@@ -45,20 +46,7 @@ const ago = (iso) => {
   if (s < 86400 * 7) return `${Math.floor(s / 86400)}d ago`;
   return new Date(iso).toLocaleDateString();
 };
-const extOf = (path) => path.split(".").pop().toLowerCase();
-const isModel = (path) => ["stl", "glb"].includes(extOf(path));
-const HUB_FILES = ".hub/";
 const THUMB = `${HUB_FILES}thumb.png`;
-/** Where a file came from: a model Studio made from a STEP file goes by the STEP's path. */
-const sourceOf = (path) =>
-  path.startsWith(HUB_FILES) ? path.slice(HUB_FILES.length).replace(/\.glb$/i, "") : path;
-const labelOf = (path) =>
-  sourceOf(path)
-    .split("/")
-    .pop()
-    .replace(/\.(step|stp|stl|glb|pdf|png)$/i, "")
-    .replace(/[_-]+/g, " ");
-const kindOf = (path) => (isModel(path) ? "model" : extOf(path) === "pdf" ? "drawing" : "picture");
 
 const ICON = {
   agent: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v2M4.5 5h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6" cy="9" r="1" fill="currentColor"/><circle cx="10" cy="9" r="1" fill="currentColor"/></svg>`,
@@ -351,6 +339,7 @@ async function projectView(id) {
     data,
     version: Number(route.get("v")) || data.project.version,
     file: route.get("file"),
+    part: null,
     tab: "comments",
     pending: null,
     replyTo: null,
@@ -363,6 +352,7 @@ async function projectView(id) {
   const pickFile = () => {
     const files = filesOf();
     const kept = files.find((f) => f.path === state.file);
+    state.part = null;
     state.file = (kept ?? files.find((f) => isModel(f.path)) ?? files[0] ?? null)?.path ?? null;
   };
   pickFile();
@@ -370,11 +360,11 @@ async function projectView(id) {
   paintBar(
     `<span class="sep">/</span><a ${goAttr({})}>${esc(data.project.teams?.name ?? "Shared with you")}</a><span class="sep">/</span><b>${esc(data.project.name)}</b>`,
   );
-  app.innerHTML = `<div class="work">
+  app.innerHTML = `<div class="work" id="work">
+    <nav class="layers" id="layers" aria-label="Files"></nav>
     <section class="canvas">
       <div class="canvas-top" id="canvas-top"></div>
       <div class="viewer" id="viewer" tabindex="0" aria-label="The selected file"></div>
-      <div class="files" id="files" role="tablist" aria-label="Files"></div>
     </section>
     <aside class="side">
       <div class="side-tabs" role="tablist">
@@ -467,29 +457,33 @@ async function projectView(id) {
       ?.addEventListener("click", () => switchTo(state.data.project.version));
   }
 
-  function paintFiles() {
-    const files = filesOf();
-    const el = document.getElementById("files");
-    el.innerHTML =
-      files.length === 0
-        ? `<span class="muted small">${state.data.versions.length === 0 ? "Nothing checked in yet." : "This Version has no models or drawings to show."}</span>`
-        : files
-            .map(
-              (f) =>
-                `<button class="file" type="button" role="tab" data-path="${esc(f.path)}" aria-selected="${state.file === f.path}" title="${esc(sourceOf(f.path))}"><span class="kind ${kindOf(f.path)}">${kindOf(f.path)}</span>${esc(labelOf(f.path))}</button>`,
-            )
-            .join("");
-    el.querySelectorAll(".file").forEach((button) =>
-      button.addEventListener("click", () => {
-        state.file = button.dataset.path;
-        state.pending = null;
-        setUrl();
-        paintFiles();
-        paintComposer();
-        showFile();
-      }),
-    );
-  }
+  const panel = makeFilePanel(document.getElementById("layers"), document.getElementById("work"), {
+    onOpen: (path) => {
+      state.file = path;
+      state.part = null;
+      state.pending = null;
+      setUrl();
+      paintFiles();
+      paintComposer();
+      paintPins();
+      showFile();
+    },
+    onPart: (path, node) => {
+      state.part = node === null ? null : { path, node };
+      if (state.file === path) {
+        viewer.highlight(node);
+        return paintFiles();
+      }
+      state.file = path;
+      state.pending = null;
+      setUrl();
+      paintFiles();
+      paintComposer();
+      paintPins();
+      showFile();
+    },
+  });
+  const paintFiles = () => panel.paint(filesOf(), state.file, state.part);
 
   const agentControls = (c) => {
     if (!editor || c.reply_to !== null || c.resolved_in !== null) return "";
@@ -732,6 +726,7 @@ async function projectView(id) {
     }
     if (c.anchor?.file && c.anchor.file !== state.file) {
       state.file = c.anchor.file;
+      state.part = null;
       reload = true;
     }
     setUrl();
@@ -830,8 +825,10 @@ async function projectView(id) {
     try {
       const blob = await download(file.object);
       if (fileObj() !== file) return;
-      if (isModel(file.path)) await viewer.showModel(await blob.arrayBuffer(), extOf(file.path));
-      else await viewer.showFile(blob, extOf(file.path));
+      if (isModel(file.path)) {
+        await viewer.showModel(await blob.arrayBuffer(), extOf(file.path));
+        if (state.part?.path === file.path) viewer.highlight(state.part.node);
+      } else await viewer.showFile(blob, extOf(file.path), labelOf(file.path));
       paintPins();
     } catch (cause) {
       viewer.message(cause.message);
