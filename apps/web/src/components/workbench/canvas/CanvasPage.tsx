@@ -231,13 +231,14 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     });
   };
 
-  // A new set of cards is framed with what it was made from.
-  const [refit, setRefit] = useState(0);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frames the board after the new cards have laid out in the DOM
+  // A new set of cards is framed with what it was made from, once its run has started.
+  const framedRun = useRef(working);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frames the board after the run's pending cards have laid out in the DOM
   useEffect(() => {
-    if (refit > 0) fit();
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- only a new set asked for reframes the board
-  }, [refit]);
+    if (working && !framedRun.current) fit();
+    framedRun.current = working;
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- only a run starting reframes the board
+  }, [working]);
   // A new board, or one opened for the first time here, starts framed on what is on it.
   const framed = useRef(false);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frames the board once its surface has a size in the DOM
@@ -296,7 +297,6 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     const sent = await makeFirst(board).finally(() => setSending(false));
     if (sent) {
       setAsked({ from: null });
-      setRefit((count) => count + 1);
     }
   };
 
@@ -307,7 +307,6 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     const sent = await makeMore(board, option, taken).finally(() => setSending(false));
     if (sent) {
       setAsked({ from: option.key });
-      setRefit((count) => count + 1);
     }
   };
 
