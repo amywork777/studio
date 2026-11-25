@@ -25,8 +25,10 @@ import { useEnvironmentQuery } from "~/state/query";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { Button } from "../../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../../ui/menu";
+import { SidebarInset } from "../../ui/sidebar";
 import { Textarea } from "../../ui/textarea";
 import { toastManager } from "../../ui/toast";
+import { StudioTopBar } from "../StudioTopBar";
 import { useFolderModels } from "../useFolderModels";
 import { openPartInCad } from "../useOpenInWorkbench";
 import {
@@ -102,8 +104,22 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
 
   const placed = optionPlaces(options, OPTIONS_ORIGIN);
   const placeOf = (key: string): Place => board.moved[key] ?? placed.get(key) ?? OPTIONS_ORIGIN;
+  const picturePlace = (picture: CanvasPicture, index: number): Place =>
+    board.moved[picture.id] ?? { x: 0, y: pictureTop(index) };
   const pictureTop = (index: number) =>
     board.pictures.slice(0, index).reduce((top, picture) => top + pictureHeight(picture) + 24, 0);
+
+  const placedPictures = board.pictures.map((picture, index) => picturePlace(picture, index));
+  const inputLeft = placedPictures.length === 0 ? 0 : Math.min(...placedPictures.map((p) => p.x));
+  const inputTop = placedPictures.length === 0 ? 0 : Math.min(...placedPictures.map((p) => p.y));
+  const briefTop =
+    placedPictures.length === 0
+      ? 0
+      : Math.max(
+          ...board.pictures.map(
+            (picture, index) => placedPictures[index]!.y + pictureHeight(picture),
+          ),
+        ) + 24;
 
   // The cards still being built: the set asked last, less those it has listed.
   const listedFromAsked = options.filter((option) => option.from === asked.from).length;
@@ -183,7 +199,7 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
         h: pictureHeight(picture),
       })),
       ...(board.description.trim() !== "" && board.threadId !== null
-        ? [{ x: 0, y: pictureTop(board.pictures.length), w: INPUT.width, h: 120 }]
+        ? [{ x: inputLeft, y: briefTop, w: INPUT.width, h: 120 }]
         : []),
       ...options.map((option) => ({ ...placeOf(option.key), w: CARD.width, h: CARD.height })),
       ...pendingPlaces.map((place) => ({ ...place, w: CARD.width, h: CARD.height })),
@@ -212,6 +228,13 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     });
   };
 
+  // A new set of cards is framed with what it was made from.
+  const [refit, setRefit] = useState(0);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frames the board after the new cards have laid out in the DOM
+  useEffect(() => {
+    if (refit > 0) fit();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- only a new set asked for reframes the board
+  }, [refit]);
   // A new board, or one opened for the first time here, starts framed on what is on it.
   const framed = useRef(false);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frames the board once its surface has a size in the DOM
@@ -268,7 +291,10 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     if (sending) return;
     setSending(true);
     const sent = await makeFirst(board).finally(() => setSending(false));
-    if (sent) setAsked({ from: null, count: OPTIONS_PER_SET });
+    if (sent) {
+      setAsked({ from: null, count: OPTIONS_PER_SET });
+      setRefit((count) => count + 1);
+    }
   };
 
   const more = async (option: DesignOption) => {
@@ -276,7 +302,10 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     setSending(true);
     const taken = options.map((candidate) => candidate.key);
     const sent = await makeMore(board, option, taken).finally(() => setSending(false));
-    if (sent) setAsked({ from: option.key, count: OPTIONS_PER_SET });
+    if (sent) {
+      setAsked({ from: option.key, count: OPTIONS_PER_SET });
+      setRefit((count) => count + 1);
+    }
   };
 
   const threadRef =
@@ -309,181 +338,189 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
 
   const started = board.threadId !== null;
   const empty = board.pictures.length === 0 && !started;
-  const briefTop = pictureTop(board.pictures.length);
   const showBrief = started && board.description.trim() !== "";
   const inputAnchor: Place = {
-    x: INPUT.width,
-    y: Math.max(40, (briefTop + (showBrief ? 120 : 0)) / 2),
+    x: inputLeft + INPUT.width,
+    y: (inputTop + briefTop + (showBrief ? 120 : -24)) / 2,
   };
 
+  // One line from what a set was made from to the set's first card: the row reads as the set.
+  const setStarts = new Map<string | null, Place>();
+  for (const option of options) {
+    if (!setStarts.has(option.from)) setStarts.set(option.from, placeOf(option.key));
+  }
+  if (pendingPlaces[0] !== undefined && !setStarts.has(asked.from)) {
+    setStarts.set(asked.from, pendingPlaces[0]);
+  }
+  const setLinks = [...setStarts].flatMap(([from, start]) => {
+    if (from === null) {
+      if (board.pictures.length === 0 && !showBrief) return [];
+      return [
+        {
+          key: "first",
+          from: inputAnchor,
+          to: { x: start.x, y: start.y + CARD.height / 2 },
+          vertical: false,
+        },
+      ];
+    }
+    const parent = placeOf(from);
+    return [
+      {
+        key: `more-${from}`,
+        from: { x: parent.x + CARD.width / 2, y: parent.y + CARD.height },
+        to: { x: start.x + CARD.width / 2, y: start.y },
+        vertical: true,
+      },
+    ];
+  });
+
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
-      <div
-        ref={surfaceRef}
-        className="relative min-h-0 flex-1 cursor-default touch-none overflow-hidden select-none"
-        style={{
-          backgroundImage: "radial-gradient(circle, var(--border) 1.2px, transparent 1.2px)",
-          backgroundSize: `${24 * view.zoom}px ${24 * view.zoom}px`,
-          backgroundPosition: `${view.x}px ${view.y}px`,
-        }}
-        onPointerDown={onSurfaceDown}
-        onPointerMove={onSurfaceMove}
-        onPointerUp={() => {
-          if (panning.current !== null) saveView(view);
-          panning.current = null;
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={onDrop}
-      >
-        <div
-          className="absolute top-0 left-0 origin-top-left"
-          style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
-        >
-          <svg
-            className="pointer-events-none absolute top-0 left-0 overflow-visible"
-            width="1"
-            height="1"
+    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
+      <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background">
+        <StudioTopBar>
+          <BoardBar board={board} onOpenChat={threadRef === null ? null : openChat} />
+        </StudioTopBar>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={surfaceRef}
+            className="relative min-h-0 flex-1 cursor-default touch-none overflow-hidden select-none"
+            style={{
+              backgroundImage: "radial-gradient(circle, var(--border) 1.2px, transparent 1.2px)",
+              backgroundSize: `${24 * view.zoom}px ${24 * view.zoom}px`,
+              backgroundPosition: `${view.x}px ${view.y}px`,
+            }}
+            onPointerDown={onSurfaceDown}
+            onPointerMove={onSurfaceMove}
+            onPointerUp={() => {
+              if (panning.current !== null) saveView(view);
+              panning.current = null;
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={onDrop}
           >
-            {(board.pictures.length > 0 || showBrief) &&
-              [
-                ...options.filter((option) => option.from === null).map((o) => placeOf(o.key)),
-                ...(asked.from === null ? pendingPlaces : []),
-              ].map((place) => (
-                <Connector
-                  key={`first-${place.x}-${place.y}`}
-                  from={inputAnchor}
-                  to={{ x: place.x, y: place.y + 110 }}
+            <div
+              className="absolute top-0 left-0 origin-top-left"
+              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
+            >
+              <svg
+                className="pointer-events-none absolute top-0 left-0 overflow-visible"
+                width="1"
+                height="1"
+              >
+                {setLinks.map((link) => (
+                  <Connector
+                    key={link.key}
+                    from={link.from}
+                    to={link.to}
+                    vertical={link.vertical}
+                  />
+                ))}
+              </svg>
+              {board.pictures.map((picture, index) => (
+                <PictureCard
+                  key={picture.id}
+                  picture={picture}
+                  place={picturePlace(picture, index)}
+                  zoom={view.zoom}
+                  onMove={(place) =>
+                    update(board.id, (last) => ({ moved: { ...last.moved, [picture.id]: place } }))
+                  }
                 />
               ))}
-            {options
-              .filter((option) => option.from !== null)
-              .map((option) => {
-                const parent = placeOf(option.from!);
-                const child = placeOf(option.key);
-                return (
-                  <Connector
-                    key={`more-${option.key}`}
-                    from={{ x: parent.x + CARD.width / 2, y: parent.y + CARD.height }}
-                    to={{ x: child.x + CARD.width / 2, y: child.y }}
-                    vertical
-                  />
-                );
-              })}
-            {asked.from === null
-              ? null
-              : pendingPlaces.map((place) => {
-                  const parent = placeOf(asked.from!);
-                  return (
-                    <Connector
-                      key={`pending-${place.x}-${place.y}`}
-                      from={{ x: parent.x + CARD.width / 2, y: parent.y + CARD.height }}
-                      to={{ x: place.x + CARD.width / 2, y: place.y }}
-                      vertical
-                    />
-                  );
-                })}
-          </svg>
-          {board.pictures.map((picture, index) => (
-            <PictureCard
-              key={picture.id}
-              picture={picture}
-              place={board.moved[picture.id] ?? { x: 0, y: pictureTop(index) }}
-              zoom={view.zoom}
-              onMove={(place) =>
-                update(board.id, (last) => ({ moved: { ...last.moved, [picture.id]: place } }))
-              }
-            />
-          ))}
-          {showBrief ? (
-            <div
-              className="absolute rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-foreground shadow-sm"
-              style={{ left: 0, top: briefTop, width: INPUT.width }}
-            >
-              <div className="mb-1 text-xs text-muted-foreground">Brief</div>
-              <p className="line-clamp-4">{board.description}</p>
+              {showBrief ? (
+                <div
+                  className="absolute rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-foreground shadow-sm"
+                  style={{ left: inputLeft, top: briefTop, width: INPUT.width }}
+                >
+                  <div className="mb-1 text-xs text-muted-foreground">Brief</div>
+                  <p className="line-clamp-4">{board.description}</p>
+                </div>
+              ) : null}
+              {options.map((option) => (
+                <OptionCard
+                  key={option.key}
+                  environmentId={environmentId}
+                  option={option}
+                  meshPath={joinPath(board.folder ?? "", option.glb)}
+                  stamp={stamp}
+                  place={placeOf(option.key)}
+                  zoom={view.zoom}
+                  angle={angle}
+                  onAngle={setAngle}
+                  radius={radius}
+                  onSize={onSize}
+                  lightest={lightest !== null && option.massGrams === lightest}
+                  selected={selected === option.key}
+                  onSelect={() => setSelected(option.key)}
+                  onOpen={() => openOption(option)}
+                  onMore={working ? null : () => void more(option)}
+                  onMove={(place) =>
+                    update(board.id, (last) => ({ moved: { ...last.moved, [option.key]: place } }))
+                  }
+                />
+              ))}
+              {pendingPlaces.map((place, index) => (
+                <PendingCard
+                  key={`pending-${place.x}-${place.y}`}
+                  letter={String.fromCharCode(97 + options.length + index)}
+                  place={place}
+                />
+              ))}
             </div>
-          ) : null}
-          {options.map((option) => (
-            <OptionCard
-              key={option.key}
-              environmentId={environmentId}
-              option={option}
-              meshPath={joinPath(board.folder ?? "", option.glb)}
-              stamp={stamp}
-              place={placeOf(option.key)}
-              zoom={view.zoom}
-              angle={angle}
-              onAngle={setAngle}
-              radius={radius}
-              onSize={onSize}
-              lightest={lightest !== null && option.massGrams === lightest}
-              selected={selected === option.key}
-              onSelect={() => setSelected(option.key)}
-              onOpen={() => openOption(option)}
-              onMore={working ? null : () => void more(option)}
-              onMove={(place) =>
-                update(board.id, (last) => ({ moved: { ...last.moved, [option.key]: place } }))
-              }
-            />
-          ))}
-          {pendingPlaces.map((place, index) => (
-            <PendingCard
-              key={`pending-${place.x}-${place.y}`}
-              letter={String.fromCharCode(97 + options.length + index)}
-              place={place}
-            />
-          ))}
-        </div>
 
-        {empty ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-32">
-            <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-              <ImagePlusIcon className="size-7 opacity-60" />
-              <div className="text-sm text-foreground">Drop a sketch, photo or drawing here</div>
-              <div className="max-w-80 text-xs">
-                Or describe the part below. Studio builds four design options to compare side by
-                side; double-click one to open it as CAD.
+            {empty ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-32">
+                <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
+                  <ImagePlusIcon className="size-7 opacity-60" />
+                  <div className="text-sm text-foreground">
+                    Drop a sketch, photo or drawing here
+                  </div>
+                  <div className="max-w-80 text-xs">
+                    Or describe the part below. Studio builds four design options to compare side by
+                    side; double-click one to open it as CAD.
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
 
-      <BoardBar board={board} working={working} onOpenChat={threadRef === null ? null : openChat} />
-      <ZoomBar
-        zoom={view.zoom}
-        onZoom={(factor) => {
-          const surface = surfaceRef.current;
-          if (surface === null) return;
-          const zoom = clamp(view.zoom * factor, ZOOM.min, ZOOM.max);
-          const cx = surface.clientWidth / 2;
-          const cy = surface.clientHeight / 2;
-          saveView({
-            zoom,
-            x: cx - ((cx - view.x) / view.zoom) * zoom,
-            y: cy - ((cy - view.y) / view.zoom) * zoom,
-          });
-        }}
-        onFit={fit}
-      />
-      {started ? (
-        <StatusBar
-          working={working}
-          built={options.length}
-          pending={pending}
-          onOpenChat={openChat}
-        />
-      ) : (
-        <PromptBar
-          description={board.description}
-          onDescription={(description) => update(board.id, () => ({ description }))}
-          pictures={board.pictures.length}
-          sending={sending}
-          onAddFiles={(files) => void addFiles(files, null)}
-          onMake={() => void make()}
-        />
-      )}
-    </div>
+          <ZoomBar
+            zoom={view.zoom}
+            onZoom={(factor) => {
+              const surface = surfaceRef.current;
+              if (surface === null) return;
+              const zoom = clamp(view.zoom * factor, ZOOM.min, ZOOM.max);
+              const cx = surface.clientWidth / 2;
+              const cy = surface.clientHeight / 2;
+              saveView({
+                zoom,
+                x: cx - ((cx - view.x) / view.zoom) * zoom,
+                y: cy - ((cy - view.y) / view.zoom) * zoom,
+              });
+            }}
+            onFit={fit}
+          />
+          {started ? (
+            <StatusBar
+              working={working}
+              built={options.length}
+              pending={pending}
+              onOpenChat={openChat}
+            />
+          ) : (
+            <PromptBar
+              description={board.description}
+              onDescription={(description) => update(board.id, () => ({ description }))}
+              pictures={board.pictures.length}
+              sending={sending}
+              onAddFiles={(files) => void addFiles(files, null)}
+              onMake={() => void make()}
+            />
+          )}
+        </div>
+      </div>
+    </SidebarInset>
   );
 }
 
@@ -572,43 +609,40 @@ function Connector(props: {
   return <path d={d} fill="none" stroke="var(--border)" strokeWidth={1.5} />;
 }
 
-/** The board's name and the other boards, at its top left. */
+/** The board's name and the other boards, then its chat, in the top bar. */
 function BoardBar(props: {
   readonly board: CanvasBoard;
-  readonly working: boolean;
   readonly onOpenChat: (() => void) | null;
 }) {
   const boards = useCanvasStore((state) => state.boards);
   const open = useCanvasStore((state) => state.open);
   const startBoard = useCanvasStore((state) => state.startBoard);
   return (
-    <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-border bg-popover/95 p-1 shadow-sm">
-        <Menu>
-          <MenuTrigger render={<Button variant="ghost" size="sm" />}>
-            <span className="max-w-64 truncate font-medium">{props.board.name}</span>
-            <ChevronDownIcon />
-          </MenuTrigger>
-          <MenuPopup align="start" side="bottom" sideOffset={6} className="max-h-80">
-            {boards.map((candidate) => (
-              <MenuItem key={candidate.id} onClick={() => open(candidate.id)}>
-                <span className="min-w-0 truncate">{candidate.name}</span>
-              </MenuItem>
-            ))}
-            <MenuSeparator />
-            <MenuItem onClick={() => startBoard(props.board.environmentId)}>
-              <PlusIcon />
-              New canvas
+    <div className="mr-auto flex min-w-0 items-center gap-1">
+      <Menu>
+        <MenuTrigger render={<Button variant="ghost" size="sm" />}>
+          <span className="max-w-64 truncate font-medium">{props.board.name}</span>
+          <ChevronDownIcon />
+        </MenuTrigger>
+        <MenuPopup align="start" side="bottom" sideOffset={6} className="max-h-80">
+          {boards.map((candidate) => (
+            <MenuItem key={candidate.id} onClick={() => open(candidate.id)}>
+              <span className="min-w-0 truncate">{candidate.name}</span>
             </MenuItem>
-          </MenuPopup>
-        </Menu>
-        {props.onOpenChat === null ? null : (
-          <Button variant="ghost-muted" size="sm" onClick={props.onOpenChat}>
-            <MessageSquareIcon />
-            Chat
-          </Button>
-        )}
-      </div>
+          ))}
+          <MenuSeparator />
+          <MenuItem onClick={() => startBoard(props.board.environmentId)}>
+            <PlusIcon />
+            New canvas
+          </MenuItem>
+        </MenuPopup>
+      </Menu>
+      {props.onOpenChat === null ? null : (
+        <Button variant="ghost-muted" size="sm" onClick={props.onOpenChat}>
+          <MessageSquareIcon />
+          Chat
+        </Button>
+      )}
     </div>
   );
 }

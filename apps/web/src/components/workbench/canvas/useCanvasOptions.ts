@@ -4,6 +4,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 
+import { useStableCallback } from "~/hooks/useStableCallback";
 import { useThreadShell } from "~/state/entities";
 import { pluginEnvironment } from "~/state/plugins";
 import { projectEnvironment } from "~/state/projects";
@@ -35,7 +36,12 @@ export function useBoardOptions(input: {
   readonly working: boolean;
 }): { readonly options: ReadonlyArray<DesignOption>; readonly stamp: string } {
   const { environmentId, folder, working } = input;
-  const read = useAtomQueryRunner(projectEnvironment.readFile, { reportFailure: false });
+  // Asked afresh each time: the agent rewrites the file as each option is built.
+  const runRead = useAtomQueryRunner(projectEnvironment.readFile, {
+    reportFailure: false,
+    refresh: true,
+  });
+  const read = useStableCallback(runRead);
   const [state, setState] = useState<{
     readonly folder: string;
     readonly options: ReadonlyArray<DesignOption>;
