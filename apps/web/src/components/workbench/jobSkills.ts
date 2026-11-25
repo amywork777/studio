@@ -50,11 +50,8 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
   const subject = subjectOf(job);
   const ask = job.prompt(subject);
   const description =
-    job.useWhen === undefined
-      ? `${job.label}, one job of the ${job.skill} skill. Use when the person asks for $${job.id} ` +
-        `by name; it hands off to the ${job.skill} skill.`
-      : `${job.label}, with the ${job.skill} skill. Use whenever ${job.useWhen}, and when the ` +
-        `person asks for $${job.id}; it says how Studio reads the result.`;
+    `${job.label}, one job of the ${job.skill} skill. Use when the person asks for $${job.id} ` +
+    `by name; it hands off to the ${job.skill} skill.`;
   const skill = [
     "---",
     `name: ${job.id}`,
@@ -73,7 +70,6 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
     "",
     `What they get: ${jobLine(job)}`,
     "",
-    ...(job.guide === undefined ? [] : [job.guide.trim(), ""]),
   ].join("\n");
   const face = [
     "interface:",

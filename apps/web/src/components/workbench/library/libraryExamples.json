@@ -17,9 +17,6 @@
   "doc:fit-mass": {
     "example": "assemblies/servo_mount_fit.md"
   },
-  "doc:drawing-check": {
-    "example": "checks/servo_bracket.drawing-check.json"
-  },
   "doc:manufacturing-check": {
     "example": "parts/servo_bracket_sheet_metal.md"
   },

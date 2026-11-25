@@ -23,8 +23,6 @@ import { toastManager } from "../ui/toast";
 import { aboutFile, isPlainText, openLabel } from "./aboutFile";
 import { CHECK_STATUS } from "./CheckBadge";
 import { type CheckResult, parseCheckResult } from "./checkResults";
-import { DrawingCheckReport } from "./DrawingCheckReport";
-import { gradeDrawingCheck, isDrawingCheckPath, parseDrawingCheck } from "./drawingCheck";
 import { FileKindIcon } from "./FileKindIcon";
 import { folderLabel } from "./folderLabel";
 import { partLabel } from "./partNames";
@@ -114,16 +112,6 @@ export function StudioFilePage(props: {
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
     ?.plugins;
   const result = text === null ? null : parseCheckResult(relativePath, text);
-  const parsedDrawingCheck =
-    text === null || !isDrawingCheckPath(relativePath) ? null : parseDrawingCheck(text);
-  const drawingCheck = parsedDrawingCheck === null ? null : gradeDrawingCheck(parsedDrawingCheck);
-  // The check's paths are the project's: its folder is the file's, less the file's own path.
-  const slashes = (path: string) => path.replaceAll("\\", "/");
-  const root =
-    props.absolutePath === null ||
-    !slashes(props.absolutePath).endsWith(`/${slashes(relativePath)}`)
-      ? null
-      : props.absolutePath.slice(0, props.absolutePath.length - relativePath.length);
   const name = relativePath.replaceAll("\\", "/").split("/").at(-1) ?? relativePath;
   const folder = relativePath.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
   const canReveal =
@@ -158,7 +146,7 @@ export function StudioFilePage(props: {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-gutter-both">
-      <WorkspacePageContainer className={drawingCheck === null ? "max-w-3xl" : "max-w-5xl"}>
+      <WorkspacePageContainer className="max-w-3xl">
         <header className="flex items-start gap-3">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted">
             <FileKindIcon path={relativePath} className="size-6" />
@@ -168,11 +156,7 @@ export function StudioFilePage(props: {
               {result === null ? partLabel(name) : `${result.check} of ${partLabel(result.part)}`}
             </h1>
             <span className="text-sm text-muted-foreground">
-              {drawingCheck !== null
-                ? "Every dimension on the drawing, beside what the model measures."
-                : result === null
-                  ? aboutFile(relativePath)
-                  : "A check's result."}
+              {result === null ? aboutFile(relativePath) : "A check's result."}
             </span>
             <span className="text-xs text-muted-foreground">
               {name}
@@ -183,15 +167,7 @@ export function StudioFilePage(props: {
         {props.problem === null ? null : (
           <p className="text-sm text-muted-foreground">{props.problem}</p>
         )}
-        {drawingCheck !== null && root !== null ? (
-          <DrawingCheckReport
-            environmentId={environmentId}
-            threadRef={props.threadRef}
-            root={root}
-            relativePath={relativePath}
-            check={drawingCheck}
-          />
-        ) : result === null ? null : (
+        {result === null ? null : (
           <CheckReport
             result={result}
             onOpenModel={() => openInPanel(plugins, props.threadRef, result.model)}

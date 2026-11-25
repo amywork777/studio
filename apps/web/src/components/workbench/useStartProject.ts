@@ -6,7 +6,6 @@ import { useState } from "react";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { copyIntoReferences } from "./attachToReferences";
-import { drawAttachedPages } from "./drawingPages";
 import type { NewJob } from "./NewDialog";
 import { humanName } from "./partNames";
 import type { ListedProject } from "./projectList";
@@ -113,12 +112,6 @@ function useStartProject(environmentId: EnvironmentId) {
       );
       const prepare = async (folder: string, newProject: boolean) => {
         const references = await copyIntoReferences(folder, paths);
-        drawAttachedPages(
-          folder,
-          references.flatMap((reference, index) =>
-            paths[index] === undefined ? [] : [{ source: paths[index], reference }],
-          ),
-        );
         setPendingStart(folder, {
           prompt: startMessage({ description, references, attached: files.length, newProject }),
           files,

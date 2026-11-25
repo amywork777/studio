@@ -20,11 +20,6 @@
     "skill": "cad"
   },
   {
-    "id": "drawing-check",
-    "label": "Check against the drawing",
-    "skill": "cad"
-  },
-  {
     "id": "fdm",
     "label": "Check for FDM printing",
     "skill": "cad"

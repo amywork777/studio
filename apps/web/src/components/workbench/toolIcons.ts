@@ -11,7 +11,6 @@ import {
   DumbbellIcon,
   ExpandIcon,
   FileBoxIcon,
-  FileCheckIcon,
   FileStackIcon,
   FlaskConicalIcon,
   FoldVerticalIcon,
@@ -49,8 +48,6 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   fit: RulerIcon,
   motion: Rotate3dIcon,
   mass: WeightIcon,
-  // Drawings and sketches: a drawing, checked against the part
-  "drawing-check": FileCheckIcon,
   // Manufacture: printing, one picture per way of printing
   fdm: SpoolIcon,
   slice: LayersIcon,
@@ -99,7 +96,6 @@ const SECTION_ICONS: Partial<Record<string, LucideIcon>> = {
   simulation: DumbbellIcon,
   "fit-mass": RulerIcon,
   "board-checks": KIND_ICONS.Electronics,
-  "against-drawing": FileCheckIcon,
   printing: SpoolIcon,
   machining: DrillIcon,
   sheet: FoldVerticalIcon,

@@ -1,7 +1,5 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
-import { DRAWING_CHECK_GUIDE } from "./drawingCheckSkill";
-
 /**
  * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
  * own way first) and Document. Each job is one the agent knows through a text-to-cad skill, offered
@@ -36,7 +34,6 @@ export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
   { id: "simulation", group: "Evaluate", title: "Simulation" },
   { id: "fit-mass", group: "Evaluate", title: "Fit, motion and mass" },
   { id: "board-checks", group: "Evaluate", title: "Circuit board" },
-  { id: "against-drawing", group: "Evaluate", title: "Drawings and sketches" },
   {
     id: "printing",
     group: "Manufacture",
@@ -98,10 +95,6 @@ export interface HardwareAction {
   readonly prompt: (file: string) => string;
   /** The job as a starter names it, short: "Check bike hook for FDM printing". */
   readonly short: (name: string) => string;
-  /** How to do it, where Studio reads what it makes: its job skill carries this after the hand-off. */
-  readonly guide?: string;
-  /** When an agent should take its skill up unasked, besides by name ("modelling from a drawing"). */
-  readonly useWhen?: string;
 }
 
 /** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
@@ -188,21 +181,6 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     prompt: (file) =>
       `Tell me the weight, volume and center of mass of ${file} in the project's material, and what makes up most of the weight.`,
     short: (name) => `Weight of ${name}`,
-  },
-  {
-    id: "drawing-check",
-    group: "Evaluate",
-    section: "against-drawing",
-    label: "Check against the drawing",
-    gets: "Each dimension on the drawing beside what the model measures, and every number that disagrees.",
-    skill: "cad",
-    kinds: [...SOLID, "Drawing"],
-    checks: true,
-    prompt: (file) =>
-      `Check ${file} against the drawing or sketch it is made from with $drawing-check: read every dimension and callout, measure each on the model, and tell me every number that does not add up.`,
-    short: (name) => `Check ${name} against its drawing`,
-    guide: DRAWING_CHECK_GUIDE,
-    useWhen: "you model a part from a drawing, a sketch or a photo of one, or check one against it",
   },
   printCheck(
     "fdm",
