@@ -202,6 +202,9 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
     [WS_METHODS.studioTeamsCreate]: (input) => studioTeams.create(input),
     [WS_METHODS.studioTeamsInvite]: (input) => studioTeams.invite(input),
     [WS_METHODS.studioTeamsRemove]: (input) => studioTeams.remove(input),
+    [WS_METHODS.studioTeamsDeleteTeam]: (input) => studioTeams.deleteTeam(input),
+    [WS_METHODS.studioTeamsDeleteProject]: (input) => studioTeams.deleteProject(input),
+    [WS_METHODS.studioTeamsDeleteAccount]: () => studioTeams.deleteAccount,
     [WS_METHODS.studioTeamsProjects]: () => studioTeams.projects,
     [WS_METHODS.studioTeamsShare]: (input) =>
       studioTeams.share(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),

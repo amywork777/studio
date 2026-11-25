@@ -72,7 +72,11 @@ const makeHub = () => {
       resolved_in: number | null;
     }>;
   }> = [];
-  const versionFiles: Array<{ project: string; version: number; path: string }> = [];
+  const versionFiles: Array<{ project: string; version: number; path: string; object: string }> =
+    [];
+  const owners = new Map<string, string>();
+  const limit = { bytes: 1024 ** 3 };
+  const teamBytes = () => [...files.values()].reduce((sum, each) => sum + each.byteLength, 0);
   let clock = 0;
   const now = () => `2026-11-23T12:00:${String((clock += 1)).padStart(2, "0")}Z`;
   let shared = 0;
@@ -87,7 +91,6 @@ const makeHub = () => {
     name: p.name,
     version: p.version,
     head: p.head,
-    bundle: p.bundle,
     checked_out_email: p.holder,
     updated_at: "2026-11-23T10:00:00Z",
     teams: { name: "Bracket Co" },
@@ -131,12 +134,32 @@ const makeHub = () => {
       };
     const route = url.pathname;
     if (route.startsWith("/storage/v1/object/authenticated/projects/")) {
-      const file = files.get(route.slice("/storage/v1/object/authenticated/projects/".length));
+      const name = route.slice("/storage/v1/object/authenticated/projects/".length);
+      // Viewers read only a Version's recorded review files, never a bundle.
+      if (role === "viewer" && !versionFiles.some((each) => each.object === name)) {
+        return { status: 400, body: "{}" };
+      }
+      const file = files.get(name);
       return file === undefined ? { status: 404, body: "{}" } : { status: 200, body: file };
+    }
+    if (route === "/storage/v1/object/projects" && method === "DELETE") {
+      const { prefixes } = JSON.parse(new TextDecoder().decode(bytes)) as {
+        readonly prefixes: ReadonlyArray<string>;
+      };
+      const current = new Set([...projects.values()].map((p) => p.bundle));
+      const gone = prefixes.filter(
+        (name) =>
+          role === "admin" ||
+          (role === "editor" && (owners.get(name) === who || !current.has(name))),
+      );
+      for (const name of gone) files.delete(name);
+      return ok(gone.map((name) => ({ name })));
     }
     if (route.startsWith("/storage/v1/object/projects/")) {
       if (role === "viewer") return { status: 403, body: "{}" };
-      files.set(route.slice("/storage/v1/object/projects/".length), bytes);
+      const name = route.slice("/storage/v1/object/projects/".length);
+      files.set(name, bytes);
+      owners.set(name, who);
       return ok({ Key: route });
     }
     if (route === "/rest/v1/team_projects") {
@@ -164,8 +187,32 @@ const makeHub = () => {
             role,
             members: Object.entries(ROLES).map(([email, r]) => ({ email, role: r })),
             invites: [],
+            storageUsed: teamBytes(),
+            storageLimit: limit.bytes,
           },
         ]);
+      case "project_bundle": {
+        const p = projects.get(args.p_project);
+        if (p === undefined) return refuse("not-found");
+        return editor ? ok(p.bundle) : refuse("not-allowed");
+      }
+      case "team_objects":
+        if (role !== "admin") return refuse("not-allowed");
+        return ok(
+          [...files.keys()].filter((name) =>
+            name.startsWith(
+              args.p_project === undefined ? `${TEAM}/` : `${TEAM}/${args.p_project}/`,
+            ),
+          ),
+        );
+      case "delete_project": {
+        if (role !== "admin") return refuse("not-allowed");
+        if ([...files.keys()].some((name) => name.startsWith(`${TEAM}/${args.p_project}/`))) {
+          return refuse("files-left");
+        }
+        projects.delete(args.p_project);
+        return ok(null);
+      }
       case "accept_invites":
         return ok(0);
       case "share_project": {
@@ -203,6 +250,7 @@ const makeHub = () => {
         if (!editor) return refuse("not-allowed");
         if (p.holder !== who) return refuse("checked-out", p.holder);
         if (p.version !== args.p_base) return refuse("changed-elsewhere", String(p.version));
+        if (teamBytes() > limit.bytes) return refuse("storage-full", String(limit.bytes));
         p.version += 1;
         p.head = args.p_head;
         p.bundle = args.p_bundle;
@@ -275,7 +323,12 @@ const makeHub = () => {
       case "record_version_files": {
         if (!editor) return refuse("not-allowed");
         for (const file of args.p_files) {
-          versionFiles.push({ project: args.p_project, version: args.p_version, path: file.path });
+          versionFiles.push({
+            project: args.p_project,
+            version: args.p_version,
+            path: file.path,
+            object: file.object,
+          });
         }
         return ok(args.p_files.length);
       }
@@ -328,7 +381,7 @@ const makeHub = () => {
       }),
     );
 
-  return { projects, versionFiles, files, client };
+  return { projects, versionFiles, files, limit, client };
 };
 
 type Hub = ReturnType<typeof makeHub>;
@@ -385,6 +438,8 @@ const withTeam = <A, E>(
     readonly git: (cwd: string, ...args: ReadonlyArray<string>) => Effect.Effect<string>;
     readonly write: (cwd: string, file: string, text: string) => Effect.Effect<void>;
     readonly read: (cwd: string, file: string) => Effect.Effect<string>;
+    /** A Viewer's folder for a team project: Viewers never get one through Studio. */
+    readonly viewerFolder: (projectId: string) => Effect.Effect<string>;
   }) => Effect.Effect<A, E, NodeServices.NodeServices>,
 ) =>
   Effect.gen(function* () {
@@ -422,7 +477,15 @@ const withTeam = <A, E>(
     const amy = yield* teamsOf(AMY);
     const dana = yield* teamsOf(DANA);
     const vic = yield* teamsOf(VIC);
-    return yield* body({ amy, dana, vic, hub, root, work, git, write, read });
+    const viewerFolder = (projectId: string) =>
+      Effect.gen(function* () {
+        const folder = path.join(root, "vic", "review");
+        yield* fileSystem.makeDirectory(folder, { recursive: true }).pipe(Effect.orDie);
+        yield* git(folder, "init", "--quiet");
+        yield* git(folder, "config", "studio.team.project", projectId);
+        return folder;
+      });
+    return yield* body({ amy, dana, vic, hub, root, work, git, write, read, viewerFolder });
   });
 
 it.layer(NodeServices.layer)("StudioTeams", (it) => {
@@ -521,18 +584,23 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
     Effect.gen(function* () {
       const stale = yield* Effect.provide(StudioTeams.StudioTeams, studioFor(makeHub(), AMY, 1));
       const status = yield* stale.status;
-      assert.deepStrictEqual(status, { available: true, account: null, teams: [] });
+      assert.deepStrictEqual(status, {
+        available: true,
+        account: null,
+        teams: [],
+        reviewPage: null,
+      });
       const again = yield* stale.status;
       assert.strictEqual(again.account, null);
     }),
   );
 
   it.effect("a Version is reviewed, approved by everyone asked, and released as Rev A", () =>
-    withTeam(({ amy, dana, vic, root, work, write }) =>
+    withTeam(({ amy, dana, vic, root, work, write, viewerFolder }) =>
       Effect.gen(function* () {
         const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
         const got = yield* dana.get({ projectId: shared!.project.id, root: `${root}/dana` });
-        const seen = yield* vic.get({ projectId: shared!.project.id, root: `${root}/vic` });
+        const seen = { folder: yield* viewerFolder(shared!.project.id) };
         yield* dana.checkOut({ cwd: got.folder });
         yield* write(got.folder, "part.py", "wall = 5\n");
         const asked = yield* dana.checkIn({
@@ -572,14 +640,14 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
   );
 
   it.effect("a new Version answers the last review's comments and sends its model along", () =>
-    withTeam(({ amy, dana, vic, hub, root, work, write, git }) =>
+    withTeam(({ amy, dana, vic, hub, root, work, write, git, viewerFolder }) =>
       Effect.gen(function* () {
         yield* write(work, "part.stl", "solid part\n");
         yield* git(work, "add", "--all");
         yield* git(work, "commit", "--quiet", "-m", "Model");
         const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
         const got = yield* dana.get({ projectId: shared!.project.id, root: `${root}/dana` });
-        const seen = yield* vic.get({ projectId: shared!.project.id, root: `${root}/vic` });
+        const seen = { folder: yield* viewerFolder(shared!.project.id) };
         yield* dana.checkOut({ cwd: got.folder });
         yield* write(got.folder, "part.py", "wall = 5\n");
         yield* dana.checkIn({ cwd: got.folder, note: "Wall", keep: false, reviewers: [VIC] });
@@ -616,15 +684,87 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
     ),
   );
 
-  it.effect("a Viewer gets the project but cannot check it out", () =>
-    withTeam(({ amy, vic, root, work }) =>
+  it.effect("a Viewer gets no copy of the project's scripts or history", () =>
+    withTeam(({ amy, vic, hub, root, work, viewerFolder }) =>
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
+        const refused = yield* vic
+          .get({ projectId: shared!.project.id, root: `${root}/vic` })
+          .pipe(Effect.flip);
+        assert.strictEqual(refused.reason, "not-allowed");
+        assert.include(refused.message, "review page");
+        assert.isFalse(yield* fileSystem.exists(`${root}/vic`));
+        // Even a folder linked to the project by hand gets nothing from the hub.
+        const linked = yield* viewerFolder(shared!.project.id);
+        hub.projects.get(shared!.project.id)!.version = 2;
+        const behind = yield* vic.getLatest({ cwd: linked }).pipe(Effect.flip);
+        assert.strictEqual(behind.reason, "not-allowed");
+        const status = yield* vic.folderStatus({ cwd: linked });
+        assert.strictEqual(status?.role, "viewer");
+        const out = yield* vic.checkOut({ cwd: linked }).pipe(Effect.flip);
+        assert.strictEqual(out.reason, "not-allowed");
+      }),
+    ),
+  );
+
+  it.effect("a check-in replaces the last bundle, and one the hub refuses is not left behind", () =>
+    withTeam(({ amy, dana, hub, root, work, write }) =>
       Effect.gen(function* () {
         const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
-        const got = yield* vic.get({ projectId: shared!.project.id, root: `${root}/vic` });
-        const refused = yield* vic.checkOut({ cwd: got.folder }).pipe(Effect.flip);
+        const bundles = () => [...hub.files.keys()].filter((name) => name.endsWith(".bundle"));
+        const first = bundles();
+        assert.strictEqual(first.length, 1);
+        const got = yield* dana.get({ projectId: shared!.project.id, root: `${root}/dana` });
+        yield* dana.checkOut({ cwd: got.folder });
+        yield* write(got.folder, "part.py", "wall = 4\n");
+        yield* dana.checkIn({ cwd: got.folder, note: "", keep: true });
+        // Amy uploaded Version 1's bundle; Dana's Version 2 carries all of it and replaces it.
+        const second = bundles();
+        assert.strictEqual(second.length, 1);
+        assert.notStrictEqual(second[0], first[0]);
+        assert.strictEqual(second[0], hub.projects.get(shared!.project.id)!.bundle);
+
+        hub.limit.bytes = 1;
+        yield* write(got.folder, "part.py", "wall = 5\n");
+        const full = yield* dana
+          .checkIn({ cwd: got.folder, note: "", keep: false })
+          .pipe(Effect.flip);
+        assert.strictEqual(full.reason, "storage-full");
+        assert.include(full.message, "bigger plan");
+        assert.deepStrictEqual(bundles(), second);
+        assert.strictEqual(hub.projects.get(shared!.project.id)!.version, 2);
+      }),
+    ),
+  );
+
+  it.effect("an Admin deletes a team project with its files; nobody else can", () =>
+    withTeam(({ amy, dana, hub, root, work }) =>
+      Effect.gen(function* () {
+        const shared = yield* amy.share({ cwd: work, teamId: TEAM, name: "Bracket" });
+        const id = shared!.project.id;
+        const got = yield* dana.get({ projectId: id, root: `${root}/dana` });
+        const refused = yield* dana.deleteProject({ projectId: id }).pipe(Effect.flip);
         assert.strictEqual(refused.reason, "not-allowed");
-        const status = yield* vic.folderStatus({ cwd: got.folder });
-        assert.strictEqual(status?.role, "viewer");
+        assert.isTrue(hub.projects.has(id));
+
+        const left = yield* amy.deleteProject({ projectId: id });
+        assert.deepStrictEqual(left.projects, []);
+        assert.isFalse(hub.projects.has(id));
+        assert.deepStrictEqual([...hub.files.keys()], []);
+        // Copies on computers stay, and say the project left the team.
+        const gone = yield* dana.folderStatus({ cwd: got.folder }).pipe(Effect.flip);
+        assert.strictEqual(gone.reason, "not-found");
+      }),
+    ),
+  );
+
+  it.effect("the only Admin of a team with people cannot delete their account", () =>
+    withTeam(({ amy }) =>
+      Effect.gen(function* () {
+        const refused = yield* amy.deleteAccount.pipe(Effect.flip);
+        assert.strictEqual(refused.reason, "last-admin");
+        assert.include(refused.message, "Bracket Co");
       }),
     ),
   );

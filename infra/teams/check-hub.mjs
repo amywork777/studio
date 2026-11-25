@@ -64,13 +64,22 @@ const admin = (method, path, json) =>
       "content-type": "application/json",
     },
     ...(json === undefined ? {} : { body: JSON.stringify(json) }),
-  }).then(async (res) => ({ status: res.status, data: await res.json().catch(() => null) }));
+  }).then(async (res) => ({
+    status: res.status,
+    data: await res.json().catch(() => null),
+  }));
 
 const adminCodeFor = async (email) => {
-  const user = await admin("POST", "/auth/v1/admin/users", { email, email_confirm: true });
+  const user = await admin("POST", "/auth/v1/admin/users", {
+    email,
+    email_confirm: true,
+  });
   if (user.status >= 300) throw new Error(`admin user ${user.status} ${JSON.stringify(user.data)}`);
   made.users.push(user.data.id);
-  const link = await admin("POST", "/auth/v1/admin/generate_link", { type: "magiclink", email });
+  const link = await admin("POST", "/auth/v1/admin/generate_link", {
+    type: "magiclink",
+    email,
+  });
   if (!link.data?.email_otp)
     throw new Error(`admin code ${link.status} ${JSON.stringify(link.data)}`);
   return { code: link.data.email_otp, subject: "(admin code, no email)" };
@@ -82,16 +91,26 @@ const signIn = async (email) => {
   if (ADMIN_KEY) {
     ({ code, subject } = await adminCodeFor(email));
   } else {
-    const sent = await call("POST", "/auth/v1/otp", { json: { email, create_user: true } });
+    const sent = await call("POST", "/auth/v1/otp", {
+      json: { email, create_user: true },
+    });
     if (sent.status !== 200) throw new Error(`otp ${sent.status} ${JSON.stringify(sent.data)}`);
     ({ code, subject } = await codeFor(email));
   }
   const wrong = await call("POST", "/auth/v1/verify", {
     json: { type: "email", email, token: "000000" },
   });
-  const v = await call("POST", "/auth/v1/verify", { json: { type: "email", email, token: code } });
+  const v = await call("POST", "/auth/v1/verify", {
+    json: { type: "email", email, token: code },
+  });
   if (v.status !== 200) throw new Error(`verify ${v.status} ${JSON.stringify(v.data)}`);
-  return { email, token: v.data.access_token, refresh: v.data.refresh_token, subject, wrong };
+  return {
+    email,
+    token: v.data.access_token,
+    refresh: v.data.refresh_token,
+    subject,
+    wrong,
+  };
 };
 const rpc = (p, fn, args = {}) =>
   call("POST", `/rest/v1/rpc/${fn}`, { token: p.token, json: args });
@@ -116,18 +135,33 @@ made.teams.push(team);
 ok(typeof team === "string", "make a team", team);
 
 ok(
-  (await rpc(dana, "invite_member", { p_team: team, p_email: who("amy"), p_role: "editor" }))
-    .status < 300,
+  (
+    await rpc(dana, "invite_member", {
+      p_team: team,
+      p_email: who("amy"),
+      p_role: "editor",
+    })
+  ).status < 300,
   "invite an editor",
 );
 ok(
-  (await rpc(dana, "invite_member", { p_team: team, p_email: who("vic"), p_role: "viewer" }))
-    .status < 300,
+  (
+    await rpc(dana, "invite_member", {
+      p_team: team,
+      p_email: who("vic"),
+      p_role: "viewer",
+    })
+  ).status < 300,
   "invite a viewer",
 );
 ok(
-  (await rpc(dana, "invite_member", { p_team: team, p_email: who("eli"), p_role: "editor" }))
-    .status < 300,
+  (
+    await rpc(dana, "invite_member", {
+      p_team: team,
+      p_email: who("eli"),
+      p_role: "editor",
+    })
+  ).status < 300,
   "third paid seat",
 );
 const full = await rpc(dana, "invite_member", {
@@ -137,8 +171,13 @@ const full = await rpc(dana, "invite_member", {
 });
 ok(refusal(full) === "seats-full", "fourth paid seat refused", refusal(full));
 ok(
-  (await rpc(dana, "invite_member", { p_team: team, p_email: who("gus"), p_role: "viewer" }))
-    .status < 300,
+  (
+    await rpc(dana, "invite_member", {
+      p_team: team,
+      p_email: who("gus"),
+      p_role: "viewer",
+    })
+  ).status < 300,
   "viewers stay free past the seats",
 );
 ok(
@@ -184,7 +223,10 @@ ok(refusal(editorInvite) === "not-allowed", "editor cannot invite", refusal(edit
 
 const project = (await rpc(amy, "share_project", { p_team: team, p_name: "bracket" })).data;
 ok(typeof project === "string", "editor shares a project", project);
-const viewerShare = await rpc(vic, "share_project", { p_team: team, p_name: "nope" });
+const viewerShare = await rpc(vic, "share_project", {
+  p_team: team,
+  p_name: "nope",
+});
 ok(refusal(viewerShare) === "not-allowed", "viewer cannot share", refusal(viewerShare));
 
 const object = `${team}/${project}/1-${run}.bundle`;
@@ -218,7 +260,35 @@ ok(ollyUp.status >= 400, "outsider cannot upload", `${ollyUp.status}`);
 const vicGet = await call("GET", `/storage/v1/object/authenticated/projects/${object}`, {
   token: vic.token,
 });
-ok(vicGet.status === 200 && vicGet.data === "bundle v1", "viewer downloads the latest Version");
+ok(vicGet.status >= 400, "a viewer cannot download the project's history", `${vicGet.status}`);
+const amyGet = await call("GET", `/storage/v1/object/authenticated/projects/${object}`, {
+  token: amy.token,
+});
+ok(amyGet.status === 200 && amyGet.data === "bundle v1", "an editor downloads the latest Version");
+for (const table of ["team_projects", "team_project_versions"]) {
+  for (const columns of ["bundle", "*"]) {
+    const read = await call("GET", `/rest/v1/${table}?select=${columns}`, {
+      token: vic.token,
+    });
+    ok(
+      read.status >= 400,
+      `a viewer reads no bundle path from ${table} (${columns})`,
+      `${read.status}`,
+    );
+  }
+  const editorRead = await call("GET", `/rest/v1/${table}?select=bundle`, {
+    token: amy.token,
+  });
+  ok(editorRead.status >= 400, `nobody reads ${table}.bundle directly`, `${editorRead.status}`);
+}
+ok(
+  refusal(await rpc(vic, "project_bundle", { p_project: project })) === "not-allowed",
+  "a viewer is not handed the bundle path",
+);
+ok(
+  (await rpc(amy, "project_bundle", { p_project: project })).data === object,
+  "an editor is handed the bundle path",
+);
 const ollyGet = await call("GET", `/storage/v1/object/authenticated/projects/${object}`, {
   token: olly.token,
 });
@@ -226,7 +296,9 @@ ok(ollyGet.status >= 400, "outsider cannot download", `${ollyGet.status}`);
 const anonGet = await call("GET", `/storage/v1/object/public/projects/${object}`);
 ok(anonGet.status >= 400, "no public link to project files", `${anonGet.status}`);
 
-const ollyRows = await call("GET", `/rest/v1/team_projects?select=id`, { token: olly.token });
+const ollyRows = await call("GET", `/rest/v1/team_projects?select=id`, {
+  token: olly.token,
+});
 ok(Array.isArray(ollyRows.data) && ollyRows.data.length === 0, "outsider reads no projects");
 const ollyVersions = await call(
   "GET",
@@ -248,7 +320,9 @@ const forge = await call("PATCH", `/rest/v1/team_projects?id=eq.${project}`, {
   json: { version: 99 },
 });
 const after = (
-  await call("GET", `/rest/v1/team_projects?select=version&id=eq.${project}`, { token: amy.token })
+  await call("GET", `/rest/v1/team_projects?select=version&id=eq.${project}`, {
+    token: amy.token,
+  })
 ).data[0];
 ok(
   after.version === 1,
@@ -306,6 +380,19 @@ ok(
   "check-in must point at this project's files",
   refusal(foreign),
 );
+const tucked = await rpc(dana, "check_in", {
+  p_project: project,
+  p_base: 1,
+  p_head: "bbb",
+  p_bundle: `${team}/${project}/v2/model.stl`,
+  p_note: "",
+  p_keep: false,
+});
+ok(
+  refusal(tucked) === "not-allowed",
+  "a bundle never sits among a Version's review files",
+  refusal(tucked),
+);
 const v2 = await rpc(dana, "check_in", {
   p_project: project,
   p_base: 1,
@@ -327,7 +414,9 @@ ok(
   "second project",
 );
 const plate = (
-  await call("GET", `/rest/v1/team_projects?select=id&name=eq.plate`, { token: dana.token })
+  await call("GET", `/rest/v1/team_projects?select=id&name=eq.plate`, {
+    token: dana.token,
+  })
 ).data[0].id;
 ok(
   (await rpc(dana, "release_project", { p_project: plate })).status < 300,
@@ -352,7 +441,11 @@ ok(
 
 // Reviews: Dana holds Version 2 (checked in with keep) and asks Amy and Vic to review it.
 const ask = (p, version, reviewers) =>
-  rpc(p, "request_review", { p_project: project, p_version: version, p_reviewers: reviewers });
+  rpc(p, "request_review", {
+    p_project: project,
+    p_version: version,
+    p_reviewers: reviewers,
+  });
 ok(
   refusal(await ask(dana, 1, [amy.email])) === "changed-elsewhere",
   "only the latest Version is reviewed",
@@ -378,13 +471,21 @@ ok(
   "outsider cannot comment",
 );
 ok(
-  refusal(await rpc(olly, "decide_review", { p_review: review, p_decision: "approved" })) ===
-    "not-allowed",
+  refusal(
+    await rpc(olly, "decide_review", {
+      p_review: review,
+      p_decision: "approved",
+    }),
+  ) === "not-allowed",
   "outsider cannot decide",
 );
 ok(
-  (await rpc(vic, "comment_review", { p_review: review, p_body: "Holes need more clearance" }))
-    .status < 300,
+  (
+    await rpc(vic, "comment_review", {
+      p_review: review,
+      p_body: "Holes need more clearance",
+    })
+  ).status < 300,
   "a viewer comments",
 );
 ok(
@@ -402,8 +503,12 @@ ok(
   JSON.stringify(seen),
 );
 ok(
-  refusal(await rpc(dana, "decide_review", { p_review: review, p_decision: "approved" })) ===
-    "not-a-reviewer",
+  refusal(
+    await rpc(dana, "decide_review", {
+      p_review: review,
+      p_decision: "approved",
+    }),
+  ) === "not-a-reviewer",
   "only a named reviewer decides",
 );
 ok(
@@ -412,7 +517,12 @@ ok(
   "nothing is released before every reviewer approves",
 );
 ok(
-  (await rpc(amy, "decide_review", { p_review: review, p_decision: "approved" })).status < 300,
+  (
+    await rpc(amy, "decide_review", {
+      p_review: review,
+      p_decision: "approved",
+    })
+  ).status < 300,
   "editor approves",
 );
 ok(
@@ -425,7 +535,12 @@ ok(
   "a change request blocks release",
 );
 ok(
-  (await rpc(vic, "decide_review", { p_review: review, p_decision: "approved" })).status < 300,
+  (
+    await rpc(vic, "decide_review", {
+      p_review: review,
+      p_decision: "approved",
+    })
+  ).status < 300,
   "a reviewer may change their mind",
 );
 ok(
@@ -433,7 +548,10 @@ ok(
     "not-allowed",
   "only an admin releases",
 );
-const revA = await rpc(dana, "release_version", { p_project: project, p_version: 2 });
+const revA = await rpc(dana, "release_version", {
+  p_project: project,
+  p_version: 2,
+});
 ok(revA.data === "A", "admin releases Version 2 as Rev A", JSON.stringify(revA.data));
 ok(
   refusal(await rpc(dana, "release_version", { p_project: project, p_version: 2 })) ===
@@ -441,8 +559,12 @@ ok(
   "a Version is released once",
 );
 ok(
-  refusal(await rpc(vic, "decide_review", { p_review: review, p_decision: "changes" })) ===
-    "already-released",
+  refusal(
+    await rpc(vic, "decide_review", {
+      p_review: review,
+      p_decision: "changes",
+    }),
+  ) === "already-released",
   "decisions close at release",
 );
 const object3 = `${team}/${project}/3-${run}.bundle`;
@@ -461,7 +583,10 @@ await rpc(dana, "check_in", {
 });
 const review3 = (await ask(dana, 3, [amy.email])).data;
 await rpc(amy, "decide_review", { p_review: review3, p_decision: "approved" });
-const revB = await rpc(dana, "release_version", { p_project: project, p_version: 3 });
+const revB = await rpc(dana, "release_version", {
+  p_project: project,
+  p_version: 3,
+});
 ok(revB.data === "B", "the next released Version is Rev B", JSON.stringify(revB.data));
 const revs = (
   await call(
@@ -485,7 +610,11 @@ await call("POST", `/storage/v1/object/projects/${model3}`, {
 const files = [{ path: "parts/arm.stl", object: model3, size: 9 }];
 ok(
   refusal(
-    await rpc(amy, "record_version_files", { p_project: project, p_version: 3, p_files: files }),
+    await rpc(amy, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: files,
+    }),
   ) === "not-allowed",
   "only the Version's author records its files",
 );
@@ -499,11 +628,60 @@ ok(
   ) === "not-allowed",
   "files must sit in the project's folder",
 );
+const script3 = `${team}/${project}/v3/parts/arm.py`;
+made.files.push(script3);
+await call("POST", `/storage/v1/object/projects/${script3}`, {
+  token: dana.token,
+  bytes: new TextEncoder().encode("import cadquery"),
+});
 ok(
-  (await rpc(dana, "record_version_files", { p_project: project, p_version: 3, p_files: files }))
-    .data === 1,
+  refusal(
+    await rpc(dana, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: [{ path: "parts/arm.py", object: script3, size: 15 }],
+    }),
+  ) === "not-allowed",
+  "only models and drawings are recorded for review, never a script",
+);
+ok(
+  refusal(
+    await rpc(dana, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: [
+        {
+          path: "parts/arm.stl",
+          object: `${team}/${project}/v2/parts/arm.stl`,
+          size: 9,
+        },
+      ],
+    }),
+  ) === "not-allowed",
+  "a review file sits in its own Version's folder",
+);
+ok(
+  (
+    await rpc(dana, "record_version_files", {
+      p_project: project,
+      p_version: 3,
+      p_files: files,
+    })
+  ).data === 1,
   "the author records Version 3's model",
 );
+const vicModel = await call("GET", `/storage/v1/object/authenticated/projects/${model3}`, {
+  token: vic.token,
+});
+ok(vicModel.status === 200 && vicModel.data === "solid arm", "a viewer downloads a review file");
+const vicScript = await call("GET", `/storage/v1/object/authenticated/projects/${script3}`, {
+  token: vic.token,
+});
+ok(vicScript.status >= 400, "a viewer cannot download a script beside it", `${vicScript.status}`);
+const vicBundle3 = await call("GET", `/storage/v1/object/authenticated/projects/${object3}`, {
+  token: vic.token,
+});
+ok(vicBundle3.status >= 400, "nor the Version's bundle", `${vicBundle3.status}`);
 const listed = (
   await call(
     "GET",
@@ -532,7 +710,11 @@ const pinned = await rpc(amy, "comment_review", {
 ok(typeof pinned.data === "string", "a comment pins a spot on a model");
 ok(
   refusal(
-    await rpc(amy, "comment_review", { p_review: review3, p_body: "x", p_anchor: { point: [1] } }),
+    await rpc(amy, "comment_review", {
+      p_review: review3,
+      p_body: "x",
+      p_anchor: { point: [1] },
+    }),
   ) === "not-allowed",
   "a pin names its file",
 );
@@ -543,7 +725,11 @@ const firstComment = (
 ).data[0].id;
 ok(
   refusal(
-    await rpc(amy, "comment_review", { p_review: review3, p_body: "re", p_reply_to: firstComment }),
+    await rpc(amy, "comment_review", {
+      p_review: review3,
+      p_body: "re",
+      p_reply_to: firstComment,
+    }),
   ) === "not-found",
   "a reply stays in its own review",
 );
@@ -563,17 +749,30 @@ ok(
   "a viewer cannot resolve",
 );
 ok(
-  refusal(await rpc(dana, "resolve_comment", { p_comment: pinned.data, p_version: 3 })) ===
-    "not-allowed",
+  refusal(
+    await rpc(dana, "resolve_comment", {
+      p_comment: pinned.data,
+      p_version: 3,
+    }),
+  ) === "not-allowed",
   "resolving needs a later Version",
 );
 ok(
-  refusal(await rpc(dana, "resolve_comment", { p_comment: firstComment, p_version: 2 })) ===
-    "not-allowed",
+  refusal(
+    await rpc(dana, "resolve_comment", {
+      p_comment: firstComment,
+      p_version: 2,
+    }),
+  ) === "not-allowed",
   "resolving cannot point back in time",
 );
 ok(
-  (await rpc(dana, "resolve_comment", { p_comment: firstComment, p_version: 3 })).status < 300,
+  (
+    await rpc(dana, "resolve_comment", {
+      p_comment: firstComment,
+      p_version: 3,
+    })
+  ).status < 300,
   "an admin resolves a comment by a later Version",
 );
 const back = (
@@ -598,6 +797,163 @@ const when = (
 ok(when.released_at !== null, "a release records when");
 await rpc(dana, "release_project", { p_project: project });
 
+// Storage: a team's files count against its plan, which only billing (the service role) sets.
+const mine = (await rpc(dana, "my_teams")).data.find((each) => each.id === team);
+ok(
+  mine.storageUsed > 0 && mine.storageLimit === 1073741824,
+  "a team sees what its files take, against 1 GB",
+  `${mine.storageUsed} of ${mine.storageLimit}`,
+);
+ok(
+  (
+    await rpc(dana, "set_team_plan", {
+      p_team: team,
+      p_seats: 99,
+      p_storage_limit: 1e12,
+    })
+  ).status >= 400,
+  "nobody signed in sets their own plan",
+);
+if (ADMIN_KEY) {
+  const bucket = await admin("GET", "/storage/v1/bucket/projects");
+  ok(
+    bucket.data?.file_size_limit === 209715200,
+    "one file is at most 200 MB",
+    `${bucket.data?.file_size_limit}`,
+  );
+  const plan = await admin("POST", "/rest/v1/rpc/set_team_plan", {
+    p_team: team,
+    p_seats: 3,
+    p_storage_limit: 10,
+  });
+  ok(plan.status < 300, "billing sets a team's seats and storage", `${plan.status}`);
+  ok((await rpc(dana, "check_out", { p_project: project })).status < 300, "admin checks out again");
+  const object4 = `${team}/${project}/4-${run}.bundle`;
+  made.files.push(object4);
+  await call("POST", `/storage/v1/object/projects/${object4}`, {
+    token: dana.token,
+    bytes: new TextEncoder().encode("bundle v4"),
+  });
+  const over = await rpc(dana, "check_in", {
+    p_project: project,
+    p_base: 3,
+    p_head: "ddd",
+    p_bundle: object4,
+    p_note: "",
+    p_keep: false,
+  });
+  ok(
+    refusal(over) === "storage-full",
+    "a check-in past the team's storage is refused",
+    refusal(over),
+  );
+  await admin("POST", "/rest/v1/rpc/set_team_plan", {
+    p_team: team,
+    p_seats: 3,
+    p_storage_limit: 1073741824,
+  });
+  await rpc(dana, "release_project", { p_project: project });
+}
+
+// Deleting: files first through Storage, then the project or team; then accounts.
+const amyUp2 = `${team}/${project}/9-${run}.bundle`;
+made.files.push(amyUp2);
+await call("POST", `/storage/v1/object/projects/${amyUp2}`, {
+  token: amy.token,
+  bytes: new TextEncoder().encode("refused"),
+});
+ok(
+  (await rpc(dana, "check_out", { p_project: project })).status < 300,
+  "admin checks out for Version 4",
+);
+const object5 = `${team}/${project}/5-${run}.bundle`;
+made.files.push(object5);
+await call("POST", `/storage/v1/object/projects/${object5}`, {
+  token: dana.token,
+  bytes: new TextEncoder().encode("bundle v4"),
+});
+const v4 = await rpc(dana, "check_in", {
+  p_project: project,
+  p_base: 3,
+  p_head: "eee",
+  p_bundle: object5,
+  p_note: "",
+  p_keep: false,
+});
+ok(v4.data === 4, "Version 4 checks in", JSON.stringify(v4.data));
+const exists = async (name) =>
+  (
+    await call("GET", `/storage/v1/object/authenticated/projects/${name}`, {
+      token: dana.token,
+    })
+  ).status === 200;
+await call("DELETE", `/storage/v1/object/projects`, {
+  token: vic.token,
+  json: { prefixes: [amyUp2] },
+});
+ok(await exists(amyUp2), "a viewer deletes no files");
+await call("DELETE", `/storage/v1/object/projects`, {
+  token: amy.token,
+  json: { prefixes: [object5] },
+});
+ok(await exists(object5), "an editor cannot delete a teammate's latest bundle");
+await call("DELETE", `/storage/v1/object/projects`, {
+  token: vic.token,
+  json: { prefixes: [object3] },
+});
+ok(await exists(object3), "a viewer cannot delete a superseded bundle");
+await call("DELETE", `/storage/v1/object/projects`, {
+  token: amy.token,
+  json: { prefixes: [object3] },
+});
+ok(!(await exists(object3)), "an editor deletes a teammate's bundle that Version 4 replaced");
+await call("DELETE", `/storage/v1/object/projects`, {
+  token: amy.token,
+  json: { prefixes: [amyUp2] },
+});
+ok(!(await exists(amyUp2)), "an editor deletes their own refused upload");
+ok(
+  refusal(await rpc(amy, "team_objects", { p_team: team, p_project: project })) === "not-allowed",
+  "only an admin lists a project's files",
+);
+ok(
+  refusal(await rpc(amy, "delete_project", { p_project: project })) === "not-allowed",
+  "an editor cannot delete a project",
+);
+ok(
+  refusal(await rpc(dana, "delete_project", { p_project: project })) === "files-left",
+  "a project is not deleted while its files remain",
+);
+const names = (await rpc(dana, "team_objects", { p_team: team, p_project: project })).data;
+ok(names.length >= 4, "the admin lists the project's files", `${names.length}`);
+const cleared = await call("DELETE", `/storage/v1/object/projects`, {
+  token: dana.token,
+  json: { prefixes: names },
+});
+ok(
+  cleared.status === 200 &&
+    (await rpc(dana, "team_objects", { p_team: team, p_project: project })).data.length === 0,
+  "the admin deletes them",
+);
+ok((await rpc(dana, "delete_project", { p_project: project })).status < 300, "then the project");
+ok(
+  (
+    await call("GET", `/rest/v1/team_projects?select=id&id=eq.${project}`, {
+      token: dana.token,
+    })
+  ).data.length === 0 &&
+    (
+      await call("GET", `/rest/v1/team_reviews?select=id&project_id=eq.${project}`, {
+        token: dana.token,
+      })
+    ).data.length === 0,
+  "and its Versions and reviews go with it",
+);
+ok(
+  refusal(await rpc(dana, "delete_account")) === "last-admin",
+  "the only admin of a team with people cannot delete their account",
+);
+
 ok((await rpc(amy, "check_out", { p_project: plate })).status < 300, "editor checks out the plate");
 ok(
   (await rpc(dana, "remove_member", { p_team: team, p_email: amy.email })).status < 300,
@@ -613,15 +969,63 @@ ok(
   (await call("GET", `/rest/v1/team_projects?select=id`, { token: amy.token })).data.length === 0,
   "removed editor no longer sees projects",
 );
-const lastAdmin = await rpc(dana, "remove_member", { p_team: team, p_email: dana.email });
+const lastAdmin = await rpc(dana, "remove_member", {
+  p_team: team,
+  p_email: dana.email,
+});
 ok(refusal(lastAdmin) === "last-admin", "the last admin cannot leave", refusal(lastAdmin));
 ok(
   (await rpc(vic, "remove_member", { p_team: team, p_email: vic.email })).status < 300,
   "a viewer leaves on their own",
 );
 
+// Teams a person makes: at most 3 of their own.
+const extra = [];
+for (const name of ["Second", "Third"]) {
+  const made2 = (await rpc(dana, "create_team", { p_name: name })).data;
+  made.teams.push(made2);
+  extra.push(made2);
+}
+ok(
+  extra.every((id) => typeof id === "string"),
+  "a person makes up to 3 teams",
+);
+const fourth = await rpc(dana, "create_team", { p_name: "Fourth" });
+ok(refusal(fourth) === "too-many-teams", "a fourth is refused", refusal(fourth));
+
+ok(
+  refusal(await rpc(amy, "delete_team", { p_team: extra[0] })) === "not-allowed",
+  "an editor cannot delete a team",
+);
+ok((await rpc(dana, "delete_team", { p_team: extra[0] })).status < 300, "an admin deletes a team");
+ok(!(await rpc(dana, "my_teams")).data.some((each) => each.id === extra[0]), "and it is gone");
+await rpc(dana, "delete_team", { p_team: extra[1] });
+ok((await rpc(vic, "delete_account")).status < 300, "a viewer deletes their account");
+ok(
+  (await rpc(dana, "remove_member", { p_team: team, p_email: who("gus") })).status < 300,
+  "the admin withdraws the last invite",
+);
+const solo = await rpc(dana, "delete_account");
+ok(refusal(solo) === "teams-left", "a team of one is deleted before its account", refusal(solo));
+ok(
+  (await rpc(dana, "delete_team", { p_team: team })).status < 300,
+  "the admin deletes their last team",
+);
+ok((await rpc(dana, "delete_account")).status < 300, "then their account");
 if (ADMIN_KEY) {
-  await admin("DELETE", "/storage/v1/object/projects", { prefixes: made.files });
+  for (const p of [vic, dana]) {
+    const gone = await admin("GET", `/auth/v1/admin/users?per_page=1000`);
+    ok(
+      !gone.data?.users?.some((u) => u.email === p.email),
+      `${p.email.split("+")[0]}'s account is gone`,
+    );
+  }
+}
+
+if (ADMIN_KEY) {
+  await admin("DELETE", "/storage/v1/object/projects", {
+    prefixes: made.files,
+  });
   for (const id of made.teams) await admin("DELETE", `/rest/v1/teams?id=eq.${id}`);
   for (const id of made.users) await admin("DELETE", `/auth/v1/admin/users/${id}`);
   const left = await admin("GET", `/rest/v1/teams?select=id&id=in.(${made.teams.join(",")})`);

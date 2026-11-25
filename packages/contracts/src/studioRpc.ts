@@ -55,6 +55,7 @@ import {
 import {
   StudioTeamsCheckInInput,
   StudioTeamsCreateInput,
+  StudioTeamsDeleteProjectInput,
   StudioTeamsError,
   StudioTeamsFolderInput,
   StudioTeamsFolderStatusResult,
@@ -69,6 +70,7 @@ import {
   StudioTeamsSignInCheckInput,
   StudioTeamsSignInStartInput,
   StudioTeamsStatusResult,
+  StudioTeamsTeamInput,
 } from "./studioTeams.ts";
 
 export const STUDIO_WS_METHODS = {
@@ -102,6 +104,9 @@ export const STUDIO_WS_METHODS = {
   studioTeamsCreate: "studioTeams.create",
   studioTeamsInvite: "studioTeams.invite",
   studioTeamsRemove: "studioTeams.remove",
+  studioTeamsDeleteTeam: "studioTeams.deleteTeam",
+  studioTeamsDeleteProject: "studioTeams.deleteProject",
+  studioTeamsDeleteAccount: "studioTeams.deleteAccount",
   studioTeamsProjects: "studioTeams.projects",
   studioTeamsShare: "studioTeams.share",
   studioTeamsGet: "studioTeams.get",
@@ -298,6 +303,24 @@ const WsStudioTeamsRemoveRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsRemove, {
   error: StudioTeamsError,
 });
 
+const WsStudioTeamsDeleteTeamRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsDeleteTeam, {
+  payload: StudioTeamsTeamInput,
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsDeleteProjectRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsDeleteProject, {
+  payload: StudioTeamsDeleteProjectInput,
+  success: StudioTeamsProjectsResult,
+  error: StudioTeamsError,
+});
+
+const WsStudioTeamsDeleteAccountRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsDeleteAccount, {
+  payload: Schema.Struct({}),
+  success: StudioTeamsStatusResult,
+  error: StudioTeamsError,
+});
+
 const WsStudioTeamsProjectsRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsProjects, {
   payload: Schema.Struct({}),
   success: StudioTeamsProjectsResult,
@@ -395,6 +418,9 @@ export const STUDIO_RPCS = [
   WsStudioTeamsCreateRpc,
   WsStudioTeamsInviteRpc,
   WsStudioTeamsRemoveRpc,
+  WsStudioTeamsDeleteTeamRpc,
+  WsStudioTeamsDeleteProjectRpc,
+  WsStudioTeamsDeleteAccountRpc,
   WsStudioTeamsProjectsRpc,
   WsStudioTeamsShareRpc,
   WsStudioTeamsGetRpc,
@@ -430,6 +456,9 @@ export const STUDIO_CLIENT_GUARDED_RPC_SCOPES = {
   [STUDIO_WS_METHODS.studioTeamsCreate]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsInvite]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsRemove]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsDeleteTeam]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsDeleteProject]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsDeleteAccount]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsShare]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsGet]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsCheckOut]: AuthSourceControlWriteScope,

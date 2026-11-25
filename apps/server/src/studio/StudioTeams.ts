@@ -13,6 +13,7 @@ import {
   type StudioTeamProject,
   type StudioTeamsCheckInInput,
   type StudioTeamsCreateInput,
+  type StudioTeamsDeleteProjectInput,
   StudioTeamsError,
   type StudioTeamsFolderInput,
   type StudioTeamsFolderStatusResult,
@@ -27,6 +28,7 @@ import {
   type StudioTeamsSignInCheckInput,
   type StudioTeamsSignInStartInput,
   type StudioTeamsStatusResult,
+  type StudioTeamsTeamInput,
 } from "@t3tools/contracts";
 import { newProjectFolderName } from "@t3tools/shared/path";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
@@ -86,14 +88,15 @@ const ProjectRow = Schema.Struct({
   name: Schema.String,
   version: Schema.Number,
   head: Schema.NullOr(Schema.String),
-  bundle: Schema.NullOr(Schema.String),
   checked_out_email: Schema.NullOr(Schema.String),
   updated_at: Schema.String,
   teams: Schema.Struct({ name: Schema.String }),
 });
 type ProjectRow = typeof ProjectRow.Type;
-const PROJECT_COLUMNS =
-  "id,team_id,name,version,head,bundle,checked_out_email,updated_at,teams(name)";
+// No bundle path: the hub hands it only to Admins and Editors, through `project_bundle`.
+const PROJECT_COLUMNS = "id,team_id,name,version,head,checked_out_email,updated_at,teams(name)";
+/** Storage deletes at most this many files a call. */
+const DELETE_BATCH = 1000;
 
 const CheckInRow = Schema.Struct({
   version: Schema.Number,
@@ -168,6 +171,8 @@ const TeamsBody = Schema.Array(
     invites: Schema.Array(
       Schema.Struct({ email: Schema.String, role: Schema.Literals(["admin", "editor", "viewer"]) }),
     ),
+    storageUsed: Schema.Number,
+    storageLimit: Schema.Number,
   }),
 );
 
@@ -198,6 +203,11 @@ const unreachable = () => fail("hub", "The team hub could not be reached. Try ag
 const notChecked = (cwd: string) =>
   fail("local", `Studio could not read the project's history in ${cwd}.`);
 
+const gigabytes = (bytes: number) => {
+  const gb = bytes / 1024 ** 3;
+  return `${gb >= 10 ? Math.round(gb) : Math.round(gb * 10) / 10} GB`;
+};
+
 /** The person's words for each refusal the hub's functions raise. */
 const refusal = (message: string, details: string | null | undefined) => {
   switch (message) {
@@ -221,6 +231,20 @@ const refusal = (message: string, details: string | null | undefined) => {
       );
     case "last-admin":
       return fail("last-admin", "A team needs at least one Admin.");
+    case "storage-full":
+      return fail(
+        "storage-full",
+        `The team's files have reached its ${gigabytes(Number(details ?? 0))} limit. Delete a team project it no longer needs, or move the team to a bigger plan.`,
+      );
+    case "too-many-teams":
+      return fail(
+        "too-many-teams",
+        `You already run ${details ?? "the most"} teams, the most one person can make. Delete one first.`,
+      );
+    case "files-left":
+      return fail("hub", "Some of its files are still on the team hub. Try again.");
+    case "teams-left":
+      return fail("not-allowed", "Delete the teams only you are on first.");
     case "not-found":
       return fail("not-found", "This project is no longer on the team.");
     case "no-reviewers":
@@ -303,6 +327,16 @@ export class StudioTeams extends Context.Service<
     readonly releaseVersion: (
       input: StudioTeamsFolderInput,
     ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
+    /** An Admin deletes a team project and its files on the hub; copies on computers stay. */
+    readonly deleteProject: (
+      input: StudioTeamsDeleteProjectInput,
+    ) => Effect.Effect<StudioTeamsProjectsResult, StudioTeamsError>;
+    /** An Admin deletes a team, its projects and their files on the hub. */
+    readonly deleteTeam: (
+      input: StudioTeamsTeamInput,
+    ) => Effect.Effect<StudioTeamsStatusResult, StudioTeamsError>;
+    /** Deletes the signed-in account, and first each team that has nobody else on it. */
+    readonly deleteAccount: Effect.Effect<StudioTeamsStatusResult, StudioTeamsError>;
   }
 >()("t3/studio/StudioTeams") {}
 
@@ -330,6 +364,7 @@ const make = Effect.gen(function* () {
   const sync = yield* StudioSync.StudioSync;
   const random = yield* SecureRandom.SecureRandom;
   const available = hub.url !== "" && hub.key !== "";
+  const reviewPage = hub.review === "" ? null : hub.review;
 
   const readSession = secrets.get(SESSION_SECRET).pipe(
     Effect.map(Option.flatMap((bytes) => decodeSession(new TextDecoder().decode(bytes)))),
@@ -346,7 +381,7 @@ const make = Effect.gen(function* () {
   const forgetSession = secrets.remove(SESSION_SECRET).pipe(Effect.ignore);
 
   type Call = {
-    readonly method: "GET" | "POST";
+    readonly method: "GET" | "POST" | "DELETE";
     readonly path: string;
     readonly token?: string;
     readonly json?: unknown;
@@ -461,9 +496,9 @@ const make = Effect.gen(function* () {
     );
 
   const status: StudioTeams["Service"]["status"] = Effect.gen(function* () {
-    if (!available) return { available: false, account: null, teams: [] };
+    if (!available) return { available: false, account: null, teams: [], reviewPage };
     const current = yield* readSession;
-    if (Option.isNone(current)) return { available: true, account: null, teams: [] };
+    if (Option.isNone(current)) return { available: true, account: null, teams: [], reviewPage };
     // An invite sent after this person signed in joins them here, not only at their next sign-in.
     const teams = yield* rpc("accept_invites", {}, Schema.Unknown).pipe(
       Effect.andThen(rpc("my_teams", {}, TeamsBody)),
@@ -472,9 +507,10 @@ const make = Effect.gen(function* () {
           error.reason === "signed-out" ? Effect.succeed(null) : Effect.fail(error),
       }),
     );
-    if (teams === null) return { available: true, account: null, teams: [] };
+    if (teams === null) return { available: true, account: null, teams: [], reviewPage };
     return {
       available: true,
+      reviewPage,
       account: current.value.email,
       teams: teams.map((team): StudioTeam => ({
         ...team,
@@ -836,6 +872,46 @@ const make = Effect.gen(function* () {
     return yield* fileSystem.readFile(into).pipe(Effect.mapError(() => notChecked(cwd)));
   });
 
+  /** The latest check-in's bundle, which the hub hands only to Admins and Editors. */
+  const bundleFor = (row: ProjectRow) =>
+    rpc("project_bundle", { p_project: row.id }, Schema.NullOr(Schema.String)).pipe(
+      Effect.catchTags({
+        StudioTeamsError: (error) =>
+          error.reason === "not-allowed"
+            ? Effect.fail(
+                fail(
+                  "not-allowed",
+                  "Viewers see a Version's models and drawings on the review page, not the project itself.",
+                ),
+              )
+            : Effect.fail(error),
+      }),
+    );
+
+  /** Deletes files from the hub's Storage; the hub's rules say whose. */
+  const removeObjects = Effect.fnUntraced(function* (names: ReadonlyArray<string>) {
+    const s = yield* session;
+    for (let start = 0; start < names.length; start += DELETE_BATCH) {
+      const response = yield* send({
+        method: "DELETE",
+        path: `/storage/v1/object/${BUCKET}`,
+        token: s.accessToken,
+        json: { prefixes: names.slice(start, start + DELETE_BATCH) },
+      });
+      if (response.status >= 400) {
+        return yield* fail("hub", "The team hub could not delete the files. Try again.");
+      }
+    }
+  });
+
+  /** A team's files, or one project's, deleted before the hub deletes its rows. */
+  const clearFiles = (teamId: string, projectId: string | null) =>
+    rpc(
+      "team_objects",
+      { p_team: teamId, ...(projectId === null ? {} : { p_project: projectId }) },
+      Schema.Array(Schema.String),
+    ).pipe(Effect.flatMap(removeObjects));
+
   /** Downloads a check-in's bundle and takes its refs into the folder, the latest at `LATEST`. */
   const fetchBundle = (cwd: string, bundle: string) =>
     Effect.scoped(
@@ -879,14 +955,16 @@ const make = Effect.gen(function* () {
     cwd: string,
     row: ProjectRow,
   ) {
-    if (row.bundle === null || row.head === null) return;
+    if (row.head === null) return;
     if (yield* isDirty(cwd)) {
       return yield* fail(
         "changes-here",
         "This copy has changes that are not checked in. Check them in, or set them aside, first.",
       );
     }
-    yield* fetchBundle(cwd, row.bundle);
+    const bundle = yield* bundleFor(row);
+    if (bundle === null) return;
+    yield* fetchBundle(cwd, bundle);
     const head = yield* headOf(cwd);
     if (head !== row.head) {
       const behind =
@@ -1002,6 +1080,7 @@ const make = Effect.gen(function* () {
         if (uploaded.status >= 400) {
           return yield* fail("hub", "The check-in could not be uploaded. Try again.");
         }
+        const superseded = base === 0 ? null : yield* bundleFor(row);
         const version = yield* rpc(
           "check_in",
           {
@@ -1013,8 +1092,10 @@ const make = Effect.gen(function* () {
             p_keep: keep,
           },
           Schema.Number,
-        );
+        ).pipe(Effect.tapError(() => removeObjects([object]).pipe(Effect.ignore)));
         yield* git(cwd, ["config", VERSION_KEY, String(version)]);
+        // The new bundle carries every Version before it, so the one it replaces only takes space.
+        if (superseded !== null) yield* removeObjects([superseded]).pipe(Effect.ignore);
       }),
     );
 
@@ -1067,13 +1148,14 @@ const make = Effect.gen(function* () {
 
   const get: StudioTeams["Service"]["get"] = Effect.fn("StudioTeams.get")(function* (input) {
     const row = yield* projectRow(input.projectId);
-    if (row.bundle === null || row.head === null) {
+    const bundle = row.head === null ? null : yield* bundleFor(row);
+    if (bundle === null) {
       return yield* fail("not-found", "This project has nothing checked in yet.");
     }
     const folder = yield* claimFolder(input.root, row.name);
     const bring = Effect.gen(function* () {
       yield* git(folder, ["init", "--quiet", "--initial-branch=main"]);
-      yield* fetchBundle(folder, row.bundle!);
+      yield* fetchBundle(folder, bundle);
       yield* git(folder, ["checkout", "--quiet", "-B", "main", LATEST]);
       yield* git(folder, ["config", PROJECT_KEY, row.id]);
       yield* git(folder, ["config", VERSION_KEY, String(row.version)]);
@@ -1197,6 +1279,52 @@ const make = Effect.gen(function* () {
     return yield* folderStatusOf(cwd, place);
   });
 
+  const deleteProject: StudioTeams["Service"]["deleteProject"] = Effect.fn(
+    "StudioTeams.deleteProject",
+  )(function* ({ projectId }) {
+    const row = yield* projectRow(projectId);
+    yield* clearFiles(row.team_id, row.id);
+    yield* rpc("delete_project", { p_project: row.id }, Schema.Unknown);
+    return yield* projects;
+  });
+
+  const deleteTeamFiles = (teamId: string) =>
+    clearFiles(teamId, null).pipe(
+      Effect.andThen(rpc("delete_team", { p_team: teamId }, Schema.Unknown)),
+    );
+
+  const deleteTeam: StudioTeams["Service"]["deleteTeam"] = Effect.fn("StudioTeams.deleteTeam")(
+    function* ({ teamId }) {
+      yield* deleteTeamFiles(teamId);
+      return yield* status;
+    },
+  );
+
+  const deleteAccount: StudioTeams["Service"]["deleteAccount"] = Effect.gen(function* () {
+    const s = yield* session;
+    const teams = yield* rpc("my_teams", {}, TeamsBody);
+    const others = (team: (typeof teams)[number]) =>
+      (team.members ?? []).filter((person) => person.email !== s.email);
+    const held = teams.filter(
+      (team) =>
+        team.role === "admin" &&
+        others(team).length > 0 &&
+        !others(team).some((person) => person.role === "admin"),
+    );
+    if (held.length > 0) {
+      return yield* fail(
+        "last-admin",
+        `You are the only Admin of ${held.map((team) => team.name).join(", ")}. Remove its people or delete the team first.`,
+      );
+    }
+    for (const team of teams.filter((each) => others(each).length === 0)) {
+      yield* deleteTeamFiles(team.id);
+    }
+    yield* rpc("delete_account", {}, Schema.Unknown);
+    yield* forgetSession;
+    return yield* status;
+  }).pipe(Effect.withSpan("StudioTeams.deleteAccount"));
+
   return StudioTeams.of({
     status,
     signInStart,
@@ -1216,6 +1344,9 @@ const make = Effect.gen(function* () {
     reviewComment,
     reviewDecide,
     releaseVersion,
+    deleteProject,
+    deleteTeam,
+    deleteAccount,
   });
 });
 

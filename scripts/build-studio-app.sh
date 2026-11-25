@@ -217,13 +217,19 @@ if [ -n "$STUDIO_USAGE_URL" ]; then
   hosted=",
   \"usageUrl\": \"$STUDIO_USAGE_URL\""
 fi
-# A build shows Teams with Studio's team hub (infra/teams), or STUDIO_TEAMS_URL and
-# STUDIO_TEAMS_KEY; STUDIO_TEAMS_URL= (empty) makes one without Teams. The key is the hub's
-# publishable one, which is safe to ship: the hub's row-level security decides what a person may do.
-STUDIO_TEAMS_URL="${STUDIO_TEAMS_URL-https://bkzigrvifxdsahgiaijx.supabase.co}"
-STUDIO_TEAMS_KEY="${STUDIO_TEAMS_KEY-sb_publishable_ytw47YKEsyyn-h261DOE5g_4XXmiXM5}"
-# Where reviewers without Studio review a Version (infra/teams/review), for Copy review link.
-STUDIO_REVIEW_URL="${STUDIO_REVIEW_URL-https://studio-review-delta.vercel.app}"
+# Teams is off in a build unless STUDIO_TEAMS=1, which a beta build sets on purpose: then it
+# shows Teams with Studio's team hub (infra/teams), or STUDIO_TEAMS_URL and STUDIO_TEAMS_KEY. The
+# key is the hub's publishable one, which is safe to ship: the hub's row-level security decides
+# what a person may do.
+if [ "${STUDIO_TEAMS:-0}" = "1" ]; then
+  STUDIO_TEAMS_URL="${STUDIO_TEAMS_URL:-https://bkzigrvifxdsahgiaijx.supabase.co}"
+  STUDIO_TEAMS_KEY="${STUDIO_TEAMS_KEY:-sb_publishable_ytw47YKEsyyn-h261DOE5g_4XXmiXM5}"
+  # Where reviewers without Studio review a Version (infra/teams/review), for Copy review link.
+  STUDIO_REVIEW_URL="${STUDIO_REVIEW_URL-https://studio-review-delta.vercel.app}"
+else
+  STUDIO_TEAMS_URL=""
+  STUDIO_TEAMS_KEY=""
+fi
 if [ -n "$STUDIO_TEAMS_URL" ] && [ -n "$STUDIO_TEAMS_KEY" ]; then
   hosted="$hosted,
   \"teamsUrl\": \"$STUDIO_TEAMS_URL\",

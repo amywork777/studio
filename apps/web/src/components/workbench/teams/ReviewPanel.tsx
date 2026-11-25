@@ -14,6 +14,7 @@ import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { toastManager } from "../../ui/toast";
+import { openComments, type ReviewComment } from "./reviewPrompt";
 import { TeamAvatar } from "./TeamAvatar";
 import { useTeamAction } from "./teamWords";
 
@@ -39,36 +40,7 @@ const DECISION_WORDS: Record<StudioTeamReviewDecision, string> = {
   changes: "Requested changes",
 };
 
-type Comment = StudioTeamReview["comments"][number];
-
-/** Comments not yet answered or resolved: what a new Version has to address. */
-function openComments(review: StudioTeamReview): ReadonlyArray<Comment> {
-  const answered = new Set(
-    review.comments.flatMap((each) => (each.replyTo === null ? [] : [each.replyTo])),
-  );
-  return review.comments.filter(
-    (each) => each.replyTo === null && each.resolvedIn === null && !answered.has(each.id),
-  );
-}
-
-const pinWords = (comment: Comment) =>
-  comment.pin === null
-    ? ""
-    : ` (on ${comment.pin.file}${comment.pin.point ? ", at a pinned spot" : ""})`;
-
-/** The job "Ask the agent to address comments" hands the chat: each comment, then how to finish. */
-export function reviewPrompt(review: StudioTeamReview, teamName: string, folder: string): string {
-  const lines = openComments(review).map(
-    (each, index) =>
-      `${index + 1}. [comment ${each.id}] ${each.by}: "${each.body}"${pinWords(each)}`,
-  );
-  return [
-    `Address the review of Version ${review.version} of this ${teamName} team project. The comments to address:`,
-    ...lines,
-    "",
-    `Change the part to address each one and check your work. Then call studio_team_check_in with folder "${folder}", a short note, and an answer for each comment saying what you changed, with numbers. If a comment should not be done, answer it with why instead of changing the part.`,
-  ].join("\n");
-}
+type Comment = ReviewComment;
 
 /**
  * The latest Version's review under the check-out strip: who was asked and what each decided,

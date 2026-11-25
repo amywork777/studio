@@ -11,7 +11,8 @@ There is no server of Studio's own to run.
   it rather than follow a link.
 - **Teams and seats:** `teams`, `team_members` (Admin, Editor, Viewer), `team_invites`. Admins and
   Editors use a paid seat, invited or joined; Viewers are free. `invite_member` refuses past
-  `teams.seats` (3 for a new team, until billing sets it).
+  `teams.seats` (3 for a new team, until billing sets it). A person makes at most 3 teams of their
+  own (`max_own_teams`).
 - **Projects:** `team_projects` and `team_project_versions`. Each check-in is one git bundle of the
   project's history in the private Storage bucket `projects`, at `<team>/<project>/<file>`.
   `check_in` takes it only from the person holding the check-out and only on top of the Version they
@@ -25,6 +26,23 @@ There is no server of Studio's own to run.
 - **Files for browser review:** when a check-in asks for review, Studio uploads the Version's models
   and drawings (`.stl`, `.glb`, `.pdf`, `.png`) to `<team>/<project>/v<n>/<path>` and records them in
   `team_version_files`, so the review page can show them without the project's git bundle.
+- **What Viewers see:** a Viewer is often a customer, so they get a reviewed Version's models and
+  drawings and never the project itself. Storage lets a Viewer read only a file recorded in
+  `team_version_files`, which takes only `.stl`, `.glb`, `.pdf` and `.png` in the Version's own
+  `v<n>/` folder. Bundle paths are left out of direct reads (column grants on `team_projects` and
+  `team_project_versions`); `project_bundle` hands one to Admins and Editors. A column added to
+  either table needs its grant in a migration, or nobody reads it.
+- **Storage limits:** each team has `storage_limit` bytes (1 GB to start); `check_in` and
+  `record_version_files` refuse past it (`storage-full`), and Studio deletes its refused upload. A
+  check-in's bundle carries every Version before it, so Studio deletes the bundle it replaces. One
+  file is at most 200 MB (the bucket's `file_size_limit`).
+- **Deleting:** an Admin deletes a project (`delete_project`) or a team (`delete_team`), and anyone
+  deletes their own account (`delete_account`), refused while they are a team's only Admin with
+  others on it, or are alone on a team that still exists. Storage deletes only through its API, so
+  Studio deletes the files first (`team_objects` lists them) and the hub refuses to delete rows
+  while files remain (`files-left`).
+- **Billing's hook:** `set_team_plan(team, seats, storage_limit)`, which only the service role may
+  call, is what a payment webhook calls. Nothing calls it yet.
 - **Who may do what:** members read their team's rows and files; every change goes through a
   `security definer` function in
   [`supabase/migrations/20261123000000_teams.sql`](supabase/migrations/20261123000000_teams.sql)
@@ -46,9 +64,15 @@ chat's agent read the latest review and check the project in once it has address
 each comment and asking the same reviewers again. Ask the agent to address comments, on a project's
 review, hands the chat the open comments and these steps.
 
+Reviewers' comments may come from customers, so the agent never reads them by itself:
+`studio_team_review` gives each comment's id, author and file but not its words. Ask the agent to
+address comments shows each open comment and hands over only the ones the person ticks (comments
+from Viewers start unticked), quoted as JSON lines the agent is told are not instructions.
+
 Studio finds the hub from two variables on its server: `STUDIO_TEAMS_URL` (the project's API URL)
 and `STUDIO_TEAMS_KEY` (its public anon or publishable key, which is safe to ship). Without them
-the Team section and Share with team do not appear.
+the Team section and Share with team do not appear. An app build has neither unless it is built
+with `STUDIO_TEAMS=1` (`scripts/build-studio-app.sh`), so Teams is off in releases.
 
 ## Run it locally
 
@@ -67,12 +91,14 @@ STUDIO_TEAMS_URL=http://127.0.0.1:54321 STUDIO_TEAMS_KEY=<anon key> vp run studi
 
 `npx supabase db reset` reapplies the migration on an empty database. After changing the
 migration, `KEY=<anon key> node check-hub.mjs` signs four people in through Mailpit and tries every
-rule: seats, roles, check-out and check-in, and that an outsider sees and gets nothing.
+rule: seats, roles, check-out and check-in, what a Viewer may download, storage limits, deleting,
+and that an outsider sees and gets nothing. With `ADMIN_KEY=<service_role key>` it signs in without
+email and also tries the billing hook and the storage limit.
 
 ## The real one
 
 Supabase project `studio-teams` (`bkzigrvifxdsahgiaijx`, West US), in amywork777's Org on the free
-plan. App builds point at it by default (`scripts/build-studio-app.sh`). Its database password is in
+plan. App builds made with `STUDIO_TEAMS=1` point at it (`scripts/build-studio-app.sh`). Its database password is in
 the macOS keychain as "Studio Teams hub database". To check its rules without sending email:
 `API=https://bkzigrvifxdsahgiaijx.supabase.co KEY=<publishable key> ADMIN_KEY=<service_role key> node check-hub.mjs`,
 which deletes everything it made. The free plan pauses a project after a week with no use; the Pro

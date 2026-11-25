@@ -22,6 +22,9 @@ export const StudioTeam = Schema.Struct({
   members: Schema.Array(StudioTeamPerson),
   /** Invited and not signed in yet; only an Admin sees them. */
   invites: Schema.Array(StudioTeamPerson),
+  /** Bytes the team's files take on the hub, and what its plan allows. */
+  storageUsed: Schema.Number,
+  storageLimit: Schema.Number,
 });
 export type StudioTeam = typeof StudioTeam.Type;
 
@@ -31,6 +34,8 @@ export const StudioTeamsStatusResult = Schema.Struct({
   /** The signed-in email, or null. */
   account: Schema.NullOr(Schema.String),
   teams: Schema.Array(StudioTeam),
+  /** The browser page where Viewers review, or null when this build has none. */
+  reviewPage: Schema.NullOr(Schema.String),
 });
 export type StudioTeamsStatusResult = typeof StudioTeamsStatusResult.Type;
 
@@ -59,6 +64,14 @@ export const StudioTeamsRemoveInput = Schema.Struct({
   email: TrimmedNonEmptyString,
 });
 export type StudioTeamsRemoveInput = typeof StudioTeamsRemoveInput.Type;
+
+/** An Admin deletes a team, with its projects and their files. */
+export const StudioTeamsTeamInput = Schema.Struct({ teamId: TrimmedNonEmptyString });
+export type StudioTeamsTeamInput = typeof StudioTeamsTeamInput.Type;
+
+/** An Admin deletes a team project and its files; copies on people's computers stay. */
+export const StudioTeamsDeleteProjectInput = Schema.Struct({ projectId: TrimmedNonEmptyString });
+export type StudioTeamsDeleteProjectInput = typeof StudioTeamsDeleteProjectInput.Type;
 
 /** A team project as the hub keeps it. */
 export const StudioTeamProject = Schema.Struct({
@@ -225,6 +238,8 @@ export class StudioTeamsError extends Schema.TaggedError<StudioTeamsError>()("St
     "changed-elsewhere",
     "changes-here",
     "last-admin",
+    "storage-full",
+    "too-many-teams",
     "not-found",
     "hub",
     "local",

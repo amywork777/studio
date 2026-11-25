@@ -96,6 +96,27 @@ export function createStudioTeamsEnvironmentAtoms<R, E>(
       concurrency: serial,
       onSettled: settled,
     }),
+    deleteTeam: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:delete-team",
+      tag: WS_METHODS.studioTeamsDeleteTeam,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
+    deleteProject: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:delete-project",
+      tag: WS_METHODS.studioTeamsDeleteProject,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
+    deleteAccount: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:delete-account",
+      tag: WS_METHODS.studioTeamsDeleteAccount,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
     share: createEnvironmentRpcCommand(runtime, {
       label: "environment-command:studio-teams:share",
       tag: WS_METHODS.studioTeamsShare,

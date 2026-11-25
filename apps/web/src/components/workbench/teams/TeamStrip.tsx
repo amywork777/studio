@@ -28,7 +28,9 @@ import { Textarea } from "../../ui/textarea";
 import { toastManager } from "../../ui/toast";
 import type { ComposerHandleRef } from "~/composerHandleContext";
 import { handToChat } from "../handToChat";
-import { ReviewBadge, ReviewPanel, reviewPrompt } from "./ReviewPanel";
+import { AddressCommentsDialog } from "./AddressCommentsDialog";
+import { ReviewBadge, ReviewPanel } from "./ReviewPanel";
+import { type ReviewComment, reviewPrompt } from "./reviewPrompt";
 import { TeamAvatar, TeamAvatarStack } from "./TeamAvatar";
 import { ROLE_LABEL, useTeamAction } from "./teamWords";
 
@@ -238,6 +240,7 @@ export function TeamStrip(props: {
   const allowed = useAtomValue(studioTeamsEnvironment.checkOut.permissionAtom(environmentId));
   const [checkingIn, setCheckingIn] = useState(false);
   const [history, setHistory] = useState(false);
+  const [addressing, setAddressing] = useState(false);
   const action = useTeamAction();
   const shared = query.data ?? null;
   if (shared === null) {
@@ -248,9 +251,9 @@ export function TeamStrip(props: {
   }
   const { project } = shared;
   const account = statusQuery.data?.account ?? null;
-  const members = (
-    statusQuery.data?.teams.find((team) => team.id === project.teamId)?.members ?? []
-  ).map((member) => member.email);
+  const people = statusQuery.data?.teams.find((team) => team.id === project.teamId)?.members ?? [];
+  const members = people.map((member) => member.email);
+  const roleOf = (email: string) => people.find((member) => member.email === email)?.role;
   const teammates = members.filter((email) => email !== account);
   const review = shared.review;
   const editor = shared.role !== "viewer";
@@ -263,19 +266,23 @@ export function TeamStrip(props: {
     });
   const composerRef = props.composerRef;
   const askAgent =
-    composerRef === null || review === null || !editor
-      ? null
-      : () =>
-          action.run(async () => {
-            if (!shared.mine) {
-              if (project.checkedOutBy !== null) {
-                throw new Error(`${project.checkedOutBy} has it checked out.`);
-              }
-              const result = await checkOut({ environmentId, input: { cwd: folder } });
-              if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-            }
-            handToChat(composerRef, reviewPrompt(review, project.teamName, folder));
-          });
+    composerRef === null || review === null || !editor ? null : () => setAddressing(true);
+  const handComments = (chosen: ReadonlyArray<ReviewComment>) =>
+    action.run(async () => {
+      if (composerRef === null || review === null) return;
+      if (!shared.mine) {
+        if (project.checkedOutBy !== null) {
+          throw new Error(`${project.checkedOutBy} has it checked out.`);
+        }
+        const result = await checkOut({ environmentId, input: { cwd: folder } });
+        if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      }
+      setAddressing(false);
+      handToChat(
+        composerRef,
+        reviewPrompt({ review, teamName: project.teamName, folder, chosen, roleOf }),
+      );
+    });
 
   return (
     <section
@@ -374,6 +381,15 @@ export function TeamStrip(props: {
         />
       )}
       <span className="sr-only">Your role: {ROLE_LABEL[shared.role]}</span>
+      {review === null ? null : (
+        <AddressCommentsDialog
+          open={addressing}
+          onOpenChange={setAddressing}
+          review={review}
+          roleOf={roleOf}
+          onHand={handComments}
+        />
+      )}
       <CheckInDialog
         open={checkingIn}
         onOpenChange={setCheckingIn}

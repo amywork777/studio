@@ -25,7 +25,20 @@ import { showProject } from "../overviewPanel";
 import { MODULE_HEADING, SECTION_STACK } from "../studioLayout";
 import { useImportProjects } from "../useImportProjects";
 import { useStudioProjects } from "../useStudioProjects";
+import { ConfirmDelete } from "./ConfirmDelete";
 import { ROLE_LABEL, useTeamAction } from "./teamWords";
+
+/** A size in the largest unit that keeps it at 1 or more, to one decimal under 10. */
+const sizeWords = (bytes: number) => {
+  const units = ["bytes", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : Math.round(value * 10) / 10} ${units[unit]}`;
+};
 
 const ROLES: ReadonlyArray<StudioTeamRole> = ["editor", "viewer", "admin"];
 
@@ -201,6 +214,9 @@ function TeamPeople(props: {
         <span className="text-xs text-muted-foreground">
           {paid.length} of {team.seats} paid seats used. Viewers are free.
         </span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          Files: {sizeWords(team.storageUsed)} of {sizeWords(team.storageLimit)}
+        </span>
       </div>
       <ul className="flex flex-col border-t border-border">
         {[
@@ -277,12 +293,18 @@ function TeamPeople(props: {
   );
 }
 
-/** One team project: who has it, its Version, and Get to bring a copy to this computer. */
+/**
+ * One team project: who has it, its Version, and Get to bring a copy to this computer. A Viewer
+ * gets no copy, only the review page; an Admin may delete it from the team.
+ */
 function TeamProjectRow(props: {
   readonly project: StudioTeamProject;
+  readonly role: StudioTeamRole;
+  readonly reviewPage: string | null;
   readonly here: boolean;
   readonly busy: boolean;
   readonly onGet: () => void;
+  readonly onDelete: () => void;
 }) {
   const { project } = props;
   return (
@@ -298,16 +320,63 @@ function TeamProjectRow(props: {
           ? `Checked in ${formatRelativeTimeLabel(project.updatedAt)}`
           : `Checked out by ${project.checkedOutBy}`}
       </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={props.busy || project.version === 0}
-        onClick={props.onGet}
-      >
-        {props.here ? "Get another copy" : "Get"}
-      </Button>
+      {props.role === "viewer" ? (
+        props.reviewPage === null ? null : (
+          <Button
+            variant="outline"
+            size="sm"
+            render={<a href={props.reviewPage} target="_blank" rel="noopener noreferrer" />}
+          >
+            Review in browser
+          </Button>
+        )
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={props.busy || project.version === 0}
+          onClick={props.onGet}
+        >
+          {props.here ? "Get another copy" : "Get"}
+        </Button>
+      )}
+      {props.role === "admin" ? (
+        <Button variant="ghost-muted" size="sm" disabled={props.busy} onClick={props.onDelete}>
+          Delete
+        </Button>
+      ) : null}
     </li>
   );
+}
+
+type Deleting =
+  | { readonly kind: "project"; readonly project: StudioTeamProject }
+  | { readonly kind: "team"; readonly team: StudioTeam }
+  | { readonly kind: "account" };
+
+/** What each delete says before it happens. */
+function deleteWords(deleting: Deleting) {
+  switch (deleting.kind) {
+    case "project":
+      return {
+        title: `Delete ${deleting.project.name} from ${deleting.project.teamName}`,
+        description: `Deletes the project, its Versions, reviews and files from the team hub. Copies already on people's computers stay. This can't be undone.`,
+        action: "Delete project",
+      };
+    case "team":
+      return {
+        title: `Delete ${deleting.team.name}`,
+        description: `Deletes the team, everyone's place on it, and its projects and files on the team hub. Copies on people's computers stay. This can't be undone.`,
+        action: "Delete team",
+      };
+    case "account":
+      return {
+        title: "Delete your team account",
+        description:
+          "Deletes your sign-in and takes you off every team. Teams only you are on are deleted with their files. Projects on this computer stay. This can't be undone.",
+        action: "Delete account",
+      };
+  }
 }
 
 /**
@@ -328,6 +397,14 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
   );
   const signOut = useAtomCommand(studioTeamsEnvironment.signOut, { reportFailure: true });
   const get = useAtomCommand(studioTeamsEnvironment.get, { reportFailure: false });
+  const deleteProject = useAtomCommand(studioTeamsEnvironment.deleteProject, {
+    reportFailure: false,
+  });
+  const deleteTeam = useAtomCommand(studioTeamsEnvironment.deleteTeam, { reportFailure: false });
+  const deleteAccount = useAtomCommand(studioTeamsEnvironment.deleteAccount, {
+    reportFailure: false,
+  });
+  const [deleting, setDeleting] = useState<Deleting | null>(null);
   const canGet = useAtomValue(studioTeamsEnvironment.get.permissionAtom(environmentId));
   const runImport = useImportProjects(environmentId);
   const handleNewThread = useNewThreadHandler();
@@ -367,6 +444,19 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
       if (draft !== null) showProject(scopeThreadRef(environmentId, draft.threadId));
     });
 
+  const confirmDelete = (target: Deleting) =>
+    action.run(async () => {
+      const result =
+        target.kind === "project"
+          ? await deleteProject({ environmentId, input: { projectId: target.project.id } })
+          : target.kind === "team"
+            ? await deleteTeam({ environmentId, input: { teamId: target.team.id } })
+            : await deleteAccount({ environmentId, input: {} });
+      setDeleting(null);
+      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+      toastManager.add({ type: "success", title: deleteDone(target) });
+    });
+
   const projects = projectsQuery.data?.projects ?? [];
   return (
     <section aria-label="Team" className={SECTION_STACK}>
@@ -381,6 +471,14 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
               onClick={() => void signOut({ environmentId, input: {} })}
             >
               Sign out
+            </Button>
+            <Button
+              variant="ghost-muted"
+              size="sm"
+              disabled={action.busy}
+              onClick={() => setDeleting({ kind: "account" })}
+            >
+              Delete account
             </Button>
           </span>
         ) : null}
@@ -399,8 +497,18 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
             >
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-medium text-foreground">{team.name}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
                   You are {ROLE_LABEL[team.role]}
+                  {team.role === "admin" ? (
+                    <Button
+                      variant="ghost-muted"
+                      size="sm"
+                      disabled={action.busy}
+                      onClick={() => setDeleting({ kind: "team", team })}
+                    >
+                      Delete team
+                    </Button>
+                  ) : null}
                 </span>
               </div>
               <div className="flex flex-col gap-2">
@@ -415,9 +523,12 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
                       <TeamProjectRow
                         key={project.id}
                         project={project}
+                        role={team.role}
+                        reviewPage={status.reviewPage}
                         here={localNames.includes(project.name)}
                         busy={action.busy || !canGet}
                         onGet={() => bring(project)}
+                        onDelete={() => setDeleting({ kind: "project", project })}
                       />
                     ))}
                   </ul>
@@ -432,6 +543,26 @@ export function TeamSection(props: { readonly environmentId: EnvironmentId }) {
         })
       )}
       {action.error === null ? null : <p className="text-xs text-destructive">{action.error}</p>}
+      {deleting === null ? null : (
+        <ConfirmDelete
+          open
+          {...deleteWords(deleting)}
+          busy={action.busy}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => confirmDelete(deleting)}
+        />
+      )}
     </section>
   );
+}
+
+function deleteDone(target: Deleting): string {
+  switch (target.kind) {
+    case "project":
+      return `Deleted ${target.project.name} from ${target.project.teamName}`;
+    case "team":
+      return `Deleted ${target.team.name}`;
+    case "account":
+      return "Deleted your team account";
+  }
 }

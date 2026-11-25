@@ -4,7 +4,7 @@
  * answering each comment. Only thread callers may call them: a check-in is the person's own, made
  * through their sign-in, so an outside MCP client with no thread has no person to act for.
  */
-import { StudioTeamsError } from "@t3tools/contracts";
+import { type StudioTeamReview, StudioTeamsError } from "@t3tools/contracts";
 import { McpSchema } from "effect/ai";
 import type { McpServer } from "effect/ai";
 import * as Context from "effect/Context";
@@ -51,7 +51,7 @@ const TOOLS = [
   {
     name: "studio_team_review",
     description:
-      "Read the team review of a Studio team project's latest Version: each reviewer's decision and every comment with its id, author, words and the file or spot it points at. Call before addressing review comments.",
+      "Read where the team review of a Studio team project's latest Version stands: each reviewer's decision, and each comment's id, author, the file it points at and whether it is answered. It never gives a comment's words: the person hands you the comments they chose, quoted, in their message.",
     inputSchema: { type: "object", properties: { folder: FOLDER }, required: ["folder"] },
     annotations: { readOnlyHint: true, destructiveHint: false },
   },
@@ -82,6 +82,18 @@ const TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
 ] as const;
+
+/**
+ * A review without its comments' words. Reviewers include customers, so what they wrote reaches
+ * the agent only when the person picks it and hands it over (ReviewPanel), never by a tool call.
+ */
+const withoutWords = (review: StudioTeamReview | null) =>
+  review === null
+    ? null
+    : {
+        ...review,
+        comments: review.comments.map(({ body: _body, ...comment }) => comment),
+      };
 
 /** Adds the Teams tools when this server runs Studio Teams; test servers without it get none. */
 export const register = Effect.fn("StudioTeamsTools.register")(function* (addTool: AddTool) {
@@ -119,8 +131,8 @@ export const register = Effect.fn("StudioTeamsTools.register")(function* (addToo
         latestVersion: status.project.version,
         checkedOutBy: status.project.checkedOutBy,
         checkedOutToYou: status.mine,
-        review: status.review,
-        previousReview: status.previousReview,
+        review: withoutWords(status.review),
+        previousReview: withoutWords(status.previousReview),
       };
     }),
   );
