@@ -17,5 +17,7 @@ export function withoutT3SnapShot(settings: ClientSettings): ClientSettings {
 
 /** Where a person gets another version: Studio's downloads, not T3 Code's releases. */
 export function releasesUrl(t3ReleasesUrl: string): string {
-  return hidesT3Products() ? "https://github.com/amywork777/studio-download/releases" : t3ReleasesUrl;
+  return hidesT3Products()
+    ? "https://github.com/amywork777/studio-download/releases"
+    : t3ReleasesUrl;
 }

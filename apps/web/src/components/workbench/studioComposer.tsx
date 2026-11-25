@@ -11,6 +11,7 @@ import type { ComposerCommandItem } from "../chat/ComposerCommandMenu";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { drawAttachedPages } from "./drawingPages";
 import {
   copyIntoReferences,
   FILE_ATTACHED_REFERENCES,
@@ -156,6 +157,10 @@ export function useStudioComposer(input: {
     const references = await copyIntoReferences(
       gitCwd,
       copied.map((entry) => entry.path),
+    );
+    drawAttachedPages(
+      gitCwd,
+      references.map((reference, index) => ({ file: copied[index]!.file, reference })),
     );
     for (const reference of references) {
       insertComposerTextAtEnd(`${serializeComposerFileLink(`${gitCwd}/${reference}`)} `, {

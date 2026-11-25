@@ -1,4 +1,5 @@
-// @effect-diagnostics nodeBuiltinImport:off - the IPC handlers check paths with node:path.
+// @effect-diagnostics nodeBuiltinImport:off - the IPC handlers check paths and write a PDF with Node.
+import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
@@ -12,7 +13,10 @@ import {
   STUDIO_IMPORT_SCAN_CHANNEL,
   STUDIO_OPEN_FILE_CHANNEL,
   STUDIO_PICK_FOLDER_CHANNEL,
+  STUDIO_SAVE_PDF_CHANNEL,
+  STUDIO_WRITE_DRAWING_PAGES_CHANNEL,
 } from "./studioImportChannels.ts";
+import { writeDrawingPages } from "./studioDrawingPages.ts";
 import { backUp, copyInto, defaultRoots, isOpenable, scanFolder } from "./studioImportFiles.ts";
 
 export type { StudioImportFile, StudioImportScan } from "./studioImportFiles.ts";
@@ -20,7 +24,8 @@ export type { StudioImportFile, StudioImportScan } from "./studioImportFiles.ts"
 /**
  * Studio's files on this computer, reached by the page as `window.studioImport`: import scans and
  * copies, project backups, and opening a document in its own app (`isOpenable`; never a script or
- * an app). It only reads, except where it copies into a folder the person chose.
+ * an app). It only reads, except where it copies into a folder the person chose, writes a PDF
+ * drawing's pages beside it, and saves a report as PDF where Studio puts it.
  */
 
 const isAbsolutePath = (value: unknown): value is string =>
@@ -81,6 +86,38 @@ export const installStudioImport = Effect.fn("desktop.studioImport.install")(fun
       }
       const failure = await shell.openPath(path);
       if (failure !== "") throw new Error(failure);
+    });
+    ipcMain.handle(
+      STUDIO_WRITE_DRAWING_PAGES_CHANNEL,
+      (_event, folder: unknown, files: unknown) => {
+        if (!isAbsolutePath(folder) || !Array.isArray(files)) {
+          throw new Error("A drawing's pages need their folder's full path.");
+        }
+        return writeDrawingPages(folder, files);
+      },
+    );
+    ipcMain.handle(STUDIO_SAVE_PDF_CHANNEL, async (_event, html: unknown, path: unknown) => {
+      if (typeof html !== "string" || !isAbsolutePath(path) || !/\.pdf$/i.test(path)) {
+        throw new Error("Saving a PDF needs its page and a full path ending in .pdf.");
+      }
+      // A page of Studio's own making, drawn off screen with no script and printed as the
+      // system's print to PDF would, the same on a Mac and on Windows.
+      const page = new BrowserWindow({
+        show: false,
+        webPreferences: { javascript: false, sandbox: true },
+      });
+      try {
+        await page.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+        const pdf = await page.webContents.printToPDF({
+          landscape: true,
+          printBackground: true,
+          pageSize: "Letter",
+        });
+        await NodeFSP.mkdir(NodePath.dirname(path), { recursive: true });
+        await NodeFSP.writeFile(path, pdf);
+      } finally {
+        page.destroy();
+      }
     });
   });
 });

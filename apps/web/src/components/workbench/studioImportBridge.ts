@@ -20,6 +20,13 @@ export interface StudioImportBridge {
   ): Promise<{ readonly folder: string; readonly copied: number }>;
   /** Opens a document, sheet, drawing or model in its own app on this Mac (`StudioFilePage`). */
   openFile?(path: string): Promise<void>;
+  /** Keeps a PDF drawing's page pictures and words in its `-pages` folder (`drawingPages.ts`). */
+  writeDrawingPages?(
+    folder: string,
+    files: ReadonlyArray<{ readonly name: string; readonly bytes: Uint8Array }>,
+  ): Promise<ReadonlyArray<string>>;
+  /** Prints a page Studio made to a PDF at the path (a drawing check's report). */
+  savePdf?(html: string, path: string): Promise<void>;
 }
 
 /** Null outside the desktop app (the hosted or a remote web app), where Import is not offered. */
