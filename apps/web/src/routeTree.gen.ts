@@ -28,6 +28,7 @@ import { Route as ChatNeedsYouRouteImport } from './routes/_chat.needs-you'
 import { Route as ChatLibraryRouteImport } from './routes/_chat.library'
 import { Route as ChatIssuesRouteImport } from './routes/_chat.issues'
 import { Route as ChatChatsRouteImport } from './routes/_chat.chats'
+import { Route as ChatCanvasRouteImport } from './routes/_chat.canvas'
 import { Route as ChatExamplesIndexRouteImport } from './routes/_chat.examples.index'
 import { Route as ThreadsEnvironmentIdThreadIdRouteImport } from './routes/threads.$environmentId.$threadId'
 import { Route as ChatSettingsWorktreesRouteImport } from './routes/_chat.settings.worktrees'
@@ -157,6 +158,11 @@ const ChatIssuesRoute = ChatIssuesRouteImport.update({
 const ChatChatsRoute = ChatChatsRouteImport.update({
   id: '/chats',
   path: '/chats',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatCanvasRoute = ChatCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
   getParentRoute: () => ChatRoute,
 } as any)
 const ChatExamplesIndexRoute = ChatExamplesIndexRouteImport.update({
@@ -354,6 +360,7 @@ export interface FileRoutesByFullPath {
   '/guest': typeof GuestRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/canvas': typeof ChatCanvasRoute
   '/chats': typeof ChatChatsRoute
   '/issues': typeof ChatIssuesRoute
   '/library': typeof ChatLibraryRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/guest': typeof GuestRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/canvas': typeof ChatCanvasRoute
   '/chats': typeof ChatChatsRoute
   '/issues': typeof ChatIssuesRoute
   '/library': typeof ChatLibraryRoute
@@ -467,6 +475,7 @@ export interface FileRoutesById {
   '/guest': typeof GuestRoute
   '/pair': typeof PairRoute
   '/welcome': typeof WelcomeRoute
+  '/_chat/canvas': typeof ChatCanvasRoute
   '/_chat/chats': typeof ChatChatsRoute
   '/_chat/issues': typeof ChatIssuesRoute
   '/_chat/library': typeof ChatLibraryRoute
@@ -526,6 +535,7 @@ export interface FileRouteTypes {
     | '/guest'
     | '/pair'
     | '/welcome'
+    | '/canvas'
     | '/chats'
     | '/issues'
     | '/library'
@@ -581,6 +591,7 @@ export interface FileRouteTypes {
     | '/guest'
     | '/pair'
     | '/welcome'
+    | '/canvas'
     | '/chats'
     | '/issues'
     | '/library'
@@ -638,6 +649,7 @@ export interface FileRouteTypes {
     | '/guest'
     | '/pair'
     | '/welcome'
+    | '/_chat/canvas'
     | '/_chat/chats'
     | '/_chat/issues'
     | '/_chat/library'
@@ -833,6 +845,13 @@ declare module '@tanstack/react-router' {
       path: '/chats'
       fullPath: '/chats'
       preLoaderRoute: typeof ChatChatsRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/canvas': {
+      id: '/_chat/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof ChatCanvasRouteImport
       parentRoute: typeof ChatRoute
     }
     '/_chat/examples/': {
@@ -1161,6 +1180,7 @@ const ChatSettingsRouteWithChildren = ChatSettingsRoute._addFileChildren(
 )
 
 interface ChatRouteChildren {
+  ChatCanvasRoute: typeof ChatCanvasRoute
   ChatChatsRoute: typeof ChatChatsRoute
   ChatIssuesRoute: typeof ChatIssuesRoute
   ChatLibraryRoute: typeof ChatLibraryRoute
@@ -1180,6 +1200,7 @@ interface ChatRouteChildren {
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatCanvasRoute: ChatCanvasRoute,
   ChatChatsRoute: ChatChatsRoute,
   ChatIssuesRoute: ChatIssuesRoute,
   ChatLibraryRoute: ChatLibraryRoute,

@@ -181,6 +181,7 @@ apps/server/src/workspace/WorkspaceFileSystem.test.ts
 apps/server/src/workspace/WorkspaceFileSystem.ts
 apps/server/src/ws.test.ts
 apps/server/src/ws.ts
+apps/web/package.json
 apps/web/src/branding.ts
 apps/web/src/cloud/publicConfig.ts
 apps/web/src/components/AppSidebarLayout.tsx
