@@ -67,6 +67,8 @@ import {
   StudioTeamsReviewCommentInput,
   StudioTeamsReviewDecideInput,
   StudioTeamsShareInput,
+  StudioTeamsShareLinkInput,
+  StudioTeamsShareLinkResult,
   StudioTeamsSignInCheckInput,
   StudioTeamsSignInStartInput,
   StudioTeamsStatusResult,
@@ -109,6 +111,7 @@ export const STUDIO_WS_METHODS = {
   studioTeamsDeleteAccount: "studioTeams.deleteAccount",
   studioTeamsProjects: "studioTeams.projects",
   studioTeamsShare: "studioTeams.share",
+  studioTeamsShareLink: "studioTeams.shareLink",
   studioTeamsGet: "studioTeams.get",
   studioTeamsFolderStatus: "studioTeams.folderStatus",
   studioTeamsCheckOut: "studioTeams.checkOut",
@@ -333,6 +336,12 @@ const WsStudioTeamsShareRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsShare, {
   error: StudioTeamsError,
 });
 
+const WsStudioTeamsShareLinkRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsShareLink, {
+  payload: StudioTeamsShareLinkInput,
+  success: StudioTeamsShareLinkResult,
+  error: StudioTeamsError,
+});
+
 const WsStudioTeamsGetRpc = Rpc.make(STUDIO_WS_METHODS.studioTeamsGet, {
   payload: StudioTeamsGetInput,
   success: StudioTeamsGetResult,
@@ -423,6 +432,7 @@ export const STUDIO_RPCS = [
   WsStudioTeamsDeleteAccountRpc,
   WsStudioTeamsProjectsRpc,
   WsStudioTeamsShareRpc,
+  WsStudioTeamsShareLinkRpc,
   WsStudioTeamsGetRpc,
   WsStudioTeamsFolderStatusRpc,
   WsStudioTeamsCheckOutRpc,
@@ -460,6 +470,7 @@ export const STUDIO_CLIENT_GUARDED_RPC_SCOPES = {
   [STUDIO_WS_METHODS.studioTeamsDeleteProject]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsDeleteAccount]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsShare]: AuthSourceControlWriteScope,
+  [STUDIO_WS_METHODS.studioTeamsShareLink]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsGet]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsCheckOut]: AuthSourceControlWriteScope,
   [STUDIO_WS_METHODS.studioTeamsCheckIn]: AuthSourceControlWriteScope,

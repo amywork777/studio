@@ -240,6 +240,11 @@ const makeHub = () => {
       }
       case "accept_invites":
         return ok(0);
+      case "personal_team":
+        return ok(TEAM);
+      case "share_link":
+        if (!editor) return refuse("not-allowed");
+        return projects.has(args.p_project) ? ok(`link-${args.p_project}`) : refuse("not-found");
       case "share_project": {
         if (!editor) return refuse("not-allowed");
         const id = `p-${(shared += 1)}`;
@@ -454,7 +459,13 @@ const studioFor = (hub: Hub, who: string, expiresAt = 4_000_000_000) => {
           ),
         ),
         ConfigProvider.layer(
-          ConfigProvider.fromEnv({ env: { STUDIO_TEAMS_URL: HUB, STUDIO_TEAMS_KEY: "public" } }),
+          ConfigProvider.fromEnv({
+            env: {
+              STUDIO_TEAMS_URL: HUB,
+              STUDIO_TEAMS_KEY: "public",
+              STUDIO_REVIEW_URL: "https://hub.test",
+            },
+          }),
         ),
       ),
     ),
@@ -595,6 +606,28 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
     ),
   );
 
+  it.effect(
+    "Share link needs no team, and sharing after a change sends a Version to the same link",
+    () =>
+      withTeam(({ amy, work, write }) =>
+        Effect.gen(function* () {
+          const first = yield* amy.shareLink({ cwd: work, name: "Bracket" });
+          assert.strictEqual(first.version, 1);
+          assert.match(first.url, /^https:\/\/hub\.test\/\?link=link-p-1$/);
+
+          const same = yield* amy.shareLink({ cwd: work, name: "Bracket" });
+          assert.deepStrictEqual(same, first);
+
+          yield* write(work, "part.py", "wall = 5\n");
+          const changed = yield* amy.shareLink({ cwd: work, name: "Bracket" });
+          assert.strictEqual(changed.url, first.url);
+          assert.strictEqual(changed.version, 2);
+          const after = yield* amy.folderStatus({ cwd: work });
+          assert.strictEqual(after?.project.checkedOutBy, null);
+        }),
+      ),
+  );
+
   it.effect("a folder whose team project is gone can be shared again", () =>
     withTeam(({ amy, hub, work }) =>
       Effect.gen(function* () {
@@ -622,7 +655,7 @@ it.layer(NodeServices.layer)("StudioTeams", (it) => {
         available: true,
         account: null,
         teams: [],
-        reviewPage: null,
+        reviewPage: "https://hub.test",
       });
       const again = yield* stale.status;
       assert.strictEqual(again.account, null);

@@ -25,6 +25,8 @@ import {
   type StudioTeamsReviewCommentInput,
   type StudioTeamsReviewDecideInput,
   type StudioTeamsShareInput,
+  type StudioTeamsShareLinkInput,
+  type StudioTeamsShareLinkResult,
   type StudioTeamsSignInCheckInput,
   type StudioTeamsSignInStartInput,
   type StudioTeamsStatusResult,
@@ -326,6 +328,13 @@ export class StudioTeams extends Context.Service<
     readonly share: (
       input: StudioTeamsShareInput,
     ) => Effect.Effect<StudioTeamsFolderStatusResult, StudioTeamsError>;
+    /**
+     * Share link with no team to set up: the first time puts the project on the person's own
+     * team (`personal_team`), later times check in what changed there, and the link stays the same.
+     */
+    readonly shareLink: (
+      input: StudioTeamsShareLinkInput,
+    ) => Effect.Effect<StudioTeamsShareLinkResult, StudioTeamsError>;
     /** Brings a team project's latest Version into a new folder under `root`. */
     readonly get: (
       input: StudioTeamsGetInput & { readonly root: string },
@@ -1445,6 +1454,41 @@ const make = Effect.gen(function* () {
     return yield* status;
   }).pipe(Effect.withSpan("StudioTeams.deleteAccount"));
 
+  const shareLink: StudioTeams["Service"]["shareLink"] = Effect.fn("StudioTeams.shareLink")(
+    function* ({ cwd, name }) {
+      if (reviewPage === null) {
+        return yield* fail("hub", "This Studio has no page to open shared links on.");
+      }
+      const place = yield* placeOf(cwd);
+      const row =
+        place.project === undefined
+          ? null
+          : yield* projectRow(place.project).pipe(
+              Effect.catchTags({
+                StudioTeamsError: (error) =>
+                  error.reason === "not-found" ? Effect.succeed(null) : Effect.fail(error),
+              }),
+            );
+      if (row === null) {
+        const teamId = yield* rpc("personal_team", {}, Schema.String);
+        yield* share({ cwd, teamId, name });
+      } else {
+        const own = yield* rpc("personal_team", {}, Schema.String);
+        // On someone's team a change goes in through check-in, never quietly through a link.
+        if (row.team_id === own && (yield* changesHere(cwd, row, place.version))) {
+          yield* checkOut({ cwd });
+          yield* checkIn({ cwd, note: "Shared by link", keep: false });
+        }
+      }
+      const now = yield* placeOf(cwd);
+      if (now.project === undefined) return yield* notChecked(cwd);
+      const token = yield* rpc("share_link", { p_project: now.project, p_on: true }, Schema.String);
+      const url = new URL(reviewPage);
+      url.searchParams.set("link", token);
+      return { url: url.href, version: now.version };
+    },
+  );
+
   return StudioTeams.of({
     status,
     signInStart,
@@ -1455,6 +1499,7 @@ const make = Effect.gen(function* () {
     remove,
     projects,
     share,
+    shareLink,
     get,
     folderStatus,
     checkOut,

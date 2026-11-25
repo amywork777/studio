@@ -99,6 +99,20 @@ export const StudioTeamsShareInput = Schema.Struct({
 });
 export type StudioTeamsShareInput = typeof StudioTeamsShareInput.Type;
 
+/** Share link: the project's models and drawings in a browser, for anyone who opens the link. */
+export const StudioTeamsShareLinkInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+});
+export type StudioTeamsShareLinkInput = typeof StudioTeamsShareLinkInput.Type;
+
+export const StudioTeamsShareLinkResult = Schema.Struct({
+  url: TrimmedNonEmptyString,
+  /** The Version the link shows. */
+  version: Schema.Number,
+});
+export type StudioTeamsShareLinkResult = typeof StudioTeamsShareLinkResult.Type;
+
 /** Brings a team project to this computer as a new project folder. */
 export const StudioTeamsGetInput = Schema.Struct({ projectId: TrimmedNonEmptyString });
 export type StudioTeamsGetInput = typeof StudioTeamsGetInput.Type;

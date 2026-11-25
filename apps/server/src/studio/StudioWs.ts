@@ -208,6 +208,8 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
     [WS_METHODS.studioTeamsProjects]: () => studioTeams.projects,
     [WS_METHODS.studioTeamsShare]: (input) =>
       studioTeams.share(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsShareLink]: (input) =>
+      studioTeams.shareLink(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
     [WS_METHODS.studioTeamsGet]: (input) =>
       managedFolders.newProjectsRoot.pipe(
         Effect.mapError(

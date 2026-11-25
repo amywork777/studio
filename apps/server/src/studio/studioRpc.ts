@@ -70,6 +70,7 @@ export const STUDIO_RPC_AGGREGATES = {
   [WS_METHODS.studioTeamsDeleteAccount]: "source-control",
   [WS_METHODS.studioTeamsProjects]: "source-control",
   [WS_METHODS.studioTeamsShare]: "source-control",
+  [WS_METHODS.studioTeamsShareLink]: "source-control",
   [WS_METHODS.studioTeamsGet]: "source-control",
   [WS_METHODS.studioTeamsFolderStatus]: "source-control",
   [WS_METHODS.studioTeamsCheckOut]: "source-control",

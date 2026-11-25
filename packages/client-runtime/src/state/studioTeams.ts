@@ -124,6 +124,13 @@ export function createStudioTeamsEnvironmentAtoms<R, E>(
       concurrency: serial,
       onSettled: settled,
     }),
+    shareLink: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-teams:share-link",
+      tag: WS_METHODS.studioTeamsShareLink,
+      scheduler,
+      concurrency: serial,
+      onSettled: settled,
+    }),
     get: createEnvironmentRpcCommand(runtime, {
       label: "environment-command:studio-teams:get",
       tag: WS_METHODS.studioTeamsGet,
