@@ -24,7 +24,6 @@ NodeTest.test(
   async () => {
     const reports = [];
     const body = meteredBody(streamOf(...SSE), {
-      provider: "anthropic",
       json: false,
       done: (usage) => void reports.push(usage),
     });
@@ -41,33 +40,16 @@ NodeTest.test(
   },
 );
 
-NodeTest.test(
-  "reports a plain JSON answer's usage, and an OpenAI stream's completed usage",
-  async () => {
-    const reports = [];
-    const done = (usage) => void reports.push(usage);
-    await read(
-      meteredBody(streamOf('{"usage":{"input_tokens":3,', '"output_tokens":4}}'), {
-        provider: "anthropic",
-        json: true,
-        done,
-      }),
-    );
-    await read(
-      meteredBody(
-        streamOf(
-          'data: {"type":"response.created"}\n\n',
-          'data: {"type":"response.completed","response":{"usage":{"input_tokens":9,"output_tokens":2}}}\n\ndata: [DONE]\n\n',
-        ),
-        { provider: "openai", json: false, done },
-      ),
-    );
-    NodeAssert.deepEqual(reports, [
-      { input_tokens: 3, output_tokens: 4 },
-      { input_tokens: 9, output_tokens: 2 },
-    ]);
-  },
-);
+NodeTest.test("reports a plain JSON answer's usage, OpenRouter's cost with it", async () => {
+  const reports = [];
+  await read(
+    meteredBody(streamOf('{"usage":{"input_tokens":3,', '"output_tokens":4,"cost":0.01}}'), {
+      json: true,
+      done: (usage) => void reports.push(usage),
+    }),
+  );
+  NodeAssert.deepEqual(reports, [{ input_tokens: 3, output_tokens: 4, cost: 0.01 }]);
+});
 
 NodeTest.test("a stream stopped part way still reports the input it read, once", async () => {
   const reports = [];
@@ -77,7 +59,7 @@ NodeTest.test("a stream stopped part way still reports the input it read, once",
         controller.enqueue(new TextEncoder().encode(SSE[0]));
       },
     }),
-    { provider: "anthropic", json: false, done: (usage) => void reports.push(usage) },
+    { json: false, done: (usage) => void reports.push(usage) },
   );
   const reader = body.getReader();
   await reader.read();

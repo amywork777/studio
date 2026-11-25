@@ -1,9 +1,9 @@
 import type { ProviderInstanceConfig } from "@t3tools/contracts";
 
 /**
- * Studio Pro is the Claude instance pointed at Studio Pro's server (`infra/pro`): Claude Code's
- * endpoint, the license key as its secret auth token, and the account id the Pro row reads use by
- * (the app cannot read a secret back). Leaving Pro takes the three away.
+ * Studio Pro is the Claude instance pointed at Studio Pro's server (`infra/pro`, which runs it on
+ * OpenRouter): Claude Code's endpoint, the license key as its secret auth token, the account id the
+ * Pro row reads use by (the app cannot read a secret back), and GPT beside Claude in its models.
  */
 const STUDIO_PRO_SERVER: string =
   import.meta.env.VITE_STUDIO_PRO_URL || "https://texttocad-studio-pro.vercel.app";
@@ -11,6 +11,9 @@ const BASE_URL = "ANTHROPIC_BASE_URL";
 const TOKEN = "ANTHROPIC_AUTH_TOKEN";
 const ACCOUNT = "STUDIO_PRO_ACCOUNT";
 const PRO_VARIABLES = new Set([BASE_URL, TOKEN, ACCOUNT]);
+// What Pro adds to Claude's own models, by the OpenRouter slug the server runs it as.
+const PRO_MODELS = [{ slug: "openai/gpt-6.2-astra", name: "GPT-6.2 Astra" }];
+const PRO_SLUGS = new Set(PRO_MODELS.map((model) => model.slug));
 
 export type StudioProPlan = "monthly" | "founding";
 
@@ -56,7 +59,21 @@ export function proAccountIn(
     : null;
 }
 
-/** The Claude instance on a Pro key: its other variables kept, and Pro's three in place. */
+const configOf = (config: unknown): Record<string, unknown> =>
+  config !== null && typeof config === "object" && !Array.isArray(config)
+    ? (config as Record<string, unknown>)
+    : {};
+
+/** The instance's own custom models, without Pro's. */
+const ownModels = (config: unknown): ReadonlyArray<unknown> => {
+  const models = configOf(config).customModels;
+  return (Array.isArray(models) ? models : []).filter((model) => {
+    const slug = typeof model === "string" ? model : configOf(model).slug;
+    return !(typeof slug === "string" && PRO_SLUGS.has(slug));
+  });
+};
+
+/** The Claude instance on a Pro key: its other variables and models kept, and Pro's in place. */
 export function proInstance(
   instance: ProviderInstanceConfig,
   key: string,
@@ -67,6 +84,10 @@ export function proInstance(
   return {
     ...instance,
     enabled: true,
+    config: {
+      ...configOf(instance.config),
+      customModels: [...ownModels(instance.config), ...PRO_MODELS],
+    },
     environment: [
       ...(instance.environment ?? []).filter((entry) => !PRO_VARIABLES.has(entry.name)),
       { name: BASE_URL, value: `${server}/anthropic`, sensitive: false },
@@ -76,10 +97,11 @@ export function proInstance(
   };
 }
 
-/** The Claude instance off Pro: back on the person's own Claude sign-in. */
+/** The Claude instance off Pro: back on the person's own Claude sign-in and models. */
 export function instanceWithoutPro(instance: ProviderInstanceConfig): ProviderInstanceConfig {
   return {
     ...instance,
+    config: { ...configOf(instance.config), customModels: ownModels(instance.config) },
     environment: (instance.environment ?? []).filter((entry) => !PRO_VARIABLES.has(entry.name)),
   };
 }

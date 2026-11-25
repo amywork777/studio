@@ -30,14 +30,15 @@ create table if not exists public.pro_usage (
   id bigint generated always as identity primary key,
   account_id uuid not null references public.pro_accounts (id),
   at timestamptz not null default now(),
-  provider text not null,                       -- 'anthropic' or 'openai'
+  provider text not null,                       -- 'openrouter'
   model text not null,
   input_tokens integer not null default 0,      -- uncached input
   cache_write_tokens integer not null default 0,
   cache_read_tokens integer not null default 0,
   output_tokens integer not null default 0,
   web_searches integer not null default 0,
-  cost_usd numeric(12, 6) not null
+  cost_usd numeric(12, 6) not null,
+  cost_source text not null default 'openrouter' -- 'openrouter': its reported cost; 'tokens': its listed prices times the tokens
 );
 
 create index if not exists pro_usage_account_at on public.pro_usage (account_id, at);

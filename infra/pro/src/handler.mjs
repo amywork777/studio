@@ -5,7 +5,7 @@
  */
 import { accountIdOf, claimHashOf, keyMatches, keyOf, licenseKey } from "./license.mjs";
 import { meteredBody } from "./meter.mjs";
-import { anthropicCost, openaiCost, priceOf } from "./prices.mjs";
+import { costOf, modelOf } from "./prices.mjs";
 import { cancelledPage, welcomePage } from "./pages.mjs";
 import { sessionPaid, STATUS_RUNS } from "./stripe.mjs";
 
@@ -20,16 +20,18 @@ const ACCOUNT_TTL_MS = 30_000;
 const SUBSCRIPTION_TTL_MS = 6 * 60 * 60_000;
 // An Upgrade click's claim stays good for a day.
 const CLAIM_TTL_MS = 24 * 60 * 60_000;
-const ANTHROPIC = "https://api.anthropic.com/";
-const OPENAI = "https://api.openai.com/v1/";
+// OpenRouter's Anthropic Messages endpoint: one key for Claude, GPT and the rest.
+const OPENROUTER = "https://openrouter.ai/api/";
 const ANTHROPIC_PATHS = {
   "v1/messages": "POST",
   "v1/messages/count_tokens": "POST",
   "v1/models": "GET",
 };
-const PASSED_UP = ["content-type", "accept", "anthropic-version", "anthropic-beta", "openai-beta"];
+const PASSED_UP = ["content-type", "accept", "anthropic-version", "anthropic-beta"];
 const PASSED_DOWN =
-  /^(content-type|cache-control|request-id|x-request-id|retry-after|x-should-retry|anthropic-ratelimit-.*|openai-processing-ms)$/i;
+  /^(content-type|cache-control|request-id|x-request-id|retry-after|x-should-retry)$/i;
+// How Studio Pro's calls show on OpenRouter's dashboard.
+const ATTRIBUTION = { "http-referer": "https://texttocad.studio", "x-title": "Studio Pro" };
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type",
@@ -56,8 +58,6 @@ const json = (status, body, headers = {}) =>
 // Anthropic's own error shape, so Claude Code shows the sentence as it is.
 const anthropicError = (status, type, message) =>
   json(status, { type: "error", error: { type, message } });
-const openaiError = (status, message) =>
-  new Response(message, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
 const html = (status, body) =>
   new Response(body, {
     status,
@@ -84,8 +84,8 @@ const periodEndOf = (subscription) => {
 
 /**
  * @param {{ store: ReturnType<import("./store.mjs").databaseStore>, stripe: ReturnType<import("./stripe.mjs").stripeClient>,
- *   config: { licenseSecret: string, anthropicKey?: string, openaiKey?: string, openaiPrices?: object, prices: { monthly?: string, founding?: string }, caps?: { monthly?: number, founding?: number }, portalLoginUrl?: string, missing?: string[] },
- *   fetch?: typeof fetch, now?: () => number, limiter?: { take(key: string): { ok: boolean } } }} deps `fetch`: the AI providers'.
+ *   config: { licenseSecret: string, openrouterKey?: string, prices: { monthly?: string, founding?: string }, caps?: { monthly?: number, founding?: number }, portalLoginUrl?: string, missing?: string[] },
+ *   fetch?: typeof fetch, now?: () => number, limiter?: { take(key: string): { ok: boolean } } }} deps `fetch`: OpenRouter's.
  */
 export function proServer({ store, stripe, config, fetch: send = fetch, now = Date.now, limiter }) {
   const caps = { ...DEFAULT_CAPS, ...config.caps };
@@ -143,11 +143,12 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
     return { account, spent };
   }
 
-  async function record(account, provider, model, cost) {
+  async function record(account, model, cost) {
     await store.addUsage({
       account_id: account.id,
-      provider,
+      provider: "openrouter",
       model,
+      cost_source: cost.source,
       input_tokens: cost.tokens.input,
       cache_write_tokens: cost.tokens.cacheWrite,
       cache_read_tokens: cost.tokens.cacheRead,
@@ -191,98 +192,56 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
   async function anthropic(request, path, search) {
     const say = (status, type, refused) => anthropicError(status, type, SAY[refused]);
     if (ANTHROPIC_PATHS[path] !== request.method) return say(404, "not_found_error", "only");
-    if (!config.anthropicKey) return say(503, "api_error", "notSetUp");
+    if (!config.openrouterKey) return say(503, "api_error", "notSetUp");
     const allowed = await authorize(request.headers);
     if (allowed.refused === "noKey") return say(401, "authentication_error", "noKey");
     if (allowed.refused) return say(403, "permission_error", allowed.refused);
 
     let sent;
-    let price;
+    let model;
     if (request.method === "POST") {
       const read = await bodyOf(request);
       if (read.refused === "tooLarge") return say(413, "request_too_large", "tooLarge");
       if (read.refused) return say(400, "invalid_request_error", "only");
-      price = priceOf(read.body.model);
-      if (!price) return say(400, "invalid_request_error", "model");
+      model = modelOf(read.body.model);
+      if (!model) return say(400, "invalid_request_error", "model");
       if (read.body.speed === "fast") return say(400, "invalid_request_error", "fast");
-      // The request as it was read here, so the model priced is the model Anthropic reads.
-      sent = JSON.stringify(read.body);
+      // The request as it was read here, under OpenRouter's name for the model it was priced as.
+      sent = JSON.stringify({ ...read.body, model: model.slug });
     }
     let answer;
     try {
-      answer = await send(`${ANTHROPIC}${path}${search}`, {
+      answer = await send(`${OPENROUTER}${path}${search}`, {
         method: request.method,
-        headers: upHeaders(request, { "x-api-key": config.anthropicKey }),
+        headers: upHeaders(request, {
+          authorization: `Bearer ${config.openrouterKey}`,
+          ...ATTRIBUTION,
+        }),
         body: sent,
       });
     } catch {
       return say(502, "api_error", "upstream");
     }
-    // Anthropic's words for a key it turns down are about Studio's key, not the person's.
-    if (answer.status === 401 || answer.status === 403) {
+    // A key OpenRouter turns down, or credits run out (402), is Studio's to fix, not the person's.
+    if (answer.status === 401 || answer.status === 402 || answer.status === 403) {
       await answer.body?.cancel();
-      console.error(`pro anthropic refused studio's key: ${answer.status}`);
+      console.error(`pro openrouter refused studio's key: ${answer.status}`);
       return say(503, "api_error", "notSetUp");
     }
     const metered = path === "v1/messages" && answer.ok && answer.body;
     const body = metered
       ? meteredBody(answer.body, {
-          provider: "anthropic",
           json: !(answer.headers.get("content-type") ?? "").includes("event-stream"),
           done: async (usage) => {
             if (!usage) return;
-            const cost = anthropicCost(price, usage);
             try {
-              await record(allowed.account, "anthropic", price.name, cost);
+              await record(allowed.account, model.slug, costOf(model, usage));
             } catch (error) {
               console.error(`pro usage not kept: ${error?.code ?? "error"}`);
             }
           },
         })
       : answer.body;
-    return new Response(body, { status: answer.status, headers: downHeaders(answer) });
-  }
-
-  async function openai(request, path, search) {
-    if (path !== "responses" || request.method !== "POST") return openaiError(404, SAY.only);
-    if (!config.openaiKey) return openaiError(503, SAY.notSetUp);
-    const allowed = await authorize(request.headers);
-    if (allowed.refused) return openaiError(400, SAY[allowed.refused]);
-    const read = await bodyOf(request);
-    if (read.refused)
-      return openaiError(read.refused === "tooLarge" ? 413 : 400, SAY[read.refused]);
-    const price = priceOf(read.body.model, config.openaiPrices ?? {});
-    if (!price || read.body.background) return openaiError(400, SAY.model);
-    if (read.body.service_tier === "priority") return openaiError(400, SAY.fast);
-    let answer;
-    try {
-      answer = await send(`${OPENAI}${path}${search}`, {
-        method: "POST",
-        headers: upHeaders(request, { authorization: `Bearer ${config.openaiKey}` }),
-        body: JSON.stringify(read.body),
-      });
-    } catch {
-      return openaiError(502, SAY.upstream);
-    }
-    if (answer.status === 401) {
-      await answer.body?.cancel();
-      return openaiError(503, SAY.notSetUp);
-    }
-    const body =
-      answer.ok && answer.body
-        ? meteredBody(answer.body, {
-            provider: "openai",
-            json: !(answer.headers.get("content-type") ?? "").includes("event-stream"),
-            done: async (usage) => {
-              if (!usage) return;
-              try {
-                await record(allowed.account, "openai", price.name, openaiCost(price, usage));
-              } catch (error) {
-                console.error(`pro usage not kept: ${error?.code ?? "error"}`);
-              }
-            },
-          })
-        : answer.body;
     return new Response(body, { status: answer.status, headers: downHeaders(answer) });
   }
 
@@ -413,8 +372,6 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
       if (path === "anthropic/api/hello") return new Response("hello", { status: 200 });
       if (path.startsWith("anthropic/"))
         return await anthropic(request, path.slice("anthropic/".length), url.search);
-      if (path.startsWith("openai/v1/"))
-        return await openai(request, path.slice("openai/v1/".length), url.search);
       if (path === "v1/health") return await health();
       if (limiter && ["v1/upgrade", "v1/claim", "v1/welcome", "v1/usage"].includes(path)) {
         if (!limiter.take(`${path}:${client}`).ok)

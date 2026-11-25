@@ -51,6 +51,6 @@ NodeTest.test("health names each setting the host lacks", () => {
     "STRIPE_PRICE_MONTHLY",
     "STRIPE_PRICE_FOUNDING",
     "LICENSE_SECRET",
-    "ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY",
   ]);
 });

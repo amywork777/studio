@@ -2,7 +2,6 @@
 // handler (src/handler.mjs) routes it. Every key it holds is the host's, never Studio's builds'.
 import { DEFAULT_CAPS, proServer } from "../src/handler.mjs";
 import { rateLimiter } from "../src/limit.mjs";
-import { openaiPrices } from "../src/prices.mjs";
 import { databaseStore, missingSettings } from "../src/store.mjs";
 import { stripeClient } from "../src/stripe.mjs";
 
@@ -13,9 +12,7 @@ const serve = proServer({
   stripe: stripeClient({ key: env.STRIPE_SECRET_KEY ?? "" }),
   config: {
     licenseSecret: env.LICENSE_SECRET ?? "",
-    anthropicKey: env.ANTHROPIC_API_KEY,
-    openaiKey: env.OPENAI_API_KEY,
-    openaiPrices: openaiPrices(env.OPENAI_PRICES),
+    openrouterKey: env.OPENROUTER_API_KEY,
     prices: { monthly: env.STRIPE_PRICE_MONTHLY, founding: env.STRIPE_PRICE_FOUNDING },
     caps: {
       monthly: capOf(env.CAP_MONTHLY_USD, DEFAULT_CAPS.monthly),

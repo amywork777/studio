@@ -16,6 +16,7 @@ const KEY = `SPRO-0b7e4c5a3c2d4f6e9a1b2c3d4e5f6a7b-${"a".repeat(43)}`;
 const ACCOUNT = "0b7e4c5a-3c2d-4f6e-9a1b-2c3d4e5f6a7b";
 const claude: ProviderInstanceConfig = {
   driver: ProviderDriverKind.make("claudeAgent"),
+  config: { homePath: "~/.claude-work", customModels: ["claude-own-model"] },
   environment: [
     { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
     { name: "ANTHROPIC_AUTH_TOKEN", value: "old", sensitive: true },
@@ -23,7 +24,7 @@ const claude: ProviderInstanceConfig = {
 };
 
 describe("Studio Pro on the Claude instance", () => {
-  it("points Claude at Pro with the key kept secret, and leaving gives the person's setup back", () => {
+  it("points Claude at Pro with the key kept secret and GPT beside it, and leaving gives the person's setup back", () => {
     const pro = proInstance(claude, KEY, SERVER);
     expect(pro.environment).toEqual([
       { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
@@ -31,6 +32,12 @@ describe("Studio Pro on the Claude instance", () => {
       { name: "ANTHROPIC_AUTH_TOKEN", value: KEY, sensitive: true },
       { name: "STUDIO_PRO_ACCOUNT", value: ACCOUNT, sensitive: false },
     ]);
+    expect(pro.config).toEqual({
+      homePath: "~/.claude-work",
+      customModels: ["claude-own-model", { slug: "openai/gpt-6.2-astra", name: "GPT-6.2 Astra" }],
+    });
+    // Signing in twice adds GPT once.
+    expect(proInstance(pro, KEY, SERVER).config).toEqual(pro.config);
     expect(proAccountIn(pro, SERVER)).toBe(ACCOUNT);
     expect(proAccountIn(claude, SERVER)).toBeNull();
     // Another endpoint the person set is theirs, not Pro.
@@ -38,6 +45,7 @@ describe("Studio Pro on the Claude instance", () => {
     expect(instanceWithoutPro(pro).environment).toEqual([
       { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
     ]);
+    expect(instanceWithoutPro(pro).config).toEqual(claude.config);
   });
 
   it("takes only a Pro key", () => {

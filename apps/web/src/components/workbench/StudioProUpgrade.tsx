@@ -181,7 +181,7 @@ export function StudioProDialog(props: {
             <DialogDescription>
               {step === "key"
                 ? "Paste the key from the page you saw after paying, or from another computer."
-                : "Studio's AI is included, so you don't need a Claude subscription. Your chats go through Studio's server to Claude; Studio keeps how much AI you used, never what you said."}
+                : "Studio's AI is included: Claude, or GPT if you choose it, with no subscription of their own. Your chats go through Studio's server and OpenRouter to that model; Studio keeps how much AI you used, never what you said."}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -375,7 +375,7 @@ function StudioProSettingsRow(props: {
 /** The welcome screen's privacy line for Pro, in Studio: what passes through when it is on. */
 export function StudioProPrivacyNote() {
   if (!HARDWARE_FOCUS) return null;
-  return " With Studio Pro on, your chats go through Studio's server to Claude; it keeps only how much AI you used.";
+  return " With Studio Pro on, your chats go through Studio's server and OpenRouter to the model you chose; Studio keeps only how much AI you used.";
 }
 
 /** Settings' setup for a provider instance, with the Studio Pro row first on Claude's, in Studio. */

@@ -97,7 +97,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     stripe,
     config: {
       licenseSecret: SECRET,
-      anthropicKey: "sk-ant-studio",
+      openrouterKey: "sk-or-v1-studio",
       prices: { monthly: "price_m", founding: "price_f" },
     },
     fetch: send,
@@ -106,9 +106,10 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
   return { state, handle };
 }
 
-const sse = () =>
+// OpenRouter's stream, with the cost it reports in the final usage (`cost: null` leaves it out).
+const sse = (cost = 0.4123) =>
   new Response(
-    'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10,"cache_read_input_tokens":1000000,"output_tokens":1}}}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{},"usage":{"output_tokens":10000}}\n\n',
+    `event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10,"cache_read_input_tokens":1000000,"output_tokens":1}}}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{},"usage":{"output_tokens":10000${cost === null ? "" : `,"cost":${cost}`}}}\n\n`,
     {
       status: 200,
       headers: { "content-type": "text/event-stream", "request-id": "req_1", "set-cookie": "x" },
@@ -133,7 +134,7 @@ const messages = async (
   });
 
 NodeTest.test(
-  "passes a Pro turn to Anthropic on Studio's key and keeps only what it cost",
+  "passes a Pro turn to OpenRouter on Studio's key and keeps only what OpenRouter says it cost",
   async () => {
     const { state, handle } = fakes();
     const answer = await handle(await messages());
@@ -142,24 +143,44 @@ NodeTest.test(
     NodeAssert.equal(answer.headers.get("set-cookie"), null);
     await answer.text();
     const [{ url, init }] = state.upstream;
-    NodeAssert.equal(url, "https://api.anthropic.com/v1/messages?beta=true");
-    NodeAssert.equal(init.headers.get("x-api-key"), "sk-ant-studio");
-    NodeAssert.equal(init.headers.get("authorization"), null);
+    NodeAssert.equal(url, "https://openrouter.ai/api/v1/messages?beta=true");
+    NodeAssert.equal(init.headers.get("authorization"), "Bearer sk-or-v1-studio");
+    NodeAssert.equal(init.headers.get("x-api-key"), null);
+    NodeAssert.equal(init.headers.get("x-title"), "Studio Pro");
     NodeAssert.equal(init.headers.get("anthropic-beta"), "x");
+    NodeAssert.equal(JSON.parse(init.body).model, "anthropic/claude-opus-5.5");
     NodeAssert.deepEqual(state.usage, [
       {
         account_id: ID,
-        provider: "anthropic",
-        model: "claude-opus-5-5",
+        provider: "openrouter",
+        model: "anthropic/claude-opus-5.5",
+        cost_source: "openrouter",
         input_tokens: 10,
         cache_write_tokens: 0,
         cache_read_tokens: 1_000_000,
         output_tokens: 10_000,
         web_searches: 0,
-        // 10*4 + 1e6*0.2 + 10000*20, per million.
-        cost_usd: 0.40004,
+        cost_usd: 0.4123,
       },
     ]);
+  },
+);
+
+NodeTest.test(
+  "runs GPT as its OpenRouter slug, and prices a stream that reports no cost",
+  async () => {
+    const { state, handle } = fakes({ upstream: () => sse(null) });
+    const answer = await handle(
+      await messages(
+        {},
+        { model: "openai/gpt-6.2-astra", max_tokens: 10, stream: true, messages: [] },
+      ),
+    );
+    await answer.text();
+    NodeAssert.equal(JSON.parse(state.upstream[0].init.body).model, "openai/gpt-6.2-astra");
+    NodeAssert.equal(state.usage[0].cost_source, "tokens");
+    // 10*8 + 1e6*0.4 + 10000*40, per million.
+    NodeAssert.equal(state.usage[0].cost_usd, 0.80008);
   },
 );
 
@@ -216,15 +237,17 @@ NodeTest.test(
 );
 
 NodeTest.test(
-  "Anthropic turning down Studio's key reads as not set up, not as the person's key",
+  "OpenRouter turning down Studio's key or out of credits reads as not set up, not as the person's",
   async () => {
-    const { handle } = fakes({
-      upstream: () =>
-        new Response('{"error":{"message":"invalid x-api-key sk-ant-stu..."}}', { status: 401 }),
-    });
-    const answer = await handle(await messages());
-    NodeAssert.equal(answer.status, 503);
-    NodeAssert.doesNotMatch(await answer.text(), /sk-ant/);
+    for (const status of [401, 402]) {
+      const { handle } = fakes({
+        upstream: () =>
+          new Response('{"error":{"message":"key sk-or-v1-stu... has no credits"}}', { status }),
+      });
+      const answer = await handle(await messages());
+      NodeAssert.equal(answer.status, 503);
+      NodeAssert.doesNotMatch(await answer.text(), /sk-or/);
+    }
   },
 );
 

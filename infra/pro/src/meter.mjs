@@ -1,16 +1,11 @@
 /**
- * Reads the usage block of an answer passing through untouched (Anthropic's `message_start` and
- * `message_delta`, OpenAI's `response.completed`, or a JSON answer's `usage`), and hands it to `done`
- * once, before the stream closes, so the host stays alive until it is written. Nothing else is kept.
+ * Reads the usage block of a Messages answer passing through untouched (`message_start` and
+ * `message_delta`, OpenRouter's `cost` among them, or a JSON answer's `usage`), and hands it to
+ * `done` once, before the stream closes, so the host stays alive until it is written.
  */
 
-/** Merges one SSE event's usage into what is known so far, by provider. */
-function usageIn(event, known, provider) {
-  if (provider === "openai") {
-    return event?.type === "response.completed" && event.response?.usage
-      ? event.response.usage
-      : known;
-  }
+/** Merges one SSE event's usage into what is known so far. */
+function usageIn(event, known) {
   if (event?.type === "message_start" && event.message?.usage) return { ...event.message.usage };
   if (event?.type === "message_delta" && event.usage) {
     // Later fields win: the delta's output total, and any input figures it restates.
@@ -23,9 +18,9 @@ function usageIn(event, known, provider) {
 
 /**
  * @param {ReadableStream<Uint8Array>} body
- * @param {{ provider: "anthropic" | "openai", json: boolean, done: (usage: object | undefined) => Promise<void> | void }} options
+ * @param {{ json: boolean, done: (usage: object | undefined) => Promise<void> | void }} options
  */
-export function meteredBody(body, { provider, json, done }) {
+export function meteredBody(body, { json, done }) {
   const decoder = new TextDecoder();
   let pending = "";
   let usage;
@@ -38,7 +33,7 @@ export function meteredBody(body, { provider, json, done }) {
   const take = (line) => {
     if (!line.startsWith("data:")) return;
     try {
-      usage = usageIn(JSON.parse(line.slice(5).trim()), usage, provider);
+      usage = usageIn(JSON.parse(line.slice(5).trim()), usage);
     } catch {
       // `data: [DONE]` and anything else that is no event.
     }
