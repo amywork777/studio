@@ -241,8 +241,12 @@ function startingAProject(record: string | null): string {
 }
 
 /** What the person attached stays in the project, so every chat can read it (`attachToReferences`). */
-const REFERENCES =
-  "The project's PRD, data sheets and other files the person gave it are in `brief/references/`. Read what bears on the work before you design from it. A message that links a file there has just added it.";
+const REFERENCES = [
+  "The project's PRD, data sheets and other files the person gave it are in `brief/references/`. Read what bears on the work before you design from it. A message that links a file there has just added it.",
+  "",
+  "- A PDF there has its sheets drawn beside it in `<name>-pages/` once Studio has read it: `page-01.png` and on, and `pages.json`, written last, with each sheet's size in inches and every callout's words and where it sits (`box`: left, top, width and height as fractions of the sheet). Read the pictures for the drawing and the words for its exact numbers; a sheet with `words: false` is a scan, read from its picture. Until `pages.json` is there, read the PDF itself.",
+  "- When you model from a drawing, a sketch or a photo of one, open the `drawing-check` skill before you start and follow it: it writes every dimension you read, in the drawing's units, into the check file Studio grades and shows, with what the model measures and every number that does not add up. Do not write your own pass or fail.",
+].join("\n");
 
 const section = (title: string, body: string) =>
   body.trim() === "" ? [] : [`## ${title}`, "", body.trim(), ""];

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import type { PluginAppSurface } from "~/rightPanelStore";
 import { TitleBlock } from "../workbench/TitleBlock";
-import { useOpenInWorkbench } from "../workbench/useOpenInWorkbench";
+import { useOpenInWorkbench, useSwapViewForDocument } from "../workbench/useOpenInWorkbench";
 import { pluginViewKey } from "../workbench/viewerEditState";
 import { viewerFocusPlace } from "../workbench/references/viewerFocus";
 import { PluginViewFrame } from "./PluginViewFrame";
@@ -50,6 +50,7 @@ export default function PluginViewPanel(props: {
   // and what the view says of its part is kept by this tab, for Studio's bar (`StudioPanelBar`).
   const threadRef = scopeThreadRef(props.environmentId, props.threadId);
   const openInWorkbench = useOpenInWorkbench(threadRef);
+  const swapViewForDocument = useSwapViewForDocument(threadRef);
   return (
     <>
       <TitleBlock
@@ -75,7 +76,9 @@ export default function PluginViewPanel(props: {
         }}
         onSendMessage={props.onSendMessage}
         onAddContext={props.onAddContext}
-        onOpenFile={openInWorkbench}
+        onOpenFile={(path, options) =>
+          options?.replace === true ? swapViewForDocument(surface.id, path) : openInWorkbench(path)
+        }
         editStateKey={pluginViewKey(threadRef, surface.id)}
         focusPlace={viewerFocusPlace(threadRef, surface)}
         front={props.front ?? true}

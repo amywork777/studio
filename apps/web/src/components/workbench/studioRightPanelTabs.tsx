@@ -1,19 +1,22 @@
 import { useAtomValue } from "@effect/atom-react";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { ContextMenuItem, EnvironmentId } from "@t3tools/contracts";
 import { msg, useGT, useMessages } from "gt-react";
 import { EllipsisIcon, Puzzle, X as XIcon } from "lucide-react";
 import { useEffect, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 
 import { PanelTabCloseButton } from "~/components/ui/panel-tab-close-button";
+import { toastManager } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import type { RightPanelSurface } from "~/rightPanelStore";
+import { pluginEnvironment } from "~/state/plugins";
 import { serverEnvironment } from "~/state/server";
 import { shellEnvironment } from "~/state/shell";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { FileKindIcon } from "./FileKindIcon";
 import { folderLabel } from "./folderLabel";
 import { KIND_ICONS, KIND_TINT } from "./kinds";
-import { partLabel } from "./partNames";
+import { partLabel, resultTabLabel } from "./partNames";
 import { PinnedProjectTab } from "./PinnedProjectTab";
 import { useProjectViewStore } from "./projectView";
 import { surfaceFile, viewTabTitle } from "./sameFile";
@@ -24,6 +27,7 @@ import {
   useEngineeringInterface,
   useEngineeringSurfaces,
 } from "./studioInterface";
+import { EXPORT_LABELS, tabExportPlan, type ExportFormat, type ExportPlan } from "./tabExport";
 import { tabSuffixes, withoutSharedPrefix } from "./tabSuffixes";
 import { NewTabButton } from "./NewTabButton";
 import { knownModelScript, useModelTitles } from "./useFolderModels";
@@ -51,7 +55,7 @@ export interface StudioRightPanelSlots {
 }
 
 /** The rows Studio adds to a file tab's menu. */
-export type StudioTabAction = "show-in-folder";
+export type StudioTabAction = "show-in-folder" | "export" | `export:${ExportFormat}`;
 
 /** A file tab's own menu rows, and running the one picked. */
 export interface StudioTabFileMenu {
@@ -65,15 +69,19 @@ export function tabFilePath(surface: RightPanelSurface, folder: string | null): 
   const file = surfaceFile(surface);
   if (file === null) return null;
   if (/^(?:\/|[A-Za-z]:[\\/])/.test(file)) return file;
-  if (folder === null) return null;
+  return folder === null ? null : inFolder(folder, file);
+}
+
+/** A workspace file's path on disk, in the folder's own separators. */
+function inFolder(folder: string, file: string): string {
   const separator = folder.includes("\\") && !folder.includes("/") ? "\\" : "/";
   return `${folder.replace(/[\\/]+$/, "")}${separator}${file.replace(/^[\\/]+/, "")}`;
 }
 
 /**
  * What the viewer's file menu offered, now that Studio's tab names the file and the viewer has no
- * row of its own: Show in Finder, as the file page says it. Copy path stays out of the engineering
- * interface (`tabOffersCopyPath`).
+ * row of its own: Export, its part's files written beside it (`tabExport.ts`), and Show in Finder,
+ * as the file page says it. Copy path stays out of the engineering interface (`tabOffersCopyPath`).
  */
 export function useStudioTabFileMenu(
   environmentId: EnvironmentId,
@@ -81,17 +89,70 @@ export function useStudioTabFileMenu(
 ): StudioTabFileMenu {
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: true });
+  const exportModel = useAtomCommand(pluginEnvironment.exportModel, { reportFailure: false });
   const reveals = serverConfig?.availableEditors.includes("file-manager") === true;
   const label = folderLabel(serverConfig?.environment.platform.os);
+  const reveal = (path: string) =>
+    void openInEditor({ environmentId, input: { cwd: path, editor: "file-manager" } });
+  const runExport = async (plan: ExportPlan, format: ExportFormat) => {
+    if (folder === null) return;
+    const file = plan.destination(format);
+    const name = file.split("/").pop() ?? file;
+    const toastId = toastManager.add({ type: "loading", title: `Exporting ${name}`, timeout: 0 });
+    const result = await exportModel({
+      environmentId,
+      input: { cwd: folder, source: plan.source, destinations: [file] },
+    });
+    if (result._tag === "Failure") {
+      const failure = squashAtomCommandFailure(result);
+      toastManager.update(toastId, {
+        type: "error",
+        title: `Could not export ${name}`,
+        description: failure instanceof Error ? failure.message : "The files are as they were.",
+        timeout: 8_000,
+      });
+      return;
+    }
+    toastManager.update(toastId, {
+      type: "success",
+      title: `Exported ${name}`,
+      timeout: 8_000,
+      ...(reveals
+        ? { actionProps: { children: label, onClick: () => reveal(inFolder(folder, file)) } }
+        : {}),
+    });
+  };
   return {
-    items: (surface) =>
-      isEngineeringInterface() && reveals && tabFilePath(surface, folder) !== null
-        ? [{ id: "show-in-folder", label }]
-        : [],
+    items: (surface) => {
+      if (!isEngineeringInterface()) return [];
+      const plan = folder === null ? null : tabExportPlan(surfaceFile(surface), knownModelScript);
+      const rows: ContextMenuItem<StudioTabAction>[] =
+        plan === null
+          ? []
+          : [
+              {
+                id: "export",
+                label: "Export",
+                children: plan.formats.map((format) => ({
+                  id: `export:${format}` as const,
+                  label: `${EXPORT_LABELS[format]} (${plan.destination(format).split("/").pop()})`,
+                })),
+              },
+            ];
+      if (reveals && tabFilePath(surface, folder) !== null)
+        rows.push({ id: "show-in-folder", label });
+      return rows;
+    },
     run: (action, surface) => {
+      const format = /^export:(step|stl|3mf)$/.exec(action ?? "")?.[1] as ExportFormat | undefined;
+      if (format !== undefined) {
+        const plan = tabExportPlan(surfaceFile(surface), knownModelScript);
+        if (plan !== null) void runExport(plan, format);
+        return;
+      }
       const path = tabFilePath(surface, folder);
       if (action !== "show-in-folder" || path === null) return;
-      void openInEditor({ environmentId, input: { cwd: path, editor: "file-manager" } });
+      reveal(path);
     },
   };
 }
@@ -135,7 +196,7 @@ function studioTitle(
       const name = surface.relativePath.slice(
         Math.max(surface.relativePath.lastIndexOf("/"), surface.relativePath.lastIndexOf("\\")) + 1,
       );
-      return partLabel(name);
+      return resultTabLabel(surface.relativePath) ?? partLabel(name);
     }
     case "plugin-app":
       return isEngineeringInterface() ? viewTabTitle(surface, modelTitles) : surface.title;
@@ -271,6 +332,37 @@ export function TabIcon(props: {
  * What tells two same-titled tabs apart (Studio), shown in grey after the title. In a narrow tab it
  * gives way before the title does.
  */
+/**
+ * Where a tab's title is cut: the head truncates and the last few characters stay, so "M3x8 socket
+ * screw" reads "M3x8 so…crew" in a narrow tab, as file names are cut in a file manager.
+ */
+export function titleParts(
+  title: string,
+  keep = 4,
+): { readonly head: string; readonly tail: string } {
+  // A short title keeps a shorter tail, so "LED module" reads "LED m…ule", not "LED m…".
+  const tail = Math.min(keep, Math.floor(title.length / 3));
+  if (title.length <= 6 || tail < 2) return { head: title, tail: "" };
+  // A space at the cut is dropped at the edge of its span: kept as one that is not.
+  const keepSpace = (part: string) => part.replace(/^ | $/g, "\u00a0");
+  return {
+    head: keepSpace(title.slice(0, title.length - tail)),
+    tail: keepSpace(title.slice(title.length - tail)),
+  };
+}
+
+/** A tab's title cut in the middle (`titleParts`), not at its end. */
+export function TabTitle(props: { readonly title: string }) {
+  if (!WORKBENCH_LAYOUT) return <span className="truncate">{props.title}</span>;
+  const { head, tail } = titleParts(props.title);
+  return (
+    <span className="flex min-w-0" data-tab-title="">
+      <span className="min-w-0 truncate">{head}</span>
+      {tail === "" ? null : <span className="shrink-0">{tail}</span>}
+    </span>
+  );
+}
+
 export function TabSuffix(props: { readonly suffix: string | undefined }) {
   return props.suffix === undefined ? null : (
     <span className="ms-1.5 min-w-0 shrink-[4] truncate text-muted-foreground">{props.suffix}</span>
@@ -335,7 +427,8 @@ export function TabCloseAtEnd(props: {
   if (!WORKBENCH_LAYOUT) return null;
   return (
     <span className="ms-auto flex shrink-0 items-center gap-0.5" data-tab-end="">
-      {props.menu === undefined ? null : (
+      {/* Only the tab in front carries a ⋯; a quiet tab's menu is its right-click, as Chrome's is. */}
+      {props.menu === undefined || !props.active ? null : (
         <TabMoreAtEnd
           surface={props.menu.surface}
           active={props.active}

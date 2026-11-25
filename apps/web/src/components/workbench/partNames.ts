@@ -196,7 +196,12 @@ export function partName(path: string): PartName | null {
     const { kind } = result;
     return result.name === null
       ? { name: kind, kind, label: kind }
-      : { name: result.name, kind, label: `${result.name} ${kind}` };
+      : // Its job's or study's own file is "<name> CAM job"; the result is what that made.
+        {
+          name: result.name,
+          kind,
+          label: `${result.name} ${kind === "CAM job" ? "toolpaths" : "FEA results"}`,
+        };
   }
   // A named study, kept as the FEA skill keeps several: `FEA/bracket.bracket-load.glb`.
   const study = /(?:^|\/)FEA\/([^/]+?)(?:\.fea)?\.(?:json|glb)$/i.exec(normalized);
@@ -229,4 +234,16 @@ export function partName(path: string): PartName | null {
 /** The label for a file anywhere it is named: an engineer's name where one is known, else its file name. */
 export function partLabel(path: string): string {
   return partName(path)?.label ?? baseName(path);
+}
+
+/**
+ * A study's or a CAM job's result as a panel tab names it, from its whole path: every one is a
+ * `result.glb`, so its folder names it ("FEA · Motor bracket", "CAM · Base plate"). Null for any
+ * other file.
+ */
+export function resultTabLabel(path: string): string | null {
+  const result = folderResult(path);
+  if (result === null) return null;
+  if (result.name === null) return result.kind;
+  return `${result.kind === "CAM job" ? "CAM" : "FEA"} · ${result.name}`;
 }

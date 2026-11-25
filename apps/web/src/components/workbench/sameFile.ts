@@ -2,7 +2,7 @@ import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
 
 import type { PluginAppSurface, RightPanelSurface } from "~/rightPanelStore";
 
-import { partName } from "./partNames";
+import { partName, resultTabLabel } from "./partNames";
 
 /** A path as files are compared: `/` between folders, without a leading `./` or a trailing `/`. */
 export const normalPath = (path: string) =>
@@ -49,5 +49,7 @@ export function viewTabTitle(
 ): string {
   const file = surfaceFile(surface);
   if (file !== null && isDocumentId(file)) return modelTitles.get(file) ?? surface.title;
-  return partName(surface.title)?.label ?? surface.title;
+  return (
+    (file === null ? null : resultTabLabel(file)) ?? partName(surface.title)?.label ?? surface.title
+  );
 }

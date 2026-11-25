@@ -28,7 +28,7 @@ export function useProjectTiles(
     environmentId,
     cards,
     ownStar: true,
-    onOpen: (card) => void openProject(card.folder, card.threads),
+    onOpen: (card) => void openProject(card.folder, card.threads, undefined, card.project),
   });
   const tile = (card: ListedProject) => (
     <ProjectTile
@@ -39,7 +39,7 @@ export function useProjectTiles(
       threads={card.threads}
       waiting={waiting.get(card.id) ?? []}
       when={whenTouched(card)}
-      onOpen={() => void openProject(card.folder, card.threads)}
+      onOpen={() => void openProject(card.folder, card.threads, undefined, card.project)}
       onMenu={(position) => menu.show(card, position)}
     />
   );

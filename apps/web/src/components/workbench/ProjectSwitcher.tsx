@@ -112,7 +112,7 @@ export function ProjectSwitcher(props: {
   };
   const choose = (card: ListedProject) =>
     go(() => {
-      if (!isHere(card)) void openProject(card.folder, card.threads);
+      if (!isHere(card)) void openProject(card.folder, card.threads, undefined, card.project);
     })();
   const rename = () => {
     if (current === null || renaming === null) return;

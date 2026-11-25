@@ -955,6 +955,54 @@ def cover_requirements():
     return done(cover, marks)
 
 
+def drawing_check_rows() -> list[str]:
+    """The real drawing check's rows, each as its status: a measured value within its tolerance (or
+    the digit printed) passes, outside it fails, a flag warns; a note or a REF shows none."""
+    check = json.loads(read("checks/servo_bracket.drawing-check.json"))
+    tones = []
+    for row in check["dimensions"]:
+        flag, nominal, measured = row.get("flag"), row.get("nominal"), row.get("measured")
+        if flag in ("note", "reference"):
+            continue
+        if flag is not None or measured is None or nominal is None:
+            tones.append("warning" if flag is not None else "ink")
+            continue
+        tolerance = row.get("tolerance")
+        if tolerance is None:
+            digits = len(re.search(r"\d+(?:\.(\d+))?", row["text"]).group(1) or "")
+            tolerance = [-0.5 * 10**-digits, 0.5 * 10**-digits]
+        low, high = tolerance
+        tones.append("pass" if nominal + low - 1e-9 <= measured <= nominal + high + 1e-9 else "fail")
+    return tones
+
+
+def cover_drawing_check():
+    """The real bracket's top view as its drawing shows it, a dimension marked on it, then the
+    real check's rows, each ending in how it measured."""
+    tones = drawing_check_rows()
+    cover, marks = sheet()
+    y = title(marks)
+    wide = INNER_W - 40
+    view = (LEFT + 20, y + 16, wide, wide * 40 / 64)
+    for run in view_edges((0, 0, 1), (0, 1, 0), view):
+        marks.line(run, "ink", 2.0, 0.85)
+    over = view[1] - 8
+    marks.line([(view[0], over), (view[0] + wide, over)], "hue", 2.4)
+    marks.line([(view[0], over - 6), (view[0], over + 6)], "hue", 2.4)
+    marks.line([(view[0] + wide, over - 6), (view[0] + wide, over + 6)], "hue", 2.4)
+    y = view[1] + view[3] + 16
+    shown = tones[: int((BOTTOM - y) // 15)]
+    height = (BOTTOM - y) / len(shown)
+    for index, tone in enumerate(shown):
+        middle = y + index * height + height / 2
+        if index:
+            marks.line([(LEFT, middle - height / 2), (RIGHT, middle - height / 2)], "ink", 2.0, 0.12)
+        marks.bar(LEFT, middle - 3, INNER_W * (0.34 + 0.06 * (index % 4)), 6, "ink", 0.4)
+        marks.bar(RIGHT - 66, middle - 3, 42, 6, "ink", 0.24)
+        marks.add(circle_path(RIGHT - 7, middle, 6), tone)
+    return done(cover, marks)
+
+
 def cover_fmea():
     """The real FMEA's failure modes where they rate, severity up and occurrence across."""
     rows = markdown_table(read("docs/fmea.md"), "## A table")
@@ -1895,6 +1943,7 @@ COVERS = {
     "dxf": cover_dxf,
     "nest": cover_nest,
     "drawing": cover_drawing,
+    "drawing-check": cover_drawing_check,
     "instructions": cover_instructions,
     "parts-list": cover_parts_list,
     "test-plan": cover_test_plan,

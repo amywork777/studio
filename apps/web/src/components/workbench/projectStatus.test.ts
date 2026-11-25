@@ -28,7 +28,7 @@ describe("the Overview's status strip", () => {
     expect(status).toEqual({ failed: 1, warnings: 1, passed: 1, checked: true, waiting: 2 });
     expect(statusWords(status).map((word) => word.text)).toEqual([
       "1 check failed",
-      "1 warning",
+      "1 check with warnings",
       "1 passed",
     ]);
   });
@@ -39,11 +39,11 @@ describe("a Home tile's check badge", () => {
   it("says the worst check, a failure before a warning, counting several", () => {
     expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "ready")])).toEqual({
       tone: "warning",
-      text: "Printing: passes with warnings",
+      text: "Passes with warnings: Printing",
     });
     expect(tileCheckBadge([result("Printing", "warnings"), result("Strength", "fix")])).toEqual({
       tone: "failed",
-      text: "Strength: failed",
+      text: "Failed: Strength",
     });
     expect(tileCheckBadge([result("Strength", "fix"), result("Casting", "fix")])?.text).toBe(
       "2 checks failed",

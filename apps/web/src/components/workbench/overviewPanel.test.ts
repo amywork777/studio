@@ -16,7 +16,7 @@ import {
   takeOpeningProject,
   useOpeningProjects,
 } from "./overviewPanel";
-import { onFoldSidebarForPart } from "./sidebarFold";
+import { onSidebarAsked } from "./sidebarFold";
 import { setSimpleView, useSimpleViewStore } from "./simpleView";
 import { openFromOverview, openPartInCad } from "./useOpenInWorkbench";
 
@@ -160,8 +160,8 @@ describe("opening a file from the Overview", () => {
       },
     ] as unknown as Parameters<typeof openPartInCad>[0];
     let folds = 0;
-    const stop = onFoldSidebarForPart(() => {
-      folds += 1;
+    const stop = onSidebarAsked((open) => {
+      if (!open) folds += 1;
     });
     openPartInCad(undefined, THREAD, "docs/prd.md");
     openFromOverview(undefined, THREAD, "docs/prd.md");
@@ -190,8 +190,8 @@ describe("opening a file from the Overview", () => {
       },
     ] as unknown as Parameters<typeof openPartInCad>[0];
     let folds = 0;
-    const stop = onFoldSidebarForPart(() => {
-      folds += 1;
+    const stop = onSidebarAsked((open) => {
+      if (!open) folds += 1;
     });
     const listed = Promise.resolve(plugins);
     openFromOverview(undefined, THREAD, "sketches/bracket.png", () => listed);

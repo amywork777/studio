@@ -61,7 +61,7 @@ export function tabSuffixes(tabs: ReadonlyArray<TitledTab>): ReadonlyMap<string,
 /**
  * Open tabs' titles without the words most of them start with, the project's name as their files
  * are named: "Desk lamp work instructions" reads "Work instructions" beside "Desk lamp" itself. A
- * prefix two tabs or more share; a tab of the prefix alone keeps it.
+ * prefix two tabs or more share and one tab is titled; that tab keeps it.
  */
 export function withoutSharedPrefix(titles: ReadonlyArray<string>): ReadonlyArray<string> {
   const counts = new Map<string, number>();
@@ -72,9 +72,12 @@ export function withoutSharedPrefix(titles: ReadonlyArray<string>): ReadonlyArra
       counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
     }
   }
+  // Only a name one of the tabs is itself: two files that merely start alike keep their words.
+  const named = new Set(titles.map((title) => title.trim().toLowerCase()));
   let shared: string | null = null;
   for (const [prefix, count] of counts) {
-    if (count >= 2 && (shared === null || prefix.length > shared.length)) shared = prefix;
+    if (count < 2 || !named.has(prefix)) continue;
+    if (shared === null || prefix.length > shared.length) shared = prefix;
   }
   if (shared === null) return titles;
   const cut = shared;

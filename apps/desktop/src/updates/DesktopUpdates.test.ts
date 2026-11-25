@@ -617,6 +617,39 @@ describe("DesktopUpdates", () => {
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
 
+  it.effect("downloads again when the waiting download was deleted before the install", () => {
+    let installedFrom: { readonly version: string | null | undefined; readonly downloads: number } =
+      { version: undefined, downloads: 0 };
+    const harness = makeHarness({
+      downloadedFile: "/cache/pending/Studio-1.2.4-arm64.zip",
+      checkForUpdates: Effect.sync(() => harness.emit("update-available", { version: "1.2.4" })),
+      downloadUpdate: Effect.sync(() => harness.emit("update-downloaded", { version: "1.2.4" })),
+      quitAndInstall: Effect.sync(() => {
+        installedFrom = {
+          version: harness.sentStates.at(-1)?.downloadedVersion,
+          downloads: harness.downloadCount(),
+        };
+      }),
+    });
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        yield* updates.check("poll");
+        yield* updates.download;
+        yield* flushCallbacks;
+        assert.equal(harness.downloadCount(), 1);
+
+        // A disk cleaner empties ~/Library/Caches while the update waits.
+        harness.removeDownload();
+        const result = yield* updates.installPrepared("1.2.4");
+        assert.isTrue(result.accepted);
+        assert.deepEqual(installedFrom, { version: "1.2.4", downloads: 2 });
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
   it.effect("downloads the known offer when the check before downloading fails", () => {
     let checks = 0;
     const harness = makeHarness({
@@ -905,6 +938,30 @@ describe("DesktopUpdates", () => {
         assert.isTrue(yield* updates.takeWindowlessRelaunch);
         assert.isUndefined(harness.windowlessRelaunchMarker());
         assert.isFalse(yield* updates.takeWindowlessRelaunch);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
+  it.effect("a Mac whose closed window finds the download deleted downloads it again first", () => {
+    const harness = makeHarness({
+      downloadedFile: "/cache/pending/Studio-1.2.4-arm64.zip",
+      checkForUpdates: Effect.sync(() => harness.emit("update-available", { version: "1.2.4" })),
+      downloadUpdate: Effect.sync(() => harness.emit("update-downloaded", { version: "1.2.4" })),
+    });
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        yield* updates.setChatsWorking(0);
+        harness.emit("update-downloaded", { version: "1.2.4" });
+        yield* flushCallbacks;
+
+        harness.removeDownload();
+        assert.isTrue(yield* updates.installWithWindowsClosed);
+        assert.equal(harness.downloadCount(), 1);
+        assert.equal(harness.quitAndInstalls(), 1);
+        assert.isDefined(harness.windowlessRelaunchMarker());
       }),
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });

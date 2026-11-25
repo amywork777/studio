@@ -1,3 +1,5 @@
+import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "~/rightPanelLayout";
+
 /**
  * The viewer absorbs a wider window; the chat dock keeps its user-set width. Without the brand
  * (`brand.json` `"layout": "workbench"`), T3 Code's own layout is unchanged.
@@ -14,6 +16,14 @@ export const CHAT_DOCK_DEFAULT_WIDTH = 300;
 export const CHAT_DOCK_MIN_WIDTH = 300;
 /** The viewer's own floor; below both floors the dock yields, as T3's chat column does. */
 export const WORKBENCH_MIN_WIDTH = 360;
+
+/**
+ * When the panel leaves the row for a sheet over the chat: only where the dock and the viewer no
+ * longer fit side by side at their floors, not at T3's 980px, which covered half the chat.
+ */
+export const RIGHT_PANEL_SHEET_MEDIA_QUERY = WORKBENCH_LAYOUT
+  ? `(max-width: ${CHAT_DOCK_MIN_WIDTH + WORKBENCH_MIN_WIDTH - 1}px)`
+  : RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY;
 
 /** The dock's width in a row this wide, between its floor and what leaves the viewer its floor. */
 export function chatDockWidth(rowWidth: number, dockWidth: number): number {

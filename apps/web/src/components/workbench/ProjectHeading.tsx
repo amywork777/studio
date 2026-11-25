@@ -92,7 +92,7 @@ export function ProjectHeading(props: {
           aria-expanded={editing}
           aria-label={`Properties: ${properties}. Change them`}
           onClick={() => setEditing((open) => !open)}
-          className="-mx-1 h-5 self-start rounded-sm px-1 text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="-mx-1 min-h-5 self-start rounded-sm px-1 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           {properties}
         </button>

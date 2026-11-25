@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { cardPlace, tourSteps, useTourStore } from "./tourSteps";
+import { cardPlace, shownBox, tourSteps, useTourStore } from "./tourSteps";
 
 const card = { width: 320, height: 160 };
 const window = { width: 1200, height: 800 };
@@ -36,6 +36,15 @@ describe("tour", () => {
       top: 528,
       left: 100,
     });
+  });
+
+  it("points at nothing a folded sidebar holds off screen, or that has no size", () => {
+    const row = { top: 120, left: 8, width: 240, height: 28 };
+    expect(shownBox(row, window)).toEqual(row);
+    // The folded sidebar's row, slid left of the window.
+    expect(shownBox({ ...row, left: -260 }, window)).toBeNull();
+    expect(shownBox({ ...row, width: 0 }, window)).toBeNull();
+    expect(shownBox(undefined, window)).toBeNull();
   });
 
   it("keeps a card inside the window, and centers it with nothing to point at", () => {

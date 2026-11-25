@@ -902,6 +902,18 @@ export const make = Effect.gen(function* () {
     );
   });
 
+  // A disk cleaner can empty ~/Library/Caches under a waiting update; installing it then only quits.
+  const downloadWentMissing = electronUpdater.downloadedFile.pipe(
+    Effect.flatMap((file) =>
+      file === null
+        ? Effect.succeed(false)
+        : fileSystem.exists(file).pipe(
+            Effect.map((onDisk) => !onDisk),
+            Effect.orElseSucceed(() => false),
+          ),
+    ),
+  );
+
   const installDownloadedUpdate = (expectedVersion?: string) =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -1050,6 +1062,28 @@ export const make = Effect.gen(function* () {
         if (expectedVersion !== undefined) {
           installVersion = (yield* Ref.get(updateStateRef)).downloadedVersion ?? expectedVersion;
         }
+      }
+    }
+    const waiting = yield* Ref.get(updateStateRef);
+    if (waiting.status === "downloaded" && (yield* downloadWentMissing)) {
+      yield* logUpdaterWarning("the waiting update's file is gone; downloading it again", {
+        version: waiting.downloadedVersion,
+      });
+      yield* setState({
+        ...waiting,
+        status: "available",
+        downloadedVersion: null,
+        downloadPercent: null,
+        canRetry: false,
+      });
+      const download = yield* downloadAvailableUpdate(false);
+      if (!download.completed) {
+        return {
+          accepted: download.accepted,
+          completed: false,
+          failed: download.accepted,
+          state: yield* Ref.get(updateStateRef),
+        };
       }
     }
     const result = yield* installDownloadedUpdate(installVersion);
@@ -1517,7 +1551,9 @@ export const make = Effect.gen(function* () {
         return false;
       }
       yield* writeWindowlessRelaunch;
-      const result = yield* installDownloadedUpdate(state.downloadedVersion);
+      const result = (yield* downloadWentMissing)
+        ? yield* installWithExpectedVersion(state.downloadedVersion)
+        : yield* installDownloadedUpdate(state.downloadedVersion);
       const installing = result.accepted && !result.failed;
       if (!installing) yield* removeWindowlessRelaunch;
       return installing;

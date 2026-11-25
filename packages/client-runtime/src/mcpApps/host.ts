@@ -103,7 +103,9 @@ export interface McpAppHostOptions {
    * Opens a file, by its absolute path, in a view of its own beside the thread (Studio's
    * `studio/open-file`, a CAD view's Open Part). Absent, the app is not offered it.
    */
-  readonly openFile?: ((path: string) => Promise<void>) | undefined;
+  readonly openFile?:
+    | ((path: string, options?: { readonly replace?: boolean }) => Promise<void>)
+    | undefined;
   /**
    * Hears what Studio's CAD view says of the part on screen (`studio/notifications/edit-state`):
    * whether it has both layouts (`editable`) and whether an open command holds them (`busy`),
@@ -273,6 +275,12 @@ export function makeMcpAppHost(options: McpAppHostOptions): McpAppHost {
   const handleRequest = (id: JsonRpcId, method: string, params: Record<PropertyKey, unknown>) => {
     switch (method) {
       case "ui/initialize": {
+        // A second initialize is the frame's document loaded again (an iframe moved in the DOM
+        // reloads): it starts from nothing, so it is sent the tool input and result once more.
+        if (initialized) {
+          initialized = false;
+          toolCallSent = false;
+        }
         const requested = params.protocolVersion;
         const declared = Predicate.isObject(params.appCapabilities)
           ? params.appCapabilities.availableDisplayModes
@@ -436,7 +444,9 @@ export function makeMcpAppHost(options: McpAppHostOptions): McpAppHost {
           fail(id, -32602, "studio/open-file needs a path.");
           return;
         }
-        answer(id, () => open(path).then(() => ({})));
+        // `replace`: the view's own part, shown by its built document in the view's own tab.
+        const replace = params.replace === true;
+        answer(id, () => open(path, replace ? { replace } : undefined).then(() => ({})));
         return;
       }
       case "studio/request/edit-layout": {

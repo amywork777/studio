@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { selectTakenBy, useViewerSelectStore } from "./viewerSelect";
+import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+
+import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { frontSelectView, selectTakenBy, useViewerSelectStore } from "./viewerSelect";
 
 describe("asking the views beside a chat to select a message's picks", () => {
   it("keeps the latest press per chat, and of several views' answers the one that found the most", () => {
@@ -42,5 +46,24 @@ describe("asking the views beside a chat to select a message's picks", () => {
     expect(useViewerSelectStore.getState().open["chat-b"]).toEqual(["/p/a.step", "/p/b.step"]);
     leave();
     expect(useViewerSelectStore.getState().open["chat-b"]).toEqual(["/p/b.step"]);
+  });
+});
+
+describe("pressing a message's picks pill", () => {
+  it("brings the tab of the view it asks to the front, so the picks are seen lighting up", () => {
+    const ref = scopeThreadRef(
+      EnvironmentId.make("environment-local"),
+      ThreadId.make("thread-pill"),
+    );
+    const panels = useRightPanelStore.getState();
+    panels.openFile(ref, "parts/led_module.py");
+    panels.openFile(ref, "parts/base.py");
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, ref).activeSurfaceId,
+    ).toBe("file:parts/base.py");
+    frontSelectView(scopedThreadKey(ref), "/work/lamp/parts/led_module.py");
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, ref).activeSurfaceId,
+    ).toBe("file:parts/led_module.py");
   });
 });

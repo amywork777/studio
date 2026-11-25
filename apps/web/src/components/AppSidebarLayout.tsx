@@ -43,7 +43,7 @@ import { BackgroundThreadAnnouncer } from "./BackgroundThreadAnnouncer";
 import { HistorySwipeNavigation } from "./HistorySwipeNavigation";
 import ThreadSidebar from "./Sidebar";
 import { railMark } from "./workbench/studioPlaces";
-import { onFoldSidebarForPart } from "./workbench/sidebarFold";
+import { onSidebarAsked } from "./workbench/sidebarFold";
 import { useEngineeringInterface } from "./workbench/studioInterface";
 import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
@@ -321,7 +321,7 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
 function FoldSidebarForPart() {
   const { setOpen } = useSidebar();
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to fold requests raised outside React while mounted.
-  useEffect(() => onFoldSidebarForPart(() => void setOpen(false)), [setOpen]);
+  useEffect(() => onSidebarAsked((open) => void setOpen(open)), [setOpen]);
   return null;
 }
 

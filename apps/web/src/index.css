@@ -2080,6 +2080,16 @@ code {
   display: inline;
 }
 
+/* Studio: in a document's table a part's chip wraps, so a long name stays inside its column. */
+[data-document] .chat-markdown :is(th, td) .chat-markdown-file-link,
+[data-document]
+  .chat-markdown
+  :is(th, td)
+  .chat-markdown-file-link
+  > [data-slot="context-chip-label"] {
+  white-space: normal;
+}
+
 /* File links and context chips own their color and focus ring. */
 .chat-markdown a:not(.chat-markdown-file-link, :has([data-slot="context-chip-label"])) {
   color: var(--info-foreground);

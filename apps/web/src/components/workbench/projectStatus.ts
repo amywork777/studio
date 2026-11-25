@@ -30,7 +30,7 @@ export function projectStatus(input: {
 }
 
 /**
- * A count in words: "1 check failed", "2 warnings", "3 passed". None at all when no check ran: the
+ * A count of checks in words: "1 check failed", "2 checks with warnings", "3 passed". None at all when no check ran: the
  * lead part says so once, with a way to run one (`LeadPart`), so the strip shows only real results.
  */
 export function statusWords(status: ProjectStatus): ReadonlyArray<{
@@ -52,7 +52,7 @@ export function statusWords(status: ProjectStatus): ReadonlyArray<{
       : [
           {
             tone: "warning" as const,
-            text: `${status.warnings} ${status.warnings === 1 ? "warning" : "warnings"}`,
+            text: `${status.warnings} ${status.warnings === 1 ? "check" : "checks"} with warnings`,
           },
         ]),
     ...(status.passed === 0 ? [] : [{ tone: "passed" as const, text: `${status.passed} passed` }]),
@@ -60,8 +60,9 @@ export function statusWords(status: ProjectStatus): ReadonlyArray<{
 }
 
 /**
- * A Home tile's one badge from its project's check results, the worst first: "Strength: failed"
- * or "Printing: passes with warnings", counted where several checks share it ("2 checks failed").
+ * A Home tile's one badge from its project's check results, the worst first: "Failed: Strength"
+ * or "Passes with warnings: Printing", the verdict ahead of a check's name, which can be a long
+ * study's ("Strength, 15 kg on the shelf flange…") cut at the tile's edge; counted where several checks share it ("2 checks failed").
  * Null when every check passed or none ran: a tile says only what needs a look.
  */
 export function tileCheckBadge(
@@ -71,7 +72,7 @@ export function tileCheckBadge(
   if (failed.length > 0) {
     return {
       tone: "failed",
-      text: failed.length === 1 ? `${failed[0]!.check}: failed` : `${failed.length} checks failed`,
+      text: failed.length === 1 ? `Failed: ${failed[0]!.check}` : `${failed.length} checks failed`,
     };
   }
   const warned = results.filter((result) => result.status === "warnings");
@@ -80,7 +81,7 @@ export function tileCheckBadge(
       tone: "warning",
       text:
         warned.length === 1
-          ? `${warned[0]!.check}: passes with warnings`
+          ? `Passes with warnings: ${warned[0]!.check}`
           : `${warned.length} checks pass with warnings`,
     };
   }

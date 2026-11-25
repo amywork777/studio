@@ -9,6 +9,8 @@ import {
   type PluginCatalogInput,
   type PluginCatalogResult,
   type PluginListResult,
+  type PluginExportInput,
+  type PluginExportResult,
   type PluginModelPicturesInput,
   type PluginModelPicturesResult,
   PluginOperationError,
@@ -45,9 +47,11 @@ import * as ThreadManagementService from "../orchestration-v2/ThreadManagementSe
 import * as AppCapability from "./appCapability.ts";
 import * as ListingRetries from "./listingRetries.ts";
 import * as PluginFiles from "./pluginFiles.ts";
+import * as ModelExport from "./modelExport.ts";
 import * as ModelPictures from "./modelPictures.ts";
 import * as PluginHost from "./PluginHost.ts";
 import * as PluginStore from "./PluginStore.ts";
+import * as RebuildUnsaved from "./rebuildUnsaved.ts";
 
 /** A plugin tool as agents see it on T3's MCP server. */
 export interface AgentTool {
@@ -107,6 +111,10 @@ export class PluginService extends Context.Service<
     readonly modelPictures: (
       input: PluginModelPicturesInput,
     ) => Effect.Effect<PluginModelPicturesResult, PluginOperationError>;
+    /** A part's files, written beside it by the first enabled plugin whose CAD server exports (`modelExport.ts`). */
+    readonly exportModel: (
+      input: PluginExportInput,
+    ) => Effect.Effect<PluginExportResult, PluginOperationError>;
     /** Every enabled plugin tool an agent may call, from the servers' last listing. */
     readonly agentTools: Effect.Effect<ReadonlyArray<AgentTool>>;
     /** Call a plugin tool for an agent in its thread's scope. Answers the server's `CallToolResult`. */
@@ -154,6 +162,21 @@ const make = Effect.gen(function* () {
         fail("request_failed", cause instanceof Error ? cause.message : "Rendering failed."),
     });
     return { pictures };
+  });
+
+  const exportModel = Effect.fn("PluginService.exportModel")(function* (input: PluginExportInput) {
+    const plugins = yield* store.enabledPlugins;
+    const launch =
+      plugins
+        .map((plugin) => ModelPictures.snapshotLaunch(plugin, environment))
+        .find((candidate) => candidate !== null) ?? null;
+    if (launch === null) return yield* fail("request_failed", "No CAD plugin exports models.");
+    const files = yield* Effect.tryPromise({
+      try: () => ModelExport.exportModel({ launch, ...input }),
+      catch: (cause) =>
+        fail("request_failed", cause instanceof Error ? cause.message : "The export failed."),
+    });
+    return { files };
   });
 
   // A new thread lives only in its client until its first message is sent, so the server has no
@@ -337,11 +360,33 @@ const make = Effect.gen(function* () {
       }
       return yield* fail("not_found", `${input.pluginId} has no view called ${input.tool}`);
     }
-    const toolResult = yield* call("tools/call", {
+    const open = call("tools/call", {
       name: input.tool,
       arguments: toolInput,
       ...(meta === undefined ? {} : { _meta: meta }),
     });
+    let toolResult = yield* open;
+    // A model the engine lost in a restart is built again by its own command, then opened.
+    const words = AppCapability.isErrorResult(toolResult)
+      ? RebuildUnsaved.rebuildWords(
+          RebuildUnsaved.errorText(toolResult),
+          yield* HostProcess.isWindows,
+        )
+      : null;
+    const launch =
+      words === null
+        ? null
+        : (yield* store.enabledPlugins)
+            .filter((plugin) => plugin.id === input.pluginId)
+            .map((plugin) => ModelPictures.snapshotLaunch(plugin, environment))
+            .find((candidate) => candidate !== null);
+    if (words !== null && launch !== null && launch !== undefined) {
+      const built = yield* Effect.tryPromise({
+        try: () => RebuildUnsaved.buildAgain(launch, words, roots[0] ?? launch.cwd),
+        catch: () => "not built" as const,
+      }).pipe(Effect.isSuccess);
+      if (built) toolResult = yield* open;
+    }
     // The launch's `_meta` goes to the view whole (its capability among it), and is remembered for
     // Studio's own reads of the same server.
     remember(capabilityKey(input.threadId, input.pluginId, input.server), toolResult);
@@ -473,6 +518,7 @@ const make = Effect.gen(function* () {
     openView,
     request,
     modelPictures,
+    exportModel,
     agentTools,
     callAgentTool,
     changes: store.changes,

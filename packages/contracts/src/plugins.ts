@@ -309,6 +309,23 @@ export const PluginModelPicturesResult = Schema.Struct({
 });
 export type PluginModelPicturesResult = typeof PluginModelPicturesResult.Type;
 
+/** A part's files written by an enabled plugin that exports them (text-to-cad), from its tab's Export. */
+export const PluginExportInput = Schema.Struct({
+  /** The project's workspace root. */
+  cwd: Text(4096),
+  /** The workspace-relative file to export, or a cadgen model by its document id. */
+  source: Text(1024),
+  /** Workspace-relative files to write beside it, each its format by its ending. */
+  destinations: Schema.Array(Text(1024)).check(Schema.isMaxLength(8)),
+});
+export type PluginExportInput = typeof PluginExportInput.Type;
+
+export const PluginExportResult = Schema.Struct({
+  /** The files written, as asked. */
+  files: Schema.Array(Schema.String),
+});
+export type PluginExportResult = typeof PluginExportResult.Type;
+
 export const PluginOperationErrorReason = Schema.Literals([
   "not_found",
   "install_failed",

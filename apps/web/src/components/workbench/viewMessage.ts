@@ -26,7 +26,22 @@ function partName(name: string): string {
     .join(" ");
 }
 
-/** The picks a message names: each line under every `References:`, up to the next blank line. */
+/**
+ * Where a `References:` list ends: a blank line, or the next block the message carries (an
+ * attachment's `Label:` line, the snapshot's `Snapshot JSON (…):` and its fenced JSON). A pick never
+ * starts a line so: it names its document before a `#`.
+ */
+function endsReferences(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    trimmed === "" ||
+    trimmed.startsWith("```") ||
+    /^[{[]/.test(trimmed) ||
+    (!trimmed.includes("#") && /^[A-Z][\w ]*(?:\([^)]*\))?:(?:\s|$)/.test(trimmed))
+  );
+}
+
+/** The picks a message names: each line under every `References:`, up to where the list ends. */
 function referencesOf(about: string): string[] {
   const picks: string[] = [];
   let from = 0;
@@ -35,7 +50,7 @@ function referencesOf(about: string): string[] {
     if (start === -1) return picks;
     from = start + "References:\n".length;
     for (const line of about.slice(from).split("\n")) {
-      if (line.trim() === "" || /^[A-Z][\w ]*(?:\([^)]*\))?: /.test(line)) break;
+      if (endsReferences(line)) break;
       picks.push(line.trim());
     }
   }

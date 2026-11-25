@@ -123,6 +123,7 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
         }),
       ),
     [WS_METHODS.pluginsModelPictures]: (input) => plugins.modelPictures(input),
+    [WS_METHODS.pluginsExport]: (input) => plugins.exportModel(input),
     [WS_METHODS.studioProjectsList]: () => studioProjects.list,
     [WS_METHODS.studioProjectsSave]: (input) =>
       studioProjects.save(input).pipe(

@@ -12,11 +12,16 @@ import type {
 } from "@t3tools/contracts";
 import { useEffect } from "react";
 
-import { type RightPanelSurface, useRightPanelStore } from "~/rightPanelStore";
+import {
+  type RightPanelSurface,
+  selectThreadRightPanelState,
+  useRightPanelStore,
+} from "~/rightPanelStore";
 import { pluginEnvironment } from "~/state/plugins";
 import { useEnvironmentQuery } from "~/state/query";
 import type { TurnDiffSummary } from "~/types";
 import { pluginAppSurface } from "../plugins/pluginSurfaces";
+import { openPartTab } from "./partTabs";
 import { shownView } from "./shownModels";
 import { useEngineeringSurfaces } from "./studioInterface";
 
@@ -86,10 +91,9 @@ export type FollowPick =
   | { readonly kind: "viewer"; readonly path: string };
 
 /**
- * The one thing a run made that is most worth showing, or null: a document
- * it wrote, else a result a viewer draws (a study, a toolpath), else a model,
- * board or drawing it changed, else a table or G-code, else a picture. A file
- * a viewer claims opens there; one the viewer already shows is left be.
+ * The one thing a run made most worth showing, or null: a document, else a result a viewer draws,
+ * else a changed model, board or drawing, else a table or G-code, else a picture. One the viewer
+ * already shows stays, and nothing ranked no higher opens over it (a shared size's ripple).
  */
 export function pickFollow(
   paths: ReadonlyArray<string>,
@@ -97,12 +101,17 @@ export function pickFollow(
   shown: (path: string) => boolean,
 ): FollowPick | null {
   let best: { readonly pick: FollowPick; readonly rank: number } | null = null;
+  // What the run changed that is on screen already: nothing ranked no higher opens over it.
+  let shownRank = 0;
   for (const path of paths) {
     if (!isWork(path)) continue;
     let pick: FollowPick | null = null;
     let rank = 0;
     if (claimed(path)) {
-      if (shown(path)) continue;
+      if (shown(path)) {
+        shownRank = Math.max(shownRank, RESULT.test(path) ? 5 : 3.5);
+        continue;
+      }
       pick = { kind: "viewer", path };
       rank = RESULT.test(path) ? 5 : 3.5;
     } else {
@@ -113,7 +122,7 @@ export function pickFollow(
     }
     if (best === null || rank >= best.rank) best = { pick, rank };
   }
-  return best?.pick ?? null;
+  return best !== null && best.rank > shownRank ? best.pick : null;
 }
 
 interface RunFollow {
@@ -183,6 +192,15 @@ export function useDocumentFollow(input: {
       if (pick === null) return;
       run.done = true;
       const panels = useRightPanelStore.getState();
+      // A part already open (its file, or its STEP's built document) comes to the front in its tab.
+      const part = openPartTab(
+        selectThreadRightPanelState(panels.byThreadKey, threadRef).surfaces,
+        pick.path,
+      );
+      if (part !== null) {
+        panels.openProactive(threadRef, part, run.revision);
+        return;
+      }
       if (pick.kind === "file") {
         const surface: Extract<RightPanelSurface, { kind: "file" }> = {
           id: `file:${pick.path}`,

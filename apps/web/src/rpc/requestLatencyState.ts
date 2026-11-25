@@ -6,7 +6,7 @@ import { appAtomRegistry } from "./atomRegistry";
 const SLOW_RPC_ACK_THRESHOLD_MS = 15_000;
 /**
  * Updates wait for package installs; VCS refreshes may wait for background work and network calls.
- * A plugin's server builds a model or waits on one's build before it answers.
+ * A plugin's server builds a model or waits on one's build before it answers, as do model pictures and exports.
  * Give these requests longer than the normal 15s warning threshold.
  */
 const LONG_RUNNING_RPC_ACK_THRESHOLD_MS = 120_000;
@@ -41,6 +41,8 @@ const longRunningRpcAckMethods = new Set<string>([
   WS_METHODS.serverUpdateServer,
   WS_METHODS.vcsRefreshStatus,
   WS_METHODS.pluginsRequest,
+  WS_METHODS.pluginsModelPictures,
+  WS_METHODS.pluginsExport,
 ]);
 
 const slowRpcAckRequestsAtom = Atom.make<ReadonlyArray<SlowRpcAckRequest>>([]).pipe(

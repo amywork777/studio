@@ -58,4 +58,25 @@ describe("same file", () => {
     expect(viewTabTitle(view(`plugin:cad:agent:${LED}`, "CAD"), new Map())).toBe("CAD");
     expect(viewTabTitle(view("plugin:cad", "CAD"), titles)).toBe("CAD");
   });
+
+  it("names a study's and a CAM job's result by its folder, as every one is a result.glb", () => {
+    const result = (path: string): PluginAppSurface => ({
+      id: `plugin:cad:agent:${encodeURIComponent(path)}`,
+      kind: "plugin-app",
+      pluginId: "cad",
+      server: "cad",
+      tool: "cad_open",
+      title: "result.glb",
+      resourceUri: "ui://cad",
+      arguments: {},
+    });
+    const titles = new Map<string, string>();
+    expect(viewTabTitle(result("studies/motor_bracket/result.glb"), titles)).toBe(
+      "FEA · Motor bracket",
+    );
+    expect(viewTabTitle(result("cam/base_plate/result.glb"), titles)).toBe("CAM · Base plate");
+    expect(viewTabTitle(result("cam\\base_plate\\result.glb"), titles)).toBe("CAM · Base plate");
+    // A folder that only says what it holds names no study.
+    expect(viewTabTitle(result("FEA/result.glb"), titles)).toBe("FEA study");
+  });
 });

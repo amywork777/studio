@@ -1,5 +1,9 @@
+import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
 import { useEffect } from "react";
 import { create } from "zustand";
+
+import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { openPartTab } from "../partTabs";
 
 /**
  * A message's picks, asked of one CAD view beside its chat (`studio/select`, answered on
@@ -105,4 +109,17 @@ export function useViewerSelect(
     const openFiles = state.open[threadKey] ?? [];
     return selectTakenBy({ file: ask.file, viewFile: file, front, openFiles }) ? ask : null;
   });
+}
+
+/**
+ * Brings the tab of the view a press asks to the front before it selects, so the person sees the
+ * picks light up: the message's file's tab (its STEP or built document, `partTabs.ts`), if open.
+ */
+export function frontSelectView(threadKey: string, file: string | null): void {
+  const ref = parseScopedThreadKey(threadKey);
+  if (ref === null || file === null || file === "") return;
+  const panels = useRightPanelStore.getState();
+  const state = selectThreadRightPanelState(panels.byThreadKey, ref);
+  const tab = openPartTab(state.surfaces, file);
+  if (tab !== null && tab.id !== state.activeSurfaceId) panels.activateSurface(ref, tab.id);
 }

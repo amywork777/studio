@@ -1,4 +1,5 @@
 import { FileCodeIcon, LayoutDashboardIcon } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "~/lib/utils";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -21,10 +22,18 @@ export function PinnedProjectTab(props: {
   readonly withSource: boolean;
   readonly onSelect: (view: ProjectView) => void;
 }) {
+  // Studio moves focus here itself (opening a tab, closing Find), and a focus-opened tooltip then
+  // stays over the panel: it opens on hover alone. The tab's name already says what it is.
+  const [tip, setTip] = useState(false);
   if (!props.withSource) {
     const pressed = props.active && props.view === "project";
     return (
-      <Tooltip>
+      <Tooltip
+        open={tip}
+        onOpenChange={(open, details) => {
+          if (!open || details.reason !== "trigger-focus") setTip(open);
+        }}
+      >
         <TooltipTrigger
           render={
             <button

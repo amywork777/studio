@@ -887,6 +887,19 @@ it.effect("starts a history in a folder that has files, keeping them as its firs
         assert.equal(yield* gitOutput(folder, ["rev-parse", "HEAD"]), head);
         assert.equal(yield* gitOutput(folder, ["rev-list", "--count", "HEAD"]), "1");
         assert.deepEqual(yield* readImportedFolder(folder), IMPORTED_FILES);
+
+        // With `keep`, files that landed since (an example's copy) are kept as the next version.
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        yield* fileSystem.writeFileString(path.join(folder, "bracket.py"), "print('bracket')\n");
+        const keep = "Copied from the Servo bracket example";
+        assert.deepEqual(yield* folders.startHistory({ cwd: folder, keep }), {});
+        assert.equal(yield* gitOutput(folder, ["log", "-1", "--format=%s"]), keep);
+        assert.equal(yield* gitOutput(folder, ["rev-list", "--count", "HEAD"]), "2");
+        assert.equal(yield* gitOutput(folder, ["status", "--porcelain"]), "");
+        // Nothing changed since: no empty version.
+        assert.deepEqual(yield* folders.startHistory({ cwd: folder, keep }), {});
+        assert.equal(yield* gitOutput(folder, ["rev-list", "--count", "HEAD"]), "2");
       }),
     ),
   ),

@@ -410,17 +410,21 @@ html[data-studio-focus="hardware"]
   /* Room for the first tab's flare. */
   padding-inline-start: 0.5rem;
 }
+/*
+ * Every file tab is one width, the tab in front too, all narrowing together as tabs are added, as
+ * Chrome's do: a press never moves a tab. Past their least width the list scrolls and "N more"
+ * lists what is out of sight (`TabStripExtras.tsx`).
+ */
 html[data-studio-focus="hardware"] [data-right-panel-tab-list] [data-active-tab] {
-  flex: 0 1 12rem;
-  min-width: 2.75rem;
+  flex: 1 1 0;
+  min-width: 6.5rem;
   container-type: inline-size;
 }
-html[data-studio-focus="hardware"] [data-right-panel-tab-list] [data-active-tab="true"] {
-  min-width: 5.5rem;
-}
 /*
- * A quiet tab's ⋯ and close take no room: they stand over the end of its title while the pointer or
- * focus is on it, so the title has the tab's width and a press anywhere on it brings the tab forward.
+ * A quiet tab's close takes no room: it stands over the last of its title (about 20px, the name
+ * fading under it) once the pointer has rested on the tab (300ms) or focus is in it, so the title has
+ * the tab's width and a quick press anywhere on it, its end too, brings the tab forward rather than
+ * closing it.
  */
 html[data-studio-focus="hardware"]
   [data-right-panel-tabbar]
@@ -428,26 +432,64 @@ html[data-studio-focus="hardware"]
   [data-tab-end] {
   position: absolute;
   inset-block: 0.1875rem calc(var(--studio-tab-foot) + 0.1875rem);
-  right: 0.375rem;
-  display: none;
+  right: 0.25rem;
+  display: flex;
+  visibility: hidden;
   align-items: center;
   border-radius: 0 0.375rem 0.375rem 0;
-  padding-inline-start: 0.75rem;
-  background: linear-gradient(to right, transparent, var(--studio-tab-strip-hover) 0.75rem);
+  padding-inline-start: 0.25rem;
+  background: linear-gradient(to right, transparent, var(--studio-tab-strip-hover) 0.25rem);
+  transition: visibility 0s linear 0s;
 }
 html[data-studio-focus="hardware"]
   [data-right-panel-tabbar]
-  [data-active-tab="false"]:is(:hover, :focus-within)
+  [data-active-tab="false"]:hover
   [data-tab-end] {
-  display: flex;
+  visibility: visible;
+  transition-delay: 300ms;
 }
-/* A quiet tab narrowed to its icon gives up its close, as Chrome's do; the tab in front keeps it. */
-@container (max-width: 3.5rem) {
+html[data-studio-focus="hardware"]
+  [data-right-panel-tabbar]
+  [data-active-tab="false"]:focus-within
+  [data-tab-end] {
+  visibility: visible;
+}
+/*
+ * A narrow quiet tab gives up its close, as Chrome's do, so its name takes every press. The narrow
+ * tab in front gives up its ⋯ (its menu is its right-click too) and its close stands over the end of
+ * its name as a quiet tab's does, so its name keeps the tab's width ("M3x8 s…crew", not "M…").
+ */
+@container (max-width: 7.5rem) {
   html[data-studio-focus="hardware"]
     [data-right-panel-tab-list]
     [data-active-tab="false"]
-    [data-tab-close] {
+    [data-tab-end] {
+    display: none !important;
+  }
+  html[data-studio-focus="hardware"]
+    [data-right-panel-tab-list]
+    [data-active-tab="true"]
+    [data-tab-more] {
     display: none;
+  }
+  html[data-studio-focus="hardware"]
+    [data-right-panel-tab-list]
+    [data-active-tab="true"]
+    [data-tab-end] {
+    position: absolute;
+    inset-block: 0.1875rem calc(var(--studio-tab-foot) + 0.1875rem);
+    right: 0.25rem;
+    visibility: hidden;
+    align-items: center;
+    border-radius: 0 0.375rem 0.375rem 0;
+    padding-inline-start: 0.25rem;
+    background: linear-gradient(to right, transparent, var(--background) 0.25rem);
+  }
+  html[data-studio-focus="hardware"]
+    [data-right-panel-tab-list]
+    [data-active-tab="true"]:is(:hover, :focus-within)
+    [data-tab-end] {
+    visibility: visible;
   }
 }
 html[data-studio-focus="hardware"] [data-right-panel-tabbar] [data-active-tab] {

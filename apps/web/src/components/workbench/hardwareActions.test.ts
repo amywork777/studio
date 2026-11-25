@@ -1,3 +1,4 @@
+import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -66,6 +67,7 @@ describe("hardware actions", () => {
     expect(titled(evaluate!.sections)).toEqual([
       ["Simulation", ["Strength under load"]],
       ["Fit, motion and mass", ["Weight and center of mass"]],
+      ["Drawings and sketches", ["Check against the drawing"]],
     ]);
     expect(evaluate!.others).toEqual([]);
   });
@@ -78,6 +80,7 @@ describe("hardware actions", () => {
         "Fit, motion and mass",
         ["Fit and clearance", "Range of motion", "Weight and center of mass"],
       ],
+      ["Drawings and sketches", ["Check against the drawing"]],
     ]);
     const document = menu("Document", "Assembly", [
       "cad",
@@ -159,6 +162,13 @@ describe("hardware actions", () => {
     expect(jobLine(slice)).toBe(`${slice.gets} Needs OrcaSlicer installed.`);
     const exportJob = HARDWARE_ACTIONS.find((action) => action.id === "export")!;
     expect(jobLine(exportJob)).toBe(exportJob.gets);
+    expect(exportJob.prompt(serializeComposerFileLink("parts/arm.py"))).toContain(
+      "STEP, STL and 3MF",
+    );
+    // An imported STEP is not written again.
+    expect(exportJob.prompt(serializeComposerFileLink("lamp_base.step"))).toContain(
+      "as STL and 3MF. It is a STEP file already: leave it as it is.",
+    );
   });
 
   it("says every outcome a check reports, in one shape", () => {

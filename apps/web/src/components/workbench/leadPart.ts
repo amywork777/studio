@@ -17,6 +17,10 @@ const IN_ASSEMBLIES = /(?:^|\/)assembl/i;
 export const isAssembly = (file: Pick<ProjectFile, "kind" | "folder">) =>
   file.kind === "Assembly" || IN_ASSEMBLIES.test(file.folder);
 
+/** Whether a part's name says it is made from `source`'s: `bracket_flat`, `bracket-v2`. */
+const madeFrom = (name: string, source: string) =>
+  name !== source && name.startsWith(source) && /^[-_. ]/.test(name.slice(source.length));
+
 /**
  * The parts not named after another of `parts`: `bracket_flat` and `bracket-v2` are made from
  * `bracket`, which stands for them, whichever a listing in name order puts first. A file in the
@@ -24,12 +28,10 @@ export const isAssembly = (file: Pick<ProjectFile, "kind" | "folder">) =>
  */
 export function sourceParts(parts: ReadonlyArray<ProjectFile>): ProjectFile[] {
   const stems = parts.map(stem);
-  const made = (name: string) =>
-    stems.some(
-      (other) =>
-        other !== name && name.startsWith(other) && /^[-_. ]/.test(name.slice(other.length)),
-    );
-  return parts.filter((part) => IN_ASSEMBLIES.test(part.folder) || !made(stem(part)));
+  return parts.filter(
+    (part) =>
+      IN_ASSEMBLIES.test(part.folder) || !stems.some((other) => madeFrom(stem(part), other)),
+  );
 }
 
 /**
@@ -51,10 +53,13 @@ export function leadPartOf(
       return (sources.length > 0 ? sources : parts).map((file) => ({
         root: folder.root,
         file,
+        // What is made from it, each kind once: a board's Gerbers are a file per layer, not one
+        // made thing per layer. The parts named after it (its flat pattern) count too.
         made:
           drawingsFor(file, paths).length +
-          (manufacturing.get(file.path)?.length ?? 0) +
-          (studies.get(file.path)?.length ?? 0),
+          new Set((manufacturing.get(file.path) ?? []).map((made) => made.kind)).size +
+          (studies.get(file.path)?.length ?? 0) +
+          parts.filter((other) => madeFrom(stem(other), stem(file))).length,
       }));
     })
     .toSorted(
