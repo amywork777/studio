@@ -14,7 +14,7 @@ const round = (n) => Math.round(n * 1000) / 1000;
 const EDGE_ANGLE = 28;
 
 /** The part's sharp edges as thin lines, as a CAD view draws them. */
-function addEdges(root) {
+export function addEdges(root) {
   const meshes = [];
   root.traverse((each) => {
     if (each.isMesh) meshes.push(each);
@@ -27,6 +27,43 @@ function addEdges(root) {
     lines.raycast = () => {};
     mesh.add(lines);
   }
+}
+
+/** A model file as a three.js object, each glTF node tagged with its index for picking parts. */
+export async function parseModel(buffer, ext) {
+  let object;
+  if (ext === "stl") {
+    const geometry = new STLLoader().parse(buffer);
+    geometry.computeVertexNormals();
+    object = new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({ color: 0xb9c3cf, metalness: 0.2, roughness: 0.5 }),
+    );
+  } else {
+    object = await new Promise((resolve, reject) =>
+      new GLTFLoader().parse(
+        buffer,
+        "",
+        (gltf) => {
+          // Which glTF node each object is, so the file panel can pick a part by it. Asked per node:
+          // the loader's own associations are shared between copies of one mesh.
+          const count = gltf.parser.json.nodes?.length ?? 0;
+          Promise.all(
+            Array.from({ length: count }, (_, index) =>
+              gltf.parser.getDependency("node", index).then((object) => {
+                object.userData.node = index;
+              }),
+            ),
+          ).then(() => resolve(gltf.scene), reject);
+        },
+        reject,
+      ),
+    );
+  }
+  object.traverse((each) => {
+    for (const material of [each.material ?? []].flat()) material.envMapIntensity = 0.45;
+  });
+  return object;
 }
 
 export function makeViewer(container, { onPick, onPin }) {
@@ -140,34 +177,7 @@ export function makeViewer(container, { onPick, onPin }) {
     },
     async showModel(buffer, ext) {
       ensure3d();
-      let object;
-      if (ext === "stl") {
-        const geometry = new STLLoader().parse(buffer);
-        geometry.computeVertexNormals();
-        object = new THREE.Mesh(
-          geometry,
-          new THREE.MeshStandardMaterial({ color: 0xb9c3cf, metalness: 0.2, roughness: 0.5 }),
-        );
-      } else {
-        object = await new Promise((resolve, reject) =>
-          new GLTFLoader().parse(
-            buffer,
-            "",
-            (gltf) => {
-              // Which glTF node each object is, so the file panel can pick a part by it.
-              gltf.scene.traverse((each) => {
-                const node = gltf.parser.associations.get(each)?.nodes;
-                if (node !== undefined) each.userData.node = node;
-              });
-              resolve(gltf.scene);
-            },
-            reject,
-          ),
-        );
-      }
-      object.traverse((each) => {
-        for (const material of [each.material ?? []].flat()) material.envMapIntensity = 0.45;
-      });
+      const object = await parseModel(buffer, ext);
       addEdges(object);
       if (model !== null) scene.remove(model);
       model = new THREE.Group();

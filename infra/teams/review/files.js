@@ -1,6 +1,7 @@
 // The file panel beside the model, as a CAD tool's tree reads: Models, Drawings, Pictures and Other,
 // a filter at the top, and an assembly opening onto its parts from the GLB Studio made of it.
 import { download } from "./hub.js";
+import { makeThumb, thumbNow } from "./thumbs.js";
 
 const esc = (s) =>
   String(s ?? "").replace(
@@ -58,6 +59,8 @@ const ICON = {
   pictures: `<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="m2.5 11.5 3.5-3.5 3 3 1.8-1.8 2.7 2.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="10.5" cy="6.3" r="1.1" fill="currentColor"/></svg>`,
   other: `<svg viewBox="0 0 16 16"><path d="M4 1.8h5.5L12.5 5v9.2H4Zm5.5 0V5h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
   twist: `<svg viewBox="0 0 12 12"><path d="M4.5 3 7.5 6l-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  list: `<svg viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  grid: `<svg viewBox="0 0 16 16"><rect x="2.3" y="2.3" width="4.9" height="4.9" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="8.8" y="2.3" width="4.9" height="4.9" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.3" y="8.8" width="4.9" height="4.9" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="8.8" y="8.8" width="4.9" height="4.9" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>`,
   panel: `<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 2.8v10.4" stroke="currentColor" stroke-width="1.2"/></svg>`,
   search: `<svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="m10.3 10.3 3.2 3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
 };
@@ -116,11 +119,17 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
   const expanded = new Set();
   const shutGroups = new Set(remember.get("files-shut-groups", []));
   let open = remember.get("files-open", true);
+  let view = remember.get("files-view", "list");
+  const thumbJobs = new Map();
 
   el.innerHTML = `
     <div class="layers-head">
       <button class="icon-btn" type="button" id="layers-toggle" aria-controls="layers-body">${ICON.panel}</button>
       <span class="layers-title">Files <span class="count" id="layers-count"></span></span>
+      <span class="view-pick" role="group" aria-label="Show files as">
+        <button class="icon-btn" type="button" data-view="list" title="List" aria-label="List">${ICON.list}</button>
+        <button class="icon-btn" type="button" data-view="grid" title="Grid" aria-label="Grid">${ICON.grid}</button>
+      </span>
     </div>
     <div class="layers-body" id="layers-body">
       <label class="layers-search">${ICON.search}<span class="sr">Filter files</span>
@@ -141,6 +150,55 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
   };
   setOpen(open);
   toggle.addEventListener("click", () => setOpen(!open));
+  const setView = (next) => {
+    view = next;
+    remember.set("files-view", view);
+    work.classList.toggle("files-grid", view === "grid");
+    el.querySelectorAll("[data-view]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.view === view)),
+    );
+  };
+  setView(view);
+  el.querySelectorAll("[data-view]").forEach((b) =>
+    b.addEventListener("click", () => {
+      setView(b.dataset.view);
+      paintList();
+    }),
+  );
+
+  // A thumbnail is made when its row comes on screen, then shown wherever that key appears.
+  const showThumb = (key, url) => {
+    if (!url) return;
+    for (const spot of list.querySelectorAll(`[data-thumb="${CSS.escape(key)}"]`)) {
+      spot.replaceChildren(Object.assign(document.createElement("img"), { src: url, alt: "" }));
+      spot.classList.add("has-img");
+    }
+  };
+  const seen = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        seen.unobserve(entry.target);
+        const key = entry.target.dataset.thumb;
+        const job = thumbJobs.get(key);
+        if (job)
+          makeThumb(key, job.file, extOf(job.file.path), job.node).then((url) =>
+            showThumb(key, url),
+          );
+      }
+    },
+    { root: list, rootMargin: "120px" },
+  );
+  /** The thumbnail spot: the picture once made, the kind's icon until then. */
+  const thumb = (cls, key, file, node, icon) => {
+    thumbJobs.set(key, { file, node });
+    const url = thumbNow(key);
+    return url
+      ? `<span class="${cls} has-img"><img src="${esc(url)}" alt=""></span>`
+      : url === null
+        ? `<span class="${cls}">${icon}</span>`
+        : `<span class="${cls}" data-thumb="${esc(key)}">${icon}</span>`;
+  };
 
   input.addEventListener("input", () => {
     query = input.value.trim().toLowerCase();
@@ -154,7 +212,7 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
       paintList();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      list.querySelector(".row-main, .group-head")?.focus();
+      list.querySelector(".row-main, .card-file, .group-head")?.focus();
     }
   });
 
@@ -197,7 +255,13 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
         return `<div class="row" role="treeitem" aria-level="${depth + 1}" ${inner ? `aria-expanded="${isOpen}"` : ""} style="--depth:${depth}">
           ${inner ? twisty(id, isOpen) : `<span class="twisty"></span>`}
           <button class="row-main${isPicked ? " picked" : ""}" type="button" data-of="${esc(path)}" data-node="${n.node}" title="Pick it in the assembly">
-            ${inner ? ICON.assembly : ICON.part}<span class="row-name" title="${esc(n.name)}">${nameHtml(n.name)}</span>
+            ${thumb(
+              "thumb-sm",
+              `${files.find((f) => f.path === path)?.object}#${n.node}`,
+              files.find((f) => f.path === path),
+              n.node,
+              inner ? ICON.assembly : ICON.part,
+            )}<span class="row-name" title="${esc(n.name)}">${nameHtml(n.name)}</span>
           </button>${own ? `<button class="row-open" type="button" data-open="${esc(own.path)}" title="Open its own model">${typeOf(own.path)}</button>` : ""}</div>
           ${isOpen ? nodeRows(path, n.children, depth + 1) : ""}`;
       })
@@ -218,7 +282,7 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
     return `<div class="row" role="treeitem" aria-level="1" ${assembly ? `aria-expanded="${isOpen}"` : ""} style="--depth:0">
       ${assembly ? twisty(f.path, isOpen) : `<span class="twisty"></span>`}
       <button class="row-main${state}" type="button" data-path="${esc(f.path)}" ${current === f.path ? 'aria-current="true"' : ""} title="${esc(sourceOf(f.path))}">
-        ${assembly ? ICON.assembly : ICON[kindOf(f.path)]}<span class="row-name">${nameHtml(label)}${twin && folder ? `<span class="row-where">${esc(words(folder.split("/").pop()))}</span>` : ""}</span><span class="ext">${typeOf(f.path)}</span>
+        ${thumb("thumb-sm", f.object, f, null, assembly ? ICON.assembly : ICON[kindOf(f.path)])}<span class="row-name">${nameHtml(label)}${twin && folder ? `<span class="row-where">${esc(words(folder.split("/").pop()))}</span>` : ""}</span><span class="ext">${typeOf(f.path)}</span>
       </button></div>
       ${
         !isOpen
@@ -227,6 +291,19 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
             ? `<div class="row-note" style="--depth:1">Reading parts…</div>`
             : nodeRows(f.path, nodes, 1)
       }`;
+  }
+
+  function fileCard(f) {
+    const label = labelOf(f.path);
+    if (!hit(label) && !hit(sourceOf(f.path))) return "";
+    const assembly = isAssembly(f.path);
+    const tree = trees.get(f.path);
+    const parts = Array.isArray(tree) ? tree.length : 0;
+    return `<button class="card-file${current === f.path ? " current" : ""}" type="button" data-path="${esc(f.path)}" ${current === f.path ? 'aria-current="true"' : ""} title="${esc(sourceOf(f.path))}">
+      ${thumb("thumb-lg", f.object, f, null, assembly ? ICON.assembly : ICON[kindOf(f.path)])}
+      <span class="card-name">${nameHtml(label)}</span>
+      <span class="card-meta">${typeOf(f.path)}${assembly && parts ? ` · ${parts} parts` : ""}</span>
+    </button>`;
   }
 
   function paintList() {
@@ -242,7 +319,9 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
       typeOf(a.path).localeCompare(typeOf(b.path));
     const groups = GROUPS.map(([id, name]) => {
       const mine = files.filter((f) => kindOf(f.path) === id).toSorted(order);
-      const rows = mine.map((f) => fileRow(f, labels)).filter(Boolean);
+      const rows = mine
+        .map((f) => (view === "grid" ? fileCard(f) : fileRow(f, labels)))
+        .filter(Boolean);
       return { id, name, total: mine.length, rows };
     }).filter((g) => g.total > 0 && (query === "" || g.rows.length > 0));
     list.innerHTML =
@@ -255,10 +334,12 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
                 const shut = shutGroups.has(g.id) && query === "";
                 return `<section class="group">
                   <button class="group-head" type="button" data-group="${g.id}" aria-expanded="${!shut}">${ICON.twist}<span>${g.name}</span><span class="count">${query === "" ? g.total : `${g.rows.length} of ${g.total}`}</span></button>
-                  ${shut ? "" : `<div role="group">${g.rows.join("")}</div>`}
+                  ${shut ? "" : `<div role="group"${view === "grid" ? ' class="cards"' : ""}>${g.rows.join("")}</div>`}
                 </section>`;
               })
               .join("");
+    seen.disconnect();
+    list.querySelectorAll("[data-thumb]").forEach((spot) => seen.observe(spot));
   }
 
   list.addEventListener("click", (event) => {
@@ -282,7 +363,7 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
       remember.set("files-shut-groups", [...shutGroups]);
       return paintList();
     }
-    const row = event.target.closest(".row-main");
+    const row = event.target.closest(".row-main, .card-file");
     if (!row) return;
     if (row.dataset.path) {
       if (isAssembly(row.dataset.path)) {
@@ -299,9 +380,9 @@ export function makeFilePanel(el, work, { onOpen, onPart }) {
 
   // Up and down walk the rows; right and left open and close an assembly, as a tree does.
   list.addEventListener("keydown", (event) => {
-    const row = event.target.closest(".row-main, .group-head");
+    const row = event.target.closest(".row-main, .card-file, .group-head");
     if (!row) return;
-    const rows = [...list.querySelectorAll(".row-main, .group-head")];
+    const rows = [...list.querySelectorAll(".row-main, .card-file, .group-head")];
     const at = rows.indexOf(row);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();

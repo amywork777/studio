@@ -269,6 +269,7 @@ textarea:focus-visible,
 select:focus-visible,
 .btn:focus-visible,
 .row-main:focus-visible,
+.card-file:focus-visible,
 .group-head:focus-visible,
 .icon-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -490,7 +491,11 @@ select:focus-visible,
   flex: 1;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr) 380px;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
+}
+.work.files-grid {
+  grid-template-columns: 320px minmax(0, 1fr) 380px;
 }
 .work.files-shut {
   grid-template-columns: 44px minmax(0, 1fr) 380px;
@@ -666,6 +671,15 @@ select:focus-visible,
   color: var(--muted);
   cursor: pointer;
 }
+.view-pick {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.view-pick .icon-btn[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--fg);
+}
 .icon-btn:hover {
   background: var(--surface-2);
   color: var(--fg);
@@ -675,6 +689,7 @@ select:focus-visible,
   height: 16px;
 }
 .files-shut .layers-title,
+.files-shut .view-pick,
 .files-shut .layers-body {
   display: none;
 }
@@ -720,6 +735,7 @@ select:focus-visible,
   overflow-y: auto;
   padding: 0 6px 12px;
   scrollbar-width: thin;
+  overscroll-behavior: contain;
 }
 .layers-empty {
   padding: 10px 8px;
@@ -777,7 +793,7 @@ select:focus-visible,
   display: grid;
   place-items: center;
   width: 16px;
-  height: 26px;
+  height: 34px;
   padding: 0;
   border: 0;
   background: none;
@@ -789,9 +805,9 @@ select:focus-visible,
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 6px;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px 0 3px;
   border: 0;
   border-radius: 6px;
   background: none;
@@ -803,11 +819,33 @@ select:focus-visible,
 .row-main:hover {
   background: var(--surface-2);
 }
-.row-main > svg {
+.thumb-sm,
+.thumb-lg {
   flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.thumb-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.thumb-sm svg {
   width: 15px;
   height: 15px;
-  color: var(--muted);
+}
+.thumb-sm img,
+.thumb-lg img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.has-img {
+  background: var(--canvas);
 }
 .row-name {
   flex: 1;
@@ -858,13 +896,66 @@ select:focus-visible,
   color: var(--accent);
   font-weight: 500;
 }
-.row-main.current > svg,
-.row-main.picked > svg,
+.row-main.current .thumb-sm,
+.row-main.picked .thumb-sm {
+  border-color: var(--accent);
+}
 .row-main.current .ext {
   color: var(--accent);
 }
 .row-main.current-soft {
   font-weight: 500;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 2px 2px 8px;
+}
+.card-file {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.card-file:hover {
+  border-color: var(--line-strong);
+}
+.card-file.current {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.thumb-lg {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 4px;
+  border-radius: 7px;
+}
+.thumb-lg svg {
+  width: 26px;
+  height: 26px;
+}
+.card-name {
+  display: flex;
+  min-width: 0;
+  padding: 0 2px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.card-meta {
+  padding: 0 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
 }
 .row-note {
   padding: 4px 0 4px calc(var(--depth) * 14px + 22px);
@@ -1285,7 +1376,8 @@ select:focus-visible,
 
 @media (max-width: 860px) {
   .work,
-  .work.files-shut {
+  .work.files-shut,
+  .work.files-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(420px, 62vh) auto;
   }
