@@ -91,6 +91,8 @@ describe("gradeDrawingCheck", () => {
     ]);
     expect(printedDecimals("2X .03 X 45°")).toBe(2);
     expect(printedDecimals("1.000/1.002")).toBe(3);
+    // A count that is the dimension itself is held to it.
+    expect(printedDecimals("(4) Places")).toBe(0);
   });
 
   it("never passes what was not measured, a flag, a reference or a note", () => {

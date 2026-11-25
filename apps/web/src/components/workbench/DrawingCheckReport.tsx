@@ -151,14 +151,6 @@ export function DrawingCheckReport(props: {
   const checkedAt = useEnvironmentQuery(
     projectEnvironment.readFile({ environmentId, input: { cwd: root, relativePath } }),
   ).data?.modifiedAt;
-  const modelAt = useEnvironmentQuery(
-    check.model === null
-      ? null
-      : projectEnvironment.readFile({
-          environmentId,
-          input: { cwd: root, relativePath: check.model, allowMissing: true },
-        }),
-  ).data?.modifiedAt;
   const partAt = useEnvironmentQuery(
     check.part === null
       ? null
@@ -167,12 +159,12 @@ export function DrawingCheckReport(props: {
           input: { cwd: root, relativePath: check.part, allowMissing: true },
         }),
   ).data?.modifiedAt;
-  // The code is the model (law 3): a part changed since it was measured says so.
+  // The code is the model (law 3): its script changed since it was measured says so. Not its STEP,
+  // which an agent exports from the same build after measuring it.
   const changed =
     checkedAt !== undefined &&
-    [modelAt, partAt].some(
-      (at) => at !== undefined && Date.parse(at) > Date.parse(checkedAt) + 1_000,
-    );
+    partAt !== undefined &&
+    Date.parse(partAt) > Date.parse(checkedAt) + 1_000;
 
   const name = (check.model ?? check.part ?? relativePath).split("/").at(-1) ?? relativePath;
   const title = `Drawing check of ${partLabel(name)}`;

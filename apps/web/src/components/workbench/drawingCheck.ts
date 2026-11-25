@@ -240,7 +240,10 @@ const COUNT = /(?:^|\s)(?:\d+\s*X|\(\d+\))(?=\s|$|[^\w.])/gi;
 
 /** How many decimals the first size in the text prints with: ".030" is 3, "20" is 0, "2X .03" is 2. */
 export function printedDecimals(printed: string): number | null {
-  const number = /\d*\.\d+|\d+/.exec(printed.replaceAll(",", "").replaceAll(COUNT, " "));
+  const plain = printed.replaceAll(",", "");
+  const SIZE = /\d*\.\d+|\d+/;
+  // Without a size besides it, the count is the dimension: "(4) Places".
+  const number = SIZE.exec(plain.replaceAll(COUNT, " ")) ?? SIZE.exec(plain);
   if (number === null) return null;
   const dot = number[0].indexOf(".");
   return dot === -1 ? 0 : number[0].length - dot - 1;
