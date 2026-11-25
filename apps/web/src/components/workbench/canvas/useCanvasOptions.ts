@@ -1,5 +1,4 @@
 import { pluginFileHandlers } from "@t3tools/client-runtime/state/plugins";
-import { isThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
@@ -17,12 +16,18 @@ import { type DesignOption, OPTIONS_FILE, readDesignOptions } from "./canvasOpti
 /** How often the options file is read while the agent is building. */
 const READ_MS = 2500;
 
-/** Whether the board's chat has a turn running. */
+const RUNNING = new Set(["preparing", "queued", "starting", "running"]);
+
+/**
+ * Whether the board's chat has a turn running. Its own run's status, not the inbox's "working":
+ * a set that ends on a question leaves the chat waiting on the person, and a More like this sent
+ * then starts a new run while that question still shows.
+ */
 export function useBoardWorking(environmentId: EnvironmentId, threadId: string | null): boolean {
   const shell = useThreadShell(
     threadId === null ? null : scopeThreadRef(environmentId, threadId as ThreadId),
   );
-  return shell !== null && shell.latestRun !== null && isThreadWorking(shell);
+  return shell?.latestRun != null && RUNNING.has(shell.latestRun.status);
 }
 
 /**

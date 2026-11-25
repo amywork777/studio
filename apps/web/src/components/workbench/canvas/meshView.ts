@@ -27,7 +27,7 @@ export interface ViewAngle {
   readonly elevation: number;
 }
 
-export const START_ANGLE: ViewAngle = { azimuth: Math.PI / 4, elevation: Math.PI / 6 };
+export const START_ANGLE: ViewAngle = { azimuth: (-3 * Math.PI) / 4, elevation: Math.PI / 5 };
 
 /** An option's mesh as read: its overall size in millimetres along X, Y and Z (Z up). */
 export interface MeshSize {

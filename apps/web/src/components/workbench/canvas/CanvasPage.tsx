@@ -83,10 +83,13 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
   const plugins = useEnvironmentQuery(pluginEnvironment.list({ environmentId, input: {} })).data
     ?.plugins;
   const [sending, setSending] = useState(false);
-  const [asked, setAsked] = useState<{ readonly from: string | null; readonly count: number }>({
-    from: null,
+  // The set asked for last: the first, or the option a More like this grows from.
+  const asked = {
+    from: board.askedFrom ?? null,
     count: board.threadId === null ? 0 : OPTIONS_PER_SET,
-  });
+  };
+  const setAsked = (next: { readonly from: string | null }) =>
+    update(board.id, () => ({ askedFrom: next.from }));
   const [angle, setAngle] = useState<ViewAngle>(START_ANGLE);
   const [sizes, setSizes] = useState<ReadonlyMap<string, MeshSize>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
@@ -292,7 +295,7 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     setSending(true);
     const sent = await makeFirst(board).finally(() => setSending(false));
     if (sent) {
-      setAsked({ from: null, count: OPTIONS_PER_SET });
+      setAsked({ from: null });
       setRefit((count) => count + 1);
     }
   };
@@ -303,7 +306,7 @@ function Board(props: { readonly environmentId: EnvironmentId; readonly board: C
     const taken = options.map((candidate) => candidate.key);
     const sent = await makeMore(board, option, taken).finally(() => setSending(false));
     if (sent) {
-      setAsked({ from: option.key, count: OPTIONS_PER_SET });
+      setAsked({ from: option.key });
       setRefit((count) => count + 1);
     }
   };

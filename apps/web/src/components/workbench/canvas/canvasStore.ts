@@ -27,6 +27,8 @@ export interface CanvasBoard {
   readonly folder: string | null;
   readonly projectId: string | null;
   readonly threadId: string | null;
+  /** The option the last More like this grew from; null or unsaid for the first set. */
+  readonly askedFrom?: string | null;
   /** Cards the person moved, by option letter or picture id. */
   readonly moved: Readonly<Record<string, Place>>;
   /** The board's pan and zoom when last left. */
