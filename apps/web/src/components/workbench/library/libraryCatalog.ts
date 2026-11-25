@@ -178,6 +178,16 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     gets: "A report of where its parts touch, its tightest gaps and its range of motion.",
   }),
   doc({
+    id: "doc:drawing-check",
+    name: "Drawing check",
+    templates: [],
+    actions: ["drawing-check"],
+    what: "The part set against the drawing or sketch it is made from, one dimension at a time.",
+    give: "The part and its drawing: a PDF, a scan, or a photo of a sketch.",
+    asks: null,
+    gets: "Each dimension beside what the model measures, and every number that does not add up.",
+  }),
+  doc({
     id: "doc:manufacturing-check",
     name: "Manufacturing check",
     templates: [],

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check against the drawing"
+  short_description: "Each dimension on the drawing beside what the model measures, and every number that disagrees."
+  default_prompt: "Use $drawing-check to check the part against the drawing or sketch it is made from with $drawing-check: read every dimension and callout, measure each on the model, and tell me every number that does not add up."

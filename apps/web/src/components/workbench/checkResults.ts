@@ -1,3 +1,4 @@
+import { drawingCheckResult, isDrawingCheckPath } from "./drawingCheck";
 import { folderResult } from "./partNames";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
 
@@ -17,7 +18,8 @@ const STUDY_NUMBERS = /([._-]result)?\.json$/i;
 const isFolderAnswer = (path: string) => /\.json$/i.test(path) && folderResult(path) !== null;
 
 /** Whether the file is a check's result the overview reads. */
-export const isCheckResultPath = (path: string) => RESULT_FILE.test(path) || isFolderAnswer(path);
+export const isCheckResultPath = (path: string) =>
+  RESULT_FILE.test(path) || isFolderAnswer(path) || isDrawingCheckPath(path);
 
 /**
  * Whether the file is a named FEA study's numbers beside its picture `FEA/part.load.glb`:
@@ -112,6 +114,8 @@ export function parseCheckResult(
   contents: string,
   modifiedAt?: string,
 ): CheckResult | null {
+  // A drawing check is Studio's own file, graded by Studio (`drawingCheck.ts`).
+  if (isDrawingCheckPath(path)) return drawingCheckResult(path, contents, modifiedAt);
   let data: unknown;
   try {
     data = JSON.parse(contents);
