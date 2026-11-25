@@ -909,7 +909,7 @@ export const make = Effect.gen(function* () {
         ? Effect.succeed(false)
         : fileSystem.exists(file).pipe(
             Effect.map((onDisk) => !onDisk),
-            Effect.catch(() => Effect.succeed(false)),
+            Effect.orElseSucceed(() => false),
           ),
     ),
   );
