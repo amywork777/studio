@@ -65,7 +65,8 @@ export function projectStarters(
         file.path === lead?.path ? action.label : action.short(lowerName(name)),
       // Every job for the part in menu order, and of its ways of making it only the project's
       // own: a chip never guesses how a part is made, so a project that has not said gets none.
-      // Starters start work: a write-up (no skill of its own), an export or a bought part is none.
+      // Starters start work: a write-up (no skill of its own), an export or a bought part is none,
+      // nor a brainstorm, which starts from a sketch rather than the part.
       all: hardwareActions(kind, skills, brief?.process)
         .flatMap((menu) =>
           menu.group === "Manufacture" ? menu.sections : [...menu.sections, ...menu.others],
@@ -75,6 +76,7 @@ export function projectStarters(
           (action) =>
             action.skill !== null &&
             action.section !== "files" &&
+            action.startPrompt === undefined &&
             (action.process === undefined || action.process === brief?.process),
         ),
     };

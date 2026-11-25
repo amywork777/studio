@@ -56,6 +56,7 @@ const ownWords = (skill: string) =>
 
 /** The sample's outputs that could not be made, so their entries show no example. */
 const NOT_MADE = [
+  "doc:concepts",
   "doc:print",
   "doc:render",
   "skill:text-to-cad/print3d",

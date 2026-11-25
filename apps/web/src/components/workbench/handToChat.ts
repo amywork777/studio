@@ -15,10 +15,15 @@ export function sendsAtOnce(draft: string): boolean {
  * waits on a question, the job is the answer to it. A chat that can't take it now (an approval
  * waiting, a question with only its own answers) says so rather than dropping the press.
  */
-export function handToChat(composerRef: ComposerHandleRef, prompt: string): void {
+export function handToChat(
+  composerRef: ComposerHandleRef,
+  prompt: string,
+  /** False for a job that waits for the person's own words or pictures: it is written, not sent. */
+  sendIfEmpty = true,
+): void {
   const composer = composerRef.current;
   if (composer === null) return;
-  const send = sendsAtOnce(composer.readSnapshot().value);
+  const send = sendIfEmpty && sendsAtOnce(composer.readSnapshot().value);
   if (!composer.insertTextAtEnd(prompt, { ensureLeadingBoundary: true })) {
     toastManager.add({
       type: "info",
@@ -28,6 +33,7 @@ export function handToChat(composerRef: ComposerHandleRef, prompt: string): void
     return;
   }
   if (send) requestAnimationFrame(() => composer.submit());
+  else if (!sendIfEmpty) composer.focusAtEnd();
 }
 
 /**

@@ -25,6 +25,11 @@
     "skill": "cad"
   },
   {
+    "id": "brainstorm",
+    "label": "Brainstorm concepts",
+    "skill": "cad"
+  },
+  {
     "id": "fdm",
     "label": "Check for FDM printing",
     "skill": "cad"
