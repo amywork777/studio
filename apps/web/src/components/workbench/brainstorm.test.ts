@@ -1,44 +1,49 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  conceptSetOf,
-  isBrainstormFile,
+  asProjectPart,
+  conceptSetsIn,
   lightestConcept,
   massLabel,
   readConceptSet,
 } from "./brainstorm";
 
 describe("a brainstorm's set of concepts", () => {
-  it("knows a set's file among a turn's changed files, and nothing else", () => {
-    expect(conceptSetOf("brainstorm/set-2/concepts.json")).toBe(2);
-    expect(conceptSetOf("./brainstorm/set-12/concepts.json")).toBe(12);
-    expect(conceptSetOf("brainstorm\\set-1\\concepts.json")).toBe(1);
-    expect(conceptSetOf("brainstorm/set-1/a.png")).toBeNull();
-    expect(conceptSetOf("parts/brainstorm/set-1/concepts.json")).toBeNull();
-    // Its pictures show on its cards, not again in what changed; its parts' scripts do show.
-    expect(isBrainstormFile("brainstorm/set-1/a.png")).toBe(true);
-    expect(isBrainstormFile("parts/concept_1a.py")).toBe(false);
+  it("finds the sets a reply links in its own chat's folder, once each", () => {
+    const folder = "/studio/rover/brainstorm/thread-7";
+    const reply = [
+      "Which way should I take it?",
+      `[Concepts, set 2](${folder}/set-2/concepts.json)`,
+      `Also [set 3](file://${folder}/set-3/concepts.json) and again ${folder}/set-2/concepts.json`,
+      "C:\\Studio\\rover\\brainstorm\\thread-7\\set-4\\concepts.json",
+      // Another chat's set, and a picture of this one's, are not sets of this reply.
+      "/studio/rover/brainstorm/thread-8/set-1/concepts.json",
+      `${folder}/set-1/ribbed.png`,
+    ].join("\n");
+    expect(conceptSetsIn(reply, "thread-7")).toEqual([2, 3, 4]);
+    expect(conceptSetsIn("No concepts here.", "thread-7")).toEqual([]);
   });
 
-  it("keeps each concept whose script is in the project, once, and weighs only what was measured", () => {
+  it("keeps each concept whose script is a file of its set, once, and weighs only what was measured", () => {
     const read = readConceptSet(
       1,
       JSON.stringify({
         concepts: [
           {
             name: "Bent plate",
-            script: "parts/concept_1a.py",
-            picture: "brainstorm/set-1/a.png",
+            script: "bent_plate.py",
+            picture: "bent_plate.png",
             mass_g: 42.7,
           },
-          { name: "Twice", script: "parts/concept_1a.py", mass_g: 1 },
-          { script: "parts\\concept_1b.py", mass_g: "about 30" },
+          { name: "Twice", script: "bent_plate.py", mass_g: 1 },
+          { script: "saddle.py", mass_g: "about 30" },
+          { name: "In the project", script: "parts/concept.py" },
           { name: "Outside", script: "../elsewhere.py" },
           { name: "Absolute", script: "/tmp/part.py" },
-          { name: "Not a script", script: "parts/concept_1c.step" },
+          { name: "Not a script", script: "truss.step" },
           {
             name: "Escaping picture",
-            script: "parts/concept_1d.py",
+            script: "pedestal.py",
             picture: "../../x.png",
             mass_g: 0,
           },
@@ -49,15 +54,15 @@ describe("a brainstorm's set of concepts", () => {
       {
         name: "Bent plate",
         idea: "",
-        script: "parts/concept_1a.py",
-        picture: "brainstorm/set-1/a.png",
+        script: "bent_plate.py",
+        picture: "bent_plate.png",
         material: null,
         massGrams: 42.7,
       },
       {
         name: "Concept 3",
         idea: "",
-        script: "parts/concept_1b.py",
+        script: "saddle.py",
         picture: null,
         material: null,
         massGrams: null,
@@ -65,7 +70,7 @@ describe("a brainstorm's set of concepts", () => {
       {
         name: "Escaping picture",
         idea: "",
-        script: "parts/concept_1d.py",
+        script: "pedestal.py",
         picture: null,
         material: null,
         massGrams: null,
@@ -76,6 +81,28 @@ describe("a brainstorm's set of concepts", () => {
   it("waits on a file the agent is still writing", () => {
     expect(readConceptSet(1, '{"concepts": [{"name": "Ha')).toBeNull();
     expect(readConceptSet(1, "{}")?.concepts).toEqual([]);
+  });
+
+  it("names a used concept's model after the part it becomes, and only its model", () => {
+    const script = [
+      "@model",
+      "def bent_plate():",
+      '    body.label = "bent_plate"',
+      "    return bent_plate_body(bent_plate_width)",
+      "",
+      "bent_plate()",
+    ].join("\n");
+    expect(asProjectPart(script, "bent_plate", "bent_plate")).toBe(script);
+    expect(asProjectPart(script, "bent_plate", "bent_plate_2")).toBe(
+      [
+        "@model",
+        "def bent_plate_2():",
+        '    body.label = "bent_plate_2"',
+        "    return bent_plate_body(bent_plate_width)",
+        "",
+        "bent_plate_2()",
+      ].join("\n"),
+    );
   });
 
   it("says a mass was not checked rather than guess one, and marks the lightest of two or more", () => {

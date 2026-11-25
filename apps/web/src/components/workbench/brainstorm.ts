@@ -1,24 +1,25 @@
 /**
- * Brainstorm's side of a set of concepts: where the agent writes each set (`brainstorm/set-<n>/`),
- * how Studio reads it to draw a card per concept under the reply, and the message a card's "More
- * like this" hands to the chat. Every number on a card comes from that file, which takes it from a
- * cad command.
+ * Brainstorm's side of a set of concepts. The agent keeps each set in the chat's concepts folder
+ * (`studioConceptsFolder`, outside the project) as `set-<n>/`, and links its `concepts.json` at the
+ * end of its reply; Studio reads that file to draw a card per concept under the reply. Every number
+ * on a card comes from that file, which takes it from a cad command.
  */
 
 /** How many concepts a set has. */
 const CONCEPTS_PER_SET = 4;
 
-/** A set's file, relative to the project's folder: `brainstorm/set-2/concepts.json`. */
-const SET_FILE = /^(?:\.\/)?brainstorm\/set-(\d+)\/concepts\.json$/;
+/** A file name a set may hold: no folder, so nothing in a set's list points out of it. */
+const SCRIPT = /^[A-Za-z_][A-Za-z0-9_]*\.py$/;
+const PICTURE = /^[A-Za-z0-9_.-]+\.(?:png|jpe?g|webp)$/i;
 
-/** One concept the agent built: a real part, its own script. */
+/** One concept the agent built: a real part, its own script in its set's folder. */
 export interface Concept {
   readonly name: string;
   /** One plain sentence on how it differs from the others. */
   readonly idea: string;
-  /** Its part script, relative to the project's folder. */
+  /** Its script's file name in the set's folder; its stem is its model's name. */
   readonly script: string;
-  /** Its picture (`cad model snapshot --preview`), relative to the project's folder. */
+  /** Its picture's file name in the set's folder (`cad model snapshot --preview`). */
   readonly picture: string | null;
   readonly material: string | null;
   /** Its mass as `cad model inspect` measured it; null when nothing measured it. */
@@ -36,30 +37,30 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 
-/** A path inside the project: relative, with no step up out of it. */
-const insideProject = (path: string | null): string | null => {
-  if (path === null) return null;
-  const forward = path.replaceAll("\\", "/").replace(/^\.\//, "");
-  if (/^(?:\/|[A-Za-z]:)/.test(forward) || forward.split("/").includes("..")) return null;
-  return forward;
-};
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The set a changed file is, by its path: the number of `brainstorm/set-<n>/concepts.json`. */
-export function conceptSetOf(path: string): number | null {
-  const match = SET_FILE.exec(path.replaceAll("\\", "/"));
-  return match === null ? null : Number(match[1]);
-}
-
-/** A file of a set (its list or a picture), which its cards show. */
-export const isBrainstormFile = (path: string) =>
-  /^(?:\.\/)?brainstorm\//.test(path.replaceAll("\\", "/"));
-
-export const conceptSetFile = (set: number) => `brainstorm/set-${set}/concepts.json`;
+/** A set's folder, and a file in it. */
+export const conceptSetFolder = (folder: string, set: number) =>
+  `${folder.replace(/[\\/]+$/, "")}/set-${set}`;
+export const inConceptSet = (folder: string, set: number, file: string) =>
+  `${conceptSetFolder(folder, set)}/${file}`;
 
 /**
- * The concepts in a set's file, in its order. One with no script inside the project is left out,
- * and a second with the same script. A mass that is not a positive number is not checked (law 4).
- * Null when the file is not JSON.
+ * The sets a reply links, in its order, once each: `.../<threadId>/set-<n>/concepts.json`, however
+ * the path was written (in full, with `~`, as a link or with Windows' slashes).
+ */
+export function conceptSetsIn(reply: string, threadId: string): number[] {
+  const link = new RegExp(
+    `${escapeRegExp(threadId)}[\\\\/]+set-(\\d+)[\\\\/]+concepts\\.json`,
+    "g",
+  );
+  return [...new Set([...reply.matchAll(link)].map((match) => Number(match[1])))];
+}
+
+/**
+ * The concepts in a set's file, in its order. One whose script is not a file of its set is left
+ * out, and a second with the same script. A mass that is not a positive number is not checked
+ * (law 4). Null when the file is not JSON (the agent is still writing it).
  */
 export function readConceptSet(set: number, contents: string): ConceptSet | null {
   let parsed: unknown;
@@ -72,22 +73,36 @@ export function readConceptSet(set: number, contents: string): ConceptSet | null
   const seen = new Set<string>();
   const concepts = list.flatMap((entry, index): Concept[] => {
     if (!isRecord(entry)) return [];
-    const script = insideProject(text(entry.script));
-    if (script === null || !/\.py$/i.test(script) || seen.has(script)) return [];
+    const script = text(entry.script);
+    if (script === null || !SCRIPT.test(script) || seen.has(script)) return [];
     seen.add(script);
+    const picture = text(entry.picture);
     const mass = entry.mass_g;
     return [
       {
         name: text(entry.name) ?? `Concept ${index + 1}`,
         idea: text(entry.idea) ?? "",
         script,
-        picture: insideProject(text(entry.picture)),
+        picture: picture !== null && PICTURE.test(picture) ? picture : null,
         material: text(entry.material),
         massGrams: typeof mass === "number" && Number.isFinite(mass) && mass > 0 ? mass : null,
       },
     ];
   });
   return { set, concepts };
+}
+
+/** A concept's model's name: its script's stem, which its `@model` function is named. */
+export const conceptStem = (concept: Concept) => concept.script.replace(/\.py$/i, "");
+
+/**
+ * A concept's script as a part of the project named `stem`: its model's name, wherever the script
+ * writes it (its function, its call, its label), becomes the part's, so its file and model agree.
+ */
+export function asProjectPart(contents: string, from: string, stem: string): string {
+  return from === stem
+    ? contents
+    : contents.replace(new RegExp(`\\b${escapeRegExp(from)}\\b`, "g"), stem);
 }
 
 /** A mass as a card shows it: grams under a kilogram, else kilograms; "Not checked" without one. */

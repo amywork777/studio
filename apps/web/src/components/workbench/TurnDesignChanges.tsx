@@ -3,8 +3,6 @@ import { type ReactNode, useState } from "react";
 
 import { useRightPanelStore } from "~/rightPanelStore";
 import { Button } from "../ui/button";
-import { BrainstormConcepts } from "./BrainstormConcepts";
-import { conceptSetOf, isBrainstormFile } from "./brainstorm";
 import { type DesignChange, designChanges, foldChanges } from "./designChanges";
 import { FILE_ICONS, fileIconKey, fileTint } from "./kinds";
 import { useOpenWorkspaceStore } from "./openWorkspace";
@@ -236,39 +234,15 @@ export function TurnDesignChanges(props: {
   readonly children: ReactNode;
 }) {
   const engineering = useEngineeringInterface();
-  const workspace = useOpenWorkspaceStore((state) => state.workspace?.folder ?? "");
-  const paths = props.files.map((file) => file.path);
-  // A set's pictures and list are its cards, not changes of their own.
-  const { changes, other } = designChanges(paths.filter((path) => !isBrainstormFile(path)));
-  // A set of concepts the turn wrote shows as its cards, in either interface.
-  const sets = [...new Set(paths.flatMap((path) => conceptSetOf(path) ?? []))].toSorted(
-    (a, b) => a - b,
-  );
-  const threadRef = props.threadRef;
-  const concepts =
-    threadRef === null || workspace === ""
-      ? null
-      : sets.map((set) => (
-          <BrainstormConcepts key={set} threadRef={threadRef} root={workspace} set={set} />
-        ));
-  if (!engineering) {
-    return (
-      <>
-        {concepts}
-        {props.children}
-      </>
-    );
-  }
+  const { changes, other } = designChanges(props.files.map((file) => file.path));
+  if (!engineering) return props.children;
   if (props.threadRef === null || (changes.length === 0 && other === 0)) return null;
   return (
-    <>
-      {concepts}
-      <DesignChanges
-        threadRef={props.threadRef}
-        changes={changes}
-        other={other}
-        checkpointRef={props.checkpointRef ?? null}
-      />
-    </>
+    <DesignChanges
+      threadRef={props.threadRef}
+      changes={changes}
+      other={other}
+      checkpointRef={props.checkpointRef ?? null}
+    />
   );
 }

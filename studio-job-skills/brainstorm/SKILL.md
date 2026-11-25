@@ -25,15 +25,24 @@ What they get: Four concepts as real parts, each with its picture and weight, to
   vary the rest.
 - Build first, then ask: where the brief leaves something open, choose, and ask about it after.
 
+## Where concepts go
+
+The project context's Concepts section names this chat's concepts folder, `<concepts>`. Every
+concept lives there, never in the project's folders: the person moves the one they choose into the
+project from its card, and the rest stay in the chat. Take the next free set number `<n>`
+(`<concepts>/set-1/` is the first; look at what is there) and make the set's folder.
+
 ## Make four real concepts
 
-Take the next free set number `<n>` (`brainstorm/set-1/` is the first; look at what is there).
-Four concepts, `a` to `d`, each:
+Four concepts, each:
 
-- its own part script, `parts/concept_<n><letter>.py`, one `@model`, meeting the same brief by a
-  really different approach: how it is made, where the material goes, how it fastens;
-- a real material on the part, built and checked as usual;
-- its picture, `cad model snapshot "$ID" brainstorm/set-<n>/<letter>.png --preview`;
+- its own script, `<concepts>/set-<n>/<name>.py`, where `<name>` is the concept's name as a
+  Python name (`ribbed_l_bracket`) and its one `@model` function is named the same;
+- self-contained: it imports only cad, build123d and their materials, never another script;
+- meeting the same brief by a really different approach: how it is made, where the material goes,
+  how it fastens;
+- a real material on the part, built with `cad run` and checked as usual;
+- its picture, `cad model snapshot "$ID" <concepts>/set-<n>/<name>.png --preview`;
 - its mass, from `cad model inspect "$ID"`.
 
 Do not open the concepts in the viewer one by one: Studio shows the set under your reply, and the
@@ -41,7 +50,7 @@ person opens the one they want.
 
 ## Write the set
 
-As each concept is built, rewrite `brainstorm/set-<n>/concepts.json` with every concept so far:
+As each concept is built, rewrite `<concepts>/set-<n>/concepts.json` with every concept so far:
 
 ```json
 {
@@ -49,8 +58,8 @@ As each concept is built, rewrite `brainstorm/set-<n>/concepts.json` with every 
     {
       "name": "Ribbed L bracket",
       "idea": "A folded plate with two ribs, the cheapest to make.",
-      "script": "parts/concept_1a.py",
-      "picture": "brainstorm/set-1/a.png",
+      "script": "ribbed_l_bracket.py",
+      "picture": "ribbed_l_bracket.png",
       "material": "6061-T6 aluminium",
       "mass_g": 42.7
     }
@@ -58,9 +67,11 @@ As each concept is built, rewrite `brainstorm/set-<n>/concepts.json` with every 
 }
 ```
 
+- `script` and `picture`: file names in the set's folder, no path.
 - `name`: two to four words. `idea`: one plain sentence on how it differs from the others.
 - `mass_g`: the mass `cad model inspect` reported, in grams, or `null` when it was not measured.
   Write only numbers a cad command measured.
 
-End with one or two specific questions about the concepts: which way to take, and what the brief
-left open.
+End the reply with one or two specific questions about the concepts (which way to take, and what
+the brief left open), then the set's file as a link on its own line:
+`[Concepts, set <n>](<concepts>/set-<n>/concepts.json)`. Studio draws the cards from that link.

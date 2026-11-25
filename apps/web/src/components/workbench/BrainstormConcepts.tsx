@@ -1,6 +1,8 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
-import { CopyPlusIcon } from "lucide-react";
+import { studioConceptsFolder } from "@t3tools/shared/studioProjects";
+import { CheckIcon, CopyPlusIcon, PackagePlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import { useAssetUrlState } from "~/assets/assetUrls";
 import { useComposerHandleContext } from "~/composerHandleContext";
@@ -10,8 +12,12 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { workspaceAssetResource } from "../files/filePreviewMode";
 import {
+  asProjectPart,
   type Concept,
-  conceptSetFile,
+  conceptSetFolder,
+  conceptSetsIn,
+  conceptStem,
+  inConceptSet,
   lightestConcept,
   massLabel,
   moreLikeThisPrompt,
@@ -20,9 +26,12 @@ import {
 import { OutOfDateIcon } from "./CheckBadge";
 import { HARDWARE_ACTIONS } from "./hardwareActions";
 import { handToChat } from "./handToChat";
+import { PART_FOLDER, partStem } from "./newPart";
 import { withToolLine } from "./toolUsed";
 import { useFolderModels } from "./useFolderModels";
+import { useAddPart } from "./useNewPart";
 import { useOpenInWorkbench } from "./useOpenInWorkbench";
+import { useStudioProjectAt, useStudioProjectsList } from "./useStudioProjects";
 
 const BRAINSTORM_LABEL = HARDWARE_ACTIONS.find((action) => action.id === "brainstorm")?.label ?? "";
 
@@ -30,23 +39,55 @@ const BRAINSTORM_LABEL = HARDWARE_ACTIONS.find((action) => action.id === "brains
 const STALE_AFTER_MS = 1_000;
 
 /**
- * A set of concepts the turn made (`brainstorm/set-<n>/concepts.json`), as a grid of cards under
- * the reply: each its picture, name, material and mass. A card opens its part as CAD; "More like
- * this" asks the chat for four more grown from it.
+ * The sets of concepts a reply links, each a grid of cards under it. They are read from the chat's
+ * concepts folder (`studioConceptsFolder`), outside the project; nothing shows outside a project.
  */
-export function BrainstormConcepts(props: {
+export function ReplyConcepts(props: {
+  readonly reply: string;
+  readonly threadRef: ScopedThreadRef | null;
+  readonly root: string | undefined;
+}) {
+  const environmentId = props.threadRef?.environmentId ?? null;
+  const projectsFolder = useStudioProjectsList(environmentId).data?.folder ?? null;
+  const project = useStudioProjectAt(environmentId, props.root ?? null);
+  const { threadRef, root } = props;
+  if (threadRef === null || root === undefined || projectsFolder === null || project === null) {
+    return null;
+  }
+  const sets = conceptSetsIn(props.reply, threadRef.threadId);
+  if (sets.length === 0) return null;
+  const folder = studioConceptsFolder(projectsFolder, project.id, threadRef.threadId);
+  return sets.map((set) => (
+    <BrainstormConcepts key={set} threadRef={threadRef} root={root} folder={folder} set={set} />
+  ));
+}
+
+/**
+ * One set of concepts as a grid of cards: each its picture, name, mass and material. A card opens
+ * its concept to look at; "Use this" makes it a part of the project; "More like this" asks the chat
+ * for four more grown from it.
+ */
+function BrainstormConcepts(props: {
   readonly threadRef: ScopedThreadRef;
+  /** The project's folder, where a used concept goes. */
   readonly root: string;
+  /** The chat's concepts folder. */
+  readonly folder: string;
   readonly set: number;
 }) {
-  const { threadRef, root, set } = props;
+  const { threadRef, root, folder, set } = props;
   const environmentId = threadRef.environmentId;
   const file = useEnvironmentQuery(
     projectEnvironment.readFile({
       environmentId,
-      input: { cwd: root, relativePath: conceptSetFile(set), allowMissing: true },
+      input: {
+        cwd: root,
+        relativePath: inConceptSet(folder, set, "concepts.json"),
+        allowMissing: true,
+      },
     }),
   ).data;
+  const models = useFolderModels(environmentId, conceptSetFolder(folder, set));
   if (file === undefined || file === null || file.exists === false) return null;
   const read = readConceptSet(set, file.contents);
   if (read === null || read.concepts.length === 0) return null;
@@ -58,7 +99,7 @@ export function BrainstormConcepts(props: {
       data-brainstorm-set={set}
     >
       <h3 className="text-xs text-muted-foreground">
-        {read.concepts.length} concepts · press one to open it
+        {read.concepts.length} concepts · not in the project until you use one
       </h3>
       <ul className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
         {read.concepts.map((concept) => (
@@ -67,6 +108,9 @@ export function BrainstormConcepts(props: {
             environmentId={environmentId}
             threadRef={threadRef}
             root={root}
+            script={inConceptSet(folder, set, concept.script)}
+            picture={concept.picture === null ? null : inConceptSet(folder, set, concept.picture)}
+            model={models.find((model) => model.script === concept.script)?.id ?? null}
             concept={concept}
             lightest={concept.script === lightest}
             writtenAt={file.modifiedAt ?? null}
@@ -82,6 +126,11 @@ function ConceptCard(props: {
   readonly threadRef: ScopedThreadRef;
   readonly root: string;
   readonly concept: Concept;
+  /** Its script and picture, in full. */
+  readonly script: string;
+  readonly picture: string | null;
+  /** Its model's document id, once the CAD service lists it. */
+  readonly model: string | null;
   readonly lightest: boolean;
   /** When the set's file was last written, which is after each picture in it. */
   readonly writtenAt: string | null;
@@ -89,36 +138,57 @@ function ConceptCard(props: {
   const { environmentId, threadRef, root, concept } = props;
   const open = useOpenInWorkbench(threadRef);
   const composerRef = useComposerHandleContext();
-  const models = useFolderModels(environmentId, root);
-  const scriptAt = useEnvironmentQuery(
+  const addPart = useAddPart(threadRef, root);
+  const [adding, setAdding] = useState(false);
+  const read = (cwd: string, relativePath: string) =>
     projectEnvironment.readFile({
       environmentId,
-      input: { cwd: root, relativePath: concept.script, allowMissing: true },
-    }),
-  ).data?.modifiedAt;
+      input: { cwd, relativePath, allowMissing: true },
+    });
+  const script = useEnvironmentQuery(read(root, props.script)).data;
+  // Where using it puts it, and whether that part is this concept: then it is in the project.
+  const stem = partStem(concept.name);
+  const partPath = `${PART_FOLDER}/${stem}.py`;
+  const part = useEnvironmentQuery(read(root, partPath)).data;
+  const projectModels = useFolderModels(environmentId, root);
+  const asPart =
+    script?.exists === true ? asProjectPart(script.contents, conceptStem(concept), stem) : null;
+  const used = asPart !== null && part?.exists === true && part.contents === asPart;
   // The code is the model (law 3): a script changed since its picture says so.
   const changed =
-    scriptAt !== undefined &&
+    script?.modifiedAt !== undefined &&
     props.writtenAt !== null &&
-    Date.parse(scriptAt) > Date.parse(props.writtenAt) + STALE_AFTER_MS;
+    Date.parse(script.modifiedAt) > Date.parse(props.writtenAt) + STALE_AFTER_MS;
   const picture = useAssetUrlState(
     environmentId,
-    concept.picture === null
+    props.picture === null
       ? null
       : workspaceAssetResource({
           kind: "workspace-file",
           threadRef,
           draft: true,
           workspaceRoot: root,
-          absolutePath: `${root.replace(/[\\/]+$/, "")}/${concept.picture}`,
+          absolutePath: props.picture,
         }),
     props.writtenAt,
   );
-  const openConcept = () =>
-    open(models.find((model) => model.script === concept.script)?.id ?? concept.script);
+  const openConcept = () => open(props.model ?? props.script);
+  const takeIntoProject = () => {
+    if (used) {
+      open(projectModels.find((model) => model.script === partPath)?.id ?? partPath);
+      return;
+    }
+    if (addPart === null || script?.exists !== true) return;
+    const contents = script.contents;
+    setAdding(true);
+    void addPart({
+      name: concept.name,
+      script: (free) => asProjectPart(contents, conceptStem(concept), free),
+    }).finally(() => setAdding(false));
+  };
   const moreLikeThis = () => {
     if (composerRef === null) return;
-    const link = serializeComposerFileLink(concept.script);
+    const link = serializeComposerFileLink(props.script);
     handToChat(composerRef, withToolLine(BRAINSTORM_LABEL, moreLikeThisPrompt(concept, link)));
   };
   const facts = [massLabel(concept.massGrams), concept.material].filter(
@@ -140,7 +210,7 @@ function ConceptCard(props: {
               draggable={false}
               className="absolute inset-0 size-full object-contain select-none"
             />
-          ) : concept.picture === null ? (
+          ) : props.picture === null ? (
             <span className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-muted-foreground">
               No picture
             </span>
@@ -162,12 +232,22 @@ function ConceptCard(props: {
           {changed ? (
             <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <OutOfDateIcon className="size-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">Part changed since this picture</span>
+              <span className="truncate">Changed since this picture</span>
             </span>
           ) : null}
         </div>
       </button>
-      <div className="px-1 pb-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 px-1 pb-1">
+        <Button
+          size="xs"
+          variant={used ? "ghost-muted" : "outline"}
+          disabled={adding || (!used && (addPart === null || script?.exists !== true))}
+          onClick={takeIntoProject}
+          aria-label={used ? `Open ${partPath}` : `Use ${concept.name} in the project`}
+        >
+          {used ? <CheckIcon aria-hidden="true" /> : <PackagePlusIcon aria-hidden="true" />}
+          {used ? "In the project" : adding ? "Adding…" : "Use this"}
+        </Button>
         <Button
           size="xs"
           variant="ghost-muted"
