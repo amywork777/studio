@@ -677,7 +677,9 @@ as they were.
 - **Attach in a project.** A PRD, a data sheet or anything else but a picture goes in the project's
   References, as Home's box puts it there: a copy, never over a file there, and the original is not
   touched. The message links to it and the agent's standing context says where they live. A picture
-  belongs to its message and stays in the chat; the Brief's Attach files pictures too. On a remote
+  goes with its message, so the agent sees it, and a copy goes in References too, so a drawing
+  check can show where on a sketch it read each size (Amy, 2026-11-25); the Brief's Attach files
+  pictures in References only. On a remote
   project, or with no path on this computer, the file goes with the message and the agent files it
   (`attachToReferences.ts`).
 - **A drawing read, and checked.** A PDF attached in a project (a drop on the chat, Attach, or
