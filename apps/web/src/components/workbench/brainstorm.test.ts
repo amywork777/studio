@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { conceptSetOf, lightestConcept, massLabel, readConceptSet } from "./brainstorm";
+import {
+  conceptSetOf,
+  isBrainstormFile,
+  lightestConcept,
+  massLabel,
+  readConceptSet,
+} from "./brainstorm";
 
 describe("a brainstorm's set of concepts", () => {
   it("knows a set's file among a turn's changed files, and nothing else", () => {
@@ -9,6 +15,9 @@ describe("a brainstorm's set of concepts", () => {
     expect(conceptSetOf("brainstorm\\set-1\\concepts.json")).toBe(1);
     expect(conceptSetOf("brainstorm/set-1/a.png")).toBeNull();
     expect(conceptSetOf("parts/brainstorm/set-1/concepts.json")).toBeNull();
+    // Its pictures show on its cards, not again in what changed; its parts' scripts do show.
+    expect(isBrainstormFile("brainstorm/set-1/a.png")).toBe(true);
+    expect(isBrainstormFile("parts/concept_1a.py")).toBe(false);
   });
 
   it("keeps each concept whose script is in the project, once, and weighs only what was measured", () => {

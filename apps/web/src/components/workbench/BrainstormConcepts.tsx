@@ -121,7 +121,7 @@ function ConceptCard(props: {
     const link = serializeComposerFileLink(concept.script);
     handToChat(composerRef, withToolLine(BRAINSTORM_LABEL, moreLikeThisPrompt(concept, link)));
   };
-  const facts = [concept.material, massLabel(concept.massGrams)].filter(
+  const facts = [massLabel(concept.massGrams), concept.material].filter(
     (fact): fact is string => fact !== null,
   );
   return (

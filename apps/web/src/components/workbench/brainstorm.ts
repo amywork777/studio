@@ -50,6 +50,10 @@ export function conceptSetOf(path: string): number | null {
   return match === null ? null : Number(match[1]);
 }
 
+/** A file of a set (its list or a picture), which its cards show. */
+export const isBrainstormFile = (path: string) =>
+  /^(?:\.\/)?brainstorm\//.test(path.replaceAll("\\", "/"));
+
 export const conceptSetFile = (set: number) => `brainstorm/set-${set}/concepts.json`;
 
 /**

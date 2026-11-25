@@ -4,7 +4,7 @@ import { type ReactNode, useState } from "react";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { Button } from "../ui/button";
 import { BrainstormConcepts } from "./BrainstormConcepts";
-import { conceptSetOf } from "./brainstorm";
+import { conceptSetOf, isBrainstormFile } from "./brainstorm";
 import { type DesignChange, designChanges, foldChanges } from "./designChanges";
 import { FILE_ICONS, fileIconKey, fileTint } from "./kinds";
 import { useOpenWorkspaceStore } from "./openWorkspace";
@@ -238,7 +238,8 @@ export function TurnDesignChanges(props: {
   const engineering = useEngineeringInterface();
   const workspace = useOpenWorkspaceStore((state) => state.workspace?.folder ?? "");
   const paths = props.files.map((file) => file.path);
-  const { changes, other } = designChanges(paths);
+  // A set's pictures and list are its cards, not changes of their own.
+  const { changes, other } = designChanges(paths.filter((path) => !isBrainstormFile(path)));
   // A set of concepts the turn wrote shows as its cards, in either interface.
   const sets = [...new Set(paths.flatMap((path) => conceptSetOf(path) ?? []))].toSorted(
     (a, b) => a - b,
