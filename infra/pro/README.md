@@ -97,7 +97,7 @@ Amy makes these once:
    set in the Console as the backstop.
 3. **Supabase:** run [`schema.sql`](schema.sql) in the SQL editor of `studio-usage` (it adds three
    tables beside the usage counts) or of a new project.
-4. **Vercel:** a project `studio-pro` from this repository, Root Directory `infra/pro`, framework
+4. **Vercel:** a project named exactly `texttocad-studio-pro` from this repository, Root Directory `infra/pro`, framework
    "Other". Then from this folder, entering each value when asked:
 
    ```bash
@@ -109,7 +109,11 @@ Amy makes these once:
    ```
 
    `LICENSE_SECRET` is any long random string (`openssl rand -base64 48`). Changing it turns
-   every key off. `GET https://studio-pro.vercel.app/v1/health` answers `{"ok":true}` once all is set.
+   every key off. `GET https://texttocad-studio-pro.vercel.app/v1/health` answers `{"ok":true}` once all is set.
+
+   The app has that address built in (`STUDIO_PRO_SERVER` in `studioPro.ts`), so the project's
+   name must give exactly that URL. `studio-pro.vercel.app` is someone else's site: a Pro build
+   pointed at a name Studio doesn't hold would send keys and chats to whoever holds it.
 
 **Before charging anyone:** Vercel's Hobby plan is for non-commercial use only, so a server that
 takes payments needs Vercel Pro ($20 a month). Supabase's free plan pauses a project after a week

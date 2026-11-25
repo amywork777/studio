@@ -372,6 +372,12 @@ function StudioProSettingsRow(props: {
   );
 }
 
+/** The welcome screen's privacy line for Pro, in Studio: what passes through when it is on. */
+export function StudioProPrivacyNote() {
+  if (!HARDWARE_FOCUS) return null;
+  return " With Studio Pro on, your chats go through Studio's server to Claude; it keeps only how much AI you used.";
+}
+
 /** Settings' setup for a provider instance, with the Studio Pro row first on Claude's, in Studio. */
 export function withStudioProRow(
   setup: ReactNode,

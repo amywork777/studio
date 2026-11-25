@@ -6,7 +6,7 @@ import type { ProviderInstanceConfig } from "@t3tools/contracts";
  * (the app cannot read a secret back). Leaving Pro takes the three away.
  */
 const STUDIO_PRO_SERVER: string =
-  import.meta.env.VITE_STUDIO_PRO_URL || "https://studio-pro.vercel.app";
+  import.meta.env.VITE_STUDIO_PRO_URL || "https://texttocad-studio-pro.vercel.app";
 const BASE_URL = "ANTHROPIC_BASE_URL";
 const TOKEN = "ANTHROPIC_AUTH_TOKEN";
 const ACCOUNT = "STUDIO_PRO_ACCOUNT";

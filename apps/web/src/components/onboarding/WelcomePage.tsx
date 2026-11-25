@@ -119,7 +119,7 @@ import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
 import { useEngineeringInterface } from "../workbench/studioInterface";
 import { CodexInviteCard, CodexInviteDialog, InviteCodeRow } from "../workbench/CodexInviteCode";
-import { StudioProRow } from "../workbench/StudioProUpgrade";
+import { StudioProPrivacyNote, StudioProRow } from "../workbench/StudioProUpgrade";
 import { usesInvite } from "../workbench/codexInvite";
 import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
@@ -374,6 +374,7 @@ function TelemetryNotice({ environmentId }: { readonly environmentId: Environmen
       <T>
         <Var>{APP_BASE_NAME}</Var> never sends your prompts, file names or designs.
       </T>
+      <StudioProPrivacyNote />
     </p>
   );
 }
