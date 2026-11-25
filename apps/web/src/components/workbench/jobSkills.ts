@@ -70,6 +70,7 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
     "",
     `What they get: ${jobLine(job)}`,
     "",
+    ...(job.guide === undefined ? [] : [job.guide.trim(), ""]),
   ].join("\n");
   const face = [
     "interface:",
