@@ -78,6 +78,7 @@ apps/desktop/src/backend/DesktopBackendPool.ts
 apps/desktop/src/backend/DesktopLocalEnvironmentAuth.ts
 apps/desktop/src/boot.ts
 apps/desktop/src/electron/ElectronProtocol.ts
+apps/desktop/src/electron/ElectronUpdater.ts
 apps/desktop/src/electron/WindowsForeground.ts
 apps/desktop/src/i18n/messages.ts
 apps/desktop/src/ipc/channels.ts
