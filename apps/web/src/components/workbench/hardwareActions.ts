@@ -100,6 +100,8 @@ export interface HardwareAction {
   readonly short: (name: string) => string;
   /** How to do it, where Studio reads what it makes: its job skill carries this after the hand-off. */
   readonly guide?: string;
+  /** When an agent should take its skill up unasked, besides by name ("modelling from a drawing"). */
+  readonly useWhen?: string;
 }
 
 /** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
@@ -197,9 +199,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     kinds: [...SOLID, "Drawing"],
     checks: true,
     prompt: (file) =>
-      `Check ${file} against the drawing or sketch it is made from: read every dimension and callout, measure each on the model, and tell me every number that does not add up.`,
+      `Check ${file} against the drawing or sketch it is made from with $drawing-check: read every dimension and callout, measure each on the model, and tell me every number that does not add up.`,
     short: (name) => `Check ${name} against its drawing`,
     guide: DRAWING_CHECK_GUIDE,
+    useWhen: "you model a part from a drawing, a sketch or a photo of one, or check one against it",
   },
   printCheck(
     "fdm",

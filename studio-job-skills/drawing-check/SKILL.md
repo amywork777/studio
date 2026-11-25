@@ -1,6 +1,6 @@
 ---
 name: drawing-check
-description: "Check against the drawing, one job of the cad skill. Use when the person asks for $drawing-check by name; it hands off to the cad skill."
+description: "Check against the drawing, with the cad skill. Use whenever you model a part from a drawing, a sketch or a photo of one, or check one against it, and when the person asks for $drawing-check; it says how Studio reads the result."
 ---
 
 # Check against the drawing
@@ -8,7 +8,7 @@ description: "Check against the drawing, one job of the cad skill. Use when the 
 One job, the same one as the "Check against the drawing" tile in a part's Toolbox in Studio. Do it with
 the `cad` skill: read that skill first and follow it, then do what the person asks:
 
-> Check the part against the drawing or sketch it is made from: read every dimension and callout, measure each on the model, and tell me every number that does not add up.
+> Check the part against the drawing or sketch it is made from with $drawing-check: read every dimension and callout, measure each on the model, and tell me every number that does not add up.
 
 The part is the one the person names, else the one open beside the chat.
 Ask which when neither says.
