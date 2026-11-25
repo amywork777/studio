@@ -164,3 +164,6 @@ jobs:
       # Studio's FreeCAD installer's checks, and the cam skill as Studio's plugin carries it.
       - name: Studio's scripts
         run: python3 -m unittest discover -s scripts -p 'studio_*_test.py'
+
+      - name: Studio Pro's server
+        run: node --test infra/pro/src/*.test.mjs

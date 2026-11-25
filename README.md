@@ -96,6 +96,17 @@ usage page), and from Google the icon of a public site that an answer links to o
 opens, which tells Google that site's name and never the page.
 When you ask the agent for a bought part, the words it searches go to Jake's [step.parts](https://www.step.parts) service.
 
+## Studio Pro
+
+Studio works with your own Claude or Codex sign-in for free. Studio Pro ($49 a month, or $290 a year
+for founding members) includes the AI instead, so you don't pay for a Claude subscription too:
+choose **Upgrade** on the welcome screen or in Settings → AI agents → Claude, pay in your browser, and
+Studio signs in by itself. With Pro on, your chats (with any pictures or drawings you attach) go
+through Studio Pro's server, [`infra/pro`](infra/pro/README.md), to Anthropic's Claude. The server
+keeps only how much AI each account used and what it cost, never what was said. Each month's AI
+has a limit; past it, Claude asks you to wait for the 1st or sign in with your own Claude.
+**Stop using it** in the same places puts Claude back on your own sign-in.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change request. Changes to the CAD tools go

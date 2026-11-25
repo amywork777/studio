@@ -111,6 +111,7 @@ import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSection";
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
 import { CodexInviteSettingsRow } from "../workbench/CodexInviteCode";
+import { withStudioProRow } from "../workbench/StudioProUpgrade";
 import { usesInvite } from "../workbench/codexInvite";
 import { providerClients } from "./providerDriverMeta";
 import { useSearchableSetting } from "./settingsSearch";
@@ -1407,7 +1408,7 @@ function ProviderInstanceRow({
         ) : undefined
       }
       canWriteSettings={canWriteSettings}
-      setup={
+      setup={withStudioProRow(
         mode === "editor" && driver === "antigravity" ? (
           <ProviderSetupSection
             environmentId={environmentId}
@@ -1480,8 +1481,9 @@ function ProviderInstanceRow({
               "Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.",
             )}
           />
-        ) : null
-      }
+        ) : null,
+        { driver, mode, environmentId, instanceId, readOnly },
+      )}
       onUpdate={(next) => actions.updateInstance(instanceId, instance, next)}
       onDelete={
         mode === "editor" && !isDefault
