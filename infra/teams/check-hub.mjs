@@ -1048,9 +1048,11 @@ const v4 = await rpc(dana, "check_in", {
   p_keep: false,
 });
 ok(v4.data === 4, "Version 4 checks in", JSON.stringify(v4.data));
+// The object's row, not its bytes: a hosted hub's Storage can still serve a just-deleted object's
+// bytes from its cache, so a download says nothing about whether the delete went through.
 const exists = async (name) =>
   (
-    await call("GET", `/storage/v1/object/authenticated/projects/${name}`, {
+    await call("GET", `/storage/v1/object/info/projects/${name}`, {
       token: dana.token,
     })
   ).status === 200;
