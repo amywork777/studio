@@ -36,6 +36,9 @@ import {
 import {
   ProjectStartHistoryInput,
   ProjectStartHistoryResult,
+  StudioDeliverablesError,
+  StudioDeliverablesInput,
+  StudioDeliverablesResult,
   StudioProjectsError,
   StudioProjectsListInput,
   StudioProjectsListResult,
@@ -75,6 +78,7 @@ export const STUDIO_WS_METHODS = {
   studioProjectsList: "studioProjects.list",
   studioProjectsSave: "studioProjects.save",
   studioProjectsTrash: "studioProjects.trash",
+  studioDeliverablesPack: "studioDeliverables.pack",
   studioSyncSend: "studioSync.send",
   studioSyncRestore: "studioSync.restore",
   studioSyncStatus: "studioSync.status",
@@ -199,6 +203,13 @@ const WsStudioProjectsTrashRpc = Rpc.make(STUDIO_WS_METHODS.studioProjectsTrash,
   error: StudioProjectsError,
 });
 
+// Writes the project's deliverables package: exports by the CAD tools, copies, the receipt, a zip.
+const WsStudioDeliverablesPackRpc = Rpc.make(STUDIO_WS_METHODS.studioDeliverablesPack, {
+  payload: StudioDeliverablesInput,
+  success: StudioDeliverablesResult,
+  error: StudioDeliverablesError,
+});
+
 const WsStudioGitHubSignInStartRpc = Rpc.make(STUDIO_WS_METHODS.studioGitHubSignInStart, {
   payload: Schema.Struct({}),
   success: StudioGitHubSignInStartResult,
@@ -248,6 +259,7 @@ export const STUDIO_RPCS = [
   WsStudioProjectsListRpc,
   WsStudioProjectsSaveRpc,
   WsStudioProjectsTrashRpc,
+  WsStudioDeliverablesPackRpc,
   WsStudioSyncSendRpc,
   WsStudioSyncRestoreRpc,
   WsStudioSyncStatusRpc,
