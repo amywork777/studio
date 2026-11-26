@@ -188,6 +188,16 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     gets: "Each dimension beside what the model measures, and every number that does not add up.",
   }),
   doc({
+    id: "doc:concepts",
+    name: "Concepts",
+    templates: [],
+    actions: ["brainstorm"],
+    what: "Four different ways to make a part, built as real parts side by side before you choose one.",
+    give: "A sketch, a photo or a few words, or a part to grow from.",
+    asks: null,
+    gets: "Four concepts in the chat, each with its picture and weight, to open or grow more from.",
+  }),
+  doc({
     id: "doc:manufacturing-check",
     name: "Manufacturing check",
     templates: [],

@@ -5,6 +5,7 @@ import {
   EMPTY_STUDIO_BRIEF,
   studioOtherFolders,
   studioProjectAt,
+  studioConceptsFolder,
   studioProjectContext,
 } from "./studioProjects.ts";
 
@@ -92,7 +93,20 @@ describe("studio projects", () => {
   });
 
   it("asks the agent to keep the README's decisions and to start a new project with a draft, not questions", () => {
-    const context = studioProjectContext(rover, "/work/rover-cad", "/studio/rover/project.json");
+    const concepts = studioConceptsFolder("/studio/", "rover", "thread-1");
+    expect(concepts).toBe("/studio/rover/brainstorm/thread-1");
+    const context = studioProjectContext(
+      rover,
+      "/work/rover-cad",
+      "/studio/rover/project.json",
+      null,
+      concepts,
+    );
+    // A chat's concepts stay out of the project until the person uses one.
+    expect(context).toContain(
+      "go in `/studio/rover/brainstorm/thread-1`, never in the project's folders",
+    );
+    expect(studioProjectContext(rover, "/work/rover-cad")).not.toContain("## Concepts");
     expect(context).toContain("## The README");
     expect(context).toContain("`## Decisions`");
     expect(context).toContain("(<YYYY-MM-DD>, asked)");

@@ -2,6 +2,7 @@
 import type { ModelSelection, OrchestrationV2AppThread } from "@t3tools/contracts";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import {
+  studioConceptsFolder,
   studioOtherFolders,
   studioProjectAt,
   studioProjectContext,
@@ -65,6 +66,7 @@ export const makeStudioProjectPolicy = Effect.fn("RuntimePolicyV2.makeStudioProj
             root,
             `${record}/project.json`,
             titleBlock,
+            studioConceptsFolder(folder, match.id, input.thread.id),
           ),
         };
       }).pipe(

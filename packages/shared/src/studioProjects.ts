@@ -261,6 +261,14 @@ function drawingConventions(brief: StudioProjectBrief, titleBlock: StudioTitleBl
 }
 
 /**
+ * Where a chat's brainstormed concepts are kept: beside the project's record, outside every
+ * folder of the project, so a concept is in the project only once the person uses it.
+ */
+export function studioConceptsFolder(projectsFolder: string, projectId: string, threadId: string) {
+  return `${projectsFolder.replace(/[\\/]+$/, "")}/${projectId}/brainstorm/${threadId}`;
+}
+
+/**
  * What the agent is told about the project before any work: its folders
  * (which it can read and edit), how to work, the brief and where work goes.
  */
@@ -270,6 +278,8 @@ export function studioProjectContext(
   /** The project's own `project.json`, where the agent changes the setup when asked. */
   record: string | null = null,
   titleBlock: StudioTitleBlock | null = null,
+  /** This chat's concepts folder (`studioConceptsFolder`). */
+  concepts: string | null = null,
 ): string {
   const { brief } = project;
   const key = studioFolderKey(folder);
@@ -318,6 +328,12 @@ export function studioProjectContext(
             "screws) and say what changed and which checks to rerun. Where it could go two very",
             "different ways, propose the one you recommend as a question instead.",
           ].join("\n"),
+    ),
+    ...section(
+      "Concepts",
+      concepts === null
+        ? ""
+        : `Concepts brainstormed in this chat go in \`${concepts}\`, never in the project's folders: the person moves the one they choose into the project.`,
     ),
     ...section("Links", links),
     ...section("Notes", brief.notes),

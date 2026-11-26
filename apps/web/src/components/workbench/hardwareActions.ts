@@ -1,5 +1,6 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
+import { BRAINSTORM_GUIDE } from "./brainstormSkill";
 import { DRAWING_CHECK_GUIDE } from "./drawingCheckSkill";
 
 /**
@@ -37,6 +38,7 @@ export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
   { id: "fit-mass", group: "Evaluate", title: "Fit, motion and mass" },
   { id: "board-checks", group: "Evaluate", title: "Circuit board" },
   { id: "against-drawing", group: "Evaluate", title: "Drawings and sketches" },
+  { id: "concepts", group: "Evaluate", title: "Concepts" },
   {
     id: "printing",
     group: "Manufacture",
@@ -203,6 +205,21 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Check ${name} against its drawing`,
     guide: DRAWING_CHECK_GUIDE,
     useWhen: "you model a part from a drawing, a sketch or a photo of one, or check one against it",
+  },
+  {
+    id: "brainstorm",
+    group: "Evaluate",
+    section: "concepts",
+    label: "Brainstorm concepts",
+    gets: "Four concepts as real parts, each with its picture and weight, to open or grow more from.",
+    skill: "cad",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Make 4 concepts of ${file} with $brainstorm, each a really different way to do its job.`,
+    short: (name) => `Brainstorm concepts of ${name}`,
+    guide: BRAINSTORM_GUIDE,
+    useWhen: "the person asks for concepts, ideas or options for a part before choosing one",
   },
   printCheck(
     "fdm",
