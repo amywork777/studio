@@ -2,8 +2,6 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { HARDWARE_ACTIONS, hardwareActions } from "./hardwareActions";
 import {
-  featuredJobs,
-  homeRows,
   jobCount,
   pairLoneSections,
   pinnedJobs,
@@ -15,7 +13,7 @@ import {
   toolboxLeftOut,
   toolboxLibraryLink,
   toolboxWorksOn,
-  uncheckedDrawing,
+  worksOnWords,
   writeToolboxTab,
 } from "./toolbox";
 
@@ -75,13 +73,22 @@ describe("toolboxGroups", () => {
 });
 
 describe("the Toolbox tab", () => {
-  it("opens on the tab left open on this device, else Yours, pinned or not", () => {
+  it("opens on the tab left open on this device, else Yours", () => {
     globalThis.localStorage?.removeItem("studio:toolbox-tab");
-    expect(readToolboxTab()).toBe("Yours");
+    expect(readToolboxTab(true)).toBe("Yours");
     writeToolboxTab("Document");
-    expect(readToolboxTab()).toBe(globalThis.localStorage ? "Document" : "Yours");
+    expect(readToolboxTab(true)).toBe(globalThis.localStorage ? "Document" : "Yours");
     globalThis.localStorage?.setItem("studio:toolbox-tab", "Nonsense");
-    expect(readToolboxTab()).toBe("Yours");
+    expect(readToolboxTab(true)).toBe("Yours");
+  });
+
+  it("never opens on Yours with nothing pinned", () => {
+    globalThis.localStorage?.removeItem("studio:toolbox-tab");
+    expect(readToolboxTab(false)).toBe("Evaluate");
+    writeToolboxTab("Yours");
+    expect(readToolboxTab(false)).toBe("Evaluate");
+    writeToolboxTab("Manufacture");
+    expect(readToolboxTab(false)).toBe(globalThis.localStorage ? "Manufacture" : "Evaluate");
   });
 });
 
@@ -221,75 +228,10 @@ describe("the Toolbox, whatever file is in front", () => {
   });
 });
 
-describe("the home's Featured row", () => {
-  const groups = toolboxGroups(
-    hardwareActions(
-      null,
-      new Set(["fea", "cad", "engineering-drawing", "render", "drawing-check"]),
-      "CNC machining",
-    ),
-  );
-  const ids = (kind: string | null, drawing: string | null) =>
-    featuredJobs(groups, kind, { uncheckedDrawing: drawing }).map((entry) => entry.job.id);
-
-  it("leads with Drawing check, saying why, when a drawing in References is not checked yet", () => {
-    const [first] = featuredJobs(groups, "Part", { uncheckedDrawing: "bracket.pdf" });
-    expect(first?.job.id).toBe("drawing-check");
-    expect(first?.reason).toContain("bracket.pdf");
-    expect(ids("Part", "bracket.pdf")).toEqual(["drawing-check", "strength", "drawing"]);
-  });
-
-  it("shows only jobs that fit the file in front, and none with nothing open", () => {
-    // Fit and clearance works on an assembly, so a part never features it.
-    const all = (kind: string) =>
-      featuredJobs(groups, kind, { uncheckedDrawing: null }, 9).map((entry) => entry.job.id);
-    expect(all("Part")).not.toContain("fit");
-    expect(all("Assembly")).toContain("fit");
-    expect(ids(null, "bracket.pdf")).toEqual([]);
-  });
-
-  it("finds an unchecked drawing among References, not its drawn pages", () => {
-    const paths = ["parts/a.py", "brief/references/a-pages/page-01.png", "brief/references/a.pdf"];
-    expect(uncheckedDrawing(paths, false)).toBe("a.pdf");
-    expect(uncheckedDrawing(paths, true)).toBeNull();
-    expect(uncheckedDrawing(["docs/a.pdf"], false)).toBeNull();
-  });
-});
-
-describe("the home's rows", () => {
-  const groups = toolboxGroups(
-    hardwareActions(
-      null,
-      new Set(["fea", "cad", "engineering-drawing", "render"]),
-      "CNC machining",
-    ),
-  );
-  const featured = featuredJobs(groups, "Part", { uncheckedDrawing: null });
-
-  it("runs For this part, then a row per group of what fits, each tile under its section", () => {
-    const rows = homeRows({ groups, kind: "Part", featured, suggested: [], pinned: [] });
-    expect(rows.map((row) => row.title)).toEqual([
-      "For this part",
-      "Analysis",
-      "Manufacturing",
-      "Documents",
-    ]);
-    expect(rows[0]!.jobs.map((tile) => tile.job.id)).toEqual(
-      featured.slice(1).map((entry) => entry.job.id),
-    );
-    // The hero is not repeated, and a part never gets an assembly's Fit and clearance.
-    const ids = rows.flatMap((row) => row.jobs.map((tile) => tile.job.id));
-    expect(rows.slice(1).flatMap((row) => row.jobs.map((tile) => tile.job.id))).not.toContain(
-      featured[0]!.job.id,
-    );
-    expect(ids).not.toContain("fit");
-    expect(featured[0]!.job.id).toBe("strength");
-    expect(rows[1]!.jobs.find((tile) => tile.job.id === "mass")?.subtitle).toBe(
-      "Fit, motion and mass",
-    );
-  });
-
-  it("drops empty rows, and has none for the groups with nothing open", () => {
-    expect(homeRows({ groups, kind: null, featured: [], suggested: [], pinned: [] })).toEqual([]);
+describe("worksOnWords", () => {
+  it("says what a job takes in as a sentence starts it", () => {
+    expect(worksOnWords({ kinds: ["Part", "Assembly"] })).toBe("A part or an assembly");
+    expect(worksOnWords({ kinds: ["FEA study"] })).toBe("An FEA study");
+    expect(worksOnWords({ kinds: null })).toBe("Any file");
   });
 });

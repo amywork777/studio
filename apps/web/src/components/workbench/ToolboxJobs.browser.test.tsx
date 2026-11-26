@@ -33,22 +33,30 @@ function renderSection(
   );
 }
 
-describe("SectionJobs tool tiles", () => {
-  it("names each tile by its job and describes it by what the job makes", async () => {
+describe("SectionJobs tool rows", () => {
+  it("says what each job makes on its row, and opens how it works from its name", async () => {
     await using screen = await renderSection(false, () => {});
     for (const job of jobs) {
       await expect
         .element(screen.getByRole("button", { name: job.label, exact: true }))
         .toHaveAccessibleDescription(job.gets);
     }
+    const strength = jobs.find((job) => job.id === "strength")!;
+    const name = screen.getByRole("button", { name: strength.label, exact: true });
+    await name.click();
+    await expect.element(name).toHaveAttribute("aria-expanded", "true");
+    await expect.element(screen.getByText("Works on")).toBeVisible();
+    await expect.element(screen.getByText("You give")).toBeVisible();
   });
 
-  it("runs the pressed tile's job", async () => {
+  it("runs the job from its Run, not from its name", async () => {
     const onRun = vi.fn<(action: HardwareAction) => void>();
     await using screen = await renderSection(false, onRun);
     const strength = jobs.find((job) => job.id === "strength")!;
 
     await screen.getByRole("button", { name: strength.label, exact: true }).click();
+    expect(onRun).not.toHaveBeenCalled();
+    await screen.getByRole("button", { name: `Run ${strength.label}`, exact: true }).click();
 
     expect(onRun).toHaveBeenCalledTimes(1);
     expect(onRun.mock.calls[0]?.[0].prompt("part.step")).toBe(strength.prompt("part.step"));
@@ -57,9 +65,9 @@ describe("SectionJobs tool tiles", () => {
   it("runs nothing with no chat to write the job into", async () => {
     const onRun = vi.fn<(action: HardwareAction) => void>();
     await using screen = await renderSection(true, onRun);
+    const run = screen.getByRole("button", { name: `Run ${jobs[0]!.label}`, exact: true });
 
-    await screen.getByRole("button", { name: jobs[0]!.label, exact: true }).click({ force: true });
-
+    await expect.element(run).toBeDisabled();
     expect(onRun).not.toHaveBeenCalled();
   });
 
@@ -75,15 +83,16 @@ describe("SectionJobs tool tiles", () => {
       (action) => (action.id === "fit" ? line : null),
       { title: "Fit and mass", actions: fitAndMass },
     );
-    const fitTile = screen.getByRole("button", { name: fit.label, exact: true });
 
-    await expect.element(fitTile).toHaveAccessibleDescription(line);
-    await expect.element(fitTile).toHaveAttribute("aria-disabled", "true");
-    await fitTile.click({ force: true });
-    expect(onRun).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("button", { name: fit.label, exact: true }))
+      .toHaveAccessibleDescription(line);
+    await expect
+      .element(screen.getByRole("button", { name: `Run ${fit.label}`, exact: true }))
+      .toBeDisabled();
 
     // The ones that fit still run.
-    await screen.getByRole("button", { name: mass.label, exact: true }).click();
+    await screen.getByRole("button", { name: `Run ${mass.label}`, exact: true }).click();
     expect(onRun).toHaveBeenCalledTimes(1);
   });
 
@@ -100,10 +109,8 @@ describe("SectionJobs tool tiles", () => {
       { title: "Fit and mass", actions: fitAndMass },
       { startFor: (action) => (action.id === "fit" ? assembly : null), onStart },
     );
-    const fitTile = screen.getByRole("button", { name: fit.label, exact: true });
 
-    await expect.element(fitTile).not.toHaveAttribute("aria-disabled");
-    await fitTile.click();
+    await screen.getByRole("button", { name: `Start ${fit.label}`, exact: true }).click();
     expect(onStart).toHaveBeenCalledWith(assembly);
     expect(onRun).not.toHaveBeenCalled();
   });

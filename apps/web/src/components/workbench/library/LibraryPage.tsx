@@ -316,7 +316,7 @@ function LibraryContent(props: {
                   tiles={group === yours ? 0 : tilesOn(group)}
                   rowEnd={group === rowEnd?.shelf ? rowEnd.spans : undefined}
                   {...(group === yours && group.entries.length === 0
-                    ? { note: "Star a tool to keep it here and on the Toolbox's Featured tab." }
+                    ? { note: "Star a tool to keep it here and on the Toolbox's Yours tab." }
                     : {})}
                 >
                   {group === mySkills ? (

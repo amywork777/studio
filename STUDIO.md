@@ -910,28 +910,24 @@ as they were.
   CommandManager (the tab left open is remembered on this device), three equal tiles of the
   group's icon (in its jobs' color) over its name, as the CAD toolbar's
   buttons are, each with a line on what it is
-  for (`GROUP_PURPOSES`) over its sections' tiles, in one even grid (`StudioToolbox.tsx`).
+  for (`GROUP_PURPOSES`) over its sections, each tool a row (`ToolboxJobs.tsx`; Amy, 2026-11-26:
+  clear how each tool works): its icon, its name over what it makes, its star and Run. A press on
+  its name opens how it works under it: its example result (its Library cover, drawn from the
+  examples' own files), what it works on, what you give it, what you get and what it needs, and
+  what Run asks the AI agent, word for word, for the part in front.
   Manufacture keeps four sections, not one per process (3D printing, machining and molding, sheet
   metal and cutting, files and off-the-shelf parts), so no heading holds a lone tile that repeats
-  it; a pause on a tile shows its name and what it makes (`TooltipRich`). Every job is a tile like every other: within a tab
+  it. Every job is a row like every other: within a tab
   nothing is folded away (Amy, 11/04: every skill weighs the same; 11/05: tabs, not one long list). It is
   a popup under the title bar's right button, the Toolbox's one way in (Amy, 11/18: one button, not
   one per group; the sidebar's Toolbox row and the chat's More tools open the same popup in a project,
-  and the Toolbox page, with its Browse, elsewhere), opening on the tab used last, else on its
-  home, Featured (Amy, 2026-11-25: as an app store's front page, inside the popup): one large card
-  for the job the part most needs, its Library cover (drawn from the examples' own files), what it
-  makes in full and a Try pill, then rows that scroll sideways (For this part, Starred, then a row
-  per group of the jobs that fit the file, each with See all to its tab), each tile a cover, its
-  name, its section and Try, which writes the job into the chat as a tile does
-  (`ToolboxFeatured.tsx`, `featuredJobs`, `homeRows`); a drawing in the project's References that
-  no drawing check has used puts Check against the drawing in the large card, saying why.
-  It takes none of the panel, so the model keeps all
+  and the Toolbox page, with its Browse, elsewhere), opening on the tab used last: it takes none of the panel, so the model keeps all
   of it. The button opens it, with the panel if that is shut, and shuts it (`toolboxOpen.ts`), as
   do Escape and a press anywhere but the model; a press on the model leaves it open, so its tiles follow
-  the part picked there (`ToolboxPopup.tsx`), and a tile's press shuts it as it starts the job. Every job the
+  the part picked there (`ToolboxPopup.tsx`), and a Run shuts it as it starts the job. Every job the
   enabled skills can do is there whatever file is in front (Amy, 11/09: all of them at once, a
-  board's too): one that does not fit that file keeps its tile, dimmed as NX greys a command out,
-  and a pause on it says what it works on (`toolboxWorksOn`); with no file yet, every tile does.
+  board's too): one that does not fit that file keeps its row, dimmed as NX greys a command out,
+  its Run dimmed and its line saying what it works on (`toolboxWorksOn`); with no file yet, every row does.
   Where the project holds nothing the job works on and New makes it (`toolboxStart`: a board's
   jobs in a project with no board, an assembly's in one with only parts), the dimmed tile still
   takes a press and opens New on that start (Amy, 11/09: New and the Toolbox linked where a job

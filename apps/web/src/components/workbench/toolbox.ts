@@ -64,10 +64,10 @@ const TABS: ReadonlyArray<ToolboxTab> = ["Yours", ...GROUP_ORDER];
 const TAB_KEY = "studio:toolbox-tab";
 
 /**
- * The tab the Toolbox opens on: the one left open on this device, else Yours, its home (Featured,
- * then what is starred and suggested), which holds the featured jobs even with nothing pinned.
+ * The tab the Toolbox opens on: the one left open on this device, else Yours. With nothing pinned
+ * it never opens on Yours, which would hold suggestions alone, but on the first group.
  */
-export function readToolboxTab(): ToolboxTab {
+export function readToolboxTab(pinned: boolean): ToolboxTab {
   let stored: ToolboxTab | undefined;
   try {
     const value = globalThis.localStorage?.getItem(TAB_KEY);
@@ -75,7 +75,8 @@ export function readToolboxTab(): ToolboxTab {
   } catch {
     stored = undefined;
   }
-  return stored ?? "Yours";
+  const tab = stored ?? "Yours";
+  return tab === "Yours" && !pinned ? "Evaluate" : tab;
 }
 
 /** Remembers, for this device, the tab the Toolbox shows. */
@@ -129,122 +130,6 @@ export function suggestedJobs(
   return picked;
 }
 
-/**
- * The jobs the Toolbox's home leads with, in order: what most parts are taken through first. A
- * drawing check needs a drawing to check against, so it leads only when the project has one.
- */
-const FEATURED: ReadonlyArray<string> = [
-  "strength",
-  "drawing",
-  "fit",
-  "pictures",
-  "render",
-  "export",
-];
-
-export interface FeaturedJob {
-  readonly job: HardwareAction;
-  /** Why it leads, from the project itself ("You added bracket.pdf: …"); null for none. */
-  readonly reason: string | null;
-}
-
-/**
- * The home's Featured row: a few jobs for the file in front, the project's own reasons first (a
- * drawing in its References that the part has not been checked against puts Drawing check first),
- * then `FEATURED` in order. Only jobs that fit the file; with none open, none.
- */
-export function featuredJobs(
-  groups: ReadonlyArray<ToolboxGroup>,
-  kind: string | null,
-  nudges: {
-    /** A drawing or sketch in the project's References with no drawing check on the part yet. */
-    readonly uncheckedDrawing: string | null;
-  },
-  limit = 3,
-): ReadonlyArray<FeaturedJob> {
-  if (kind === null) return [];
-  const jobs = allJobs(groups).filter((job) => jobFits(job, kind));
-  const byId = (id: string) => jobs.find((job) => job.id === id);
-  const picked: FeaturedJob[] = [];
-  const check = byId("drawing-check");
-  if (nudges.uncheckedDrawing !== null && check !== undefined) {
-    picked.push({
-      job: check,
-      reason: `You added ${nudges.uncheckedDrawing}: check the model against every size on it.`,
-    });
-  }
-  for (const id of FEATURED) {
-    const job = byId(id);
-    if (picked.length >= limit) break;
-    if (job !== undefined && !picked.some((entry) => entry.job.id === id))
-      picked.push({ job, reason: null });
-  }
-  return picked;
-}
-
-/**
- * A drawing or sketch in the project's References (`brief/references/`, not its drawn pages) that
- * no drawing check has been run against, by its file name; null with none.
- */
-export function uncheckedDrawing(
-  paths: ReadonlyArray<string>,
-  drawingChecked: boolean,
-): string | null {
-  if (drawingChecked) return null;
-  const found = paths.find((path) =>
-    /^brief\/references\/[^/]+\.pdf$/i.test(path.replaceAll("\\", "/")),
-  );
-  return found === undefined ? null : (found.replaceAll("\\", "/").split("/").at(-1) ?? null);
-}
-
-/** A row of the Toolbox's home: its title, its tiles, and where See all goes (a group's tab). */
-export interface HomeRow {
-  readonly title: string;
-  readonly jobs: ReadonlyArray<{ readonly job: HardwareAction; readonly subtitle: string }>;
-  readonly group: HardwareActionGroup | null;
-}
-
-/**
- * The rows under the home's hero, as an app store's front page has them: For this part (the other
- * featured jobs, then a few made for it), Starred, then a row per group of the jobs that fit the
- * file in front, the hero's aside; each tile subtitled by its section ("Simulation"). Empty rows go.
- */
-export function homeRows(input: {
-  readonly groups: ReadonlyArray<ToolboxGroup>;
-  readonly kind: string | null;
-  readonly featured: ReadonlyArray<FeaturedJob>;
-  readonly suggested: ReadonlyArray<HardwareAction>;
-  readonly pinned: ReadonlyArray<HardwareAction>;
-}): HomeRow[] {
-  const sectionOf = new Map(
-    input.groups.flatMap((group) =>
-      group.sections.flatMap((section) =>
-        section.actions.map((job) => [job.id, section.title] as const),
-      ),
-    ),
-  );
-  const tile = (job: HardwareAction) => ({ job, subtitle: sectionOf.get(job.id) ?? "" });
-  const hero = input.featured[0]?.job.id;
-  const featured = new Set(input.featured.map((entry) => entry.job.id));
-  const forPart = [
-    ...input.featured.slice(1).map((entry) => entry.job),
-    ...input.suggested.filter((job) => !featured.has(job.id)),
-  ];
-  const rows: HomeRow[] = [
-    { title: "For this part", jobs: forPart.map(tile), group: null },
-    { title: "Starred", jobs: input.pinned.map(tile), group: null },
-    ...input.groups.map((group) => ({
-      title: MENU_WORDS[group.group],
-      jobs: group.sections
-        .flatMap((section) => section.actions)
-        .filter((job) => job.id !== hero && input.kind !== null && jobFits(job, input.kind))
-        .map(tile),
-      group: group.group,
-    })),
-  ];
-  return rows.filter((row) => row.jobs.length > 0);
-}
-
 /** Every job whose name, what it makes or group holds each word typed. */
 export function searchJobs(
   groups: ReadonlyArray<ToolboxGroup>,
@@ -278,14 +163,25 @@ export function toolboxWorksOn(
 ): string | null {
   if (kind !== null && jobFits(action, kind)) return null;
   if (action.kinds === null) return "Works on any file. Open one to use it.";
-  const kinds = action.kinds.map((name) => {
-    const lower = lowerName(name);
-    // "an assembly", and "an FEA study" as it is said.
-    return `${/^([aeiou]|FEA\b)/.test(lower) ? "an" : "a"} ${lower}`;
-  });
-  const listed = new Intl.ListFormat("en", { type: "disjunction" }).format(kinds);
+  const listed = kindsListed(action.kinds);
   if (start !== null) return `Works on ${listed}. This project has none yet: press to start one.`;
   return `Works on ${listed}. Open one to use it.`;
+}
+
+/** Kinds as a sentence says them: "a part or an assembly", "an FEA study". */
+function kindsListed(kinds: ReadonlyArray<string>): string {
+  const said = kinds.map((name) => {
+    const lower = lowerName(name);
+    return `${/^([aeiou]|FEA\b)/.test(lower) ? "an" : "a"} ${lower}`;
+  });
+  return new Intl.ListFormat("en", { type: "disjunction" }).format(said);
+}
+
+/** What a job takes in, for its details: "A part or an assembly", or "Any file". */
+export function worksOnWords(action: Pick<HardwareAction, "kinds">): string {
+  if (action.kinds === null) return "Any file";
+  const listed = kindsListed(action.kinds);
+  return listed.charAt(0).toUpperCase() + listed.slice(1);
 }
 
 /** New's start for what a job works on, the first kind of its list that New makes. */
