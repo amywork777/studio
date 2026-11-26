@@ -1,11 +1,15 @@
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { HomeIcon } from "lucide-react";
+import { HomeIcon, Share2Icon } from "lucide-react";
+import { useState } from "react";
 
+import { useEnvironmentQuery } from "~/state/query";
+import { studioTeamsEnvironment } from "~/state/studioTeams";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ProjectSwitcher } from "./ProjectSwitcher";
+import { ShareLinkDialog } from "./teams/ShareLinkDialog";
 import { useStudioProjectAt } from "./useStudioProjects";
 import { workspaceTitle } from "./workspaceTitle";
 
@@ -14,7 +18,7 @@ function useProjectHeading(environmentId: EnvironmentId, project: EnvironmentPro
   const folder = project?.workspaceRoot ?? null;
   const studio = useStudioProjectAt(environmentId, folder);
   const title = workspaceTitle(studio?.project.name ?? null, folder);
-  return { folder, title };
+  return { folder, title, brief: studio?.project.brief ?? null };
 }
 
 /**
@@ -27,8 +31,13 @@ export function StudioWorkspaceBar(props: {
   /** The open chat's title, which the chat column shows (`ChatTitleRow`). */
   readonly chatTitle: string;
 }) {
-  const { folder, title } = useProjectHeading(props.environmentId, props.project);
+  const { folder, title, brief } = useProjectHeading(props.environmentId, props.project);
   const navigate = useNavigate();
+  const [sharing, setSharing] = useState(false);
+  // Share shows only on a build with a share page (`STUDIO_TEAMS=1`).
+  const hub = useEnvironmentQuery(
+    studioTeamsEnvironment.status({ environmentId: props.environmentId, input: {} }),
+  ).data;
 
   return (
     <nav aria-label="Where you are" className="flex h-10 min-w-0 flex-1 items-center gap-1">
@@ -52,6 +61,20 @@ export function StudioWorkspaceBar(props: {
         /
       </span>
       <ProjectSwitcher environmentId={props.environmentId} folder={folder} title={title} />
+      {folder === null || hub?.available !== true ? null : (
+        <div className="ms-auto me-2 flex shrink-0 items-center">
+          <Button variant="outline" size="xs" onClick={() => setSharing(true)}>
+            <Share2Icon />
+            Share
+          </Button>
+          <ShareLinkDialog
+            open={sharing}
+            onOpenChange={setSharing}
+            environmentId={props.environmentId}
+            project={{ name: title, folder, brief }}
+          />
+        </div>
+      )}
     </nav>
   );
 }

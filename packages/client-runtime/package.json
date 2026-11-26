@@ -555,6 +555,10 @@
       "types": "./src/state/studioProjects.ts",
       "default": "./src/state/studioProjects.ts"
     },
+    "./state/studioTeams": {
+      "types": "./src/state/studioTeams.ts",
+      "default": "./src/state/studioTeams.ts"
+    },
     "./state/pluginFollow": {
       "types": "./src/state/pluginFollow.ts",
       "default": "./src/state/pluginFollow.ts"

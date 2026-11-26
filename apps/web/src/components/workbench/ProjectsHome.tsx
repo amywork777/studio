@@ -27,6 +27,7 @@ import { useEngineeringInterface } from "./studioInterface";
 import { MODULE_HEADING, SECTION_STACK } from "./studioLayout";
 import { StudioNew } from "./StudioNew";
 import { StudioTopBar } from "./StudioTopBar";
+import { TeamSection } from "./teams/TeamSection";
 import { useCreateStudioProject } from "./useCreateStudioProject";
 import { useImportActions } from "./useImportActions";
 import { useNewPart } from "./useNewPart";
@@ -212,6 +213,7 @@ function ProjectsHomeFor(props: { readonly environmentId: EnvironmentId }) {
                   Drop files or a folder anywhere here to import them.
                 </p>
               )}
+              {engineering ? <TeamSection environmentId={environmentId} /> : null}
               {loose.length === 0 ? null : (
                 <section aria-label="Folders in no project" className={SECTION_STACK}>
                   <h2 className={MODULE_HEADING}>Folders in no project</h2>

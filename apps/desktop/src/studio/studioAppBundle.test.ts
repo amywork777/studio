@@ -274,6 +274,33 @@ describe("applyStudioAppBundle", () => {
     expect(plain.T3CODE_USAGE_URL).toBeUndefined();
   });
 
+  it("shows Teams only from a build made with a team hub and its key", () => {
+    const hub = { teamsUrl: "https://hub.example", teamsKey: "sb_publishable_0123456789abcdef" };
+    const env: Record<string, string | undefined> = {};
+    applyStudioAppBundle({
+      resourcesPath: resources(undefined, { ...hub, reviewUrl: "https://review.example" }),
+      homeDirectory: tempDir(),
+      env,
+    });
+    expect(env.STUDIO_TEAMS_URL).toBe("https://hub.example");
+    expect(env.STUDIO_TEAMS_KEY).toBe("sb_publishable_0123456789abcdef");
+    expect(env.STUDIO_REVIEW_URL).toBe("https://review.example");
+
+    for (const half of [
+      { teamsUrl: hub.teamsUrl },
+      { ...hub, teamsUrl: "http://hub.example" },
+      { ...hub, teamsKey: "short" },
+    ]) {
+      const none: Record<string, string | undefined> = {};
+      applyStudioAppBundle({
+        resourcesPath: resources(undefined, half),
+        homeDirectory: tempDir(),
+        env: none,
+      });
+      expect(none.STUDIO_TEAMS_URL).toBeUndefined();
+    }
+  });
+
   it("leaves what the environment already says", () => {
     const home = tempDir();
     const res = resources();

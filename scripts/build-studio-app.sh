@@ -211,11 +211,33 @@ left_out="$(comm -23 <(cat <(skills_of "$CAD/skills") <(skills_of "$ROOT/studio-
 # A build sends anonymous usage counts, once the person says yes, to Studio's usage receiver
 # (infra/usage), or to STUDIO_USAGE_URL; STUDIO_USAGE_URL= (empty) makes one that sends nothing.
 # No build carries a database key: the receiver holds it.
-usage_url=""
+hosted=""
 STUDIO_USAGE_URL="${STUDIO_USAGE_URL-https://studio-usage.vercel.app}"
 if [ -n "$STUDIO_USAGE_URL" ]; then
-  usage_url=",
+  hosted=",
   \"usageUrl\": \"$STUDIO_USAGE_URL\""
+fi
+# Teams is off in a build unless STUDIO_TEAMS=1, which a beta build sets on purpose: then it
+# shows Teams with Studio's team hub (infra/teams), or STUDIO_TEAMS_URL and STUDIO_TEAMS_KEY. The
+# key is the hub's publishable one, which is safe to ship: the hub's row-level security decides
+# what a person may do.
+if [ "${STUDIO_TEAMS:-0}" = "1" ]; then
+  STUDIO_TEAMS_URL="${STUDIO_TEAMS_URL:-https://bkzigrvifxdsahgiaijx.supabase.co}"
+  STUDIO_TEAMS_KEY="${STUDIO_TEAMS_KEY:-sb_publishable_ytw47YKEsyyn-h261DOE5g_4XXmiXM5}"
+  # Where reviewers without Studio review a Version (infra/teams/review), for Copy review link.
+  STUDIO_REVIEW_URL="${STUDIO_REVIEW_URL-https://studio-review-delta.vercel.app}"
+else
+  STUDIO_TEAMS_URL=""
+  STUDIO_TEAMS_KEY=""
+fi
+if [ -n "$STUDIO_TEAMS_URL" ] && [ -n "$STUDIO_TEAMS_KEY" ]; then
+  hosted="$hosted,
+  \"teamsUrl\": \"$STUDIO_TEAMS_URL\",
+  \"teamsKey\": \"$STUDIO_TEAMS_KEY\""
+  if [ -n "$STUDIO_REVIEW_URL" ]; then
+    hosted="$hosted,
+  \"reviewUrl\": \"$STUDIO_REVIEW_URL\""
+  fi
 fi
 # Its version, for the server to say to clients and in usage counts (studioAppBundle.ts), as the
 # web client's build is told below; and the text-to-cad it includes, which projects are stamped with.
@@ -226,7 +248,7 @@ cat >"$BUNDLE/studio.json" <<JSON
   "textToCad": "$text_to_cad",
   "home": ".text-to-cad-studio",
   "profile": "com.amywork777.studio",
-  "plugins": ["text-to-cad"]$usage_url
+  "plugins": ["text-to-cad"]$hosted
 }
 JSON
 
