@@ -1,6 +1,7 @@
 import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 
 import { DRAWING_CHECK_GUIDE } from "./drawingCheckSkill";
+import { ISO_FITS_GUIDE, isoFitsSkillFiles } from "./isoFitsSkill";
 
 /**
  * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
@@ -102,6 +103,8 @@ export interface HardwareAction {
   readonly guide?: string;
   /** When an agent should take its skill up unasked, besides by name ("modelling from a drawing"). */
   readonly useWhen?: string;
+  /** Files its job skill carries beside its SKILL.md, by path inside its folder (a script, its table). */
+  readonly files?: () => Readonly<Record<string, string>>;
 }
 
 /** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
@@ -175,6 +178,23 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     prompt: (file) =>
       `Move ${file} through its range of motion and tell me where parts collide, bind or run out of travel.`,
     short: (name) => `Range of motion of ${name}`,
+  },
+  {
+    id: "iso-fits",
+    group: "Evaluate",
+    section: "fit-mass",
+    label: "Apply an ISO fit",
+    gets: "Hole and shaft limits from ISO 286 for the fit you pick, written into the part and its drawing.",
+    skill: "cad",
+    kinds: SOLID,
+    checks: false,
+    prompt: (file) =>
+      `Apply an ISO fit to ${file} with $iso-fits: find the hole and shaft that go together, pick the fit for what they do (sliding, press, clearance) or ask me, read the limits off ISO 286 and write them into the part and its drawing.`,
+    short: (name) => `ISO fit for ${name}`,
+    guide: ISO_FITS_GUIDE,
+    useWhen:
+      "a hole and a shaft, pin or bearing must fit together, or the person names a fit (H7/g6, a press fit)",
+    files: isoFitsSkillFiles,
   },
   {
     id: "mass",

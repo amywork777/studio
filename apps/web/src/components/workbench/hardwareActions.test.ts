@@ -66,7 +66,7 @@ describe("hardware actions", () => {
     const evaluate = menu("Evaluate", "Part", ["fea", "cad"]);
     expect(titled(evaluate!.sections)).toEqual([
       ["Simulation", ["Strength under load"]],
-      ["Fit, motion and mass", ["Weight and center of mass"]],
+      ["Fit, motion and mass", ["Apply an ISO fit", "Weight and center of mass"]],
       ["Drawings and sketches", ["Check against the drawing"]],
     ]);
     expect(evaluate!.others).toEqual([]);
@@ -78,7 +78,7 @@ describe("hardware actions", () => {
       ["Simulation", ["Strength under load"]],
       [
         "Fit, motion and mass",
-        ["Fit and clearance", "Range of motion", "Weight and center of mass"],
+        ["Fit and clearance", "Range of motion", "Apply an ISO fit", "Weight and center of mass"],
       ],
       ["Drawings and sketches", ["Check against the drawing"]],
     ]);

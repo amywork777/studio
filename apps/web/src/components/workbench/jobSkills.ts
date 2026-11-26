@@ -54,7 +54,7 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
       ? `${job.label}, one job of the ${job.skill} skill. Use when the person asks for $${job.id} ` +
         `by name; it hands off to the ${job.skill} skill.`
       : `${job.label}, with the ${job.skill} skill. Use whenever ${job.useWhen}, and when the ` +
-        `person asks for $${job.id}; it says how Studio reads the result.`;
+        `person asks for $${job.id}; it says how to do it in Studio.`;
   const skill = [
     "---",
     `name: ${job.id}`,
@@ -82,5 +82,5 @@ export function jobSkillFiles(job: JobSkillJob): Readonly<Record<string, string>
     `  default_prompt: ${yamlString(`Use $${job.id} to ${lowerFirst(ask)}`)}`,
     "",
   ].join("\n");
-  return { "SKILL.md": skill, "agents/openai.yaml": face };
+  return { "SKILL.md": skill, "agents/openai.yaml": face, ...job.files?.() };
 }

@@ -894,7 +894,7 @@ as they were.
   jobs in a project with no board, an assembly's in one with only parts), the dimmed tile still
   takes a press and opens New on that start (Amy, 11/09: New and the Toolbox linked where a job
   has nothing to work on yet). The jobs:
-  simulations, fit, motion and mass; each way of making it (the project's own first: printing,
+  simulations, fit, an ISO fit, motion and mass; each way of making it (the project's own first: printing,
   CNC with G-code, sheet metal, cutting, molding, boards), buying standard parts and the files to
   export (STEP, STL and 3MF); drawings, instructions, pictures, reports and robot descriptions.
   Each job says in a line what it makes. A group's everyday sections come first and the rest
@@ -916,7 +916,11 @@ as they were.
   (`components/workbench/jobSkills.ts`; `STUDIO_WRITE_JOB_SKILLS=1` on `jobSkills.test.ts` writes
   them again after a job changes) and join text-to-cad's skills where Studio lays out its plugin,
   in dev (`TEXT_TO_CAD_DEV=1`) and in the app (`scripts/studio_job_skills.py`), never inside
-  `text-to-cad/`.
+  `text-to-cad/`. A job skill can carry files beside its SKILL.md (a job's `files`): `$iso-fits`
+  carries ISO 286-1's limits for holes and shafts c to u, IT4 to IT13, up to 500 mm
+  (`isoFits.ts`, checked against two published tables) as `fits.json` and the `fits.py` that reads
+  them, so the agent reads a fit off the standard, never from memory, and writes it into the part's
+  script and the drawing's `fit=` callout.
 - **Three kinds, and work done on them.** What is designed is CAD, Electronics or Documents, and
   New offers those. FEA and CAM are not kinds of design but work done on one, for parts and boards
   alike, so what Evaluate, Manufacture and Document make (analysis, manufacturing files,

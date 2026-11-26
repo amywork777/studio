@@ -15,6 +15,11 @@
     "skill": "cad"
   },
   {
+    "id": "iso-fits",
+    "label": "Apply an ISO fit",
+    "skill": "cad"
+  },
+  {
     "id": "mass",
     "label": "Weight and center of mass",
     "skill": "cad"
