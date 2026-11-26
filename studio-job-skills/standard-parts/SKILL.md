@@ -41,7 +41,7 @@ so the Overview and the parts list count it. `<name>` is the standard and size a
 # dependencies = ["bd_warehouse>=0.4,<0.5"]
 # ///
 """ISO 4762 M3 x 8 socket head cap screw, from bd_warehouse's ISO 4762 table (the largest sizes the
-standard allows), its thread drawn as a plain cylinder at the major diameter. Buy as: ISO 4762 M3 x 8,
+standard allows), its thread drawn as a plain cylinder at its minor diameter. Buy as: ISO 4762 M3 x 8,
 steel 12.9. Origin: the centre of the head's underside, the shank along -Z."""
 
 from cad import step
@@ -64,7 +64,8 @@ if __name__ == "__main__":
   network) and pins build123d to cad's own.
 - Import bd_warehouse inside the body, never at the top: that would load the CAD kernel on every run.
 - Keep `simple=True` (no modelled thread) unless the person asks for threads: real threads make
-  a heavy model and change no fit. Say in the docstring that the thread is simplified.
+  a heavy model and change no fit. The plain shank is at the thread's minor diameter, so a
+  clearance check against it is generous by the thread's depth: say so in the docstring.
 - The docstring says what to buy (standard, size, grade or material) and where the sizes came from.
 
 What bd_warehouse has, by class and its standards (`<Class>.types()` lists them,
