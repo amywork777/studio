@@ -1,6 +1,6 @@
 ---
 name: drawing-check
-description: "Check against the drawing, with the cad skill. Use whenever you model a part from a drawing, a sketch or a photo of one, or check one against it, and when the person asks for $drawing-check; it says how Studio reads the result."
+description: "Check against the drawing, with the cad skill. Use whenever you model a part from a drawing, a sketch or a photo of one, or check one against it, and when the person asks for $drawing-check; it says how to do it in Studio."
 ---
 
 # Check against the drawing

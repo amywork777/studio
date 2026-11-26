@@ -938,7 +938,13 @@ as they were.
   (`components/workbench/jobSkills.ts`; `STUDIO_WRITE_JOB_SKILLS=1` on `jobSkills.test.ts` writes
   them again after a job changes) and join text-to-cad's skills where Studio lays out its plugin,
   in dev (`TEXT_TO_CAD_DEV=1`) and in the app (`scripts/studio_job_skills.py`), never inside
-  `text-to-cad/`.
+  `text-to-cad/`. A job skill can carry files beside its SKILL.md (a job's `files`): `$pmi` carries
+  ISO 286-1's limits for holes and shafts c to u, IT4 to IT13, up to 500 mm (`isoFits.ts`, checked
+  against two published tables) in the `fits.py` that reads them (a `.py`, which the formatter
+  leaves as written), and its
+  description has the agent take it up whenever a fit is asked for ("H7 on this bore"), on a
+  drawing's `fit=` callout or as PMI, so every limit is read off the standard, never from memory.
+  Fits have no tile of their own (Amy, 11/25): they are part of drawing and PMI work.
 - **Three kinds, and work done on them.** What is designed is CAD, Electronics or Documents, and
   New offers those. FEA and CAM are not kinds of design but work done on one, for parts and boards
   alike, so what Evaluate, Manufacture and Document make (analysis, manufacturing files,
