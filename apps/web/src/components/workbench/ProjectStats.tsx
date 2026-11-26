@@ -26,11 +26,8 @@ export function ProjectStats(props: {
 }) {
   if (props.spec.length + props.links.length + props.notes.length === 0) return null;
   return (
-    <div
-      role="group"
-      aria-label="At a glance"
-      className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm"
-    >
+    // Its pieces sit in the heading's one line (`ProjectHeading`), beside the last build.
+    <div aria-label="At a glance" className="contents text-sm">
       {props.spec.length === 0 ? null : (
         <span className="text-foreground">{props.spec.join(" · ")}</span>
       )}

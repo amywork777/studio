@@ -89,11 +89,13 @@ export function MadeBadges(props: {
   readonly onOpen: (path: string) => void;
   /** Under the lead part, where they are the part's outputs, not a tag on a card. */
   readonly lead?: boolean;
+  /** Its drawings too; not where the project's line above already opens them. */
+  readonly drawings?: boolean;
 }) {
   const { part, lead = false } = props;
   return (
     <>
-      {part.drawings.map((drawing) => (
+      {(props.drawings === false ? [] : part.drawings).map((drawing) => (
         <MadeLink
           key={drawing}
           group="Drawings"

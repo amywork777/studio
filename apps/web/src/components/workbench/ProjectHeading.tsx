@@ -12,7 +12,7 @@ import { type ReactNode, useState } from "react";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
+import { Menu, MenuItem, MenuItemDetail, MenuPopup, MenuTrigger } from "../ui/menu";
 import { propertiesLine } from "./briefFolder";
 import { PageTitle } from "./PageTitle";
 import { type ProjectStatus, statusWords } from "./projectStatus";
@@ -96,10 +96,12 @@ export function ProjectHeading(props: {
                 <EllipsisIcon />
               </MenuTrigger>
               <MenuPopup align="end" side="bottom" sideOffset={6}>
-                {props.setup === null ? null : (
-                  <MenuItem onClick={() => setEditing(true)}>
+                {/* The drafting setup lives here, a press from being changed, off the page. */}
+                {properties === "" && props.setup === null ? null : (
+                  <MenuItem disabled={props.setup === null} onClick={() => setEditing(true)}>
                     <SlidersHorizontalIcon />
-                    Edit properties
+                    {props.setup === null ? "Properties" : "Edit properties"}
+                    {properties === "" ? null : <MenuItemDetail>{properties}</MenuItemDetail>}
                   </MenuItem>
                 )}
                 {props.onShowFolder === null ? null : (
@@ -113,25 +115,13 @@ export function ProjectHeading(props: {
           </div>
         }
       />
-      {props.stats}
+      {/* One line: the project's facts, then its last build and the chats waiting on the person. */}
       <div
         role="group"
         aria-label="How the project stands"
-        className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+        className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
       >
-        {properties === "" ? null : props.setup === null ? (
-          <p className="text-xs text-muted-foreground">{properties}</p>
-        ) : (
-          <button
-            type="button"
-            aria-expanded={editing}
-            aria-label={`Properties: ${properties}. Change them`}
-            onClick={() => setEditing((open) => !open)}
-            className="-mx-1 min-h-5 rounded-sm px-1 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-          >
-            {properties}
-          </button>
-        )}
+        {props.stats}
         {props.built === null ? null : (
           <span
             className={

@@ -411,7 +411,7 @@ export function ReadmeOverview(props: {
         data-document-editable=""
         className="flex flex-col gap-6"
       >
-        {!longDecisions && sections.more.length === 0 ? null : (
+        {!longDecisions && rows.first.length + rows.rest.length === 0 ? null : (
           <div className="flex flex-col">
             {rows.first.map(row)}
             {longDecisions ? (

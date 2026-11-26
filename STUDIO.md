@@ -387,16 +387,18 @@ as they were.
   `overviewStats.ts`; Amy, 2026-11-25/26: compact, and only what is known): its material, its parts
   and its size where a check measured one (a printing check's `mesh.bbox_mm`), then a chip for its
   drawing and parts list that opens it, and when it was last exported (the newest zip in
-  `exports/`); nothing is said of what no run gave (law 4); then its properties (units, drafting standard,
-  general tolerance, material; a press opens them to change, each change asked of the agent as a CAD
-  tool applies a property, `ProjectSetup`), then how it stands, counted from the runs alone (failed,
+  `exports/`), then its last build; nothing is said of what no run gave (law 4). Its properties
+  (units, drafting standard, general tolerance, material) are in the ··· menu, Edit properties
+  opening them to change, each change asked of the agent as a CAD tool applies a property
+  (`ProjectSetup`). How it stands, counted from the runs alone (failed,
   warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,
   `projectStatus.ts`). Under it the README's `## Open questions` as taps, the answer the part was
   built with first (`- <question> [<assumed> | <other>]`, `OpenQuestions.tsx`), each tap answering in
   the chat, then what the checks found open (what passed is in the badges). Then the lead part beside the
   README in its folder, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
   asked)`, or `by hand`; a decision written date first reads too), then every other section the
-  README has as written, its links opening what they name. While a new project's only chat is on
+  README has as written, its links opening what they name, but its In this project, which the files
+  below show (`readmeRows`). While a new project's only chat is on
   its first turn and the README has no words yet, the Overview shows Studio's loading bars;
   the words that end that wait then come in one by one, once, and later changes read as they are
   (`useReadmeWriteIn`, `WritingOverview`). A new project's Overview opens beside its first chat so

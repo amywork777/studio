@@ -303,8 +303,14 @@ function LeadPart(props: {
           {/* The drawing and the part's sizes are one row of links; the sizes live with the part, as
             SolidWorks keeps them under Equations. */}
           <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
-            {part.drawings.length + part.made.length === 0 ? null : (
-              <MadeBadges part={part} onOpen={props.onOpenFile} lead />
+            {/* Under the project's heading its line has the drawing: here only what was made. */}
+            {(props.underHeading ? 0 : part.drawings.length) + part.made.length === 0 ? null : (
+              <MadeBadges
+                part={part}
+                onOpen={props.onOpenFile}
+                lead
+                drawings={!props.underHeading}
+              />
             )}
             <button
               type="button"
