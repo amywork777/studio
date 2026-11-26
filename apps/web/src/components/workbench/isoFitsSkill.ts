@@ -1,7 +1,7 @@
 /**
  * How the agent gives a hole or a shaft a fit from ISO 286, on a drawing's callout or as PMI: the `pmi` job
  * skill's own instructions after its hand-off (`jobSkillFiles`), with `fits.py` and the table it reads
- * (`fits.json`, written from `isoFits.ts`), so every limit is read off the standard, never recalled.
+ * (written into it from `isoFits.ts`), so every limit is read off the standard, never recalled.
  */
 
 import { ISO_FIT_PRESETS, isoFitsTable } from "./isoFits";
@@ -41,23 +41,22 @@ IT14) it refuses: say so, never fill one in.
   loosest in mm as \`fits.py\` printed them, and what that means for putting it together.
 `;
 
-const FITS_PY = `"""ISO 286-1 limits for a fit or a tolerance class at a nominal size, read off fits.json.
+const FITS_PY = `"""ISO 286-1 limits for a fit or a tolerance class at a nominal size, read off the table below.
 
     python fits.py H7/g6 20      a fit at 20 mm: both classes' limits and the clearances
     python fits.py g6 20         one class
     python fits.py presets       the preferred fits, by what each is for
     add --json to print JSON
 
-Studio writes fits.json from its ISO 286-1 tables (apps/web/src/components/workbench/isoFits.ts).
+Studio writes the table from its ISO 286-1 tables (apps/web/src/components/workbench/isoFits.ts).
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
-TABLE = json.loads((Path(__file__).resolve().parent / "fits.json").read_text(encoding="utf-8"))
+TABLE = json.loads(r"""@@TABLE@@""")
 
 
 def tolerance_class(name: str, size: float) -> dict:
@@ -128,5 +127,6 @@ export function isoFitsSkillFiles(): Readonly<Record<string, string>> {
     presets: ISO_FIT_PRESETS,
     classes: isoFitsTable(),
   };
-  return { "fits.py": FITS_PY, "fits.json": `${JSON.stringify(table)}\n` };
+  // In the script itself: a .py the formatter leaves as written, where a .json it would lay out anew.
+  return { "fits.py": FITS_PY.replace("@@TABLE@@", JSON.stringify(table)) };
 }
