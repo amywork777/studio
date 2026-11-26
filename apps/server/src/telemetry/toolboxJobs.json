@@ -87,7 +87,7 @@
   {
     "id": "standard-parts",
     "label": "Off-the-shelf parts",
-    "skill": null
+    "skill": "cad"
   },
   {
     "id": "board-check",

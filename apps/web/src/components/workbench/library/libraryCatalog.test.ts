@@ -190,8 +190,8 @@ describe("library catalog", () => {
     expect(madeBy(doc("doc:order"))).toEqual(["sendcutsend"]);
     expect(madeBy(doc("doc:manufacturing-check"))).toEqual(["cad"]);
     expect(madeBy(doc("doc:circuit-board"))).toEqual(["pcb"]);
-    // Off-the-shelf parts need no skill since step-parts left text-to-cad.
-    expect(madeBy(doc("doc:standard-parts"))).toEqual(["the agent"]);
+    // Off-the-shelf parts are the cad skill's, through the standard-parts job skill.
+    expect(madeBy(doc("doc:standard-parts"))).toEqual(["cad"]);
     expect(madeBy(doc("doc:parts-list"))).toEqual(["the agent"]);
     expect(madeBy(doc("doc:drawing"))).toEqual(["engineering-drawing"]);
     // Its template works from a part, which no New offers, and its job needs no skill.

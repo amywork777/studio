@@ -94,6 +94,7 @@ downloads, and no id goes with any of them: the list of AI models from
 [LiteLLM](https://github.com/BerriAI/litellm)'s price table on GitHub (it prices the code tools'
 usage page), and from Google the icon of a public site that an answer links to or the preview
 opens, which tells Google that site's name and never the page.
+When you ask the agent for a bought part, the words it searches go to Jake's [step.parts](https://www.step.parts) service.
 
 ## Contributing
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Off-the-shelf parts"
+  short_description: "Each part with where to buy it, and its STEP file where the maker offers one."
+  default_prompt: "Use $standard-parts to find the off-the-shelf parts the part needs, such as fasteners and bearings, with $standard-parts: each one's model from its standard or its maker, placed where it goes, and where to buy it."
