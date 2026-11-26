@@ -36,7 +36,7 @@ import { useStudioProjectAt, useStudioProjectsList } from "./useStudioProjects";
 const BRAINSTORM_LABEL = HARDWARE_ACTIONS.find((action) => action.id === "brainstorm")?.label ?? "";
 
 /** A read says `exists: false` only of a file that is not there; one that is has no `exists`. */
-const isThere = <File extends { readonly exists?: boolean }>(
+const isThere = <File extends { readonly exists?: boolean | undefined }>(
   file: File | null | undefined,
 ): file is File => file !== undefined && file !== null && file.exists !== false;
 
