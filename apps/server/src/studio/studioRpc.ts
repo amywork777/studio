@@ -29,6 +29,8 @@ export const STUDIO_RPC_REQUIRED_SCOPES = {
   [WS_METHODS.studioProjectsList]: AuthFilesystemReadScope,
   [WS_METHODS.studioProjectsSave]: AuthOrchestrationOperateScope,
   [WS_METHODS.studioProjectsTrash]: AuthOrchestrationOperateScope,
+  // Runs the CAD tools' export and writes in the project's folder, as a tab's Export does.
+  [WS_METHODS.studioDeliverablesPack]: AuthOrchestrationOperateScope,
   [WS_METHODS.studioSyncStatus]: AuthOrchestrationReadScope,
   [WS_METHODS.projectsStartHistory]: AuthOrchestrationOperateScope,
 } as const;
@@ -52,6 +54,7 @@ export const STUDIO_RPC_AGGREGATES = {
   [WS_METHODS.studioProjectsList]: "server",
   [WS_METHODS.studioProjectsSave]: "server",
   [WS_METHODS.studioProjectsTrash]: "server",
+  [WS_METHODS.studioDeliverablesPack]: "server",
   [WS_METHODS.studioSyncSend]: "source-control",
   [WS_METHODS.studioSyncRestore]: "source-control",
   [WS_METHODS.studioSyncStatus]: "source-control",

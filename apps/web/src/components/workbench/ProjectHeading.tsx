@@ -24,9 +24,10 @@ const TONE_BADGE = {
 } as const;
 
 /**
- * The top of a project's Overview: the project's own name, never a part's; what it is in a line;
- * its properties, a press away from being changed (`setup`); then how its checks went, from the
- * runs alone (`projectStatus`), its last build and the chats waiting on the person.
+ * The top of a project's Overview: the project's own name, never a part's, with its actions in one
+ * group at the end (Back up, Export, Open part, more); what it is in a line; then one line of its
+ * properties, a press away from being changed (`setup`), how its checks went, from the runs alone
+ * (`projectStatus`), its last build and the chats waiting on the person.
  */
 export function ProjectHeading(props: {
   readonly name: string;
@@ -40,6 +41,10 @@ export function ProjectHeading(props: {
   /** The properties' editor (`ProjectSetup`); null where they cannot be changed here. */
   readonly setup: ReactNode | null;
   readonly onShowFolder: (() => void) | null;
+  /** The project's Export (`ProjectExportMenu`); null with no part yet. */
+  readonly exportMenu: ReactNode | null;
+  /** Back up, as a project tile's menu offers it (`ProjectBackupButton`); null where it can't. */
+  readonly backup: ReactNode | null;
   /** Brings the chats waiting on the person into view. */
   readonly onShowChats: (() => void) | null;
 }) {
@@ -47,12 +52,14 @@ export function ProjectHeading(props: {
   const properties = props.brief === null ? "" : propertiesLine(props.brief);
   const words = statusWords(props.status);
   return (
-    <header aria-label="Project" className="flex min-w-0 flex-col gap-2">
+    <header aria-label="Project" className="flex min-w-0 flex-col gap-3">
       <PageTitle
         title={props.name}
         lede={props.purpose === "" ? undefined : props.purpose}
         action={
-          <>
+          <div role="toolbar" aria-label="Project actions" className="flex items-center gap-1.5">
+            {props.backup}
+            {props.exportMenu}
             {props.onOpenPart === null ? null : (
               <Button size="xs" onClick={props.onOpenPart}>
                 Open part
@@ -81,28 +88,27 @@ export function ProjectHeading(props: {
                 )}
               </MenuPopup>
             </Menu>
-          </>
+          </div>
         }
       />
-      {properties === "" ? null : props.setup === null ? (
-        <p className="text-xs text-muted-foreground">{properties}</p>
-      ) : (
-        <button
-          type="button"
-          aria-expanded={editing}
-          aria-label={`Properties: ${properties}. Change them`}
-          onClick={() => setEditing((open) => !open)}
-          className="-mx-1 min-h-5 self-start rounded-sm px-1 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        >
-          {properties}
-        </button>
-      )}
-      {editing ? props.setup : null}
       <div
         role="group"
         aria-label="How the project stands"
-        className="flex min-w-0 flex-wrap items-center gap-2"
+        className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2"
       >
+        {properties === "" ? null : props.setup === null ? (
+          <p className="text-xs text-muted-foreground">{properties}</p>
+        ) : (
+          <button
+            type="button"
+            aria-expanded={editing}
+            aria-label={`Properties: ${properties}. Change them`}
+            onClick={() => setEditing((open) => !open)}
+            className="-mx-1 min-h-5 rounded-sm px-1 text-left text-xs text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          >
+            {properties}
+          </button>
+        )}
         {words.map((word) => {
           const { variant, Icon } = TONE_BADGE[word.tone];
           return (
@@ -133,6 +139,7 @@ export function ProjectHeading(props: {
           </Button>
         )}
       </div>
+      {editing ? props.setup : null}
     </header>
   );
 }
