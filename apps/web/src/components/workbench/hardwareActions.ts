@@ -104,11 +104,6 @@ export interface HardwareAction {
   readonly guide?: string;
   /** When an agent should take its skill up unasked, besides by name ("modelling from a drawing"). */
   readonly useWhen?: string;
-  /**
-   * The job with no part open, for one that can start from nothing: written into the composer
-   * unsent, for the person to add their sketch or words.
-   */
-  readonly startPrompt?: string;
 }
 
 /** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
@@ -225,8 +220,6 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Brainstorm concepts of ${name}`,
     guide: BRAINSTORM_GUIDE,
     useWhen: "the person asks for concepts, ideas or options for a part before choosing one",
-    startPrompt:
-      "Make 4 concepts with $brainstorm from this sketch, photo or brief, each a really different way to do the job: ",
   },
   printCheck(
     "fdm",

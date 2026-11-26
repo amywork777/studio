@@ -162,8 +162,6 @@ export function toolboxWorksOn(
   start: NewTemplate | null = null,
 ): string | null {
   if (kind !== null && jobFits(action, kind)) return null;
-  // One that starts from nothing (a sketch or a brief) runs with any file in front, or none.
-  if (action.startPrompt !== undefined) return null;
   if (action.kinds === null) return "Works on any file. Open one to use it.";
   const kinds = action.kinds.map((name) => {
     const lower = lowerName(name);
@@ -191,8 +189,7 @@ export function toolboxStart(
   action: HardwareAction,
   projectKinds: ReadonlySet<string>,
 ): NewTemplate | null {
-  if (action.kinds === null || action.startPrompt !== undefined) return null;
-  if (action.kinds.some((kind) => projectKinds.has(kind))) return null;
+  if (action.kinds === null || action.kinds.some((kind) => projectKinds.has(kind))) return null;
   const id = action.kinds.map((kind) => START_FOR_KIND[kind]).find((found) => found !== undefined);
   return NEW_TEMPLATES.find((template) => template.id === id) ?? null;
 }

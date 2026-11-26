@@ -7,12 +7,7 @@ import type { ComposerHandleRef } from "~/composerHandleContext";
 import { Button } from "../ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import {
-  GROUP_PURPOSES,
-  type HardwareAction,
-  type HardwareActionGroup,
-  jobFits,
-} from "./hardwareActions";
+import { GROUP_PURPOSES, type HardwareAction, type HardwareActionGroup } from "./hardwareActions";
 import { MENU_ICONS, MENU_TINTS, MENU_WORDS } from "./kinds";
 import { handToChat } from "./handToChat";
 import { withToolLine } from "./toolUsed";
@@ -99,15 +94,9 @@ export function StudioToolbox(props: {
   const worksOn = (action: HardwareAction) => toolboxWorksOn(action, kind, startFor(action));
 
   const run = (action: HardwareAction) => {
-    if (composerRef === null) return;
-    const fits = part !== null && jobFits(action, part.kind);
-    if (fits) {
-      setOpen(false);
-      handToChat(composerRef, withToolLine(action.label, action.prompt(partLink(part))));
-    } else if (action.startPrompt !== undefined) {
-      setOpen(false);
-      handToChat(composerRef, withToolLine(action.label, action.startPrompt), false);
-    }
+    if (composerRef === null || part === null) return;
+    setOpen(false);
+    handToChat(composerRef, withToolLine(action.label, action.prompt(partLink(part))));
   };
   const tiles: TileProps = {
     disabled: composerRef === null,
@@ -199,7 +188,7 @@ export function StudioToolbox(props: {
                 {part === null ? (
                   <p className="text-xs text-muted-foreground">
                     The Toolbox works on a part you already have. Press a tile to start what it
-                    works on, import a part, or brainstorm concepts from a sketch.
+                    works on, or import a part.
                   </p>
                 ) : composerRef === null ? (
                   <p className="text-xs text-muted-foreground">
