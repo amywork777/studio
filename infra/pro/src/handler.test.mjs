@@ -1,7 +1,7 @@
 import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
 
-import { proServer } from "./handler.mjs";
+import { proServer, weekEndOf } from "./handler.mjs";
 import { claimHashOf, licenseKey } from "./license.mjs";
 
 const SECRET = "license-secret";
@@ -19,7 +19,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
           email: "dave@example.com",
           stripe_customer: "cus_1",
           stripe_subscription: "sub_1",
-          plan: "monthly",
+          plan: "starter",
           status: "active",
           checked_at: new Date(NOW).toISOString(),
           key_generation: 1,
@@ -65,7 +65,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     async addUsage(row) {
       state.usage.push(row);
     },
-    monthSpend: async () => spent + state.usage.reduce((sum, row) => sum + row.cost_usd, 0),
+    weekSpend: async () => spent + state.usage.reduce((sum, row) => sum + row.cost_usd, 0),
     ready: async () => undefined,
   };
   const session = {
@@ -75,7 +75,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     customer: "cus_1",
     subscription: "sub_1",
     customer_details: { email: "dave@example.com" },
-    metadata: { plan: "founding" },
+    metadata: { plan: "pro" },
   };
   const stripe = {
     async checkout(input) {
@@ -98,7 +98,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     config: {
       licenseSecret: SECRET,
       openrouterKey: "sk-or-v1-studio",
-      prices: { monthly: "price_m", founding: "price_f" },
+      prices: { starter: "price_s", pro: "price_p" },
     },
     fetch: send,
     now: () => NOW,
@@ -185,7 +185,7 @@ NodeTest.test(
 );
 
 NodeTest.test(
-  "refuses a key it did not sign, an ended subscription and a month past its cap",
+  "refuses a key it did not sign, an ended subscription and a week past its cap",
   async () => {
     const forged = await fakes().handle(
       await messages({ authorization: `Bearer ${(await key()).slice(0, -2)}AA` }),
@@ -200,14 +200,19 @@ NodeTest.test(
     NodeAssert.equal(ended.status, 403);
     NodeAssert.match((await ended.json()).error.message, /has ended/);
 
-    const capped = fakes({ spent: 25 });
+    const capped = fakes({ spent: 20 });
     const refused = await capped.handle(await messages());
     NodeAssert.equal(refused.status, 403);
-    NodeAssert.match((await refused.json()).error.message, /this month's Studio Pro AI/);
+    NodeAssert.match(
+      (await refused.json()).error.message,
+      /this week's Studio Pro AI. It refills on Monday/,
+    );
     NodeAssert.equal(capped.state.upstream.length, 0);
 
-    const ownCap = await fakes({ spent: 25, account: { cap_usd: 40 } }).handle(await messages());
+    const ownCap = await fakes({ spent: 20, account: { cap_usd: 40 } }).handle(await messages());
     NodeAssert.equal(ownCap.status, 200);
+    const onPro = await fakes({ spent: 20, account: { plan: "pro" } }).handle(await messages());
+    NodeAssert.equal(onPro.status, 200);
   },
 );
 
@@ -276,16 +281,16 @@ NodeTest.test(
     const hash = await claimHashOf(CLAIM);
     const unpaid = fakes({ paid: false });
     const opened = await unpaid.handle(
-      new Request(`https://pro.example/v1/upgrade?plan=founding&claim=${hash}`),
+      new Request(`https://pro.example/v1/upgrade?plan=pro&claim=${hash}`),
     );
     NodeAssert.equal(opened.status, 303);
     NodeAssert.equal(opened.headers.get("location"), "https://checkout.stripe.com/c/pay/cs_test_1");
     NodeAssert.deepEqual(
       { ...unpaid.state.checkouts[0] },
       {
-        price: "price_f",
+        price: "price_p",
         claimHash: hash,
-        plan: "founding",
+        plan: "pro",
         successUrl: "https://pro.example/v1/welcome?session_id={CHECKOUT_SESSION_ID}",
         cancelUrl: "https://pro.example/v1/cancelled",
       },
@@ -299,13 +304,13 @@ NodeTest.test(
     NodeAssert.equal(waiting.status, 202);
 
     const paid = fakes();
-    await paid.handle(new Request(`https://pro.example/v1/upgrade?plan=founding&claim=${hash}`));
+    await paid.handle(new Request(`https://pro.example/v1/upgrade?plan=pro&claim=${hash}`));
     const answer = await paid.handle(claim());
     NodeAssert.equal(answer.status, 200);
     NodeAssert.deepEqual(await answer.json(), {
       key: await key(),
       email: "dave@example.com",
-      plan: "founding",
+      plan: "pro",
     });
     NodeAssert.ok(paid.state.claims.get(hash).claimed_at);
 
@@ -321,10 +326,16 @@ NodeTest.test(
 
 NodeTest.test("Upgrade refuses a plan or claim it does not know", async () => {
   const { handle, state } = fakes();
-  const answer = await handle(
-    new Request("https://pro.example/v1/upgrade?plan=lifetime&claim=abc"),
-  );
-  NodeAssert.equal(answer.status, 400);
+  const hash = await claimHashOf(CLAIM);
+  for (const query of [
+    "plan=lifetime&claim=abc",
+    `plan=monthly&claim=${hash}`,
+    `plan=founding&claim=${hash}`,
+    `plan=starter&claim=abc`,
+  ]) {
+    const answer = await handle(new Request(`https://pro.example/v1/upgrade?${query}`));
+    NodeAssert.equal(answer.status, 400);
+  }
   NodeAssert.equal(state.checkouts.length, 0);
 });
 
@@ -338,26 +349,40 @@ NodeTest.test("the page Checkout returns to shows the key for another computer",
 });
 
 NodeTest.test(
-  "the app's Pro row reads the plan and the share of the month used, by account id",
+  "the app's Pro row reads the plan and the share of the week used, by account id",
   async () => {
     const usage = (handle, id = ID) =>
       handle(new Request(`https://pro.example/v1/usage?account=${id}`)).then((answer) =>
         answer.json(),
       );
     NodeAssert.deepEqual(await usage(fakes({ spent: 5 }).handle), {
-      plan: "monthly",
+      plan: "starter",
       runs: true,
       refused: null,
-      usedPercent: 20,
-      resetsAt: "2026-12-01T00:00:00.000Z",
+      usedPercent: 25,
+      resetsAt: "2026-11-30T00:00:00.000Z",
     });
+    const pro = await usage(fakes({ spent: 30, account: { plan: "pro" } }).handle);
+    NodeAssert.equal(pro.runs, true);
+    NodeAssert.equal(pro.usedPercent, 50);
     const capped = await usage(fakes({ spent: 30 }).handle);
     NodeAssert.equal(capped.runs, false);
     NodeAssert.equal(capped.usedPercent, 100);
-    NodeAssert.match(capped.refused, /It starts again on the 1st/);
+    NodeAssert.match(capped.refused, /It refills on Monday/);
     const unknown = await fakes().handle(
       new Request("https://pro.example/v1/usage?account=0b7e4c5a-0000-4000-8000-000000000000"),
     );
     NodeAssert.equal(unknown.status, 404);
   },
 );
+
+NodeTest.test("the cap refills at the next Monday 00:00 UTC", () => {
+  const cases = [
+    ["2026-11-25T12:00:00Z", "2026-11-30T00:00:00.000Z"], // Wednesday
+    ["2026-11-29T23:59:59Z", "2026-11-30T00:00:00.000Z"], // Sunday, a second before
+    ["2026-11-30T00:00:00Z", "2026-12-07T00:00:00.000Z"], // Monday 00:00 itself: the week just began
+    ["2026-12-28T09:00:00Z", "2027-01-04T00:00:00.000Z"], // across the year
+  ];
+  for (const [now, monday] of cases)
+    NodeAssert.equal(weekEndOf(Date.parse(now)).toISOString(), monday);
+});

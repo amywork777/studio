@@ -70,7 +70,7 @@ describe("Studio Pro's checkout claim", () => {
         status: 404,
       }),
       new Response(JSON.stringify({ pending: true }), { status: 202 }),
-      Response.json({ key: KEY, plan: "monthly" }),
+      Response.json({ key: KEY, plan: "starter" }),
       new Response(JSON.stringify({ error: "This checkout has expired. Choose Upgrade again." }), {
         status: 410,
       }),
@@ -87,20 +87,23 @@ describe("Studio Pro's checkout claim", () => {
 });
 
 describe("the Pro row's line", () => {
-  it("says the share used and when it starts again, or why it stopped", () => {
-    const now = new Date("2026-11-25T12:00:00Z");
+  it("says the share used and the Monday it refills, or why it stopped", () => {
+    const now = new Date("2026-12-03T12:00:00Z");
     const usage = {
-      plan: "monthly" as const,
+      plan: "starter" as const,
       runs: true,
       refused: null,
       usedPercent: 12,
-      resetsAt: "2026-12-01T00:00:00.000Z",
+      resetsAt: "2026-12-07T00:00:00.000Z",
     };
     expect(proUsageLine(usage, now)).toBe(
-      "Monthly. 12% of this month's AI used; it starts again Dec 1.",
+      "Starter. 12% of this week's AI used; it refills Mon, Dec 7.",
+    );
+    expect(proUsageLine({ ...usage, plan: "pro", resetsAt: "2027-01-04T00:00:00.000Z" }, now)).toBe(
+      "Pro. 12% of this week's AI used; it refills Mon, Jan 4, 2027.",
     );
     expect(
-      proUsageLine({ ...usage, plan: "founding", runs: false, refused: "It has ended." }, now),
-    ).toBe("Founding member. It has ended.");
+      proUsageLine({ ...usage, plan: "pro", runs: false, refused: "It has ended." }, now),
+    ).toBe("Pro. It has ended.");
   });
 });

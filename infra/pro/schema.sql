@@ -7,12 +7,12 @@ create table if not exists public.pro_accounts (
   email text,
   stripe_customer text not null unique,
   stripe_subscription text not null,
-  plan text not null,                           -- 'monthly' or 'founding'
+  plan text not null,                           -- 'starter' or 'pro'
   status text not null,                         -- the Stripe subscription's status
   period_end timestamptz,
   checked_at timestamptz not null default now(), -- when Stripe was last asked about the subscription
   key_generation integer not null default 1,    -- raise it to turn the account's license key off
-  cap_usd numeric(10, 2),                       -- this account's own monthly cap; null takes the plan's
+  cap_usd numeric(10, 2),                       -- this account's own weekly cap; null takes the plan's
   created_at timestamptz not null default now()
 );
 
@@ -48,8 +48,8 @@ alter table public.pro_accounts enable row level security;
 alter table public.pro_claims enable row level security;
 alter table public.pro_usage enable row level security;
 
--- What an account's AI has cost Studio this calendar month (UTC): the number the cap is held to.
-create or replace function public.pro_month_spend(account uuid)
+-- What an account's AI has cost Studio this week, from Monday 00:00 UTC: the number the cap is held to.
+create or replace function public.pro_week_spend(account uuid)
 returns numeric
 language sql
 stable
@@ -57,17 +57,17 @@ security invoker
 as $$
   select coalesce(sum(cost_usd), 0)
   from public.pro_usage
-  where account_id = account and at >= date_trunc('month', now() at time zone 'utc') at time zone 'utc';
+  where account_id = account and at >= date_trunc('week', now() at time zone 'utc') at time zone 'utc';
 $$;
-revoke execute on function public.pro_month_spend(uuid) from public, anon, authenticated;
-grant execute on function public.pro_month_spend(uuid) to service_role;
+revoke execute on function public.pro_week_spend(uuid) from public, anon, authenticated;
+grant execute on function public.pro_week_spend(uuid) to service_role;
 
--- Each Pro account's month so far, for the owner to read in the SQL editor: cost against revenue.
-create or replace view public.pro_month_usage with (security_invoker = true) as
+-- Each Pro account's week so far, for the owner to read in the SQL editor: cost against revenue.
+create or replace view public.pro_week_usage with (security_invoker = true) as
   select a.email, a.plan, a.status, count(u.id) as requests,
          coalesce(sum(u.cost_usd), 0) as cost_usd
   from public.pro_accounts a
   left join public.pro_usage u
-    on u.account_id = a.id and u.at >= date_trunc('month', now() at time zone 'utc') at time zone 'utc'
+    on u.account_id = a.id and u.at >= date_trunc('week', now() at time zone 'utc') at time zone 'utc'
   group by a.id
   order by cost_usd desc;

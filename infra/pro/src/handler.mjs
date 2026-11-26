@@ -9,10 +9,10 @@ import { costOf, modelOf } from "./prices.mjs";
 import { cancelledPage, welcomePage } from "./pages.mjs";
 import { sessionPaid, STATUS_RUNS } from "./stripe.mjs";
 
-export const PLANS = ["monthly", "founding"];
-// What Studio's AI may cost per account per month, in dollars, unless the host says otherwise
-// (CAP_MONTHLY_USD, CAP_FOUNDING_USD) or the account carries its own. README.md says why these.
-export const DEFAULT_CAPS = { monthly: 25, founding: 15 };
+export const PLANS = ["starter", "pro"];
+// What Studio's AI may cost per account per week (Monday 00:00 UTC on), in dollars, unless the host
+// says otherwise (CAP_STARTER_USD, CAP_PRO_USD) or the account carries its own. README.md says why.
+export const DEFAULT_CAPS = { starter: 20, pro: 60 };
 // Vercel's most for a request body, said here so the refusal is a sentence and not Vercel's page.
 export const MAX_BODY = 4.5 * 1024 * 1024;
 // How long an instance trusts what it read about an account, and Stripe about a subscription.
@@ -43,7 +43,7 @@ export const SAY = {
   ended:
     "Your Studio Pro subscription has ended. Renew it in Settings, or sign in with your own Claude account.",
   capped:
-    "You have used this month's Studio Pro AI. It starts again on the 1st, or sign in with your own Claude account until then.",
+    "You have used this week's Studio Pro AI. It refills on Monday, or sign in with your own Claude account until then.",
   model: "Studio Pro does not run that model. Choose another model in Studio.",
   fast: "Studio Pro runs at standard speed only. Turn fast mode off.",
   tooLarge: "This chat is too long for Studio Pro. Start a new chat and try again.",
@@ -69,10 +69,11 @@ const html = (status, body) =>
     },
   });
 
-/** The first instant of next month, UTC: when the cap starts again. */
-export const monthEndOf = (now) => {
+/** The next Monday 00:00 UTC (a week on, from Monday 00:00 itself): when the cap refills. */
+export const weekEndOf = (now) => {
   const at = new Date(now);
-  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1));
+  const daysToMonday = 7 - ((at.getUTCDay() + 6) % 7);
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + daysToMonday));
 };
 
 /** A subscription's period end, wherever this Stripe API version keeps it. */
@@ -84,14 +85,14 @@ const periodEndOf = (subscription) => {
 
 /**
  * @param {{ store: ReturnType<import("./store.mjs").databaseStore>, stripe: ReturnType<import("./stripe.mjs").stripeClient>,
- *   config: { licenseSecret: string, openrouterKey?: string, prices: { monthly?: string, founding?: string }, caps?: { monthly?: number, founding?: number }, portalLoginUrl?: string, missing?: string[] },
+ *   config: { licenseSecret: string, openrouterKey?: string, prices: { starter?: string, pro?: string }, caps?: { starter?: number, pro?: number }, portalLoginUrl?: string, missing?: string[] },
  *   fetch?: typeof fetch, now?: () => number, limiter?: { take(key: string): { ok: boolean } } }} deps `fetch`: OpenRouter's.
  */
 export function proServer({ store, stripe, config, fetch: send = fetch, now = Date.now, limiter }) {
   const caps = { ...DEFAULT_CAPS, ...config.caps };
   const accounts = new Map(); // account id -> { account, spent, at }, for ACCOUNT_TTL_MS
 
-  const capOf = (account) => Number(account.cap_usd ?? caps[account.plan] ?? caps.monthly);
+  const capOf = (account) => Number(account.cap_usd ?? caps[account.plan] ?? caps.starter);
 
   /** Makes or updates the account a paid Checkout bought, and answers it. */
   async function activate(session, plan) {
@@ -109,7 +110,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
 
   const keyFor = (account) => licenseKey(config.licenseSecret, account.id, account.key_generation);
 
-  /** The account a key belongs to, with this month's spend; or why it may not run. */
+  /** The account a key belongs to, with this week's spend; or why it may not run. */
   async function authorize(headers) {
     const key = keyOf(headers);
     const id = accountIdOf(key);
@@ -132,7 +133,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
           // Stripe unreachable: the status last read stands until the next try.
         }
       }
-      known = { account, spent: await store.monthSpend(id), at: now() };
+      known = { account, spent: await store.weekSpend(id), at: now() };
       accounts.set(id, known);
     }
     const { account, spent } = known;
@@ -316,7 +317,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
           line: "Studio signs in as soon as it is done. You can close this page.",
         }),
       );
-    const account = await activate(session, session.metadata?.plan ?? "monthly");
+    const account = await activate(session, session.metadata?.plan ?? "starter");
     return html(
       200,
       welcomePage({ email: account.email, plan: account.plan, key: await keyFor(account) }),
@@ -324,7 +325,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
   }
 
   /**
-   * What the app shows on its Pro row: the plan, whether the AI runs, and how much of the month is
+   * What the app shows on its Pro row: the plan, whether the AI runs, and how much of the week is
    * used. By account id, which the app keeps beside the key (the key itself it cannot read back);
    * no email or amount, since an id is no proof of who asks.
    */
@@ -334,7 +335,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
       return json(404, { error: SAY.noKey }, CORS);
     const account = await store.account(id);
     if (!account) return json(404, { error: SAY.noKey }, CORS);
-    const spent = await store.monthSpend(id);
+    const spent = await store.weekSpend(id);
     const refused = !STATUS_RUNS.has(account.status)
       ? "ended"
       : spent >= capOf(account)
@@ -347,7 +348,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
         runs: refused === null,
         refused: refused === null ? null : SAY[refused],
         usedPercent: Math.min(100, Math.floor((spent / capOf(account)) * 100)),
-        resetsAt: monthEndOf(now()).toISOString(),
+        resetsAt: weekEndOf(now()).toISOString(),
       },
       CORS,
     );

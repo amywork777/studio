@@ -4,7 +4,7 @@
  */
 const escape = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-const PLAN_NAMES = { monthly: "Studio Pro, monthly", founding: "Studio Pro, founding member" };
+const PLAN_NAMES = { starter: "Studio Pro, Starter", pro: "Studio Pro, Pro" };
 
 const shell = (title, body) => `<!doctype html>
 <html lang="en">
@@ -41,7 +41,7 @@ export function welcomePage({ email, plan, key }) {
 <p>${escape(PLAN_NAMES[plan] ?? "Studio Pro")}${email ? ` · ${escape(email)}` : ""}</p>
 <p style="margin-bottom:0">On another computer, paste this license key in Studio's Settings, under Studio Pro:</p>
 <div class="key"><code id="key">${escape(key)}</code><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('key').textContent).then(()=>{this.textContent='Copied'})">Copy</button></div>
-<small>Keep the key to yourself: anyone with it uses your month's AI.</small>`,
+<small>Keep the key to yourself: anyone with it uses your week's AI.</small>`,
   );
 }
 

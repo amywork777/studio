@@ -71,10 +71,10 @@ function useStudioPro(environmentId: EnvironmentId, instanceId: ProviderInstance
   };
 }
 
-/** This month's use for a Pro account, read once each time the row shows. */
+/** This week's use for a Pro account, read once each time the row shows. */
 function useProUsage(account: string | null) {
   const [usage, setUsage] = useState<{ account: string; read: ProUsage | { message: string } }>();
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads the account's month from Studio Pro's server when the row shows an account
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reads the account's week from Studio Pro's server when the row shows an account
   useEffect(() => {
     if (account === null) return;
     let current = true;
@@ -101,7 +101,7 @@ export function StudioProDialog(props: {
 }) {
   const { environmentId, onClose } = props;
   const { start } = useStudioPro(environmentId, props.instanceId ?? CLAUDE_INSTANCE);
-  const [plan, setPlan] = useState<StudioProPlan>("monthly");
+  const [plan, setPlan] = useState<StudioProPlan>("starter");
   const [step, setStep] = useState<"plan" | "paying" | "key" | "saving">("plan");
   const [claim, setClaim] = useState<{ secret: string; url: string } | null>(null);
   const [key, setKey] = useState("");
@@ -272,7 +272,7 @@ export function StudioProDialog(props: {
 
 /**
  * The welcome screen's Studio Pro row, beside the sign-in cards: the way to Studio's AI without a
- * Claude subscription, and while on it, the month's use and the way back.
+ * Claude subscription, and while on it, the week's use and the way back.
  */
 export function StudioProRow(props: { readonly environmentId: EnvironmentId }) {
   const { account, stop } = useStudioPro(props.environmentId, CLAUDE_INSTANCE);
@@ -286,7 +286,7 @@ export function StudioProRow(props: { readonly environmentId: EnvironmentId }) {
         <h3 className="text-sm font-medium">Studio Pro</h3>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
           {account === null
-            ? "Studio's AI included, so you don't need a Claude subscription. $49 a month."
+            ? "Studio's AI included, so you don't need a Claude subscription. From $20 a month."
             : (usage ?? "Claude runs on Studio Pro.")}
         </p>
         {error === null ? null : (
@@ -313,7 +313,7 @@ export function StudioProRow(props: { readonly environmentId: EnvironmentId }) {
 
 /**
  * Settings' Studio Pro row on the Claude instance, in Studio only: Upgrade or a key while Claude is
- * the person's own; the month's use, billing and the way back while it runs on Pro.
+ * the person's own; the week's use, billing and the way back while it runs on Pro.
  */
 function StudioProSettingsRow(props: {
   readonly environmentId: EnvironmentId;
@@ -330,7 +330,7 @@ function StudioProSettingsRow(props: {
         title="Studio Pro"
         description={
           account === null
-            ? "Use Claude without a subscription: Studio's AI is included, $49 a month."
+            ? "Use Claude without a subscription: Studio's AI is included, from $20 a month."
             : (usage ?? "Claude runs on Studio Pro.")
         }
         control={

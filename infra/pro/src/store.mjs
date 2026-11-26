@@ -6,8 +6,8 @@ export const SETTINGS = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
   "STRIPE_SECRET_KEY",
-  "STRIPE_PRICE_MONTHLY",
-  "STRIPE_PRICE_FOUNDING",
+  "STRIPE_PRICE_STARTER",
+  "STRIPE_PRICE_PRO",
   "LICENSE_SECRET",
   "OPENROUTER_API_KEY",
 ];
@@ -79,8 +79,8 @@ export function databaseStore({ url, key, fetch: send = fetch }) {
         headers: { prefer: "return=minimal" },
         body: JSON.stringify(row),
       }),
-    async monthSpend(accountId) {
-      const spent = await call("rpc/pro_month_spend", {
+    async weekSpend(accountId) {
+      const spent = await call("rpc/pro_week_spend", {
         method: "POST",
         body: JSON.stringify({ account: accountId }),
       });

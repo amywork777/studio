@@ -13,10 +13,10 @@ const serve = proServer({
   config: {
     licenseSecret: env.LICENSE_SECRET ?? "",
     openrouterKey: env.OPENROUTER_API_KEY,
-    prices: { monthly: env.STRIPE_PRICE_MONTHLY, founding: env.STRIPE_PRICE_FOUNDING },
+    prices: { starter: env.STRIPE_PRICE_STARTER, pro: env.STRIPE_PRICE_PRO },
     caps: {
-      monthly: capOf(env.CAP_MONTHLY_USD, DEFAULT_CAPS.monthly),
-      founding: capOf(env.CAP_FOUNDING_USD, DEFAULT_CAPS.founding),
+      starter: capOf(env.CAP_STARTER_USD, DEFAULT_CAPS.starter),
+      pro: capOf(env.CAP_PRO_USD, DEFAULT_CAPS.pro),
     },
     portalLoginUrl: env.STRIPE_PORTAL_LOGIN_URL,
     missing: missingSettings(env),

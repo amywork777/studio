@@ -1,7 +1,7 @@
 /**
  * An in-memory limit per caller and route, kept by each answering instance: so many requests in a
  * window, past which a refusal. It slows a loop or a guess down; the cap that holds is the
- * account's monthly spend, kept in the database.
+ * account's weekly spend, kept in the database.
  */
 export const LIMIT = { limit: 60, windowMs: 60_000, size: 2000 };
 

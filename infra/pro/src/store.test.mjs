@@ -9,7 +9,7 @@ function postgrest() {
   const send = async (url, init) => {
     calls.push({ url, init });
     const path = new URL(url).pathname;
-    if (path.endsWith("/rpc/pro_month_spend")) return new Response("12.5", { status: 200 });
+    if (path.endsWith("/rpc/pro_week_spend")) return new Response("12.5", { status: 200 });
     if (init.method === "POST" && init.headers.prefer.includes("return=representation"))
       return Response.json([{ id: "a1", ...JSON.parse(init.body) }], { status: 201 });
     if (init.method === "POST") return new Response(null, { status: 201 });
@@ -25,10 +25,10 @@ function postgrest() {
 NodeTest.test("writes that answer no body succeed, and reads come back as rows", async () => {
   const { calls, store } = postgrest();
   await store.addUsage({ account_id: "a1", cost_usd: 1 });
-  await store.addClaim({ claimHash: "h", sessionId: "cs_1", plan: "monthly" });
+  await store.addClaim({ claimHash: "h", sessionId: "cs_1", plan: "starter" });
   await store.markClaimed("h", "a1");
   NodeAssert.equal((await store.saveAccount({ stripe_customer: "cus_1" })).id, "a1");
-  NodeAssert.equal(await store.monthSpend("a1"), 12.5);
+  NodeAssert.equal(await store.weekSpend("a1"), 12.5);
   NodeAssert.deepEqual(await store.account("a1"), { id: "a1" });
   NodeAssert.equal(calls[0].url, "https://db.example/rest/v1/pro_usage");
   NodeAssert.equal(calls[0].init.headers.authorization, "Bearer service");
@@ -48,8 +48,8 @@ NodeTest.test("health names each setting the host lacks", () => {
   NodeAssert.deepEqual(missingSettings({ SUPABASE_URL: "x", LICENSE_SECRET: " " }), [
     "SUPABASE_SERVICE_ROLE_KEY",
     "STRIPE_SECRET_KEY",
-    "STRIPE_PRICE_MONTHLY",
-    "STRIPE_PRICE_FOUNDING",
+    "STRIPE_PRICE_STARTER",
+    "STRIPE_PRICE_PRO",
     "LICENSE_SECRET",
     "OPENROUTER_API_KEY",
   ]);

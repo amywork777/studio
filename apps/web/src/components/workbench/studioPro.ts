@@ -15,21 +15,29 @@ const PRO_VARIABLES = new Set([BASE_URL, TOKEN, ACCOUNT]);
 const PRO_MODELS = [{ slug: "openai/gpt-6.2-astra", name: "GPT-6.2 Astra" }];
 const PRO_SLUGS = new Set(PRO_MODELS.map((model) => model.slug));
 
-export type StudioProPlan = "monthly" | "founding";
+export type StudioProPlan = "starter" | "pro";
 
-/** The two ways to pay, as Checkout charges them (`STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_FOUNDING`). */
+/**
+ * The two plans, as Checkout charges them (`STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`): each buys
+ * its price in AI every week, refilled Monday 00:00 UTC.
+ */
 export const STUDIO_PRO_PLANS: ReadonlyArray<{
   readonly plan: StudioProPlan;
   readonly name: string;
   readonly price: string;
   readonly detail: string;
 }> = [
-  { plan: "monthly", name: "Monthly", price: "$49 a month", detail: "Cancel any time." },
   {
-    plan: "founding",
-    name: "Founding member",
-    price: "$290 a year",
-    detail: "For Studio's first engineers: about half the monthly price.",
+    plan: "starter",
+    name: "Starter",
+    price: "$20 a month",
+    detail: "$20 of AI each week, refilled every Monday.",
+  },
+  {
+    plan: "pro",
+    name: "Pro",
+    price: "$60 a month",
+    detail: "$60 of AI each week, refilled every Monday.",
   },
 ];
 
@@ -174,7 +182,7 @@ export type ProUsage = {
   readonly resetsAt: string;
 };
 
-/** The plan and this month's share used, for the Pro row; a sentence when it can't be read. */
+/** The plan and this week's share used, for the Pro row; a sentence when it can't be read. */
 export async function readProUsage(
   account: string,
   request: typeof fetch = fetch,
@@ -183,7 +191,7 @@ export async function readProUsage(
   try {
     const response = await request(`${server}/v1/usage?account=${encodeURIComponent(account)}`);
     if (!response.ok)
-      return { message: await messageOf(response, "Studio Pro could not read this month's use.") };
+      return { message: await messageOf(response, "Studio Pro could not read this week's use.") };
     return (await response.json()) as ProUsage;
   } catch {
     return { message: UNREACHABLE };
@@ -192,14 +200,15 @@ export async function readProUsage(
 
 /** The Pro row's line: the plan, then what is used, or why it has stopped. */
 export function proUsageLine(usage: ProUsage, now = new Date()): string {
-  const plan = usage.plan === "founding" ? "Founding member" : "Monthly";
+  const plan = STUDIO_PRO_PLANS.find((entry) => entry.plan === usage.plan)?.name ?? "Studio Pro";
   if (!usage.runs && usage.refused) return `${plan}. ${usage.refused}`;
   const resets = new Date(usage.resetsAt);
   const day = resets.toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
     timeZone: "UTC",
     ...(resets.getUTCFullYear() === now.getUTCFullYear() ? {} : { year: "numeric" }),
   });
-  return `${plan}. ${usage.usedPercent}% of this month's AI used; it starts again ${day}.`;
+  return `${plan}. ${usage.usedPercent}% of this week's AI used; it refills ${day}.`;
 }

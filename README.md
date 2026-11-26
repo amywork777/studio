@@ -98,14 +98,15 @@ When you ask the agent for a bought part, the words it searches go to Jake's [st
 
 ## Studio Pro
 
-Studio works with your own Claude or Codex sign-in for free. Studio Pro ($49 a month, or $290 a year
-for founding members) includes the AI instead, so you don't pay for a Claude subscription too:
+Studio works with your own Claude or Codex sign-in for free. Studio Pro (Starter at $20 a month, or Pro
+at $60 a month) includes the AI instead, so you don't pay for a Claude subscription too:
 choose **Upgrade** on the welcome screen or in Settings → AI agents → Claude, pay in your browser, and
 Studio signs in by itself. Claude is the model it starts on, and GPT-6.2 Astra is in the same model
 list. With Pro on, your chats (with any pictures or drawings you attach) go through Studio Pro's
 server, [`infra/pro`](infra/pro/README.md), and OpenRouter to the model you chose. The server keeps
-only how much AI each account used and what it cost, never what was said. Each month's AI
-has a limit; past it, Claude asks you to wait for the 1st or sign in with your own Claude.
+only how much AI each account used and what it cost, never what was said. Each plan buys
+its price in AI every week (Starter $20 of AI a week, Pro $60), refilled every Monday; past it, Claude
+asks you to wait for Monday or sign in with your own Claude.
 **Stop using it** in the same places puts Claude back on your own sign-in.
 
 ## Contributing
