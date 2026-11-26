@@ -93,6 +93,7 @@ export const MENU_ICONS: Readonly<Record<HardwareActionGroup, LucideIcon>> = {
 const FILE_KINDS: Readonly<Record<string, ProjectGroup>> = {
   Part: "CAD",
   Design: "CAD",
+  "Implicit part": "CAD",
   Mesh: "CAD",
   Source: "CAD",
   Robot: "CAD",
