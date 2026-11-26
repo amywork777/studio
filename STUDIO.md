@@ -504,8 +504,9 @@ as they were.
   you left off, and Projects is every project (Amy, 2026-10-23: they showed the same, since Projects
   went to Home): a top bar with the mark and a search that opens the quick find, then the page leads
   with a large box under Describe your part: the Start box, the AI's way in (`StudioHome.tsx`; Amy,
-  2026-11-25: prompt first, as Vizcom's home). Enter starts (Shift+Enter is a new line), and files
-  dropped on the box start at once with any words typed, while Attach and Sketch wait for Start.
+  2026-11-25: prompt first, as Vizcom's home). Enter starts (Shift+Enter is a new line) with the
+  words and what is attached: a file dropped on the box, Attach or Sketch each attach one, a chip in
+  the box (a picture's thumbnail) with its Remove, so words can go with it (Amy, 2026-11-25).
   Start sends what was typed to a new
   project (made, with a first chat that sends it as its first message), or, with a project of yours
   chosen beside Attach (`ProjectPicker.tsx`, the project switcher's own control and list,

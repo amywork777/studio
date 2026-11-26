@@ -2,7 +2,7 @@ import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowUpIcon, DraftingCompassIcon, PaperclipIcon, XIcon } from "lucide-react";
-import { type KeyboardEvent, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { cn } from "~/lib/utils";
@@ -16,6 +16,7 @@ import { NO_AGENT, OPEN_AGENTS } from "./agentWords";
 import type { ListedProject } from "./projectList";
 import { ENGINEERING_COMPOSER_PLACEHOLDER } from "./studioInterface";
 import { splitStarred, useStarredStore } from "./starredProjects";
+import { FileKindIcon } from "./FileKindIcon";
 import { FindButton, openFind } from "./FindButton";
 import { ImportDialogHost } from "./ImportDialog";
 import { homeLayout } from "./homeStart";
@@ -41,8 +42,8 @@ import { type ProjectStart, useStartOnce } from "./useStartProject";
 import { useExamples } from "./library/useSampleProject";
 
 /**
- * Studio's Home leads with the Start box, large, under Describe your part: words or a dropped
- * sketch or PDF make a project and start its first turn. Under it, with no projects
+ * Studio's Home leads with the Start box, large, under Describe your part: words, with any sketch
+ * or PDF dropped on it, make a project and start its first turn. Under it, with no projects
  * (`homeLayout`), New part, Import a STEP and the examples; with projects, the project tiles, last
  * worked on first, a project with a waiting chat ahead and opening on that chat.
  */
@@ -158,9 +159,20 @@ function fromFile(file: File): StartAttachment {
 
 const fromPath = (path: string): StartAttachment => ({ name: nameOfPath(path), path, file: null });
 
-/** The files and folders attached to Home's box, each with its Remove. */
+/** A file in Home's box, with a picture's thumbnail where the browser has the file. */
+type HeldAttachment = StartAttachment & { readonly thumbnail?: string };
+
+/** A dropped or picked file, a picture with its thumbnail (freed when it leaves the box). */
+function heldFile(file: File): HeldAttachment {
+  const attachment = fromFile(file);
+  return file.type.startsWith("image/")
+    ? { ...attachment, thumbnail: URL.createObjectURL(file) }
+    : attachment;
+}
+
+/** The files and folders attached to Home's box, each a chip with its picture or kind, and Remove. */
 function AttachedList(props: {
-  readonly attachments: ReadonlyArray<StartAttachment>;
+  readonly attachments: ReadonlyArray<HeldAttachment>;
   readonly onRemove: (index: number) => void;
 }) {
   if (props.attachments.length === 0) return null;
@@ -172,8 +184,13 @@ function AttachedList(props: {
             attachment.path ??
             `${attachment.name}-${attachment.file?.size}-${attachment.file?.lastModified}`
           }
-          className="flex max-w-60 items-center gap-1 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-2 text-xs text-foreground"
+          className="flex max-w-60 items-center gap-1.5 rounded-md border border-border bg-muted/40 py-0.5 pr-0.5 pl-1 text-xs text-foreground"
         >
+          {attachment.thumbnail === undefined ? (
+            <FileKindIcon path={attachment.name} className="size-4" />
+          ) : (
+            <img src={attachment.thumbnail} alt="" className="size-8 rounded-sm object-cover" />
+          )}
           <span className="truncate">{attachment.name}</span>
           <Button
             variant="ghost"
@@ -198,8 +215,8 @@ const SUGGESTIONS = [
 
 /**
  * Home's Start box: Start (or Enter) goes to a new project, or a new chat in the project chosen
- * beside Attach. A drop starts at once with any words typed; Attach and Sketch wait for Start.
- * Files go into References and the agent reads them first (`startMessage`).
+ * beside Attach, with what is typed and attached. A drop, Attach or Sketch attaches, to add words
+ * to; files alone start too. Files go into References and the agent reads them first.
  */
 function StartProject(props: {
   readonly environmentId: EnvironmentId;
@@ -214,24 +231,41 @@ function StartProject(props: {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = props.cards.find((card) => card.id === chosenId) ?? null;
   const [description, setDescription] = useState("");
-  const [attachments, setAttachments] = useState<StartAttachment[]>([]);
-  // A file dropped on the box starts, as Vizcom's does (Home elsewhere imports).
+  const [attachments, setAttachments] = useState<HeldAttachment[]>([]);
+  // A file dropped on the box is attached, as the chat's box attaches it (Home elsewhere imports).
   const [attaching, setAttaching] = useState(false);
+  // The thumbnails made, freed when one is removed or the box goes.
+  const thumbnails = useRef(new Set<string>());
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- frees the thumbnails' object URLs, which live outside React
+  useEffect(() => {
+    const made = thumbnails.current;
+    return () => made.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
   const [sketching, setSketching] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   // The desktop app: files and folders, by their paths, copied into the project on Start.
   const bridge = readStudioImport();
-  const withAdded = (
-    current: ReadonlyArray<StartAttachment>,
-    added: ReadonlyArray<StartAttachment>,
-  ) => [
-    ...current,
-    ...added.filter(
-      (item) => item.path === null || !current.some((held) => held.path === item.path),
-    ),
-  ];
-  const attach = (added: ReadonlyArray<StartAttachment>) =>
-    setAttachments((current) => withAdded(current, added));
+  const attach = (added: ReadonlyArray<HeldAttachment>) =>
+    setAttachments((current) => [
+      ...current,
+      ...added.filter(
+        (item) => item.path === null || !current.some((kept) => kept.path === item.path),
+      ),
+    ]);
+  const attachFiles = (files: ReadonlyArray<File>) => {
+    const added = files.map(heldFile);
+    for (const item of added)
+      if (item.thumbnail !== undefined) thumbnails.current.add(item.thumbnail);
+    attach(added);
+  };
+  const remove = (index: number) => {
+    const url = attachments[index]?.thumbnail;
+    if (url !== undefined) {
+      URL.revokeObjectURL(url);
+      thumbnails.current.delete(url);
+    }
+    setAttachments((current) => current.filter((_, at) => at !== index));
+  };
   const fileInput = useRef<HTMLInputElement>(null);
   // The desktop app's picker takes folders too; the browser's takes files.
   const choose = () => {
@@ -247,12 +281,10 @@ function StartProject(props: {
   );
   // Words or files make a start.
   const ready = missing === null && canStart(description, attachments, busy);
-  const startWith = (files: ReadonlyArray<StartAttachment>) => {
-    if (missing !== null || !canStart(description, files, busy)) return false;
-    void run({ kind: "described", description, attachments: files, project: chosen });
-    return true;
+  const startNow = () => {
+    if (!ready) return;
+    void run({ kind: "described", description, attachments, project: chosen });
   };
-  const startNow = () => void startWith(attachments);
   // Enter starts, as the chat's box sends; Shift+Enter is a new line.
   const startOnEnter = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -270,8 +302,8 @@ function StartProject(props: {
         <h1 className="text-2xl font-semibold text-foreground">Describe your part</h1>
         <p className="text-sm text-muted-foreground">
           {chosen === null
-            ? "Or drop a sketch, drawing or PDF. Studio makes the project and the AI agent builds a first draft."
-            : `A new chat in ${chosen.project.name}. Drop a sketch, drawing or PDF to start with it.`}
+            ? "Add a sketch, drawing or PDF if you have one. Studio makes the project and the AI agent builds a first draft."
+            : `A new chat in ${chosen.project.name}. Add a sketch, drawing or PDF if you have one.`}
         </p>
       </div>
       <div
@@ -289,10 +321,9 @@ function StartProject(props: {
           if (!event.dataTransfer.types.includes("Files")) return;
           event.preventDefault();
           setAttaching(false);
-          const files = withAdded(attachments, Array.from(event.dataTransfer.files).map(fromFile));
-          // With no agent the files wait in the box, beside what says so.
-          if (!startWith(files)) setAttachments(files);
-          else setAttachments([]);
+          attachFiles(Array.from(event.dataTransfer.files));
+          // Words go with what was dropped: the box is ready for them.
+          text.current?.focus();
         }}
         onClick={(event) => {
           if (event.target === event.currentTarget) text.current?.focus();
@@ -304,9 +335,7 @@ function StartProject(props: {
       >
         {attaching ? (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/85 text-base font-medium text-foreground">
-            {chosen === null
-              ? "Drop to start a project"
-              : `Drop to start a chat in ${chosen.project.name}`}
+            {bridge === null ? "Drop files to attach" : "Drop files or folders to attach"}
           </div>
         ) : null}
         <Textarea
@@ -321,10 +350,7 @@ function StartProject(props: {
           onChange={(event) => setDescription(event.target.value)}
           onKeyDown={startOnEnter}
         />
-        <AttachedList
-          attachments={attachments}
-          onRemove={(index) => setAttachments((current) => current.filter((_, at) => at !== index))}
-        />
+        <AttachedList attachments={attachments} onRemove={remove} />
         {attachments.some((attachment) => attachment.path !== null) ? (
           <p className="text-xs text-muted-foreground">
             These go in {chosen === null ? "the new project's" : `${chosen.project.name}'s`}{" "}
@@ -338,7 +364,7 @@ function StartProject(props: {
             multiple
             hidden
             onChange={(event) => {
-              attach(Array.from(event.target.files ?? []).map(fromFile));
+              attachFiles(Array.from(event.target.files ?? []));
               event.target.value = "";
             }}
           />
@@ -350,11 +376,7 @@ function StartProject(props: {
             <DraftingCompassIcon />
             Sketch
           </Button>
-          <SketchDialog
-            open={sketching}
-            onOpenChange={setSketching}
-            onAttach={(files) => attach(files.map(fromFile))}
-          />
+          <SketchDialog open={sketching} onOpenChange={setSketching} onAttach={attachFiles} />
           {props.cards.length === 0 ? null : (
             <ProjectPicker
               environmentId={environmentId}
