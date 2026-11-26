@@ -502,8 +502,12 @@ as they were.
   before restoring), and the agent hears of it with the next message, as a hand edit's note.
 - **Home, the switcher and the chats.** In Engineering, Home is where you start and pick up where
   you left off, and Projects is every project (Amy, 2026-10-23: they showed the same, since Projects
-  went to Home): a top bar with the mark and a search that opens the quick find, then a box for what
-  to make: the Start box, the AI's way in (`StudioHome.tsx`). Start sends what was typed to a new
+  went to Home): a top bar with the mark and a search that opens the quick find, then the page leads
+  with a large box under Describe your part: the Start box, the AI's way in (`StudioHome.tsx`; Amy,
+  2026-11-25: prompt first, as Vizcom's home). Enter starts (Shift+Enter is a new line) with the
+  words and what is attached: a file dropped on the box, Attach or Sketch each attach one, a chip in
+  the box (a picture's thumbnail) with its Remove, so words can go with it (Amy, 2026-11-25).
+  Start sends what was typed to a new
   project (made, with a first chat that sends it as its first message), or, with a project of yours
   chosen beside Attach (`ProjectPicker.tsx`, the project switcher's own control and list,
   `ProjectChoices.tsx`), to a new chat in that project. One line is enough. Files can come with the
@@ -660,9 +664,9 @@ as they were.
   already exist (Home's New is the toolbar's; Home is "Home" everywhere; the chat says "AI
   agent", as Settings does).
 - **Onboarding.** Setup speaks Studio's words and ends at signing in to Claude or Codex
-  (`onboarding/WelcomePage.tsx`; Home brings in files). With no projects, Home asks Where would you like to
-  start?, with two big buttons, New part and Import a STEP (which opens the one Import menu: Files
-  or a folder, Scan this computer), the Start box right under them, then the examples' cards
+  (`onboarding/WelcomePage.tsx`; Home brings in files). With no projects, Home's Start box offers three parts to try (a tap fills it in), and under it, Or
+  start from, New part and Import a STEP (which opens the one Import menu: Files or a folder, Scan
+  this computer), then the examples' cards
   (`StartChoices.tsx`, `homeLayout` in `homeStart.ts`). With projects, the examples sit in a Get
   started strip under Starred and Recent, folded away and kept so on this device if you like
   (`studio:get-started-folded`). The Toolbox page (the sidebar's Toolbox, outside a project) opens on Examples: every example Studio
