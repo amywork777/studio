@@ -67,6 +67,10 @@ import { TITLE_TONE } from "./TitleBlock";
 import { usePartContext } from "./usePartContext";
 import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
+import { type ProjectLink, ProjectFacts } from "./ProjectStats";
+import { lastExport, measureFileFor, measuredSize, sizeWords } from "./overviewStats";
+import { projectEnvironment } from "~/state/projects";
+import { useEnvironmentQuery } from "~/state/query";
 import { deliverablesPlan, exportCounts } from "./deliverables";
 import { ProjectExportMenu } from "./ProjectExportMenu";
 import { useDeliverables } from "./useDeliverables";
@@ -74,11 +78,15 @@ import { useProjectModels } from "./useFolderModels";
 import { projectChats } from "./workspaceTitle";
 import { waitingChats } from "./allChats";
 import { OpenQuestions } from "./OpenQuestions";
-import { ProjectHeading } from "./ProjectHeading";
+import { ProjectAbout, ProjectHeading } from "./ProjectHeading";
+import type { ProjectBackupTarget } from "./ProjectBackupButton";
 import { projectStatus } from "./projectStatus";
 
 /** The check a part with none run is offered, as the Toolbox hands it to the chat. */
 const STRENGTH_JOB = HARDWARE_ACTIONS.find((job) => job.id === "strength")!;
+/** A parts list the agent writes (`docs/<assembly>_parts_list.md`) or a BOM brought in. */
+const PARTS_LIST =
+  /(?:^|[/_-])(?:parts[_-]?list|bom|bill[_-]of[_-]materials)\.(?:md|csv|pdf|html|xlsx)$/i;
 
 const STATUS_ORDER: Record<CheckStatus | "none", number> = {
   fix: 0,
@@ -217,6 +225,8 @@ function LeadPart(props: {
   readonly onRunCheck: (() => void) | null;
   /** Under the project's heading, which already says the part's units, material and build. */
   readonly underHeading: boolean;
+  /** The project's key facts (`ProjectFacts`), beside the picture as its hero; null for none. */
+  readonly facts?: ReactNode | null;
 }) {
   const { part } = props;
   const pictures = usePictures({
@@ -231,12 +241,16 @@ function LeadPart(props: {
   const outOfDate = status === null && part.outdated.length > 0;
   const StatusIcon = status !== null ? STATUS[status].Icon : outOfDate ? OutOfDateIcon : null;
   return (
-    <section aria-label="Lead part" className={SECTION_STACK}>
+    // Side by side on a wide Overview, the picture beside what its checks found: one block, not two.
+    <section
+      aria-label="Lead part"
+      className="flex min-w-0 flex-col gap-3 @2xl:flex-row @2xl:items-start @2xl:gap-5"
+    >
       <button
         type="button"
         onClick={props.onOpen}
         aria-label={`Open ${part.file.title} in the viewer`}
-        className="flex aspect-[4/3] max-h-56 items-center justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex aspect-[4/3] max-h-64 shrink-0 items-center @2xl:w-80 justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         {picture ? (
           <img src={picture} alt="" className="size-full object-contain" />
@@ -244,64 +258,73 @@ function LeadPart(props: {
           <PartIcon file={part.file} className="size-10 text-muted-foreground/50" />
         )}
       </button>
-      <div className="flex min-w-0 items-start gap-1.5 text-sm text-foreground">
-        {StatusIcon === null ? null : (
-          <StatusIcon
-            aria-hidden="true"
-            className={cn("mt-0.5 size-4 shrink-0", STATUS_TONE[status ?? "warnings"])}
-          />
-        )}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className={outOfDate ? STATUS_TONE.warnings : undefined}>
-            {status !== null
-              ? `${sentenceCase(STATUS[status].caption)} on ${name}`
-              : outOfDate
-                ? `${name} changed since its last check`
-                : "No checks run yet"}
-            {props.where === undefined ? "" : ` · ${props.where}`}
-          </p>
-          {status === null && !outOfDate && props.onRunCheck !== null ? (
-            <button type="button" onClick={props.onRunCheck} className={LEAD_LINK_CLASS}>
-              Run strength check
-            </button>
-          ) : null}
-          {outOfDate ? (
-            <div className="flex min-w-0 flex-wrap gap-x-3">
-              {part.outdated.map((result) => (
-                <CheckBadge
-                  key={result.path}
-                  result={result}
-                  outOfDate
-                  markedOutOfDate
-                  onOpen={() => props.onOpenFile(result.model)}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-        <LeadFacts
-          part={part}
-          threadRef={props.threadRef}
-          units={props.units}
-          onOpenFile={props.onOpenFile}
-          checksOnly={props.underHeading}
-        />
-        {/* The drawing and the part's sizes are one row of links; the sizes live with the part, as
-            SolidWorks keeps them under Equations. */}
-        <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
-          {part.drawings.length + part.made.length === 0 ? null : (
-            <MadeBadges part={part} onOpen={props.onOpenFile} lead />
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {props.facts ?? null}
+        <div className="flex min-w-0 items-start gap-1.5 text-sm text-foreground">
+          {StatusIcon === null ? null : (
+            <StatusIcon
+              aria-hidden="true"
+              className={cn("mt-0.5 size-4 shrink-0", STATUS_TONE[status ?? "warnings"])}
+            />
           )}
-          <button
-            type="button"
-            onClick={props.onOpen}
-            aria-label={`Sizes: open ${part.file.title} at its sizes`}
-            className={LEAD_LINK_CLASS}
-          >
-            Sizes
-          </button>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className={outOfDate ? STATUS_TONE.warnings : undefined}>
+              {status !== null
+                ? `${sentenceCase(STATUS[status].caption)} on ${name}`
+                : outOfDate
+                  ? `${name} changed since its last check`
+                  : "No checks run yet"}
+              {props.where === undefined ? "" : ` · ${props.where}`}
+            </p>
+            {status === null && !outOfDate && props.onRunCheck !== null ? (
+              <button type="button" onClick={props.onRunCheck} className={LEAD_LINK_CLASS}>
+                Run strength check
+              </button>
+            ) : null}
+            {outOfDate ? (
+              <div className="flex min-w-0 flex-wrap gap-x-3">
+                {part.outdated.map((result) => (
+                  <CheckBadge
+                    key={result.path}
+                    result={result}
+                    outOfDate
+                    markedOutOfDate
+                    onOpen={() => props.onOpenFile(result.model)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+          <LeadFacts
+            part={part}
+            threadRef={props.threadRef}
+            units={props.units}
+            onOpenFile={props.onOpenFile}
+            checksOnly={props.underHeading}
+          />
+          {/* The drawing and the part's sizes are one row of links; the sizes live with the part, as
+            SolidWorks keeps them under Equations. */}
+          <div className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-1">
+            {/* Under the project's heading its line has the drawing: here only what was made. */}
+            {(props.underHeading ? 0 : part.drawings.length) + part.made.length === 0 ? null : (
+              <MadeBadges
+                part={part}
+                onOpen={props.onOpenFile}
+                lead
+                drawings={!props.underHeading}
+              />
+            )}
+            <button
+              type="button"
+              onClick={props.onOpen}
+              aria-label={`Sizes: open ${part.file.title} at its sizes`}
+              className={LEAD_LINK_CLASS}
+            >
+              Sizes
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -468,7 +491,7 @@ export function ProjectOverview(props: {
     readonly setup: ReactNode | null;
     readonly onShowFolder: (() => void) | null;
     /** Back up, among its actions (`ProjectBackupButton`); null where it can't be. */
-    readonly backup: ReactNode | null;
+    readonly backup: ProjectBackupTarget | null;
     /** The folder its README is in, for its open questions. */
     readonly cwd: string;
   } | null;
@@ -643,32 +666,117 @@ export function ProjectOverview(props: {
       />
     );
   })();
+  // The Export's zips: git leaves `exports/` out, so the folder's listing does not go into it.
+  const exportsRoot = props.folders[0];
+  const exportZips = (
+    useEnvironmentQuery(
+      exportsRoot === undefined || props.heading === null
+        ? null
+        : projectEnvironment.listEntries({
+            environmentId: props.environmentId,
+            input: { cwd: `${exportsRoot.replace(/[\\/]+$/, "")}/exports` },
+          }),
+    ).data?.entries ?? []
+  )
+    .filter((entry) => entry.kind === "file" && /\.zip$/i.test(entry.path))
+    .map((entry) => `exports/${entry.path}`);
+  // The lead part's size, where a check measured it (law 4: no size is made up).
+  const leadPaths = folders.find((folder) => folder.root === lead?.root)?.paths ?? [];
+  const measureFile = lead === null ? null : measureFileFor(leadPaths, lead.file.name);
+  const measured = useEnvironmentQuery(
+    lead === null || measureFile === null
+      ? null
+      : projectEnvironment.readFile({
+          environmentId: props.environmentId,
+          input: { cwd: lead.root, relativePath: measureFile },
+        }),
+  ).data;
+  const size = measured == null ? null : measuredSize(measured.contents);
+  const stats = (() => {
+    if (props.heading === null) return null;
+    const allParts = byFolder.flatMap((folder) => folder.parts);
+    // A part once, by its model or its STEP: not its meshes or a robot description beside it.
+    const cadParts = new Set(
+      allParts
+        .filter(
+          (part) =>
+            part.file.group === "CAD" &&
+            (part.file.document !== undefined || /\.(?:step|stp)$/i.test(part.file.path)),
+        )
+        .map((part) => part.file.name.replace(/\.[^.]+$/, "").toLowerCase()),
+    );
+    const drawing = allParts.flatMap((part) =>
+      part.drawings.map((path) => ({ root: part.root, path })),
+    )[0];
+    const drawings = allParts.reduce((count, part) => count + part.drawings.length, 0);
+    const partsList = folders.flatMap((folder) =>
+      (folder.paths ?? [])
+        .filter((path) => PARTS_LIST.test(path) && !/^(?:exports|brief)\//i.test(path))
+        .map((path) => ({ root: folder.root, path })),
+    )[0];
+    const exported = lastExport(exportZips);
+    const material = props.heading.brief?.material.trim() ?? "";
+    const count = cadParts.size;
+    const facts = [
+      ...(material === "" ? [] : [{ label: "Material", value: material }]),
+      ...(count === 0 ? [] : [{ label: "Parts", value: String(count) }]),
+      ...(size === null ? [] : [{ label: "Size", value: sizeWords(size) }]),
+    ];
+    const links: ProjectLink[] = [
+      ...(drawing === undefined
+        ? []
+        : [
+            {
+              label: drawings === 1 ? "Drawing" : `Drawings ${drawings}`,
+              opens: "Open the drawing",
+              onPress: () => props.onOpen(drawing.root, drawing.path),
+            },
+          ]),
+      ...(partsList === undefined
+        ? []
+        : [
+            {
+              label: "Parts list",
+              opens: "Open the parts list",
+              onPress: () => props.onOpen(partsList.root, partsList.path),
+            },
+          ]),
+    ];
+    return { facts: <ProjectFacts facts={facts} links={links} />, exported };
+  })();
   const leadBuild =
     lead?.file.version === undefined
       ? null
       : buildLabel({ state: "built", at: Number(lead.file.version) * 1000 });
+  const about =
+    props.heading === null ? null : (
+      <ProjectAbout
+        purpose={props.heading.purpose}
+        built={leadBuild}
+        exported={stats?.exported ?? null}
+        waiting={status.waiting}
+        onShowChats={
+          otherChats === 0
+            ? null
+            : () => chatsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+        }
+      />
+    );
 
   return (
-    <div className="@container flex min-w-0 flex-col gap-6">
+    <div className="@container flex min-w-0 flex-col gap-5">
       {props.heading === null ? null : (
         // The project first, by its own name: how it stands, what to answer, what failed.
         <div className={SECTION_STACK}>
           <ProjectHeading
             name={props.heading.name}
-            purpose={props.heading.purpose}
             brief={props.heading.brief}
             status={status}
-            built={leadBuild}
             onOpenPart={lead === null ? null : () => props.onOpen(lead.root, lead.file.path)}
             setup={props.heading.setup}
             onShowFolder={props.heading.onShowFolder}
             backup={props.heading.backup}
             exportMenu={exportMenu}
-            onShowChats={
-              otherChats === 0
-                ? null
-                : () => chatsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
-            }
           />
           <OpenQuestions
             environmentId={props.environmentId}
@@ -683,6 +791,8 @@ export function ProjectOverview(props: {
       )}
       {lead === null ? (
         <>
+          {stats?.facts ?? null}
+          {props.heading === null ? null : about}
           {props.readme}
           {reading ? (
             <p className="text-xs text-muted-foreground">Reading the project</p>
@@ -697,8 +807,15 @@ export function ProjectOverview(props: {
           {props.heading === null ? (
             <PageTitle title={lead.file.title} label={lead.file.kind} />
           ) : null}
-          <div className="grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <div
+            className={
+              props.heading === null
+                ? "grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+                : "flex min-w-0 flex-col gap-4"
+            }
+          >
             <LeadPart
+              facts={stats?.facts ?? null}
               environmentId={props.environmentId}
               part={lead}
               threadRef={props.threadRef}
@@ -718,6 +835,7 @@ export function ProjectOverview(props: {
                     }
               }
             />
+            {props.heading === null ? null : about}
             {props.readme === null ? (props.heading === null ? issuesPanel : null) : props.readme}
           </div>
         </div>

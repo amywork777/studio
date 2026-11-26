@@ -35,7 +35,6 @@ import { NewDialog } from "./NewDialog";
 import { useNewDialogStore } from "./newDialogStore";
 import { type Discipline, templateOffers } from "./newTemplates";
 import { ProjectSetup } from "./ProjectBrief";
-import { ProjectBackupButton } from "./ProjectBackupButton";
 import { ProjectOverview } from "./ProjectOverview";
 import { ReadmeOverview } from "./ReadmeOverview";
 import { projectChats } from "./workspaceTitle";
@@ -679,13 +678,9 @@ export function ProjectPage(props: {
                         />
                       ),
                     backup:
-                      studio === null ? null : (
-                        <ProjectBackupButton
-                          environmentId={environmentId}
-                          projectId={studio.id}
-                          project={studio.project}
-                        />
-                      ),
+                      studio === null
+                        ? null
+                        : { environmentId, projectId: studio.id, project: studio.project },
                     onShowFolder: () =>
                       void openInEditor({
                         environmentId,

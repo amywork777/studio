@@ -28,4 +28,4 @@ export const projectTileGrid = (tiles: number) =>
   tiles > 1 && tiles % 4 === 1 ? "grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5" : TILE_GRID;
 
 /** The card grid every module of files uses, by the width of its `@container`. */
-export const CARD_GRID = "grid grid-cols-2 gap-2 @xl:grid-cols-3 @4xl:grid-cols-4";
+export const CARD_GRID = "grid grid-cols-3 gap-2 @xl:grid-cols-4 @4xl:grid-cols-6";

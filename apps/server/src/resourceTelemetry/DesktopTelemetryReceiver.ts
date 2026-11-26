@@ -17,6 +17,7 @@ import {
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { applyShellEnvironment } from "@t3tools/shared/shell";
+import { keepStudioCadFirst } from "@t3tools/shared/studioCadPath";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -240,6 +241,8 @@ export function makeApplyDesktopShellEnvironmentSnapshot(
       });
     }
     applyShellEnvironment(environment, message.environment, platform);
+    // Studio: the snapshot rebuilds PATH from the login shell; Studio's `cad` stays first (studioCadPath.ts).
+    keepStudioCadFirst(environment, platform);
     if (message.environment.NODE_EXTRA_CA_CERTS !== undefined) {
       yield* Effect.gen(function* () {
         const certificates = baseCertificates;

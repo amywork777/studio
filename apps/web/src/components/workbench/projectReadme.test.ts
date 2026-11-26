@@ -261,10 +261,11 @@ describe("a new project's README coming in", () => {
 describe("readmeRows", () => {
   const section = (heading: string) => ({ heading, blocks: [] });
 
-  it("lists Open actions first, however it is written, and the rest in README order", () => {
+  it("lists Open actions first, however it is written, the rest in README order, and not its files", () => {
     const rows = readmeRows([
       section("Open questions"),
       section("Notes"),
+      section("In this project"),
       section("OPEN ACTIONS — 2026-11-05"),
     ]);
     expect(rows.first.map((row) => row.heading)).toEqual(["OPEN ACTIONS — 2026-11-05"]);

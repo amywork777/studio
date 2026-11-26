@@ -79,7 +79,8 @@ export function CheckBadge(props: {
         {row && !outOfDate ? (
           <span className="flex min-w-0 items-center gap-1.5 text-xs">
             <Icon aria-hidden="true" className={`size-3.5 shrink-0 ${ROW_TONE[variant]}`} />
-            <span className="shrink-0 text-foreground">{result.check}</span>
+            {/* A long study's name gives way before its verdict does: "passes" always shows. */}
+            <span className="min-w-0 truncate text-foreground">{result.check}</span>
             <span className="shrink-0 text-muted-foreground">· {word}</span>
             {result.headline === "" ? null : (
               <span className="min-w-0 truncate text-muted-foreground tabular-nums">

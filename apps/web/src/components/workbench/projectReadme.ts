@@ -162,16 +162,19 @@ export function readmeHeading(heading: string): {
   };
 }
 
-/** A README's other sections as the Overview lists them: Open actions first, the rest in order. */
+/**
+ * A README's other sections as the Overview lists them: Open actions first, the rest in order. Its
+ * In this project, a list of the project's files, is left to the files under it, which show them.
+ */
 export function readmeRows(more: ReadonlyArray<ReadmeSection>): {
   readonly first: ReadonlyArray<ReadmeSection>;
   readonly rest: ReadonlyArray<ReadmeSection>;
 } {
-  const isFirst = (section: ReadmeSection) =>
-    readmeHeading(section.heading).title.toLowerCase() === "open actions";
+  const title = (section: ReadmeSection) => readmeHeading(section.heading).title.toLowerCase();
+  const shown = more.filter((section) => title(section) !== "in this project");
   return {
-    first: more.filter((section) => isFirst(section)),
-    rest: more.filter((section) => !isFirst(section)),
+    first: shown.filter((section) => title(section) === "open actions"),
+    rest: shown.filter((section) => title(section) !== "open actions"),
   };
 }
 
