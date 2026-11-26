@@ -1,6 +1,6 @@
 ---
 name: drawing-check
-description: "Check against the drawing, with the cad skill. Use whenever you model a part from a drawing, a sketch or a photo of one, or check one against it, and when the person asks for $drawing-check; it says how to do it in Studio."
+description: "Check against the drawing, with the cad skill. Use whenever you model a part from a dimensioned drawing or a sketch with sizes, or a dimensioned drawing attached matches a part the project has or the person asks to check it (never for a PDF with no measurements: a datasheet, a spec sheet, a moodboard, notes), and when the person asks for $drawing-check; it says how to do it in Studio."
 ---
 
 # Check against the drawing
@@ -14,6 +14,21 @@ The part is the one the person names, else the one open beside the chat.
 Ask which when neither says.
 
 What they get: Each dimension on the drawing beside what the model measures, and every number that disagrees.
+
+## First: is it a dimensioned drawing?
+
+A file the person attaches is a dimensioned drawing when it shows a part in views with its
+dimensions and callouts (most have a title block), or is a sketch or a photo with sizes written on
+it. Read its first sheet (`pages.json`'s words, or the picture) before anything else:
+
+- **A dimensioned drawing**: check it when it is of a part the project has (its title, part number
+  or shape matches a model), or when the person's note asks, as part of your answer to the note; to
+  model a part from it, check it as you model, as below.
+- **Anything else** (a datasheet, a spec sheet, a moodboard, notes, a photo with no sizes): it is a
+  reference. Use what it says, write no check file, and report nothing as missing: it never had
+  dimensions to miss.
+- **A drawing of a part the project does not have**, with no note asking: say what it is and ask
+  whether to model it or check it against a part, without writing a check.
 
 ## Read the drawing
 
