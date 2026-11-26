@@ -171,6 +171,7 @@ apps/server/src/provider/ProviderAuthService.ts
 apps/server/src/provider/providerCompatibility.ts
 apps/server/src/provider/providerInstallation.ts
 apps/server/src/provider/providerMaintenanceRunner.ts
+apps/server/src/resourceTelemetry/DesktopTelemetryReceiver.ts
 apps/server/src/server.ts
 apps/server/src/serverOwnership.ts
 apps/server/src/sourceControl/SourceControlRepositoryService.ts
