@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { keptSurfaces } from "./keptSurfaces";
+import { keptLayoutOrder, keptSurfaces } from "./keptSurfaces";
 
 const view = (id: string) => ({ id });
 
@@ -28,5 +28,21 @@ describe("the panel's views kept mounted behind the tab in front", () => {
     expect(keptSurfaces(kept, b, [a, b])).toBe(kept);
     // Something else in front (the Overview) keeps the views as they were.
     expect(keptSurfaces(kept, null, [a, b])).toBe(kept);
+  });
+});
+
+describe("keptLayoutOrder", () => {
+  it("lays kept views out in one order however they are switched, so no frame moves and reloads", () => {
+    const [a, b, c] = [view("a"), view("b"), view("c")];
+    const open = [a, b, c];
+    let kept = keptSurfaces([], a, open);
+    kept = keptSurfaces(kept, b, open);
+    kept = keptSurfaces(kept, c, open);
+    const laid = keptLayoutOrder(kept).map((surface) => surface.id);
+    // Switching back and forth changes which is most recent, never where each sits.
+    for (const shown of [a, c, b, a, b, c]) {
+      kept = keptSurfaces(kept, shown, open);
+      expect(keptLayoutOrder(kept).map((surface) => surface.id)).toEqual(laid);
+    }
   });
 });
