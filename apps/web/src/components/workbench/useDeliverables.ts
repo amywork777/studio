@@ -11,8 +11,8 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { folderLabel } from "./folderLabel";
 
 /**
- * The Overview's Deliverables package (`deliverables.ts`): one press writes it, a toast says how it
- * went, and Show in Finder opens the zip. One at a time, as each export runs the CAD tools.
+ * The Overview's Export (`deliverables.ts`): one press writes it, a toast says how it went, and
+ * Show in Finder opens the zip. One at a time, as each export runs the CAD tools.
  */
 export function useDeliverables(environmentId: EnvironmentId) {
   const pack = useAtomCommand(studioProjectsEnvironment.deliverablesPack, { reportFailure: false });
@@ -27,8 +27,11 @@ export function useDeliverables(environmentId: EnvironmentId) {
     setBusy(true);
     const toastId = toastManager.add({
       type: "loading",
-      title: "Making the deliverables package",
-      description: "Exporting each part with the CAD tools.",
+      title: "Exporting the project",
+      description:
+        plan.exports.length === 0
+          ? "Gathering its files."
+          : "Exporting each part with the CAD tools.",
       timeout: 0,
     });
     const result = await pack({ environmentId, input: plan });
@@ -37,7 +40,7 @@ export function useDeliverables(environmentId: EnvironmentId) {
       const failure = squashAtomCommandFailure(result);
       toastManager.update(toastId, {
         type: "error",
-        title: "Could not make the deliverables package",
+        title: "Could not export the project",
         description:
           failure instanceof Error ? failure.message : "The project's files are as they were.",
         timeout: 8_000,
@@ -48,8 +51,8 @@ export function useDeliverables(environmentId: EnvironmentId) {
     const left = failed.length + plan.missing.length;
     toastManager.update(toastId, {
       type: failed.length > 0 ? "warning" : "success",
-      title: "Deliverables package made",
-      description: `${files.length} files${left === 0 ? "" : `, ${left} not in it`}: RECEIPT.md says what was checked.`,
+      title: "Exported",
+      description: `${files.length} files in ${zip.split(/[\\/]/).pop()}${left === 0 ? "" : `, ${left} not in it`}.${plan.receipt === null ? "" : " RECEIPT.md says what was checked."}`,
       timeout: 10_000,
       ...(reveals
         ? {

@@ -67,7 +67,8 @@ import { TITLE_TONE } from "./TitleBlock";
 import { usePartContext } from "./usePartContext";
 import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
-import { deliverablesPlan } from "./deliverables";
+import { deliverablesPlan, exportCounts } from "./deliverables";
+import { ProjectExportMenu } from "./ProjectExportMenu";
 import { useDeliverables } from "./useDeliverables";
 import { useProjectModels } from "./useFolderModels";
 import { projectChats } from "./workspaceTitle";
@@ -613,20 +614,32 @@ export function ProjectOverview(props: {
     />
   );
   const deliverables = useDeliverables(props.environmentId);
-  const packageNow = (() => {
+  const exportMenu = (() => {
     const heading = props.heading;
     const cwd = props.folders[0];
     if (heading === null || cwd === undefined || partCount === 0) return null;
-    return () =>
-      void deliverables.run((now) =>
-        deliverablesPlan({
-          name: heading.name,
-          cwd,
-          folders: folders.map((folder) => ({ root: folder.root, paths: folder.paths ?? [] })),
-          parts: byFolder.flatMap((folder) => folder.parts),
-          now,
-        }),
-      );
+    const project = {
+      name: heading.name,
+      cwd,
+      folders: folders.map((folder) => ({ root: folder.root, paths: folder.paths ?? [] })),
+      parts: byFolder.flatMap((folder) => folder.parts),
+    };
+    return (
+      <ProjectExportMenu
+        counts={exportCounts(project)}
+        busy={deliverables.busy}
+        onExport={(include, label) =>
+          void deliverables.run((now) =>
+            deliverablesPlan({
+              ...project,
+              now,
+              include,
+              ...(label === undefined ? {} : { label }),
+            }),
+          )
+        }
+      />
+    );
   })();
   const leadBuild =
     lead?.file.version === undefined
@@ -647,8 +660,7 @@ export function ProjectOverview(props: {
             onOpenPart={lead === null ? null : () => props.onOpen(lead.root, lead.file.path)}
             setup={props.heading.setup}
             onShowFolder={props.heading.onShowFolder}
-            onPackage={packageNow}
-            packaging={deliverables.busy}
+            exportMenu={exportMenu}
             onShowChats={
               otherChats === 0
                 ? null

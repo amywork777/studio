@@ -5,7 +5,6 @@ import {
   EllipsisIcon,
   FolderOpenIcon,
   MessageCircleIcon,
-  PackageIcon,
   SlidersHorizontalIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -41,10 +40,8 @@ export function ProjectHeading(props: {
   /** The properties' editor (`ProjectSetup`); null where they cannot be changed here. */
   readonly setup: ReactNode | null;
   readonly onShowFolder: (() => void) | null;
-  /** Writes the deliverables package (`useDeliverables`); null with no part yet. */
-  readonly onPackage: (() => void) | null;
-  /** The package is being written. */
-  readonly packaging: boolean;
+  /** The project's Export (`ProjectExportMenu`); null with no part yet. */
+  readonly exportMenu: ReactNode | null;
   /** Brings the chats waiting on the person into view. */
   readonly onShowChats: (() => void) | null;
 }) {
@@ -58,18 +55,7 @@ export function ProjectHeading(props: {
         lede={props.purpose === "" ? undefined : props.purpose}
         action={
           <>
-            {props.onPackage === null ? null : (
-              <Button
-                size="xs"
-                variant="outline"
-                disabled={props.packaging}
-                aria-busy={props.packaging || undefined}
-                onClick={props.onPackage}
-              >
-                <PackageIcon />
-                {props.packaging ? "Packaging…" : "Deliverables package"}
-              </Button>
-            )}
+            {props.exportMenu}
             {props.onOpenPart === null ? null : (
               <Button size="xs" onClick={props.onOpenPart}>
                 Open part

@@ -300,8 +300,8 @@ export const StudioDeliverablesExport = Schema.Struct({
 export type StudioDeliverablesExport = typeof StudioDeliverablesExport.Type;
 
 /**
- * One action's package of what a project hands on (Overview, Deliverables package): a folder under
- * `cwd`'s `deliverables/`, and a zip of it beside it. Copies are files already in the project's
+ * One action's package of what a project hands on (Overview, Export): a folder under `cwd`'s
+ * `exports/`, and a zip of it beside it. Copies are files already in the project's
  * folders; the receipt is the checks as their runs saved them, and the server adds what it wrote.
  */
 export const StudioDeliverablesInput = Schema.Struct({
@@ -319,8 +319,8 @@ export const StudioDeliverablesInput = Schema.Struct({
       to: TrimmedNonEmptyString,
     }),
   ),
-  /** The receipt's checks, in Markdown, ending before its list of files. */
-  receipt: Schema.String,
+  /** The receipt's checks, in Markdown, ending before its list of files; null for no receipt. */
+  receipt: Schema.NullOr(Schema.String),
   /** What the package has none of, each a line: "Build guide: none made yet". */
   missing: Schema.Array(Schema.String),
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { CheckResult } from "./checkResults";
-import { deliverablesPlan, type PackagePart } from "./deliverables";
+import { deliverablesPlan, exportCounts, type PackagePart } from "./deliverables";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
 
 const file = (path: string, extra: Partial<ProjectFile> = {}): ProjectFile => ({
@@ -70,14 +70,14 @@ describe("deliverablesPlan", () => {
             "pictures/servo_mount_angle.png",
             "brief/references/sketch.png",
             "brief/references/drawing-pages/page-01.png",
-            "deliverables/Servo mount deliverables 2026-11-24/renders/old.png",
+            "exports/Servo mount 2026-11-24/renders/old.png",
           ],
         },
       ],
       parts,
       now,
     });
-    expect(plan.name).toBe("Servo mount deliverables 2026-11-25");
+    expect(plan.name).toBe("Servo mount 2026-11-25");
     expect(plan.exports).toEqual([
       { source: "parts/bracket.step", stem: "bracket", formats: ["stl"] },
       { source: "model:clip", stem: "clip", formats: ["step", "stl"] },
@@ -100,8 +100,47 @@ describe("deliverablesPlan", () => {
       "- Strength: part changed since this check, so it counts as not checked",
     );
     expect(plan.receipt).toContain("- Strength and other checks: not checked");
-    expect(plan.receipt.match(/- Drawing check: not checked/g)).toHaveLength(1);
+    expect(plan.receipt?.match(/- Drawing check: not checked/g)).toHaveLength(1);
     expect(plan.receipt).not.toContain("## Not checked");
+  });
+
+  it("exports one kind alone, with no receipt, and counts what each kind would hold", () => {
+    const input = {
+      name: "Rig",
+      cwd: "/a",
+      folders: [{ root: "/a", paths: ["docs/rig_parts_list.md"] }],
+      parts: [
+        {
+          root: "/a",
+          file: file("arm.step"),
+          results: [],
+          outdated: [],
+          drawings: ["arm_drawing.pdf"],
+        },
+        {
+          root: "/a",
+          file: file("clip.step", { document: "model:clip", script: "clip.py" }),
+          results: [],
+          outdated: [],
+          drawings: [],
+        },
+      ],
+    };
+    const plan = deliverablesPlan({ ...input, now, include: new Set(["step"]), label: "STEP" });
+    expect(plan.name).toBe("Rig STEP 2026-11-25");
+    expect(plan.exports).toEqual([{ source: "model:clip", stem: "clip", formats: ["step"] }]);
+    expect(plan.copies.map((copy) => copy.to)).toEqual(["models/arm.step"]);
+    expect(plan.receipt).toBeNull();
+    expect(plan.missing).toEqual([]);
+    expect(exportCounts(input)).toEqual({
+      step: 2,
+      stl: 2,
+      drawings: 1,
+      partsList: 1,
+      buildGuide: 0,
+      pictures: 0,
+      receipt: 2,
+    });
   });
 
   it("lists parts no check has run on together, and leaves out a mesh of a part it exports", () => {

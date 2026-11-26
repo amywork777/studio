@@ -1,8 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off -- copies and zips files inside the project's own folders.
 /**
- * A project's deliverables package: parts exported by the CAD tools, files copied from its folders
- * and RECEIPT.md, in `deliverables/<name>/` with a zip beside it. No agent runs. Git leaves
- * `deliverables/` out, as it does `.studio/`, so a Version never carries a package.
+ * A project's Export (Overview, Export): parts exported by the CAD tools, files copied from its
+ * folders and, asked for, RECEIPT.md, in `exports/<name>/` with a zip beside it. No agent runs. Git
+ * leaves `exports/` out, as it does `.studio/`, so a Version never carries an export.
  */
 import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
@@ -17,7 +17,7 @@ import {
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 
-const FOLDER = "deliverables";
+const FOLDER = "exports";
 
 /** A name safe as one folder on a Mac and on Windows. */
 export function safeName(name: string): string {
@@ -26,7 +26,7 @@ export function safeName(name: string): string {
     .replace(/\s+/g, " ")
     .replace(/^[\s.-]+|[\s.]+$/g, "")
     .slice(0, 80);
-  return safe === "" ? "Deliverables" : safe;
+  return safe === "" ? "Export" : safe;
 }
 
 /** `path` under `root`, or null when it leaves it. */
@@ -201,9 +201,12 @@ export const pack = Effect.fn("StudioDeliverables.pack")(function* (
           failed.push({ file: copy.to, reason: "it could not be read" }),
         );
       }
-      const files = [...(await listFiles(folder)), "RECEIPT.md"].toSorted();
-      const receipt = `${input.receipt.trimEnd()}\n\n${receiptFiles({ files, exported, failed, missing: input.missing })}`;
-      await NodeFSP.writeFile(NodePath.join(folder, "RECEIPT.md"), receipt);
+      const written = await listFiles(folder);
+      const files = (input.receipt === null ? written : [...written, "RECEIPT.md"]).toSorted();
+      if (input.receipt !== null) {
+        const receipt = `${input.receipt.trimEnd()}\n\n${receiptFiles({ files, exported, failed, missing: input.missing })}`;
+        await NodeFSP.writeFile(NodePath.join(folder, "RECEIPT.md"), receipt);
+      }
       const name = NodePath.basename(folder);
       const zip = `${folder}.zip`;
       const contents = await Promise.all(

@@ -4,7 +4,7 @@ import type { CheckResult, CheckStatus } from "./checkResults";
 import type { ProjectFile } from "./projectFiles";
 
 /**
- * The Overview's Deliverables package: what goes in it and its receipt, from the project's own files
+ * The Overview's Export: what goes in it and its receipt, from the project's own files
  * and the checks its runs saved (law 4). The server exports the parts and writes the files
  * (`StudioDeliverables.ts`); nothing here is made up, and what was not run says Not checked.
  */
@@ -25,7 +25,7 @@ const baseName = (path: string) => normal(path).split("/").at(-1) ?? path;
 const stemOf = (name: string) => baseName(name).replace(/\.[^.]+$/, "");
 
 /** Not deliverables: a package already made, the brief's own references, a drawing's sheets. */
-const LEFT_OUT = /(?:^|\/)(?:deliverables|\.studio|brief|node_modules)\/|-pages\//i;
+const LEFT_OUT = /(?:^|\/)(?:exports|deliverables|\.studio|brief|node_modules)\/|-pages\//i;
 const PARTS_LIST =
   /(?:^|[/_-])(?:parts[_-]?list|bom|bill[_-]of[_-]materials)\.(?:md|csv|pdf|html|xlsx)$/i;
 const BUILD_GUIDE =
@@ -141,28 +141,51 @@ function packedParts(parts: ReadonlyArray<PackagePart>): PackagePart[] {
   );
 }
 
-/**
- * The package for a project: its parts exported from their models as they are now (the first
- * folder's; another folder's are copied as they are), their drawings, the parts list, the build
- * guide and the pictures, each where the project has one, and the receipt.
- */
-export function deliverablesPlan(input: {
+/** What a project's Export can hold, each a checkbox under Everything (zip). */
+export type ExportContent =
+  | "step"
+  | "stl"
+  | "drawings"
+  | "partsList"
+  | "buildGuide"
+  | "pictures"
+  | "receipt";
+
+export const EXPORT_CONTENTS: ReadonlyArray<{
+  readonly id: ExportContent;
+  readonly label: string;
+}> = [
+  { id: "step", label: "STEP" },
+  { id: "stl", label: "STL" },
+  { id: "drawings", label: "Drawing PDFs" },
+  { id: "partsList", label: "Parts list (BOM)" },
+  { id: "buildGuide", label: "Build guide" },
+  { id: "pictures", label: "Pictures" },
+  { id: "receipt", label: "Verification receipt" },
+];
+
+export const EVERYTHING: ReadonlySet<ExportContent> = new Set(
+  EXPORT_CONTENTS.map((item) => item.id),
+);
+
+interface ProjectInput {
   readonly name: string;
-  /** The folder the package goes in: the project's first. */
+  /** The folder the export goes in: the project's first. */
   readonly cwd: string;
   readonly folders: ReadonlyArray<{ readonly root: string; readonly paths: ReadonlyArray<string> }>;
   readonly parts: ReadonlyArray<PackagePart>;
-  readonly now: Date;
-}): StudioDeliverablesInput {
-  const name = `${input.name} deliverables ${day(input.now)}`;
+}
+
+/** Everything the project has to export, each file by what it is. */
+function contents(input: ProjectInput) {
   const exports: StudioDeliverablesExport[] = [];
-  const copies: Array<{ root: string; path: string; to: string }> = [];
+  const copies: Array<{ root: string; path: string; to: string; content: ExportContent }> = [];
   const taken = new Set<string>();
-  const add = (root: string, path: string, place: string) => {
+  const add = (root: string, path: string, place: string, content: ExportContent) => {
     const to = `${place}/${baseName(path)}`;
     if (taken.has(to)) return;
     taken.add(to);
-    copies.push({ root, path, to });
+    copies.push({ root, path, to, content });
   };
   const parts = packedParts(input.parts);
   // The exports first: a copy never stands in for a file the CAD tools write from the model.
@@ -174,43 +197,86 @@ export function deliverablesPlan(input: {
   }
   for (const part of parts) {
     const copy = partFiles(part, input.cwd).copy;
-    if (copy !== undefined) add(part.root, copy, "models");
-    for (const drawing of part.drawings) add(part.root, drawing, "drawings");
+    if (copy !== undefined)
+      add(part.root, copy, "models", /\.(?:step|stp)$/i.test(copy) ? "step" : "stl");
+    for (const drawing of part.drawings) add(part.root, drawing, "drawings", "drawings");
   }
-  let partsLists = 0;
-  let guides = 0;
-  let pictures = 0;
   for (const folder of input.folders) {
     for (const path of folder.paths) {
       const at = normal(path);
       if (LEFT_OUT.test(at)) continue;
-      if (PARTS_LIST.test(at)) {
-        add(folder.root, path, "parts-list");
-        partsLists += 1;
-      } else if (BUILD_GUIDE.test(at)) {
-        add(folder.root, path, "build-guide");
-        guides += 1;
-      } else if (PICTURE.test(at) && RENDER_PLACE.test(at)) {
-        add(folder.root, path, "renders");
-        pictures += 1;
-      }
+      if (PARTS_LIST.test(at)) add(folder.root, path, "parts-list", "partsList");
+      else if (BUILD_GUIDE.test(at)) add(folder.root, path, "build-guide", "buildGuide");
+      else if (PICTURE.test(at) && RENDER_PLACE.test(at))
+        add(folder.root, path, "renders", "pictures");
     }
   }
+  return { parts, exports, copies };
+}
+
+/** How many files of each kind the project's Export would hold: a kind with none is greyed. */
+export function exportCounts(input: ProjectInput): Readonly<Record<ExportContent, number>> {
+  const { parts, exports, copies } = contents(input);
+  const copied = (content: ExportContent) =>
+    copies.filter((copy) => copy.content === content).length;
+  const made = (format: "step" | "stl") =>
+    exports.filter((part) => part.formats.includes(format)).length;
+  return {
+    step: made("step") + copied("step"),
+    stl: made("stl") + copied("stl"),
+    drawings: copied("drawings"),
+    partsList: copied("partsList"),
+    buildGuide: copied("buildGuide"),
+    pictures: copied("pictures"),
+    receipt: parts.length,
+  };
+}
+
+/** What a kind the export asked for, and the project lacks, says in the receipt. */
+const MISSING: Readonly<Partial<Record<ExportContent, string>>> = {
+  drawings: "Drawings: none made yet (Toolbox, Engineering drawing)",
+  partsList: "Parts list: none made yet (Toolbox, Parts list)",
+  buildGuide: "Build guide: none made yet (Toolbox, Assembly instructions)",
+  pictures: "Renders: none made yet (Toolbox, Pictures from every side)",
+};
+
+/**
+ * The project's Export: what `include` asks for of its parts exported from their models as they are
+ * now (the first folder's; another folder's are copied as they are), their drawings, the parts
+ * list, the build guide and the pictures, each where the project has one, and the receipt.
+ * `label` names a single kind's export ("STEP"); with none it is everything.
+ */
+export function deliverablesPlan(
+  input: ProjectInput & {
+    readonly now: Date;
+    readonly include?: ReadonlySet<ExportContent>;
+    readonly label?: string;
+  },
+): StudioDeliverablesInput {
+  const include = input.include ?? EVERYTHING;
+  const { parts, exports, copies } = contents(input);
+  const counts = exportCounts(input);
+  const formats = (["step", "stl"] as const).filter((format) => include.has(format));
   const missing = [
-    ...(parts.length === 0 ? ["Models: the project has no part yet"] : []),
-    ...(parts.some((part) => part.drawings.length > 0)
-      ? []
-      : ["Drawings: none made yet (Toolbox, Engineering drawing)"]),
-    ...(partsLists > 0 ? [] : ["Parts list: none made yet (Toolbox, Parts list)"]),
-    ...(guides > 0 ? [] : ["Build guide: none made yet (Toolbox, Assembly instructions)"]),
-    ...(pictures > 0 ? [] : ["Renders: none made yet (Toolbox, Pictures from every side)"]),
+    ...(parts.length === 0 && (include.has("step") || include.has("stl"))
+      ? ["Models: the project has no part yet"]
+      : []),
+    ...EXPORT_CONTENTS.flatMap(({ id }) => {
+      const line = MISSING[id];
+      return line !== undefined && include.has(id) && counts[id] === 0 ? [line] : [];
+    }),
   ];
   return {
     cwd: input.cwd,
-    name,
-    exports,
-    copies,
-    receipt: receiptFor(parts, input.name, input.now),
+    name: `${input.name}${input.label === undefined ? "" : ` ${input.label}`} ${day(input.now)}`,
+    exports: exports.flatMap((part) => {
+      const kept = part.formats.filter((format) => formats.includes(format));
+      return kept.length === 0 ? [] : [{ ...part, formats: kept }];
+    }),
+    copies: copies
+      .filter((copy) => include.has(copy.content))
+      .map(({ root, path, to }) => ({ root, path, to })),
+    receipt: include.has("receipt") ? receiptFor(parts, input.name, input.now) : null,
     missing,
   };
 }

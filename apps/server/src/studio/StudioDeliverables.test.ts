@@ -78,7 +78,7 @@ it.effect("packs exports, copies and the receipt, and zips them", () =>
       ["models/bracket.stl", "bom/elsewhere.txt"],
     );
     assert.deepStrictEqual(asked[0]?.destinations, [
-      "deliverables/Bracket- deliverables 2026-11-25/models/bracket.step",
+      "exports/Bracket- deliverables 2026-11-25/models/bracket.step",
     ]);
 
     const entries = yield* Effect.promise(() => unzip(result.zip));
@@ -98,16 +98,17 @@ it.effect("packs exports, copies and the receipt, and zips them", () =>
     const exclude = yield* Effect.promise(() =>
       NodeFSP.readFile(NodePath.join(cwd, ".git", "info", "exclude"), "utf8"),
     );
-    assert.strictEqual(exclude, "/.studio/\n/deliverables/\n");
+    assert.strictEqual(exclude, "/.studio/\n/exports/\n");
 
-    // A second package the same day goes beside the first, never over it.
-    const again = yield* pack({ ...input, exports: [], copies: [] }, exportModel);
+    // A second the same day goes beside the first, never over it; with no receipt asked, none.
+    const again = yield* pack({ ...input, exports: [], copies: [], receipt: null }, exportModel);
     assert.strictEqual(NodePath.basename(again.folder), `${root} 2`);
+    assert.deepStrictEqual(again.files, []);
     yield* Effect.promise(() => NodeFSP.rm(cwd, { recursive: true, force: true }));
   }),
 );
 
 it("makes a package name safe on a Mac and on Windows", () => {
   assert.strictEqual(safeName('Arm / base: "v2"?'), "Arm - base- -v2-");
-  assert.strictEqual(safeName(" ..."), "Deliverables");
+  assert.strictEqual(safeName(" ..."), "Export");
 });
