@@ -121,8 +121,6 @@ function WritingOverview() {
 }
 
 const README = "README.md";
-const OPEN_README =
-  "self-start text-xs text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-sm";
 const noPending = () => {};
 
 /**
@@ -430,14 +428,8 @@ export function ReadmeOverview(props: {
             {rows.rest.map(row)}
           </div>
         )}
-        {/* The project's own line under its title says what it is; the README stays a press away. */}
-        {describedAbove ? (
-          file === null ? null : (
-            <button type="button" onClick={() => props.onOpenPath(README)} className={OPEN_README}>
-              Open the README
-            </button>
-          )
-        ) : (
+        {/* The project's own line under its title says what it is; its sections above open the rest. */}
+        {describedAbove ? null : (
           <div className={SECTION_STACK}>
             <h2 className={MODULE_HEADING}>
               What it is
@@ -464,10 +456,6 @@ export function ReadmeOverview(props: {
             {decisions}
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          Studio writes this from the project's chats and keeps it current. Click a line to change
-          it.
-        </p>
       </section>
     </WritingIn.Provider>
   );
