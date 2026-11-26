@@ -2,6 +2,7 @@
 import {
   OrchestrationDispatchCommandError,
   type OrchestrationV2Command,
+  StudioTeamsError,
   type ProviderInstanceId,
   WS_METHODS,
   type WsRpcGroup,
@@ -23,6 +24,7 @@ import * as StudioGitHubSignIn from "./StudioGitHubSignIn.ts";
 import * as StudioProjects from "./StudioProjects.ts";
 import * as StudioSamples from "./StudioSamples.ts";
 import * as StudioSync from "./StudioSync.ts";
+import * as StudioTeams from "./StudioTeams.ts";
 
 type Analytics = AnalyticsService.AnalyticsService["Service"];
 type WsHandlers = Partial<RpcGroup.HandlersFrom<RpcGroup.Rpcs<typeof WsRpcGroup>>>;
@@ -98,6 +100,7 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
   const studioProjects = yield* StudioProjects.StudioProjects;
   const studioSync = yield* StudioSync.StudioSync;
   const studioGitHubSignIn = yield* StudioGitHubSignIn.StudioGitHubSignIn;
+  const studioTeams = yield* StudioTeams.StudioTeams;
   const managedFolders = yield* ManagedProjectFolders.ManagedProjectFolders;
   const repositoryIdentityResolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
   return {
@@ -195,6 +198,44 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
               : Effect.void,
           ),
         ),
+    [WS_METHODS.studioTeamsStatus]: () => studioTeams.status,
+    [WS_METHODS.studioTeamsSignInStart]: (input) =>
+      studioTeams.signInStart(input).pipe(Effect.as({})),
+    [WS_METHODS.studioTeamsSignInCheck]: (input) => studioTeams.signInCheck(input),
+    [WS_METHODS.studioTeamsSignOut]: () => studioTeams.signOut.pipe(Effect.as({})),
+    [WS_METHODS.studioTeamsCreate]: (input) => studioTeams.create(input),
+    [WS_METHODS.studioTeamsInvite]: (input) => studioTeams.invite(input),
+    [WS_METHODS.studioTeamsRemove]: (input) => studioTeams.remove(input),
+    [WS_METHODS.studioTeamsDeleteTeam]: (input) => studioTeams.deleteTeam(input),
+    [WS_METHODS.studioTeamsDeleteProject]: (input) => studioTeams.deleteProject(input),
+    [WS_METHODS.studioTeamsDeleteAccount]: () => studioTeams.deleteAccount,
+    [WS_METHODS.studioTeamsProjects]: () => studioTeams.projects,
+    [WS_METHODS.studioTeamsShare]: (input) =>
+      studioTeams.share(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsShareLink]: (input) =>
+      studioTeams.shareLink(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsGet]: (input) =>
+      managedFolders.newProjectsRoot.pipe(
+        Effect.mapError(
+          () =>
+            new StudioTeamsError({
+              reason: "local",
+              message: "Studio could not find its projects folder.",
+            }),
+        ),
+        Effect.flatMap((root) => studioTeams.get({ ...input, root })),
+      ),
+    [WS_METHODS.studioTeamsFolderStatus]: (input) => studioTeams.folderStatus(input),
+    [WS_METHODS.studioTeamsCheckOut]: (input) =>
+      studioTeams.checkOut(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsCheckIn]: (input) =>
+      studioTeams.checkIn(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsGetLatest]: (input) =>
+      studioTeams.getLatest(input).pipe(Effect.ensuring(refreshGitStatus(input.cwd))),
+    [WS_METHODS.studioTeamsRelease]: (input) => studioTeams.release(input),
+    [WS_METHODS.studioTeamsReviewComment]: (input) => studioTeams.reviewComment(input),
+    [WS_METHODS.studioTeamsReviewDecide]: (input) => studioTeams.reviewDecide(input),
+    [WS_METHODS.studioTeamsReleaseVersion]: (input) => studioTeams.releaseVersion(input),
     [WS_METHODS.projectsStartHistory]: (input) =>
       managedFolders.startHistory(input).pipe(
         Effect.tap(() => refreshGitStatus(input.cwd)),

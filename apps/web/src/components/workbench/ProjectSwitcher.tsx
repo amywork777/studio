@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ChevronsUpDownIcon,
   CloudUploadIcon,
+  UsersIcon,
   CopyIcon,
   FolderOpenIcon,
   HistoryIcon,
@@ -31,6 +32,7 @@ import type { ListedProject } from "./projectList";
 import { StarButton } from "./StarButton";
 import { useAskNewProject } from "./StudioNew";
 import { BackupDialog } from "./BackupDialog";
+import { ShareDialog } from "./teams/ShareDialog";
 import { folderLabel, folderPlace } from "./folderLabel";
 import { backupPlaceLabel, useLastBackup } from "./useBackup";
 import { useDuplicateProject } from "./useDuplicateProject";
@@ -89,6 +91,7 @@ export function ProjectSwitcher(props: {
   // Versions are kept of parts: a project with none yet has no history to show.
   const hasDesign = useProjectHasDesign(environmentId, current?.project ?? null);
   const [backingUp, setBackingUp] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const { trashProject } = useTrash(environmentId);
   // To Trash, with Undo on its toast; Home, since the project is no longer to be seen.
   const moveToTrash = () => {
@@ -274,6 +277,12 @@ export function ProjectSwitcher(props: {
                   Back up…
                 </button>
               )}
+              {current === null ? null : (
+                <button type="button" className={actionClass} onClick={go(() => setSharing(true))}>
+                  <UsersIcon aria-hidden="true" />
+                  Share with team…
+                </button>
+              )}
               {canShowFolder ? (
                 <button type="button" className={actionClass} onClick={go(showFolder)}>
                   <FolderOpenIcon aria-hidden="true" />
@@ -337,6 +346,18 @@ export function ProjectSwitcher(props: {
           }}
           last={backup.last}
           onBackedUp={backup.remember}
+        />
+      )}
+      {current === null ? null : (
+        <ShareDialog
+          open={sharing}
+          onOpenChange={setSharing}
+          environmentId={environmentId}
+          project={{
+            name: current.project.name,
+            folders: current.project.folders,
+            brief: current.project.brief,
+          }}
         />
       )}
     </>

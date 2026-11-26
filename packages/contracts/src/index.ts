@@ -30,6 +30,7 @@ export * from "./keybindings.ts";
 export * from "./server.ts";
 export * from "./settings.ts";
 export * from "./studioProjects.ts";
+export * from "./studioTeams.ts";
 export * from "./studioViewer.ts";
 export * from "./studioDrawing.ts";
 export * from "./managedPolicy.ts";

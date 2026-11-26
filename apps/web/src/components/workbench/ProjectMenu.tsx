@@ -19,6 +19,7 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { BackupDialog } from "./BackupDialog";
+import { ShareDialog } from "./teams/ShareDialog";
 import { folderLabel } from "./folderLabel";
 import type { ListedProject } from "./projectList";
 import { useStarredStore } from "./starredProjects";
@@ -92,7 +93,7 @@ function BackupFor(props: {
   );
 }
 
-type Choice = "open" | "rename" | "duplicate" | "backup" | "folder" | "star" | "trash";
+type Choice = "open" | "rename" | "duplicate" | "backup" | "share" | "folder" | "star" | "trash";
 
 /**
  * A project tile's menu (right-click or the hover "…"), with the same actions and words as the
@@ -124,6 +125,7 @@ export function useProjectMenu(props: {
   const toggleStar = useStarredStore((store) => store.toggle);
   const [renaming, setRenaming] = useState<ListedProject | null>(null);
   const [backingUp, setBackingUp] = useState<ListedProject | null>(null);
+  const [sharing, setSharing] = useState<ListedProject | null>(null);
   const canShowFolder = serverConfig?.availableEditors.includes("file-manager") === true;
 
   const show = (card: ListedProject, position: { x: number; y: number }) => {
@@ -137,6 +139,7 @@ export function useProjectMenu(props: {
           { id: "rename", label: "Rename…", separatorBefore: true },
           ...(duplicate === null ? [] : [{ id: "duplicate" as const, label: "Duplicate" }]),
           { id: "backup", label: "Back up…" },
+          { id: "share", label: "Share with team…" },
           ...(canShowFolder && folder !== undefined
             ? [{ id: "folder" as const, label: folderLabel(serverConfig?.environment.platform.os) }]
             : []),
@@ -161,6 +164,7 @@ export function useProjectMenu(props: {
             cards.map((each) => each.project.name),
           );
         } else if (choice === "backup") setBackingUp(card);
+        else if (choice === "share") setSharing(card);
         else if (choice === "folder" && folder !== undefined) {
           void openInEditor({ environmentId, input: { cwd: folder, editor: "file-manager" } });
         } else if (choice === "star") toggleStar(card.id);
@@ -216,6 +220,18 @@ export function useProjectMenu(props: {
           environmentId={environmentId}
           card={backingUp}
           onClose={() => setBackingUp(null)}
+        />
+      )}
+      {sharing === null ? null : (
+        <ShareDialog
+          open
+          onOpenChange={(open) => !open && setSharing(null)}
+          environmentId={environmentId}
+          project={{
+            name: sharing.project.name,
+            folders: sharing.project.folders,
+            brief: sharing.project.brief,
+          }}
         />
       )}
     </>
