@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm concepts"
+  short_description: "Four concepts as real parts, each with its picture and weight, to open or grow more from."
+  default_prompt: "Use $brainstorm to make 4 concepts of the part with $brainstorm, each a really different way to do its job."

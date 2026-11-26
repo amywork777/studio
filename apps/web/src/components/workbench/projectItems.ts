@@ -64,6 +64,22 @@ export interface FileItem {
   readonly file: ProjectFile;
   /** Its row's words: a part by its name, anything else with what it is ("Bracket FEA study"). */
   readonly label: string;
+  /** What it is, as its row says: a STEP in an `assemblies` folder is an Assembly. */
+  readonly kind: string;
+}
+
+const ASSEMBLY_FOLDER = /(?:^|\/)assembl(?:y|ies)\//i;
+
+/** What a file is, as the list says it: the CAD tools keep assemblies in their own folder. */
+const kindOf = (file: ProjectFile) =>
+  file.kind === "Part" && ASSEMBLY_FOLDER.test(file.path) ? "Assembly" : file.kind;
+
+/** Whether an item answers a filter: words found in its name, what it is, or where it sits. */
+export function itemMatches(item: FileItem, query: string): boolean {
+  const plain = (text: string) => text.toLowerCase().replace(/[_-]+/g, " ");
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  const text = plain(`${item.label}\n${item.kind}\n${item.file.path}`);
+  return words.every((word) => text.includes(word));
 }
 
 /** A row's words: kinds the file's folder decides ("Result", "Toolpath") are said after its name. */
@@ -100,7 +116,7 @@ export function projectFileItems(
       (file) => !/^readme\.md$/i.test(file.path),
     );
     for (const file of overviewParts(files)) {
-      items.push({ root: folder.root, file, label: labelOf(file) });
+      items.push({ root: folder.root, file, label: labelOf(file), kind: kindOf(file) });
     }
     const kept = new Map<string, ProjectFile>();
     for (const file of files) {
@@ -110,7 +126,7 @@ export function projectFileItems(
       if (held === undefined || showRank(file.path) < showRank(held.path)) kept.set(key, file);
     }
     for (const file of kept.values()) {
-      items.push({ root: folder.root, file, label: labelOf(file) });
+      items.push({ root: folder.root, file, label: labelOf(file), kind: kindOf(file) });
     }
   }
   const order = (item: FileItem) => ITEM_TYPES.indexOf(itemType(item.file.group));

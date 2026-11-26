@@ -11,8 +11,10 @@ export const DRAWING_CHECK_GUIDE = `## Read the drawing
   are any, never from the picture alone, and the views and leaders from the picture. A drawing's
   symbol font comes through as letters (SolidWorks' Ø as \`n\`, ⌴ and ↧ as others): check each
   symbol against the picture. Until \`pages.json\` is there, read the PDF itself.
-- **A photo or a sketch:** read the picture. Where callouts are small, crop and enlarge the part
-  you need (Pillow is in the \`cad\` environment) into \`tmp/\` and read the crop.
+- **A photo or a sketch:** read the picture. One attached in the chat has a copy in
+  \`brief/references/\`, which the message links: name that copy as the check's source. Where
+  callouts are small, crop and enlarge the part you need (Pillow is in the \`cad\` environment)
+  into \`tmp/\` and read the crop.
 - Find the title block first: units, scale, projection (first or third angle), general tolerances
   (".XX ±.010, .XXX ±.005, fractions ±1/32, angles ±1/2°"), material and notes.
 - **Keep the drawing's units.** An inch drawing is checked and modelled in inches: set the

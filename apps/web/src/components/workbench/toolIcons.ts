@@ -24,6 +24,7 @@ import {
   Layers2Icon,
   LayersIcon,
   LayoutPanelTopIcon,
+  LightbulbIcon,
   ListChecksIcon,
   ListOrderedIcon,
   NotebookPenIcon,
@@ -73,6 +74,8 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   mass: WeightIcon,
   // Drawings and sketches: a drawing, checked against the part
   "drawing-check": FileCheckIcon,
+  // Concepts
+  brainstorm: LightbulbIcon,
   // Manufacture: printing, one picture per way of printing
   fdm: SpoolIcon,
   slice: LayersIcon,
@@ -153,6 +156,7 @@ const SECTION_ICONS: Partial<Record<string, LucideIcon>> = {
   "fit-mass": RulerIcon,
   "board-checks": KIND_ICONS.Electronics,
   "against-drawing": FileCheckIcon,
+  concepts: LightbulbIcon,
   printing: SpoolIcon,
   machining: DrillIcon,
   sheet: FoldVerticalIcon,

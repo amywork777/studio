@@ -35,6 +35,7 @@ import { TimelineRowCtx, TimelineRowActivityCtx, type TimelineRow } from "./time
 import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts";
 import { APP_BASE_NAME } from "~/branding";
 import { TurnDesignChanges } from "../workbench/TurnDesignChanges";
+import { ReplyConcepts } from "../workbench/BrainstormConcepts";
 import { splitSources } from "../workbench/references/answerSources";
 import { AnswerReferences, useShownReferences } from "../workbench/references/AnswerReferences";
 import { isEngineeringInterface, useEngineeringInterface } from "../workbench/studioInterface";
@@ -105,6 +106,7 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
           environmentId={ctx.activeThreadEnvironmentId}
           root={ctx.workspaceRoot}
         />
+        <ReplyConcepts reply={text} threadRef={ctx.threadRef} root={ctx.workspaceRoot} />
         {!row.showAssistantMeta && row.projectedItem?.item.status === "interrupted" ? (
           <div className="mt-1.5 flex">
             <AssistantStatusBadge status="interrupted" />

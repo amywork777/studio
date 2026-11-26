@@ -131,12 +131,18 @@ function useStarterSteps(environmentId: EnvironmentId | null) {
     readonly cwd: string;
     readonly folder: string;
     readonly stem: string;
+    /** The script as named `stem`; the starter when not given. */
+    readonly script?: (stem: string) => string;
   }) => {
     const path = `${input.folder}/${input.stem}.py`;
     if (environmentId === null) throw new Error(`${path} could not be written.`);
     const written = await write({
       environmentId,
-      input: { cwd: input.cwd, relativePath: path, contents: starterScript(input.stem) },
+      input: {
+        cwd: input.cwd,
+        relativePath: path,
+        contents: (input.script ?? starterScript)(input.stem),
+      },
     });
     if (written._tag !== "Success") throw new Error(`${path} could not be written.`);
     return inside(input.cwd, path);
@@ -198,14 +204,20 @@ export function useNewPart(environmentId: EnvironmentId): {
 }
 
 /**
- * Writes the starter as `<folder>/<name>.py` at the next name free in the folder, so no file is
- * written over, then builds and opens it. A failed build leaves the script for the agent or CAD
- * mode to mend. Null without a chat or a folder.
+ * Writes the starter, or `script` (a concept being used), as `<folder>/<name>.py` at the next name
+ * free in the folder, so no file is written over, then builds and opens it. A failed build leaves
+ * the script for the agent or CAD mode to mend. Null without a chat or a folder.
  */
 export function useAddPart(
   threadRef: ScopedThreadRef | null,
   cwd: string | null,
-): ((input: { readonly name: string; readonly folder?: string }) => Promise<void>) | null {
+):
+  | ((input: {
+      readonly name: string;
+      readonly folder?: string;
+      readonly script?: (stem: string) => string;
+    }) => Promise<void>)
+  | null {
   const environmentId = threadRef?.environmentId ?? null;
   const list = useAtomQueryRunner(projectEnvironment.listEntries, {
     reportFailure: false,
@@ -232,7 +244,12 @@ export function useAddPart(
     return run(`${threadRef.environmentId}\n${cwd}\n${folder}`, async () => {
       try {
         const stem = freePartStem(partStem(input.name), await filesIn(folder));
-        const script = await writeStarter({ cwd, folder, stem });
+        const script = await writeStarter({
+          cwd,
+          folder,
+          stem,
+          ...(input.script === undefined ? {} : { script: input.script }),
+        });
         await buildThenSwap({
           ref: threadRef,
           script,

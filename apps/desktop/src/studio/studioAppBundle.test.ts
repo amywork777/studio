@@ -11,6 +11,7 @@ import {
   STUDIO_DEV_ENGINE_PORT,
   STUDIO_ENGINE_PORT,
   studioEngineEnv,
+  studioEngineLimits,
 } from "./studioEngine.ts";
 
 const made: string[] = [];
@@ -83,6 +84,23 @@ describe("studioEngineEnv", () => {
     }
     expect(dev.CAD_ENGINE_PORT).toBe(String(STUDIO_DEV_ENGINE_PORT));
     expect(release.CAD_ENGINE_PORT).not.toBe(dev.CAD_ENGINE_PORT);
+  });
+});
+
+describe("studioEngineLimits", () => {
+  it("holds the engine to a few processes and a share of the machine's memory", () => {
+    const gb = 2 ** 30;
+    expect(studioEngineLimits(36 * gb)).toEqual({
+      CAD_ENGINE_WORKERS: "4",
+      CAD_ENGINE_MESH_WORKERS: "4",
+      CAD_ENGINE_WORKER_RSS_MB: "4608",
+      CAD_ENGINE_MEMORY_MB: "2304",
+    });
+    // A small machine keeps the engine's own floor for one worker, and room for a document.
+    expect(studioEngineLimits(8 * gb)).toMatchObject({
+      CAD_ENGINE_WORKER_RSS_MB: "2048",
+      CAD_ENGINE_MEMORY_MB: "1024",
+    });
   });
 });
 

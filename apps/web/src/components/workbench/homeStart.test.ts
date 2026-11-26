@@ -12,7 +12,7 @@ function storage(values = new Map<string, string>()) {
 }
 
 describe("Home's layout", () => {
-  it("starts someone with no projects on Where would you like to start?", () => {
+  it("starts someone with no projects on the start page", () => {
     expect(homeLayout({ loaded: true, projects: 0 })).toBe("start");
   });
 

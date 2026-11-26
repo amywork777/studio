@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
 // Read by boot.ts (through studioAppBundle.ts) before any Effect runtime exists, and by
 // scripts/studio.ts, so it stays on Node built-ins.
+import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 /**
@@ -29,6 +30,22 @@ export function studioEngineEnv(home: string, options: { readonly dev: boolean }
     CAD_UPDATE_CHECK: "0",
     CAD_TELEMETRY: "0",
     CAD_STUDIO_ENGINE: "1",
+    ...studioEngineLimits(NodeOS.totalmem()),
+  };
+}
+
+/**
+ * The CAD engine held to an app's share of memory. Its defaults (a worker and a mesh process per
+ * core, a quarter of memory each for workers and held documents) suit a build server, not a desktop
+ * app; past these the engine retires its least recently used process.
+ */
+export function studioEngineLimits(totalBytes: number) {
+  const totalMb = totalBytes / 2 ** 20;
+  return {
+    CAD_ENGINE_WORKERS: "4",
+    CAD_ENGINE_MESH_WORKERS: "4",
+    CAD_ENGINE_WORKER_RSS_MB: String(Math.round(Math.max(totalMb / 8, 2048))),
+    CAD_ENGINE_MEMORY_MB: String(Math.round(Math.max(totalMb / 16, 1024))),
   };
 }
 
