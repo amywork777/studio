@@ -58,9 +58,25 @@ export function ProjectHeading(props: {
       : propertiesLine(props.stats === null ? props.brief : { ...props.brief, material: "" });
   const words = statusWords(props.status);
   return (
-    <header aria-label="Project" className="flex min-w-0 flex-col gap-3">
+    <header aria-label="Project" className="flex min-w-0 flex-col gap-2">
       <PageTitle
         title={props.name}
+        // How its checks went, beside its name: the first thing to know of a project.
+        label={
+          words.length === 0 ? undefined : (
+            <span className="ms-1 inline-flex flex-wrap gap-1 align-middle">
+              {words.map((word) => {
+                const { variant, Icon } = TONE_BADGE[word.tone];
+                return (
+                  <Badge key={word.text} variant={variant}>
+                    <Icon aria-hidden="true" />
+                    {word.text}
+                  </Badge>
+                );
+              })}
+            </span>
+          )
+        }
         lede={props.purpose === "" ? undefined : props.purpose}
         action={
           <div role="toolbar" aria-label="Project actions" className="flex items-center gap-1.5">
@@ -101,7 +117,7 @@ export function ProjectHeading(props: {
       <div
         role="group"
         aria-label="How the project stands"
-        className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2"
+        className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
       >
         {properties === "" ? null : props.setup === null ? (
           <p className="text-xs text-muted-foreground">{properties}</p>
@@ -116,15 +132,6 @@ export function ProjectHeading(props: {
             {properties}
           </button>
         )}
-        {words.map((word) => {
-          const { variant, Icon } = TONE_BADGE[word.tone];
-          return (
-            <Badge key={word.text} variant={variant}>
-              <Icon aria-hidden="true" />
-              {word.text}
-            </Badge>
-          );
-        })}
         {props.built === null ? null : (
           <span
             className={

@@ -1,73 +1,61 @@
-import { cn } from "~/lib/utils";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
-export interface ProjectStat {
+/** A fact that opens what it counts: "Drawing", "Parts list". */
+export interface ProjectLink {
   readonly label: string;
-  /** What it is, or what was not checked or made: "not checked", "none yet". */
-  readonly value: string;
-  /** It is not known yet: said quietly, and a press starts what finds it out. */
-  readonly missing?: boolean;
-  /** Opens what it counts, or starts what finds it out; none for a plain fact. */
-  readonly onPress?: () => void;
-  /** What a press does, for its tooltip and screen readers. */
-  readonly pressLabel?: string;
+  /** What a press opens, for its tooltip and screen readers. */
+  readonly opens: string;
+  readonly onPress: () => void;
 }
 
 const CHIP =
-  "inline-flex min-h-6 items-baseline gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 text-xs";
+  "inline-flex h-5 items-center gap-1 rounded-md border border-border bg-card px-1.5 text-xs text-foreground outline-none transition-colors duration-150 hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 /**
- * The Overview's facts at a glance, a chip each under the project's name: what it is made of, how
- * many parts, its size and mass where a run measured them, its drawings, parts list and last export.
- * What no run gave says so (law 4), and a press on it starts what would.
+ * The Overview's facts at a glance, one line under the project's name: what it is made of, how many
+ * parts and its size, as plain words, then what it has (its drawings, parts list) as small chips
+ * that open it, and when it was last exported. Only what is known: a size a run measured, never a
+ * guess (law 4), and nothing is said of what is missing.
  */
-export function ProjectStats(props: { readonly stats: ReadonlyArray<ProjectStat> }) {
-  if (props.stats.length === 0) return null;
+export function ProjectStats(props: {
+  /** "5052-H32 aluminium", "10 parts", "105 × 140 × 80 mm": each known fact, in that order. */
+  readonly spec: ReadonlyArray<string>;
+  readonly links: ReadonlyArray<ProjectLink>;
+  /** Plain facts said after the chips: "Exported 2026-11-25". */
+  readonly notes: ReadonlyArray<string>;
+}) {
+  if (props.spec.length + props.links.length + props.notes.length === 0) return null;
   return (
-    <ul aria-label="At a glance" className="flex min-w-0 flex-wrap items-center gap-1.5">
-      {props.stats.map((stat) => {
-        const words = (
-          <>
-            <span className="text-muted-foreground">{stat.label}</span>
-            <span
-              className={cn(
-                "font-medium tabular-nums",
-                stat.missing === true ? "text-muted-foreground" : "text-foreground",
-              )}
-            >
-              {stat.value}
-            </span>
-          </>
-        );
-        return (
-          <li key={stat.label}>
-            {stat.onPress === undefined ? (
-              <span className={CHIP}>{words}</span>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={`${stat.label}: ${stat.value}. ${stat.pressLabel ?? ""}`}
-                      onClick={stat.onPress}
-                      className={cn(
-                        CHIP,
-                        "outline-none transition-colors duration-150 hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                      )}
-                    />
-                  }
-                >
-                  {words}
-                </TooltipTrigger>
-                {stat.pressLabel === undefined ? null : (
-                  <TooltipPopup side="bottom">{stat.pressLabel}</TooltipPopup>
-                )}
-              </Tooltip>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div
+      role="group"
+      aria-label="At a glance"
+      className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+    >
+      {props.spec.length === 0 ? null : (
+        <span className="text-foreground">{props.spec.join(" · ")}</span>
+      )}
+      {props.links.map((link) => (
+        <Tooltip key={link.label}>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={`${link.label}: ${link.opens}`}
+                onClick={link.onPress}
+                className={CHIP}
+              />
+            }
+          >
+            {link.label}
+          </TooltipTrigger>
+          <TooltipPopup side="bottom">{link.opens}</TooltipPopup>
+        </Tooltip>
+      ))}
+      {props.notes.map((note) => (
+        <span key={note} className="text-xs text-muted-foreground">
+          {note}
+        </span>
+      ))}
+    </div>
   );
 }

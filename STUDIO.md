@@ -383,11 +383,11 @@ as they were.
 - **The project's overview.** The Overview tab opens on it, the project first by its own name, never a
   part's (`ProjectHeading.tsx`), its actions in one group at the end of that line (Back up…, the
   dialog a project tile's menu opens; Export; Open part; more), what it is in a line, then on one
-  line its facts at a glance as chips (`ProjectStats.tsx`, `overviewStats.ts`; Amy, 2026-11-25: compact
-  and informative): material, parts, size where a check measured one (a printing check's
-  `mesh.bbox_mm`), mass (not checked until a run gives it; a press asks for Weight and center of
-  mass), drawings, parts list and last export (the newest zip in `exports/`), each a press away from
-  what it counts and none of them made up (law 4); then its properties (units, drafting standard,
+  line, beside its name how its checks went, then its facts at a glance on one line (`ProjectStats.tsx`,
+  `overviewStats.ts`; Amy, 2026-11-25/26: compact, and only what is known): its material, its parts
+  and its size where a check measured one (a printing check's `mesh.bbox_mm`), then a chip for its
+  drawing and parts list that opens it, and when it was last exported (the newest zip in
+  `exports/`); nothing is said of what no run gave (law 4); then its properties (units, drafting standard,
   general tolerance, material; a press opens them to change, each change asked of the agent as a CAD
   tool applies a property, `ProjectSetup`), then how it stands, counted from the runs alone (failed,
   warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,

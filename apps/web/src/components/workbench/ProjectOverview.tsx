@@ -67,7 +67,7 @@ import { TITLE_TONE } from "./TitleBlock";
 import { usePartContext } from "./usePartContext";
 import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
-import { type ProjectStat, ProjectStats } from "./ProjectStats";
+import { type ProjectLink, ProjectStats } from "./ProjectStats";
 import { lastExport, measureFileFor, measuredSize, sizeWords } from "./overviewStats";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
@@ -83,7 +83,6 @@ import { projectStatus } from "./projectStatus";
 
 /** The check a part with none run is offered, as the Toolbox hands it to the chat. */
 const STRENGTH_JOB = HARDWARE_ACTIONS.find((job) => job.id === "strength")!;
-const MASS_JOB = HARDWARE_ACTIONS.find((job) => job.id === "mass")!;
 /** A parts list the agent writes (`docs/<assembly>_parts_list.md`) or a BOM brought in. */
 const PARTS_LIST =
   /(?:^|[/_-])(?:parts[_-]?list|bom|bill[_-]of[_-]materials)\.(?:md|csv|pdf|html|xlsx)$/i;
@@ -248,7 +247,7 @@ function LeadPart(props: {
         type="button"
         onClick={props.onOpen}
         aria-label={`Open ${part.file.title} in the viewer`}
-        className="flex aspect-[4/3] max-h-56 shrink-0 items-center @2xl:w-64 justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex aspect-[4/3] max-h-48 shrink-0 items-center @2xl:w-56 justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         {picture ? (
           <img src={picture} alt="" className="size-full object-contain" />
@@ -707,48 +706,39 @@ export function ProjectOverview(props: {
     )[0];
     const exported = lastExport(exportZips);
     const material = props.heading.brief?.material.trim() ?? "";
-    const composerRef = props.composerRef;
-    const list: ProjectStat[] = [
-      material === ""
-        ? { label: "Material", value: "not set", missing: true }
-        : { label: "Material", value: material },
-      { label: "Parts", value: String(cadParts.size) },
-      size === null
-        ? { label: "Size", value: "not measured", missing: true }
-        : { label: "Size", value: sizeWords(size) },
-      lead === null || composerRef === null
-        ? { label: "Mass", value: "not checked", missing: true }
-        : {
-            label: "Mass",
-            value: "not checked",
-            missing: true,
-            pressLabel: "Work out its weight and center of mass",
-            onPress: () => {
-              showChat();
-              handToChat(composerRef, MASS_JOB.prompt(lead.file.title));
-            },
-          },
-      drawing === undefined
-        ? { label: "Drawings", value: "none yet", missing: true }
-        : {
-            label: "Drawings",
-            value: String(drawings),
-            pressLabel: "Open the drawing",
-            onPress: () => props.onOpen(drawing.root, drawing.path),
-          },
-      partsList === undefined
-        ? { label: "Parts list", value: "none yet", missing: true }
-        : {
-            label: "Parts list",
-            value: "yes",
-            pressLabel: "Open the parts list",
-            onPress: () => props.onOpen(partsList.root, partsList.path),
-          },
-      exported === null
-        ? { label: "Last export", value: "none yet", missing: true }
-        : { label: "Last export", value: exported },
+    const count = cadParts.size;
+    const spec = [
+      ...(material === "" ? [] : [material]),
+      ...(count === 0 ? [] : [count === 1 ? "1 part" : `${count} parts`]),
+      ...(size === null ? [] : [sizeWords(size)]),
     ];
-    return <ProjectStats stats={list} />;
+    const links: ProjectLink[] = [
+      ...(drawing === undefined
+        ? []
+        : [
+            {
+              label: drawings === 1 ? "Drawing" : `Drawings ${drawings}`,
+              opens: "Open the drawing",
+              onPress: () => props.onOpen(drawing.root, drawing.path),
+            },
+          ]),
+      ...(partsList === undefined
+        ? []
+        : [
+            {
+              label: "Parts list",
+              opens: "Open the parts list",
+              onPress: () => props.onOpen(partsList.root, partsList.path),
+            },
+          ]),
+    ];
+    return (
+      <ProjectStats
+        spec={spec}
+        links={links}
+        notes={exported === null ? [] : [`Exported ${exported}`]}
+      />
+    );
   })();
   const leadBuild =
     lead?.file.version === undefined
@@ -756,7 +746,7 @@ export function ProjectOverview(props: {
       : buildLabel({ state: "built", at: Number(lead.file.version) * 1000 });
 
   return (
-    <div className="@container flex min-w-0 flex-col gap-6">
+    <div className="@container flex min-w-0 flex-col gap-5">
       {props.heading === null ? null : (
         // The project first, by its own name: how it stands, what to answer, what failed.
         <div className={SECTION_STACK}>
