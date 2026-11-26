@@ -380,17 +380,17 @@ Engineering also has no pull requests or usage page: `/pull-requests` and `/usag
 replaced history entry), and the usage shortcut does nothing. The code interfaces keep all of these
 as they were.
 
-- **The project's overview.** The Overview tab opens on it, the project first by its own name, never a
-  part's (`ProjectHeading.tsx`), its actions in one group at the end of that line (Back up…, the
-  dialog a project tile's menu opens; Export; Open part; more), what it is in a line, then on one
-  line, beside its name how its checks went, then its facts at a glance on one line (`ProjectStats.tsx`,
-  `overviewStats.ts`; Amy, 2026-11-25/26: compact, and only what is known): its material, its parts
-  and its size where a check measured one (a printing check's `mesh.bbox_mm`), then a chip for its
-  drawing and parts list that opens it, and when it was last exported (the newest zip in
-  `exports/`), then its last build; nothing is said of what no run gave (law 4). Its properties
-  (units, drafting standard, general tolerance, material) are in the ··· menu, Edit properties
-  opening them to change, each change asked of the agent as a CAD tool applies a property
-  (`ProjectSetup`). How it stands, counted from the runs alone (failed,
+- **The project's overview.** The Overview tab opens on it, in order of what matters (Amy,
+  2026-11-26: a clear hierarchy, compact): one row of the project's own name, never a part's
+  (`ProjectHeading.tsx`), with how its checks went beside it and its actions at the row's end
+  (Export, Open part the one solid button, and ··· with Edit properties showing the drafting setup,
+  Back up… and Show in Finder); then the lead part large with the project's key facts beside it as
+  its hero (`ProjectFacts` in `ProjectStats.tsx`, `overviewStats.ts`: material, parts, and size where
+  a check measured one, a printing check's `mesh.bbox_mm`; then chips for its drawing and parts list;
+  nothing is said of what no run gave, law 4), its checks under them; then, quieter, what it is,
+  its last build and last export (the newest zip in `exports/`) and Needs you (`ProjectAbout`).
+  Properties change through Edit properties, each change asked of the agent as a CAD tool applies a
+  property (`ProjectSetup`). How it stands, counted from the runs alone (failed,
   warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,
   `projectStatus.ts`). Under it the README's `## Open questions` as taps, the answer the part was
   built with first (`- <question> [<assumed> | <other>]`, `OpenQuestions.tsx`), each tap answering in

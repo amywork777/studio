@@ -9,50 +9,53 @@ export interface ProjectLink {
 }
 
 const CHIP =
-  "inline-flex h-5 items-center gap-1 rounded-md border border-border bg-card px-1.5 text-xs text-foreground outline-none transition-colors duration-150 hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+  "inline-flex h-6 items-center rounded-md border border-border bg-card px-2 text-xs text-foreground outline-none transition-colors duration-150 hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 /**
- * The Overview's facts at a glance, one line under the project's name: what it is made of, how many
- * parts and its size, as plain words, then what it has (its drawings, parts list) as small chips
- * that open it, and when it was last exported. Only what is known: a size a run measured, never a
- * guess (law 4), and nothing is said of what is missing.
+ * The project's key facts beside its lead part: what it is made of, how many parts and its size,
+ * each under its name, then what it has (its drawing, parts list) as chips that open it. Only what is
+ * known: a size a run measured, never a guess (law 4); a fact no run gave is left out.
  */
-export function ProjectStats(props: {
-  /** "5052-H32 aluminium", "10 parts", "105 × 140 × 80 mm": each known fact, in that order. */
-  readonly spec: ReadonlyArray<string>;
+export function ProjectFacts(props: {
+  readonly facts: ReadonlyArray<{ readonly label: string; readonly value: string }>;
   readonly links: ReadonlyArray<ProjectLink>;
-  /** Plain facts said after the chips: "Exported 2026-11-25". */
-  readonly notes: ReadonlyArray<string>;
 }) {
-  if (props.spec.length + props.links.length + props.notes.length === 0) return null;
+  if (props.facts.length + props.links.length === 0) return null;
   return (
-    // Its pieces sit in the heading's one line (`ProjectHeading`), beside the last build.
-    <div aria-label="At a glance" className="contents text-sm">
-      {props.spec.length === 0 ? null : (
-        <span className="text-foreground">{props.spec.join(" · ")}</span>
+    <div className="flex min-w-0 flex-col gap-3">
+      {props.facts.length === 0 ? null : (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5">
+          {props.facts.map((fact) => (
+            <div key={fact.label} className="contents">
+              <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+              <dd className="text-base leading-snug font-medium text-foreground tabular-nums">
+                {fact.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       )}
-      {props.links.map((link) => (
-        <Tooltip key={link.label}>
-          <TooltipTrigger
-            render={
-              <button
-                type="button"
-                aria-label={`${link.label}: ${link.opens}`}
-                onClick={link.onPress}
-                className={CHIP}
-              />
-            }
-          >
-            {link.label}
-          </TooltipTrigger>
-          <TooltipPopup side="bottom">{link.opens}</TooltipPopup>
-        </Tooltip>
-      ))}
-      {props.notes.map((note) => (
-        <span key={note} className="text-xs text-muted-foreground">
-          {note}
-        </span>
-      ))}
+      {props.links.length === 0 ? null : (
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {props.links.map((link) => (
+            <Tooltip key={link.label}>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`${link.label}: ${link.opens}`}
+                    onClick={link.onPress}
+                    className={CHIP}
+                  />
+                }
+              >
+                {link.label}
+              </TooltipTrigger>
+              <TooltipPopup side="bottom">{link.opens}</TooltipPopup>
+            </Tooltip>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

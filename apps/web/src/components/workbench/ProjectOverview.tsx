@@ -67,7 +67,7 @@ import { TITLE_TONE } from "./TitleBlock";
 import { usePartContext } from "./usePartContext";
 import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
-import { type ProjectLink, ProjectStats } from "./ProjectStats";
+import { type ProjectLink, ProjectFacts } from "./ProjectStats";
 import { lastExport, measureFileFor, measuredSize, sizeWords } from "./overviewStats";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
@@ -78,7 +78,8 @@ import { useProjectModels } from "./useFolderModels";
 import { projectChats } from "./workspaceTitle";
 import { waitingChats } from "./allChats";
 import { OpenQuestions } from "./OpenQuestions";
-import { ProjectHeading } from "./ProjectHeading";
+import { ProjectAbout, ProjectHeading } from "./ProjectHeading";
+import type { ProjectBackupTarget } from "./ProjectBackupButton";
 import { projectStatus } from "./projectStatus";
 
 /** The check a part with none run is offered, as the Toolbox hands it to the chat. */
@@ -224,6 +225,8 @@ function LeadPart(props: {
   readonly onRunCheck: (() => void) | null;
   /** Under the project's heading, which already says the part's units, material and build. */
   readonly underHeading: boolean;
+  /** The project's key facts (`ProjectFacts`), beside the picture as its hero; null for none. */
+  readonly facts?: ReactNode | null;
 }) {
   const { part } = props;
   const pictures = usePictures({
@@ -247,7 +250,7 @@ function LeadPart(props: {
         type="button"
         onClick={props.onOpen}
         aria-label={`Open ${part.file.title} in the viewer`}
-        className="flex aspect-[4/3] max-h-48 shrink-0 items-center @2xl:w-56 justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex aspect-[4/3] max-h-64 shrink-0 items-center @2xl:w-80 justify-center overflow-hidden rounded-lg border border-border bg-(--model-ground) outline-none transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         {picture ? (
           <img src={picture} alt="" className="size-full object-contain" />
@@ -256,6 +259,7 @@ function LeadPart(props: {
         )}
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {props.facts ?? null}
         <div className="flex min-w-0 items-start gap-1.5 text-sm text-foreground">
           {StatusIcon === null ? null : (
             <StatusIcon
@@ -487,7 +491,7 @@ export function ProjectOverview(props: {
     readonly setup: ReactNode | null;
     readonly onShowFolder: (() => void) | null;
     /** Back up, among its actions (`ProjectBackupButton`); null where it can't be. */
-    readonly backup: ReactNode | null;
+    readonly backup: ProjectBackupTarget | null;
     /** The folder its README is in, for its open questions. */
     readonly cwd: string;
   } | null;
@@ -713,10 +717,10 @@ export function ProjectOverview(props: {
     const exported = lastExport(exportZips);
     const material = props.heading.brief?.material.trim() ?? "";
     const count = cadParts.size;
-    const spec = [
-      ...(material === "" ? [] : [material]),
-      ...(count === 0 ? [] : [count === 1 ? "1 part" : `${count} parts`]),
-      ...(size === null ? [] : [sizeWords(size)]),
+    const facts = [
+      ...(material === "" ? [] : [{ label: "Material", value: material }]),
+      ...(count === 0 ? [] : [{ label: "Parts", value: String(count) }]),
+      ...(size === null ? [] : [{ label: "Size", value: sizeWords(size) }]),
     ];
     const links: ProjectLink[] = [
       ...(drawing === undefined
@@ -738,18 +742,26 @@ export function ProjectOverview(props: {
             },
           ]),
     ];
-    return (
-      <ProjectStats
-        spec={spec}
-        links={links}
-        notes={exported === null ? [] : [`Exported ${exported}`]}
-      />
-    );
+    return { facts: <ProjectFacts facts={facts} links={links} />, exported };
   })();
   const leadBuild =
     lead?.file.version === undefined
       ? null
       : buildLabel({ state: "built", at: Number(lead.file.version) * 1000 });
+  const about =
+    props.heading === null ? null : (
+      <ProjectAbout
+        purpose={props.heading.purpose}
+        built={leadBuild}
+        exported={stats?.exported ?? null}
+        waiting={status.waiting}
+        onShowChats={
+          otherChats === 0
+            ? null
+            : () => chatsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
+        }
+      />
+    );
 
   return (
     <div className="@container flex min-w-0 flex-col gap-5">
@@ -758,21 +770,13 @@ export function ProjectOverview(props: {
         <div className={SECTION_STACK}>
           <ProjectHeading
             name={props.heading.name}
-            purpose={props.heading.purpose}
             brief={props.heading.brief}
             status={status}
-            built={leadBuild}
             onOpenPart={lead === null ? null : () => props.onOpen(lead.root, lead.file.path)}
             setup={props.heading.setup}
             onShowFolder={props.heading.onShowFolder}
             backup={props.heading.backup}
             exportMenu={exportMenu}
-            stats={stats}
-            onShowChats={
-              otherChats === 0
-                ? null
-                : () => chatsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })
-            }
           />
           <OpenQuestions
             environmentId={props.environmentId}
@@ -787,6 +791,8 @@ export function ProjectOverview(props: {
       )}
       {lead === null ? (
         <>
+          {stats?.facts ?? null}
+          {props.heading === null ? null : about}
           {props.readme}
           {reading ? (
             <p className="text-xs text-muted-foreground">Reading the project</p>
@@ -801,8 +807,15 @@ export function ProjectOverview(props: {
           {props.heading === null ? (
             <PageTitle title={lead.file.title} label={lead.file.kind} />
           ) : null}
-          <div className="grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <div
+            className={
+              props.heading === null
+                ? "grid min-w-0 items-start gap-6 @3xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+                : "flex min-w-0 flex-col gap-4"
+            }
+          >
             <LeadPart
+              facts={stats?.facts ?? null}
               environmentId={props.environmentId}
               part={lead}
               threadRef={props.threadRef}
@@ -822,6 +835,7 @@ export function ProjectOverview(props: {
                     }
               }
             />
+            {props.heading === null ? null : about}
             {props.readme === null ? (props.heading === null ? issuesPanel : null) : props.readme}
           </div>
         </div>
