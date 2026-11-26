@@ -88,6 +88,16 @@ export function createStudioProjectsEnvironmentAtoms<R, E>(
       tag: WS_METHODS.studioSyncRestore,
       scheduler: createAtomCommandScheduler(),
     }),
+    /** Writes a project's deliverables package; one at a time per folder, as each runs the CAD tools. */
+    deliverablesPack: createEnvironmentRpcCommand(runtime, {
+      label: "environment-command:studio-deliverables:pack",
+      tag: WS_METHODS.studioDeliverablesPack,
+      scheduler: createAtomCommandScheduler(),
+      concurrency: {
+        mode: "serial",
+        key: ({ environmentId, input }) => `${environmentId}:${input.cwd}`,
+      },
+    }),
     /** Gets the code a person enters at GitHub for Sign in with GitHub. */
     gitHubSignInStart: createEnvironmentRpcCommand(runtime, {
       label: "environment-command:studio-github:sign-in-start",
