@@ -10,9 +10,11 @@ import { cancelledPage, welcomePage } from "./pages.mjs";
 import { sessionPaid, STATUS_RUNS } from "./stripe.mjs";
 
 export const PLANS = ["starter", "pro"];
-// What Studio's AI may cost per account per week (Monday 00:00 UTC on), in dollars, unless the host
-// says otherwise (CAP_STARTER_USD, CAP_PRO_USD) or the account carries its own. README.md says why.
+// What Studio's AI may cost per account per month, in dollars, unless the host says otherwise
+// (CAP_STARTER_USD, CAP_PRO_USD) or the account carries its own. It is held a week at a time, from
+// Monday 00:00 UTC: a month's allowance spread over a year's 52 weeks. README.md says why.
 export const DEFAULT_CAPS = { starter: 20, pro: 60 };
+export const weeklyOf = (monthly) => (monthly * 12) / 52;
 // Vercel's most for a request body, said here so the refusal is a sentence and not Vercel's page.
 export const MAX_BODY = 4.5 * 1024 * 1024;
 // How long an instance trusts what it read about an account, and Stripe about a subscription.
@@ -92,7 +94,8 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
   const caps = { ...DEFAULT_CAPS, ...config.caps };
   const accounts = new Map(); // account id -> { account, spent, at }, for ACCOUNT_TTL_MS
 
-  const capOf = (account) => Number(account.cap_usd ?? caps[account.plan] ?? caps.starter);
+  const capOf = (account) =>
+    weeklyOf(Number(account.cap_usd ?? caps[account.plan] ?? caps.starter));
 
   /** Makes or updates the account a paid Checkout bought, and answers it. */
   async function activate(session, plan) {

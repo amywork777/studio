@@ -12,7 +12,7 @@ create table if not exists public.pro_accounts (
   period_end timestamptz,
   checked_at timestamptz not null default now(), -- when Stripe was last asked about the subscription
   key_generation integer not null default 1,    -- raise it to turn the account's license key off
-  cap_usd numeric(10, 2),                       -- this account's own weekly cap; null takes the plan's
+  cap_usd numeric(10, 2),                       -- own monthly cap, held a week's share at a time; null: plan's
   created_at timestamptz not null default now()
 );
 

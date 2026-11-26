@@ -59,19 +59,21 @@ cost Studio. The cost is OpenRouter's own `usage.cost` from the answer (`cost_so
 `MODELS` (`cost_source` `tokens`), so it is never mistaken for a reported figure. Never a prompt, answer, file or picture, and no log line quotes one.
 `pro_week_usage` (a view) shows each account's week so far against revenue.
 
-**Limits.** Each account's AI may cost Studio its plan's allowance a week, from Monday 00:00 UTC
-($20 on Starter, $60 on Pro), then Claude Code shows "You have used this week's Studio Pro AI. It
+**Limits.** Each account's AI may cost Studio a week's share of its plan's monthly allowance, from
+Monday 00:00 UTC (about $4.62 on Starter, $13.85 on Pro), then Claude Code shows "You have used this week's Studio Pro AI. It
 refills on Monday…". Fast mode and models not in `MODELS` are
 refused. A request body may be at most 4.5 MB, Vercel's limit for a function, and an answer may
 take at most 5 minutes. A very long chat with many drawings can pass 4.5 MB, and Claude Code then
 shows "This chat is too long for Studio Pro". The handler is a plain `fetch` handler, so moving it to
 a Cloudflare Worker, which takes 100 MB, means changing only `api/v1.mjs`.
 
-## The weekly allowance, and what it costs Studio
+## The allowance, and what it costs Studio
 
-Each plan buys its price in AI **every week**, the week starting Monday 00:00 UTC: Starter is $20 a
-month with $20 of AI a week, Pro is $60 a month with $60 of AI a week (`DEFAULT_CAPS` in
-[`src/handler.mjs`](src/handler.mjs)).
+Each plan buys its price in AI **a month**, held a week at a time: the week starts Monday 00:00 UTC
+and gets 12 ÷ 52 of the monthly allowance, so Starter ($20 a month) refills about $4.62 of AI a week
+and Pro ($60 a month) about $13.85 (`DEFAULT_CAPS` and `weeklyOf` in
+[`src/handler.mjs`](src/handler.mjs)). Over a year that is exactly the price in AI; a week left unused
+does not carry over.
 
 Measured from Studio's own Claude turns (seven turns on Opus 5.5 that designed parts, from Studio's
 local database, priced at Anthropic's rates on 2026-11-25, which OpenRouter lists unchanged per
@@ -91,25 +93,23 @@ out $18.98 and $60 pays out $57.54. A month averages 52 ÷ 12 ≈ 4.33 weeks, so
 
 | Plan            | AI a week | Opus / Sonnet turns a week | Most AI a month (average) | Payout a month | Most lost a month (average) |
 | --------------- | --------- | -------------------------- | ------------------------- | -------------- | --------------------------- |
-| Starter, $20/mo | $20       | about 32 / 64              | $86.67                    | $18.98         | $67.69                      |
-| Pro, $60/mo     | $60       | about 98 / 193             | $260.00                   | $57.54         | $202.46                     |
+| Starter, $20/mo | $4.62     | about 7 / 14               | $20.00                    | $18.98         | $1.02                       |
+| Pro, $60/mo     | $13.85    | about 22 / 44              | $60.00                    | $57.54         | $2.46                       |
 
-So **a subscriber who uses the whole allowance every week costs Studio more than they pay**: about
-4.6 times their payout on Starter and 4.5 times on Pro. Studio covers its AI only while a subscriber
-uses about 22% of their allowance or less: Starter's payout buys about 31 Opus turns or 61 Sonnet
-turns a month, Pro's about 94 Opus turns or 185 Sonnet turns. Dave's 300-turn month on Opus ($184)
-fits inside Pro's allowance and costs Studio about $126 more than Pro pays. Whether this holds up
-depends on how much of the allowance subscribers really use, which `pro_week_usage` shows; nothing
-here measures that yet.
+So a subscriber who uses the whole allowance every week costs Studio at most the card fees more than
+they pay, before OpenRouter's fee. The allowance is small next to how engineers work: Starter's month
+is about 32 Opus turns or 64 Sonnet turns, Pro's about 98 or 193, and Dave's 300-turn month on Opus
+($184) would run out of Pro's week by Tuesday. How much of the allowance subscribers really use is
+what `pro_week_usage` shows; nothing here measures that yet.
 
 Someone who reaches the week's allowance goes on with their own Claude sign-in until Monday, or Amy
-raises their own cap (`cap_usd` on their row, dollars a week). OpenRouter also charges a fee when
-credits are bought; check its current rate and add it to each plan's cost. GPT-6.2 Astra costs
-twice Opus 5.5 per token ($8 and $40 a million), so a week on it reaches the allowance in about half
-as many turns.
+raises their own cap (`cap_usd` on their row, dollars a month, held the same way a week at a time).
+OpenRouter also charges a fee when credits are bought; check its current rate and add it to each
+plan's cost. GPT-6.2 Astra costs twice Opus 5.5 per token ($8 and $40 a million), so a week on it
+reaches the allowance in about half as many turns.
 
-To change a plan's weekly allowance, set `CAP_STARTER_USD` or `CAP_PRO_USD` (dollars a week) on the
-Vercel project and deploy again; to change it for everyone by default, edit `DEFAULT_CAPS`.
+To change a plan's allowance, set `CAP_STARTER_USD` or `CAP_PRO_USD` (dollars a month) on the Vercel
+project and deploy again; to change it for everyone by default, edit `DEFAULT_CAPS`.
 
 ## Set it up (test mode, no charge)
 

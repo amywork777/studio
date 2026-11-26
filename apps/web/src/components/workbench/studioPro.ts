@@ -19,7 +19,7 @@ export type StudioProPlan = "starter" | "pro";
 
 /**
  * The two plans, as Checkout charges them (`STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`): each buys
- * its price in AI every week, refilled Monday 00:00 UTC.
+ * its price in AI a month, refilled a week's share at a time, Monday 00:00 UTC.
  */
 export const STUDIO_PRO_PLANS: ReadonlyArray<{
   readonly plan: StudioProPlan;
@@ -31,13 +31,13 @@ export const STUDIO_PRO_PLANS: ReadonlyArray<{
     plan: "starter",
     name: "Starter",
     price: "$20 a month",
-    detail: "$20 of AI each week, refilled every Monday.",
+    detail: "$20 of AI a month, refilled every Monday (about $4.62 a week).",
   },
   {
     plan: "pro",
     name: "Pro",
     price: "$60 a month",
-    detail: "$60 of AI each week, refilled every Monday.",
+    detail: "$60 of AI a month, refilled every Monday (about $13.85 a week).",
   },
 ];
 

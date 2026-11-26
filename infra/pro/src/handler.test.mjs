@@ -1,7 +1,7 @@
 import * as NodeAssert from "node:assert/strict";
 import * as NodeTest from "node:test";
 
-import { proServer, weekEndOf } from "./handler.mjs";
+import { proServer, weekEndOf, weeklyOf } from "./handler.mjs";
 import { claimHashOf, licenseKey } from "./license.mjs";
 
 const SECRET = "license-secret";
@@ -200,7 +200,7 @@ NodeTest.test(
     NodeAssert.equal(ended.status, 403);
     NodeAssert.match((await ended.json()).error.message, /has ended/);
 
-    const capped = fakes({ spent: 20 });
+    const capped = fakes({ spent: 4.62 });
     const refused = await capped.handle(await messages());
     NodeAssert.equal(refused.status, 403);
     NodeAssert.match(
@@ -209,10 +209,14 @@ NodeTest.test(
     );
     NodeAssert.equal(capped.state.upstream.length, 0);
 
-    const ownCap = await fakes({ spent: 20, account: { cap_usd: 40 } }).handle(await messages());
+    const ownCap = await fakes({ spent: 4.62, account: { cap_usd: 40 } }).handle(await messages());
     NodeAssert.equal(ownCap.status, 200);
-    const onPro = await fakes({ spent: 20, account: { plan: "pro" } }).handle(await messages());
+    const onPro = await fakes({ spent: 4.62, account: { plan: "pro" } }).handle(await messages());
     NodeAssert.equal(onPro.status, 200);
+    const proCapped = await fakes({ spent: 13.85, account: { plan: "pro" } }).handle(
+      await messages(),
+    );
+    NodeAssert.equal(proCapped.status, 403);
   },
 );
 
@@ -355,14 +359,14 @@ NodeTest.test(
       handle(new Request(`https://pro.example/v1/usage?account=${id}`)).then((answer) =>
         answer.json(),
       );
-    NodeAssert.deepEqual(await usage(fakes({ spent: 5 }).handle), {
+    NodeAssert.deepEqual(await usage(fakes({ spent: 1.2 }).handle), {
       plan: "starter",
       runs: true,
       refused: null,
-      usedPercent: 25,
+      usedPercent: 26,
       resetsAt: "2026-11-30T00:00:00.000Z",
     });
-    const pro = await usage(fakes({ spent: 30, account: { plan: "pro" } }).handle);
+    const pro = await usage(fakes({ spent: 6.93, account: { plan: "pro" } }).handle);
     NodeAssert.equal(pro.runs, true);
     NodeAssert.equal(pro.usedPercent, 50);
     const capped = await usage(fakes({ spent: 30 }).handle);
@@ -385,4 +389,10 @@ NodeTest.test("the cap refills at the next Monday 00:00 UTC", () => {
   ];
   for (const [now, monday] of cases)
     NodeAssert.equal(weekEndOf(Date.parse(now)).toISOString(), monday);
+});
+
+NodeTest.test("a plan's monthly price in AI is held a week's share at a time", () => {
+  NodeAssert.equal(weeklyOf(20).toFixed(2), "4.62");
+  NodeAssert.equal(weeklyOf(60).toFixed(2), "13.85");
+  NodeAssert.equal(Math.round(weeklyOf(20) * 52), 240);
 });

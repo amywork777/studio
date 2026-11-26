@@ -105,8 +105,8 @@ Studio signs in by itself. Claude is the model it starts on, and GPT-6.2 Astra i
 list. With Pro on, your chats (with any pictures or drawings you attach) go through Studio Pro's
 server, [`infra/pro`](infra/pro/README.md), and OpenRouter to the model you chose. The server keeps
 only how much AI each account used and what it cost, never what was said. Each plan buys
-its price in AI every week (Starter $20 of AI a week, Pro $60), refilled every Monday; past it, Claude
-asks you to wait for Monday or sign in with your own Claude.
+its price in AI a month (Starter $20, Pro $60), refilled a week's share every Monday (about $4.62 and
+$13.85); past it, Claude asks you to wait for Monday or sign in with your own Claude.
 **Stop using it** in the same places puts Claude back on your own sign-in.
 
 ## Contributing
