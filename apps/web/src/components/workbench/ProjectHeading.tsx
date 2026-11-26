@@ -47,9 +47,15 @@ export function ProjectHeading(props: {
   readonly backup: ReactNode | null;
   /** Brings the chats waiting on the person into view. */
   readonly onShowChats: (() => void) | null;
+  /** The project at a glance (`ProjectStats`), under its name; null for none. */
+  readonly stats: ReactNode | null;
 }) {
   const [editing, setEditing] = useState(false);
-  const properties = props.brief === null ? "" : propertiesLine(props.brief);
+  // With the facts as chips, the material is one of them: the line keeps the drafting setup.
+  const properties =
+    props.brief === null
+      ? ""
+      : propertiesLine(props.stats === null ? props.brief : { ...props.brief, material: "" });
   const words = statusWords(props.status);
   return (
     <header aria-label="Project" className="flex min-w-0 flex-col gap-3">
@@ -91,6 +97,7 @@ export function ProjectHeading(props: {
           </div>
         }
       />
+      {props.stats}
       <div
         role="group"
         aria-label="How the project stands"
