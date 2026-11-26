@@ -2,7 +2,7 @@
 const FOLDED_KEY = "studio:get-started-folded";
 
 /**
- * Which Home to show (`StudioHome`): `start`, Where would you like to start?, for someone with no
+ * Which Home to show (`StudioHome`): `start`, the Start box with New part, Import and the examples, for someone with no
  * projects (ones in Trash are not in the list); `projects`, Starred and Recent with
  * the Get started strip under them, otherwise. Until the list arrives (`loaded`) it is `projects`,
  * so someone with projects never sees the start page flash first.

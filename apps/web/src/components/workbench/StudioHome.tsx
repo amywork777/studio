@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { DraftingCompassIcon, PaperclipIcon, XIcon } from "lucide-react";
+import { ArrowUpIcon, DraftingCompassIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { type KeyboardEvent, useRef, useState } from "react";
 
 import { useNowMinute } from "~/hooks/useNowMinute";
@@ -22,7 +22,6 @@ import { homeLayout } from "./homeStart";
 import { ImportDropZone } from "./ImportDropZone";
 import { ImportMenu } from "./ImportMenu";
 import { NewFilesNotice } from "./NewFilesNotice";
-import { PageTitle } from "./PageTitle";
 import { waitingFirst } from "./ProjectChoices";
 import { ProjectPicker } from "./ProjectPicker";
 import { SketchDialog } from "./SketchDialog";
@@ -41,11 +40,11 @@ import { useProjectTiles } from "./useProjectTiles";
 import { type ProjectStart, useStartOnce } from "./useStartProject";
 import { useExamples } from "./library/useSampleProject";
 
-/** Opens the quick find (`StudioQuickFind`): the top bar's search, and Cmd+O on Home. */
 /**
- * Studio's Home. With no projects (`homeLayout`) it asks where to start, with two big buttons and
- * the Start box; with projects, the box and then the project tiles, last worked on first, a project
- * with a waiting chat ahead and opening on that chat. One column, so the box and the tiles line up.
+ * Studio's Home leads with the Start box, large, under Describe your part: words or a dropped
+ * sketch or PDF make a project and start its first turn. Under it, with no projects
+ * (`homeLayout`), New part, Import a STEP and the examples; with projects, the project tiles, last
+ * worked on first, a project with a waiting chat ahead and opening on that chat.
  */
 export function StudioHome() {
   const environmentId = usePrimaryEnvironmentId();
@@ -96,19 +95,24 @@ function StudioHomeFor(props: { readonly environmentId: EnvironmentId }) {
         <ImportDropZone>
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-gutter-both">
             <WorkspacePageContainer>
-              {/* With projects, the Start box leads the page: a greeting over it said nothing. */}
-              {layout === "start" ? <PageTitle title="Where would you like to start?" /> : null}
               <NewFilesNotice environmentId={environmentId} />
-              {layout === "start" ? (
-                <StartChoices
-                  onNewPart={() => void newPart.create()}
-                  newPartBusy={newPart.busy}
-                  importActions={importActions}
-                />
-              ) : null}
-              <StartProject environmentId={environmentId} cards={cards} busy={busy} start={start} />
+              <StartProject
+                environmentId={environmentId}
+                cards={cards}
+                busy={busy}
+                start={start}
+                firstTime={layout === "start"}
+              />
               {!loaded ? null : layout === "start" ? (
                 <>
+                  <section aria-label="Or start from" className={SECTION_STACK}>
+                    <h2 className={MODULE_HEADING}>Or start from</h2>
+                    <StartChoices
+                      onNewPart={() => void newPart.create()}
+                      newPartBusy={newPart.busy}
+                      importActions={importActions}
+                    />
+                  </section>
                   <StartExamples examples={examples} />
                   {newProject(true)}
                 </>
@@ -185,10 +189,17 @@ function AttachedList(props: {
   );
 }
 
+/** What the first-time Home offers to put in the box: plain parts, each a tap that fills it in. */
+const SUGGESTIONS = [
+  "A wall hook for a road bike, printed in PETG",
+  "A NEMA 17 motor mount for 2020 extrusion",
+  "A phone stand that holds a phone at 60°",
+] as const;
+
 /**
- * Home's Start box: say what to make, and Start goes to a new project, or to a new chat in the
- * project chosen beside Attach. Attached files go into the project's References and the agent reads
- * them first (`startMessage`). With no agent (`missingAgent`) it says so and Start makes nothing.
+ * Home's Start box: Start (or Enter) goes to a new project, or a new chat in the project chosen
+ * beside Attach. A drop starts at once with any words typed; Attach and Sketch wait for Start.
+ * Files go into References and the agent reads them first (`startMessage`).
  */
 function StartProject(props: {
   readonly environmentId: EnvironmentId;
@@ -196,24 +207,31 @@ function StartProject(props: {
   /** A start is under way (from here or from New). */
   readonly busy: boolean;
   readonly start: (work: ProjectStart) => Promise<void>;
+  /** No projects yet: the box offers parts to try. */
+  readonly firstTime: boolean;
 }) {
   const { environmentId, busy } = props;
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = props.cards.find((card) => card.id === chosenId) ?? null;
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<StartAttachment[]>([]);
-  // A file dropped on the box is attached, as the chat's box attaches it (Home elsewhere imports).
+  // A file dropped on the box starts, as Vizcom's does (Home elsewhere imports).
   const [attaching, setAttaching] = useState(false);
   const [sketching, setSketching] = useState(false);
+  const text = useRef<HTMLTextAreaElement>(null);
   // The desktop app: files and folders, by their paths, copied into the project on Start.
   const bridge = readStudioImport();
+  const withAdded = (
+    current: ReadonlyArray<StartAttachment>,
+    added: ReadonlyArray<StartAttachment>,
+  ) => [
+    ...current,
+    ...added.filter(
+      (item) => item.path === null || !current.some((held) => held.path === item.path),
+    ),
+  ];
   const attach = (added: ReadonlyArray<StartAttachment>) =>
-    setAttachments((current) => [
-      ...current,
-      ...added.filter(
-        (item) => item.path === null || !current.some((held) => held.path === item.path),
-      ),
-    ]);
+    setAttachments((current) => withAdded(current, added));
   const fileInput = useRef<HTMLInputElement>(null);
   // The desktop app's picker takes folders too; the browser's takes files.
   const choose = () => {
@@ -229,28 +247,33 @@ function StartProject(props: {
   );
   // Words or files make a start.
   const ready = missing === null && canStart(description, attachments, busy);
-  const startNow = () => {
-    if (!ready) return;
-    void run({
-      kind: "described",
-      description,
-      attachments,
-      project: chosen,
-    });
+  const startWith = (files: ReadonlyArray<StartAttachment>) => {
+    if (missing !== null || !canStart(description, files, busy)) return false;
+    void run({ kind: "described", description, attachments: files, project: chosen });
+    return true;
   };
-  const startOnShortcut = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      startNow();
-    }
+  const startNow = () => void startWith(attachments);
+  // Enter starts, as the chat's box sends; Shift+Enter is a new line.
+  const startOnEnter = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    startNow();
   };
   const placeholder =
     chosen === null
-      ? "Describe a part, or pick a project to work in"
+      ? "A bracket that holds a 40 mm fan to a 3 mm aluminium panel…"
       : ENGINEERING_COMPOSER_PLACEHOLDER;
 
   return (
-    <section aria-label="Start" className={SECTION_STACK}>
+    <section aria-label="Start" className="flex min-w-0 flex-col gap-4 pt-6 sm:pt-10">
+      <div className="flex flex-col items-center gap-1 text-center">
+        <h1 className="text-2xl font-semibold text-foreground">Describe your part</h1>
+        <p className="text-sm text-muted-foreground">
+          {chosen === null
+            ? "Or drop a sketch, drawing or PDF. Studio makes the project and the AI agent builds a first draft."
+            : `A new chat in ${chosen.project.name}. Drop a sketch, drawing or PDF to start with it.`}
+        </p>
+      </div>
       <div
         data-attach-drop=""
         onDragOver={(event) => {
@@ -266,26 +289,37 @@ function StartProject(props: {
           if (!event.dataTransfer.types.includes("Files")) return;
           event.preventDefault();
           setAttaching(false);
-          attach(Array.from(event.dataTransfer.files).map(fromFile));
+          const files = withAdded(attachments, Array.from(event.dataTransfer.files).map(fromFile));
+          // With no agent the files wait in the box, beside what says so.
+          if (!startWith(files)) setAttachments(files);
+          else setAttachments([]);
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) text.current?.focus();
         }}
         className={cn(
-          "relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 focus-within:border-ring",
+          "relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-base shadow-xs/5 focus-within:border-ring",
           attaching && "border-ring",
         )}
       >
         {attaching ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 text-sm font-medium text-foreground">
-            {bridge === null ? "Drop files to attach" : "Drop files or folders to attach"}
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/85 text-base font-medium text-foreground">
+            {chosen === null
+              ? "Drop to start a project"
+              : `Drop to start a chat in ${chosen.project.name}`}
           </div>
         ) : null}
         <Textarea
+          ref={text}
           unstyled
-          rows={3}
-          aria-label={placeholder}
+          size="lg"
+          rows={4}
+          autoFocus
+          aria-label="Describe your part"
           placeholder={placeholder}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          onKeyDown={startOnShortcut}
+          onKeyDown={startOnEnter}
         />
         <AttachedList
           attachments={attachments}
@@ -359,9 +393,28 @@ function StartProject(props: {
             onClick={startNow}
           >
             {busy ? "Starting…" : "Start"}
+            {busy ? null : <ArrowUpIcon />}
           </Button>
         </div>
       </div>
+      {props.firstTime && description === "" && attachments.length === 0 ? (
+        <ul aria-label="Try" className="flex flex-wrap justify-center gap-2">
+          {SUGGESTIONS.map((suggestion) => (
+            <li key={suggestion}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDescription(suggestion);
+                  text.current?.focus();
+                }}
+              >
+                {suggestion}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }
