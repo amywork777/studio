@@ -467,6 +467,8 @@ export function ProjectOverview(props: {
     readonly brief: StudioProjectBrief | null;
     readonly setup: ReactNode | null;
     readonly onShowFolder: (() => void) | null;
+    /** Back up, among its actions (`ProjectBackupButton`); null where it can't be. */
+    readonly backup: ReactNode | null;
     /** The folder its README is in, for its open questions. */
     readonly cwd: string;
   } | null;
@@ -660,6 +662,7 @@ export function ProjectOverview(props: {
             onOpenPart={lead === null ? null : () => props.onOpen(lead.root, lead.file.path)}
             setup={props.heading.setup}
             onShowFolder={props.heading.onShowFolder}
+            backup={props.heading.backup}
             exportMenu={exportMenu}
             onShowChats={
               otherChats === 0
@@ -674,7 +677,8 @@ export function ProjectOverview(props: {
             composerRef={props.composerRef}
             onShowChat={showChat}
           />
-          {checked || issues.length > 0 ? issuesPanel : null}
+          {/* What passed is in the heading's badges: the panel is for what is open. */}
+          {issues.length > 0 ? issuesPanel : null}
         </div>
       )}
       {lead === null ? (

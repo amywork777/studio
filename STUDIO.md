@@ -381,13 +381,15 @@ replaced history entry), and the usage shortcut does nothing. The code interface
 as they were.
 
 - **The project's overview.** The Overview tab opens on it, the project first by its own name, never a
-  part's (`ProjectHeading.tsx`): what it is in a line, its properties (units, drafting standard,
+  part's (`ProjectHeading.tsx`), its actions in one group at the end of that line (Back up…, the
+  dialog a project tile's menu opens; Export; Open part; more), what it is in a line, then on one
+  line its properties (units, drafting standard,
   general tolerance, material; a press opens them to change, each change asked of the agent as a CAD
   tool applies a property, `ProjectSetup`), then how it stands, counted from the runs alone (failed,
   warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,
   `projectStatus.ts`). Under it the README's `## Open questions` as taps, the answer the part was
   built with first (`- <question> [<assumed> | <other>]`, `OpenQuestions.tsx`), each tap answering in
-  the chat, then what the checks found. Then the lead part beside the
+  the chat, then what the checks found open (what passed is in the badges). Then the lead part beside the
   README in its folder, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
   asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
@@ -419,10 +421,11 @@ as they were.
   Casting), a study that passes saying its safety factor; a drawing is the engineering drawing's
   `<part>_drawing.pdf`. Each opens with a click.
 - **Export, for the project** (Amy, 2026-11-25: one action for everything a supplier or a client
-  gets, as Export, not a new name). The Overview's Export, beside Open part, offers Everything
-  (zip) first, with what it holds as checkboxes, all on (STEP, STL, drawing PDFs, parts list, build
-  guide, pictures, the verification receipt), then each kind alone, greyed where the project has
-  none (`ProjectExportMenu.tsx`). Each writes `exports/<project> [kind] <date>/` in the project's
+  gets, as Export, not a new name). The Overview's Export, beside Open part, has two groups:
+  Everything, as one zip, what it holds as checkboxes, all on (STEP, STL, drawing PDFs, parts list,
+  build guide, pictures, the verification receipt), over Export zip; then One kind, as its own zip,
+  each kind alone, greyed where the project has none. Every row ends in how many files it holds
+  (`ProjectExportMenu.tsx`). Each writes `exports/<project> [kind] <date>/` in the project's
   first folder and a zip beside it, never over an earlier one: each part's STEP and STL from its
   model as it is now, by the CAD tools' own export (the tab's Export, one at a time; a STEP that
   came in is copied as it is), the parts' drawing PDFs, the parts list, the build guide (work or
