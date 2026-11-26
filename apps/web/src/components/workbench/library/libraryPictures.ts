@@ -114,6 +114,7 @@ const SKILL_COVERS: Readonly<Record<string, string>> = {
   mass: "fit",
   "drawing-check": "drawing-check",
   brainstorm: "concepts",
+  "standard-parts": "catalog",
   fdm: "fdm",
   resin: "resin",
   powder: "sls",

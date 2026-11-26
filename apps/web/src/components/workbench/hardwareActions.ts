@@ -3,6 +3,7 @@ import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 import { BRAINSTORM_GUIDE } from "./brainstormSkill";
 import { DRAWING_CHECK_GUIDE } from "./drawingCheckSkill";
 import { ISO_FITS_GUIDE, isoFitsSkillFiles } from "./isoFitsSkill";
+import { STANDARD_PARTS_GUIDE } from "./standardPartsSkill";
 
 /**
  * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
@@ -358,12 +359,15 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     section: "files",
     label: "Off-the-shelf parts",
     gets: "Each part with where to buy it, and its STEP file where the maker offers one.",
-    skill: null,
+    skill: "cad",
     kinds: SOLID,
     checks: false,
     prompt: (file) =>
-      `Find the off-the-shelf parts ${file} needs, such as fasteners and bearings, with where to buy them, and import their STEP files.`,
+      `Find the off-the-shelf parts ${file} needs, such as fasteners and bearings, with $standard-parts: each one's model from its standard or its maker, placed where it goes, and where to buy it.`,
     short: (name) => `Find standard parts for ${name}`,
+    guide: STANDARD_PARTS_GUIDE,
+    useWhen:
+      "the person asks for a screw, nut, washer, bearing, retaining ring, O-ring or other bought part by its standard or name (an ISO 4762 M3 x 8, a 608 bearing), or a design needs fasteners or bought parts in its model",
   },
   {
     id: "board-check",
