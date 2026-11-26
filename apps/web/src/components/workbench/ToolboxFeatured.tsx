@@ -106,9 +106,10 @@ export function ToolboxHome(props: {
               </Button>
             )}
           </div>
-          <ul className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2">
+          {/* Three whole tiles to a view, so no name is cut at the edge; the rest scroll in by threes. */}
+          <ul className="grid snap-x snap-mandatory auto-cols-[calc((100%-1.5rem)/3)] grid-flow-col gap-3 overflow-x-auto pb-2">
             {row.jobs.map(({ job, subtitle }) => (
-              <li key={job.id} className="flex w-32 shrink-0 snap-start flex-col gap-2">
+              <li key={job.id} className="flex min-w-0 snap-start flex-col gap-2">
                 <Tooltip>
                   <TooltipTrigger
                     delay={RICH_TOOLTIP_DELAY}
