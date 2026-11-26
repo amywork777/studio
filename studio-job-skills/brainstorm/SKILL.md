@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: "Brainstorm concepts, with the cad skill. Use whenever the person asks for concepts, ideas or options for a part before choosing one, and when the person asks for $brainstorm; it says how Studio reads the result."
+description: "Brainstorm concepts, with the cad skill. Use whenever the person asks for concepts, ideas or options for a part before choosing one, and when the person asks for $brainstorm; it says how to do it in Studio."
 ---
 
 # Brainstorm concepts

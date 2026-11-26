@@ -18,6 +18,7 @@ import type * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegi
 import type * as AnalyticsService from "../telemetry/AnalyticsService.ts";
 import * as SkillUse from "../telemetry/SkillUse.ts";
 import * as StudioAnalytics from "../telemetry/StudioAnalytics.ts";
+import * as StudioDeliverables from "./StudioDeliverables.ts";
 import * as StudioGitHubSignIn from "./StudioGitHubSignIn.ts";
 import * as StudioProjects from "./StudioProjects.ts";
 import * as StudioSamples from "./StudioSamples.ts";
@@ -124,6 +125,8 @@ export const makeHandlers = Effect.fn("ws.makeStudioHandlers")(function* (
       ),
     [WS_METHODS.pluginsModelPictures]: (input) => plugins.modelPictures(input),
     [WS_METHODS.pluginsExport]: (input) => plugins.exportModel(input),
+    [WS_METHODS.studioDeliverablesPack]: (input) =>
+      StudioDeliverables.pack(input, plugins.exportModel),
     [WS_METHODS.studioProjectsList]: () => studioProjects.list,
     [WS_METHODS.studioProjectsSave]: (input) =>
       studioProjects.save(input).pipe(

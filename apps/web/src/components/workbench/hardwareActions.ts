@@ -3,6 +3,7 @@ import type { STUDIO_PROCESSES } from "@t3tools/shared/studioProjects";
 import { BRAINSTORM_GUIDE } from "./brainstormSkill";
 import { DRAWING_CHECK_GUIDE } from "./drawingCheckSkill";
 import { INDUSTRY_ACTIONS, INDUSTRY_SECTIONS } from "./industryJobs";
+import { ISO_FITS_GUIDE, isoFitsSkillFiles } from "./isoFitsSkill";
 
 /**
  * Groups a part's jobs as CAD tools do: Evaluate, Manufacture (by way of making it, the project's
@@ -107,6 +108,8 @@ export interface HardwareAction {
   readonly guide?: string;
   /** When an agent should take its skill up unasked, besides by name ("modelling from a drawing"). */
   readonly useWhen?: string;
+  /** Files its job skill carries beside its SKILL.md, by path inside its folder (a script, its table). */
+  readonly files?: () => Readonly<Record<string, string>>;
 }
 
 /** A job's line on its tile and in its skill: what it makes, then what it needs, where it needs any. */
@@ -461,6 +464,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     prompt: (file) =>
       `Add 3D PMI to ${file} as the cad skill's references/pmi.md says: datums on the faces it is located by, the sizes and positions that matter as tolerances, and a general profile note. Then export it as AP242 STEP with its PMI.`,
     short: (name) => `3D PMI for ${name}`,
+    guide: ISO_FITS_GUIDE,
+    useWhen:
+      "a hole and shaft fit or an ISO 286 tolerance class (H7, H7/g6, a press fit) is asked for, as PMI or on a drawing's callout",
+    files: isoFitsSkillFiles,
   },
   {
     id: "parts-list",

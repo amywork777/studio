@@ -381,13 +381,15 @@ replaced history entry), and the usage shortcut does nothing. The code interface
 as they were.
 
 - **The project's overview.** The Overview tab opens on it, the project first by its own name, never a
-  part's (`ProjectHeading.tsx`): what it is in a line, its properties (units, drafting standard,
+  part's (`ProjectHeading.tsx`), its actions in one group at the end of that line (Back up…, the
+  dialog a project tile's menu opens; Export; Open part; more), what it is in a line, then on one
+  line its properties (units, drafting standard,
   general tolerance, material; a press opens them to change, each change asked of the agent as a CAD
   tool applies a property, `ProjectSetup`), then how it stands, counted from the runs alone (failed,
   warnings, passed, or Not checked; the lead part's last build; Needs you, the chats waiting,
   `projectStatus.ts`). Under it the README's `## Open questions` as taps, the answer the part was
   built with first (`- <question> [<assumed> | <other>]`, `OpenQuestions.tsx`), each tap answering in
-  the chat, then what the checks found. Then the lead part beside the
+  the chat, then what the checks found open (what passed is in the badges). Then the lead part beside the
   README in its folder, what it is and its decisions (`- <what was decided> (<YYYY-MM-DD>,
   asked)`, or `by hand`; a decision written date first reads too), then every other section the
   README has as written, its links opening what they name. While a new project's only chat is on
@@ -418,6 +420,22 @@ as they were.
   `<stem>.<process>.result.json` (`components/workbench/checkResults.ts`), named as an engineer says them (Strength, Vibration,
   Casting), a study that passes saying its safety factor; a drawing is the engineering drawing's
   `<part>_drawing.pdf`. Each opens with a click.
+- **Export, for the project** (Amy, 2026-11-25: one action for everything a supplier or a client
+  gets, as Export, not a new name). The Overview's Export, beside Open part, has two groups:
+  Everything, as one zip, what it holds as checkboxes, all on (STEP, STL, drawing PDFs, parts list,
+  build guide, pictures, the verification receipt), over Export zip; then One kind, as its own zip,
+  each kind alone, greyed where the project has none. Every row ends in how many files it holds
+  (`ProjectExportMenu.tsx`). Each writes `exports/<project> [kind] <date>/` in the project's
+  first folder and a zip beside it, never over an earlier one: each part's STEP and STL from its
+  model as it is now, by the CAD tools' own export (the tab's Export, one at a time; a STEP that
+  came in is copied as it is), the parts' drawing PDFs, the parts list, the build guide (work or
+  assembly instructions) and the pictures, wherever the project has them, and `RECEIPT.md`: each
+  part's build and checks as their runs saved them (a drawing check's out-of-tolerance and
+  to-confirm sizes listed), a check run before the part changed as not checked, the parts no check
+  ran on, then every file it holds and what it lacks, with the Toolbox job that makes each
+  (`deliverables.ts`, `StudioDeliverables.ts`). No agent runs. Git is told to leave `exports/` out,
+  so a Version never carries one, and the Overview does not list it; the toast's Show in Finder
+  opens it.
 - **Import.** Studio scans the folders picked on this computer (Documents, Desktop and Downloads to
   start) for CAD models, drawings, parts lists, datasheets, photos and notes, and proposes a project
   for each folder that holds models or drawings, imported where it is: the scan only reads them, and
@@ -920,7 +938,13 @@ as they were.
   (`components/workbench/jobSkills.ts`; `STUDIO_WRITE_JOB_SKILLS=1` on `jobSkills.test.ts` writes
   them again after a job changes) and join text-to-cad's skills where Studio lays out its plugin,
   in dev (`TEXT_TO_CAD_DEV=1`) and in the app (`scripts/studio_job_skills.py`), never inside
-  `text-to-cad/`.
+  `text-to-cad/`. A job skill can carry files beside its SKILL.md (a job's `files`): `$pmi` carries
+  ISO 286-1's limits for holes and shafts c to u, IT4 to IT13, up to 500 mm (`isoFits.ts`, checked
+  against two published tables) in the `fits.py` that reads them (a `.py`, which the formatter
+  leaves as written), and its
+  description has the agent take it up whenever a fit is asked for ("H7 on this bore"), on a
+  drawing's `fit=` callout or as PMI, so every limit is read off the standard, never from memory.
+  Fits have no tile of their own (Amy, 11/25): they are part of drawing and PMI work.
 - **Three kinds, and work done on them.** What is designed is CAD, Electronics or Documents, and
   New offers those. FEA and CAM are not kinds of design but work done on one, for parts and boards
   alike, so what Evaluate, Manufacture and Document make (analysis, manufacturing files,

@@ -293,3 +293,56 @@ export const ProjectStartHistoryResult = Schema.Struct({
   commitError: Schema.optionalKey(TrimmedNonEmptyString),
 });
 export type ProjectStartHistoryResult = typeof ProjectStartHistoryResult.Type;
+
+/** A part's files the CAD tools write into a deliverables package, from its model as it is now. */
+export const StudioDeliverablesExport = Schema.Struct({
+  /** The part's file or its model's document id, in `cwd`, as a tab's Export names it. */
+  source: TrimmedNonEmptyString,
+  /** What it is called in the package: `servo_bracket`. */
+  stem: TrimmedNonEmptyString,
+  formats: Schema.Array(Schema.Literals(["step", "stl"])),
+});
+export type StudioDeliverablesExport = typeof StudioDeliverablesExport.Type;
+
+/**
+ * One action's package of what a project hands on (Overview, Export): a folder under `cwd`'s
+ * `exports/`, and a zip of it beside it. Copies are files already in the project's
+ * folders; the receipt is the checks as their runs saved them, and the server adds what it wrote.
+ */
+export const StudioDeliverablesInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  /** The package's folder name, made safe by the server. */
+  name: TrimmedNonEmptyString,
+  exports: Schema.Array(StudioDeliverablesExport),
+  copies: Schema.Array(
+    Schema.Struct({
+      /** One of the project's folders. */
+      root: TrimmedNonEmptyString,
+      /** The file, relative to `root`. */
+      path: TrimmedNonEmptyString,
+      /** Where it goes in the package: `drawings/servo_bracket_drawing.pdf`. */
+      to: TrimmedNonEmptyString,
+    }),
+  ),
+  /** The receipt's checks, in Markdown, ending before its list of files; null for no receipt. */
+  receipt: Schema.NullOr(Schema.String),
+  /** What the package has none of, each a line: "Build guide: none made yet". */
+  missing: Schema.Array(Schema.String),
+});
+export type StudioDeliverablesInput = typeof StudioDeliverablesInput.Type;
+
+export const StudioDeliverablesResult = Schema.Struct({
+  /** The package's folder and its zip, as absolute paths. */
+  folder: TrimmedNonEmptyString,
+  zip: TrimmedNonEmptyString,
+  /** The files in it, relative to the folder, the receipt among them. */
+  files: Schema.Array(Schema.String),
+  /** What could not go in, and why. */
+  failed: Schema.Array(Schema.Struct({ file: Schema.String, reason: Schema.String })),
+});
+export type StudioDeliverablesResult = typeof StudioDeliverablesResult.Type;
+
+export class StudioDeliverablesError extends Schema.TaggedError<StudioDeliverablesError>()(
+  "StudioDeliverablesError",
+  { message: Schema.String },
+) {}
