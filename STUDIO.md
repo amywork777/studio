@@ -722,6 +722,12 @@ as they were.
   pass. It shows with the part's checks and opens as a report, each row at its place on the
   drawing, exported as Markdown or PDF beside it (Amy, 2026-11-25: a power user's drawings, where the
   numbers that disagree were the find). An inch drawing stays in inches throughout.
+  Attaching never starts a check (Amy, 2026-11-26): the PDF sits in the chat box as its chip, the
+  person adds a note, and Enter sends both. The agent then reads what it is, as its standing
+  context and the drawing check's skill say: a dimensioned drawing of a part the project has, or
+  one the note asks about, is checked as part of its answer; anything with no measurements (a
+  datasheet, a spec sheet, a moodboard, notes) is a reference, with no check and nothing reported
+  missing. The Toolbox's Check against the drawing is the way to ask for one outright.
 - **Chats in no project.** Home's Ask, which made them, is gone (Amy, 2026-10-26: one Start
   box). The chats it made stay: they run in the folder that holds the Studio projects, registered
   as the workspace "No project", and Chats and the sidebar still list them under No project

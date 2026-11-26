@@ -207,7 +207,8 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
       `Check ${file} against the drawing or sketch it is made from with $drawing-check: read every dimension and callout, measure each on the model, and tell me every number that does not add up.`,
     short: (name) => `Check ${name} against its drawing`,
     guide: DRAWING_CHECK_GUIDE,
-    useWhen: "you model a part from a drawing, a sketch or a photo of one, or check one against it",
+    useWhen:
+      "you model a part from a dimensioned drawing or a sketch with sizes, or a dimensioned drawing attached matches a part the project has or the person asks to check it (never for a PDF with no measurements: a datasheet, a spec sheet, a moodboard, notes)",
   },
   {
     id: "brainstorm",

@@ -3,7 +3,22 @@
  * job skill's own instructions, after its hand-off (`jobSkillFiles`). Studio reads the file it
  * writes (`drawingCheck.ts`) and grades it, so this is the file's contract as much as a method.
  */
-export const DRAWING_CHECK_GUIDE = `## Read the drawing
+export const DRAWING_CHECK_GUIDE = `## First: is it a dimensioned drawing?
+
+A file the person attaches is a dimensioned drawing when it shows a part in views with its
+dimensions and callouts (most have a title block), or is a sketch or a photo with sizes written on
+it. Read its first sheet (\`pages.json\`'s words, or the picture) before anything else:
+
+- **A dimensioned drawing**: check it when it is of a part the project has (its title, part number
+  or shape matches a model), or when the person's note asks, as part of your answer to the note; to
+  model a part from it, check it as you model, as below.
+- **Anything else** (a datasheet, a spec sheet, a moodboard, notes, a photo with no sizes): it is a
+  reference. Use what it says, write no check file, and report nothing as missing: it never had
+  dimensions to miss.
+- **A drawing of a part the project does not have**, with no note asking: say what it is and ask
+  whether to model it or check it against a part, without writing a check.
+
+## Read the drawing
 
 - **A PDF** in \`brief/references/\` has its sheets beside it in \`<name>-pages/\`: \`page-01.png\`
   and on, and \`pages.json\` with each sheet's size in inches and every callout's words and box. A
