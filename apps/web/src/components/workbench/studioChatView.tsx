@@ -36,7 +36,7 @@ import type { ComposerBannerStackItem } from "../chat/ComposerBannerStack";
 import { RightPanelSurfaceContent } from "../chat/RightPanelSurfaceContent";
 import { setChatInFront, takePendingFollow } from "./defaultModelFollow";
 import { handToChat, sendViewMessage } from "./handToChat";
-import { keptSurfaces } from "./keptSurfaces";
+import { keptLayoutOrder, keptSurfaces } from "./keptSurfaces";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { useViewerWorkingStore } from "./references/viewerWorking";
 import { useStudioTabFileMenu } from "./studioRightPanelTabs";
@@ -479,7 +479,8 @@ export function StudioRightPanelSurfaceContent({
   const viewPanels =
     thread === null
       ? null
-      : views.map((view) => (
+      : // Laid out by id, not recency: a frame moved in the document reloads (`keptLayoutOrder`).
+        keptLayoutOrder(views).map((view) => (
           <KeptSurface key={view.id} shown={inFront(view.id)}>
             <Suspense fallback={null}>
               <PluginViewPanel

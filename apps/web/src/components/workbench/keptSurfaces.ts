@@ -18,3 +18,14 @@ export function keptSurfaces<Surface extends { readonly id: string }>(
     ? kept
     : next;
 }
+
+/**
+ * The kept views in the order the panel lays them out: by id, which never changes, never by which
+ * was shown last. Moving an `<iframe>` in the document reloads it, so a list reordered on each
+ * switch reloaded a kept view every time it came back to front (its model, its camera).
+ */
+export function keptLayoutOrder<Surface extends { readonly id: string }>(
+  kept: ReadonlyArray<Surface>,
+): ReadonlyArray<Surface> {
+  return kept.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
