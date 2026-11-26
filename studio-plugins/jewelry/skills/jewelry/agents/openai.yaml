@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jewelry"
+  short_description: "Rings and stone settings for casting"
+  default_prompt: "Design a solitaire ring in my size with $jewelry and tell me what it weighs in silver."

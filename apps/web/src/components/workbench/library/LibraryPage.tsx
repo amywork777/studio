@@ -60,6 +60,7 @@ import {
   type LibrarySearch,
   skillGroup,
 } from "./librarySearch";
+import { Industries } from "./Industries";
 import { NeedsSkill } from "./NeedsSkill";
 import { SeeTheExample } from "./SeeTheExample";
 import { SkillDetail } from "./SkillDetail";
@@ -304,6 +305,7 @@ function LibraryContent(props: {
       {nothingFound ? (
         <p className="py-6 text-sm text-muted-foreground">Nothing in the Toolbox matches that.</p>
       ) : null}
+      {query === "" ? <Industries environmentId={environmentId} plugins={plugins} /> : null}
       <div className="@container min-w-0">
         <div className="flex min-w-0 items-start gap-8">
           <ShelfIndex shelves={shelves} />

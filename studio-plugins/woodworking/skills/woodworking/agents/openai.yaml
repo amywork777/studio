@@ -1,0 +1,4 @@
+interface:
+  display_name: "Woodworking"
+  short_description: "Furniture, cut lists and sheet layouts"
+  default_prompt: "Design a plywood bookcase with $woodworking and give me its cut list and sheet layout."

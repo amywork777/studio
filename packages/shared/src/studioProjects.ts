@@ -24,7 +24,34 @@ export const STUDIO_PROCESSES = [
   "Casting",
   "Welded fabrication",
   "Printed circuit board",
+  "Cut and sew",
+  "Die cutting and folding",
+  "Woodworking",
 ] as const;
+
+/**
+ * The trades Studio has a skill of its own for (`studio-plugins/`), as a brief names one in
+ * `industry`, each with what a request for it is about, which is how the agent tells it.
+ */
+export const STUDIO_INDUSTRIES = [
+  { id: "apparel", name: "Apparel", about: "a garment or a sewing pattern" },
+  { id: "packaging", name: "Packaging", about: "a box, carton, sleeve or mailer, or its dieline" },
+  {
+    id: "woodworking",
+    name: "Woodworking",
+    about: "furniture, shelving or cabinets from boards or sheet goods",
+  },
+  { id: "jewelry", name: "Jewelry", about: "a ring, pendant, earring or stone setting" },
+  { id: "footwear", name: "Footwear", about: "a shoe, a sole or an upper" },
+] as const;
+
+export type StudioIndustry = (typeof STUDIO_INDUSTRIES)[number];
+
+/** The brief's trade, or null for general engineering (none set, or one Studio does not know). */
+export function studioIndustry(brief: Pick<StudioProjectBrief, "industry">): StudioIndustry | null {
+  const id = brief.industry?.trim() ?? "";
+  return STUDIO_INDUSTRIES.find((industry) => industry.id === id) ?? null;
+}
 
 export const EMPTY_STUDIO_BRIEF: StudioProjectBrief = {
   purpose: "",
@@ -202,6 +229,7 @@ function startingAProject(record: string | null): string {
           `- Give it a short name of two or three words (for example "Lanyard clip") as \`name\` in \`${record}\`, and one plain sentence on what it is (for example "A clip that holds a badge on a lanyard") as \`brief.purpose\`, never the description's own words.`,
           '- Name the first part after the project: its script and its `@model` function take the project\'s name in snake_case (`parts/lanyard_clip.py` and `def lanyard_clip()` for "Lanyard clip"), so the part and the project read one name.',
           "- In that file, set the setup the description says or clearly implies (a printer named means 3D printing), and commit the file in its folder with git.",
+          `- When it is for one of these trades, set \`brief.industry\` to it there and work with that trade's skill of the same name: ${STUDIO_INDUSTRIES.map((entry) => `\`${entry.id}\` for ${entry.about}`).join("; ")}. Leave it out for anything else.`,
           readme,
         ]),
     "",
@@ -235,7 +263,11 @@ export interface StudioTitleBlock {
  */
 function drawingConventions(brief: StudioProjectBrief, titleBlock: StudioTitleBlock | null) {
   const standard = brief.standard ?? "ISO";
-  const tolerance = brief.generalTolerance?.trim() || usualGeneralTolerance(standard, brief.units);
+  const usual = usualGeneralTolerance(standard, brief.units);
+  const tolerance = brief.generalTolerance?.trim() || usual;
+  // A trade's patterns, dielines and cut lists work to its own allowances, not a machinist's
+  // general tolerance, which a new project states only because Settings has one.
+  const trade = studioIndustry(brief);
   const text = (value: string) => JSON.stringify(value);
   const company = titleBlock?.company.trim() ?? "";
   const drawnBy = titleBlock?.drawnBy.trim() ?? "";
@@ -248,7 +280,9 @@ function drawingConventions(brief: StudioProjectBrief, titleBlock: StudioTitleBl
     brief.units === "in"
       ? '- Units: `units="in"`; every size prints in decimal inches, converted from the model\'s millimetres'
       : '- Units: `units="mm"`',
-    `- General tolerance: \`general_tolerance=${text(tolerance)}\``,
+    trade !== null && tolerance === usual
+      ? `- General tolerance: none; ${trade.name.toLowerCase()} works to its own allowances (the \`${trade.id}\` skill's), so leave \`general_tolerance\` off unless the person gives one`
+      : `- General tolerance: \`general_tolerance=${text(tolerance)}\``,
     company === ""
       ? "- Company: not set; leave `company` empty"
       : `- Company: \`company=${text(company)}\``,
@@ -282,6 +316,7 @@ export function studioProjectContext(
   concepts: string | null = null,
 ): string {
   const { brief } = project;
+  const industry = studioIndustry(brief);
   const key = studioFolderKey(folder);
   const folders = project.folders.map(
     (entry) => `- \`${entry}\`${studioFolderKey(entry) === key ? " (this thread's folder)" : ""}`,
@@ -310,6 +345,9 @@ export function studioProjectContext(
     `- Units: ${brief.units}`,
     `- Material: ${brief.material.trim() || "Not decided"}`,
     `- Process: ${brief.process.trim() || "Not decided"}`,
+    ...(industry === null
+      ? []
+      : [`- Industry: ${industry.name}; work with the \`${industry.id}\` skill`]),
     `- Quantity: ${brief.quantity.trim() || "Not decided"}`,
     "",
     ...section("Drawings", drawingConventions(brief, titleBlock)),
@@ -318,10 +356,11 @@ export function studioProjectContext(
       record === null
         ? ""
         : [
-            `The units, material, process, quantity, drafting standard and general tolerance are the`,
+            `The units, material, process, industry, quantity, drafting standard and general tolerance are the`,
             `project's setup, kept in \`${record}\` under \`brief\`: \`units\` is "mm" or "in",`,
             `\`standard\` is "ISO" or "ASME", \`process\` is one of`,
-            `${STUDIO_PROCESSES.map((process) => `"${process}"`).join(", ")}, and \`material\`,`,
+            `${STUDIO_PROCESSES.map((process) => `"${process}"`).join(", ")}, \`industry\` is one of`,
+            `${STUDIO_INDUSTRIES.map((entry) => `"${entry.id}"`).join(", ")} or "" for none, and \`material\`,`,
             "`quantity` and `generalTolerance` are text. When asked to change the setup, change only those keys in that",
             "file, keep it valid JSON, and commit it in its folder with git. Then update the parts the",
             "change clearly affects in the same turn (a wall thickness, a bend radius, a hole for the new",

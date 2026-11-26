@@ -3561,8 +3561,10 @@ export function claudeEffectiveQueryPolicyKey(
     ProviderAdapter.ProviderAdapterV2RuntimePolicy,
     "additionalDirectories" | "projectContext"
   > = {},
+  plugins: ReadonlyArray<string> = [],
 ): string {
   return JSON.stringify({
+    plugins: plugins.length === 0 ? undefined : plugins,
     runtimePolicy: claudeRuntimeQueryPolicyKey({
       ...queryPolicy,
       ...(mcpOverrides.allowedTools === undefined
@@ -5149,6 +5151,8 @@ interface ClaudeLiveQueryContext {
   readonly launchArgSettings: ClaudeSdkSettings | undefined;
   readonly query: ClaudeAgentSdkQuerySession;
   readonly queryPolicyKey: string;
+  /** The plugin folders this process was opened with (`ClaudeStudio.turnPlugins`). */
+  readonly plugins: ReadonlyArray<string>;
   selection: CompiledClaudeModelSelection;
   readonly closed: Deferred.Deferred<void, never>;
   lastTurn: ActiveClaudeTurnContext | null;
@@ -12796,13 +12800,20 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               ? {}
               : { allowedTools: queryPolicy.allowedTools }),
           });
+          const existing = yield* Ref.get(queryContext);
+          const plugins = yield* ClaudeStudio.turnPlugins(
+            pluginStore,
+            nativeThreadId,
+            existing,
+            liveProcessRunsBackgroundWork,
+          );
           const queryPolicyKey = claudeEffectiveQueryPolicyKey(
             queryPolicy,
             mcpOverrides,
             turnInput.runtimePolicy,
+            plugins,
           );
           const resumeSessionAt = yield* getNativeConversationHeadId(turnInput.providerThread);
-          const existing = yield* Ref.get(queryContext);
           // Continuations drain existing output without prompting; retain the live process regardless of selection.
           if (
             existing !== null &&
@@ -12975,7 +12986,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           const resolvedTurnCwd = yield* fileSystem
             .realPath(turnInput.runtimePolicy.cwd ?? ".")
             .pipe(Effect.orElseSucceed(() => turnInput.runtimePolicy.cwd));
-          const openOptions = yield* PluginStore.withClaudePlugins(pluginStore, queryOptions);
+          const openOptions = PluginStore.withClaudePlugins(plugins, queryOptions);
           const openQueryRuntime = queryRunner.open({
             threadId: turnInput.threadId,
             providerSessionId: input.providerSessionId,
@@ -13024,6 +13035,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             launchArgSettings,
             query: querySession,
             queryPolicyKey,
+            plugins,
             selection: compiledSelection,
             closed,
             lastTurn: null,

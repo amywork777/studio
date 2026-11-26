@@ -4,7 +4,7 @@ import {
   type EnvironmentId,
   usualGeneralTolerance,
 } from "@t3tools/contracts";
-import { studioFolderName } from "@t3tools/shared/studioProjects";
+import { studioFolderName, studioIndustry } from "@t3tools/shared/studioProjects";
 import { ChevronDownIcon, FileTextIcon, PaperclipIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 
@@ -30,6 +30,7 @@ import { toastManager } from "../ui/toast";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import {
   EMPTY_BRIEF,
+  INDUSTRIES,
   PROCESSES,
   type ProjectBrief as Brief,
   type SetupKey,
@@ -43,6 +44,9 @@ import {
   useStudioProjectAt,
   useStudioProjectsList,
 } from "./useStudioProjects";
+
+/** The Industry menu's value for a project made for no trade in particular. */
+const GENERAL = "general";
 
 /** One line of the spec sheet: its label in a drawing's tracked capitals, its field beside it. */
 function SpecRow(props: {
@@ -104,7 +108,8 @@ function Property(props: { readonly label: string; readonly children: ReactNode 
 }
 
 /**
- * The project's setup (units, material, process, drafting standard, general tolerance, quantity). Picking a value sends the request to
+ * The project's setup (units, material, process, industry, drafting standard, general tolerance,
+ * quantity). Picking a value sends the request to
  * the chat, and the agent changes `project.json` and waits for a go. Only a folder in no project
  * yet is set up in place, since there is no project for the agent to change.
  */
@@ -160,6 +165,7 @@ export function ProjectSetup(props: {
     if (quantity.trim() !== brief.quantity.trim()) update("quantity", quantity.trim());
   };
   const described = brief.purpose.trim() !== "" || brief.requirements.trim() !== "";
+  const industry = studioIndustry(brief);
 
   return (
     <div className="pointer-events-auto mt-4 text-left">
@@ -223,6 +229,39 @@ export function ProjectSetup(props: {
               {PROCESSES.map((process) => (
                 <SelectItem key={process} hideIndicator value={process}>
                   {process}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </Property>
+        <Property label="Industry">
+          <Select
+            value={industry?.id ?? GENERAL}
+            disabled={!canWrite}
+            onValueChange={(value) => {
+              const next =
+                value === GENERAL
+                  ? ""
+                  : (INDUSTRIES.find((entry) => entry.id === value)?.id ?? null);
+              if (next !== null && next !== (industry?.id ?? "")) update("industry", next);
+            }}
+          >
+            <SelectTrigger size="sm" aria-label="Industry">
+              <SelectValue>
+                {industry === null ? (
+                  <span className="text-muted-foreground">General</span>
+                ) : (
+                  industry.name
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup alignItemWithTrigger={false} sideOffset={6}>
+              <SelectItem hideIndicator value={GENERAL}>
+                General engineering
+              </SelectItem>
+              {INDUSTRIES.map((entry) => (
+                <SelectItem key={entry.id} hideIndicator value={entry.id}>
+                  {entry.name}
                 </SelectItem>
               ))}
             </SelectPopup>

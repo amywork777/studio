@@ -1,0 +1,4 @@
+interface:
+  display_name: "Packaging"
+  short_description: "Folding cartons and dielines"
+  default_prompt: "Design a tuck end carton for my product with $packaging, show it folded and give me the dieline."

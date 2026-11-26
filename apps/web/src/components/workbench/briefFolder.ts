@@ -11,8 +11,11 @@ import {
  * datasheets and mating parts it gathers are filed under `brief/references/`.
  */
 
+import { STUDIO_INDUSTRIES } from "@t3tools/shared/studioProjects";
+
 export {
   EMPTY_STUDIO_BRIEF as EMPTY_BRIEF,
+  STUDIO_INDUSTRIES as INDUSTRIES,
   STUDIO_PROCESSES as PROCESSES,
 } from "@t3tools/shared/studioProjects";
 
@@ -25,6 +28,7 @@ export type SetupKey =
   | "units"
   | "material"
   | "process"
+  | "industry"
   | "quantity"
   | "standard"
   | "generalTolerance";
@@ -34,6 +38,7 @@ const SETUP_WORDS: Record<SetupKey, string> = {
   units: "units",
   material: "material",
   process: "process",
+  industry: "industry",
   quantity: "quantity",
   standard: "drafting standard",
   generalTolerance: "general tolerance",
@@ -57,9 +62,11 @@ export function setupRequest(key: SetupKey, value: string): string {
       ? value === "in"
         ? "inches"
         : "millimeters"
-      : key === "standard" && (value === "ISO" || value === "ASME")
-        ? STANDARD_LABELS[value]
-        : value;
+      : key === "industry"
+        ? (STUDIO_INDUSTRIES.find((industry) => industry.id === value)?.name ?? value)
+        : key === "standard" && (value === "ISO" || value === "ASME")
+          ? STANDARD_LABELS[value]
+          : value;
   return `Change the project's ${word} to ${shown}.`;
 }
 

@@ -14,6 +14,8 @@ export interface OpenWorkspace {
   readonly part: { readonly path: string; readonly kind: string; readonly name?: string } | null;
   /** How the project's parts are made, from its setup. */
   readonly process: string | undefined;
+  /** The trade the project is made for, from its setup. */
+  readonly industry: string | undefined;
 }
 
 export const useOpenWorkspaceStore = create<{

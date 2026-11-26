@@ -1,0 +1,4 @@
+interface:
+  display_name: "Footwear"
+  short_description: "Soles and upper pattern pieces"
+  default_prompt: "Design a sole for my foot with $footwear and check that the midsole can be printed."

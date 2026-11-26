@@ -151,6 +151,27 @@ describe("studio projects", () => {
     expect(context).not.toContain("wait\nfor a go before changing any part");
   });
 
+  it("has the agent record a trade's project as that trade's, which then drops the machinist's tolerance", () => {
+    const fresh = studioProjectContext(rover, "/work/rover-cad", "/studio/rover/project.json");
+    expect(fresh).toContain("set `brief.industry` to it there");
+    expect(fresh).toContain("`packaging` for a box, carton, sleeve or mailer, or its dieline");
+    expect(fresh).toContain('`industry` is one of\n"apparel", "packaging"');
+    expect(fresh).not.toContain("- Industry:");
+
+    const carton = { ...rover, brief: { ...rover.brief, industry: "packaging" } };
+    const context = studioProjectContext(carton, "/work/rover-cad");
+    expect(context).toContain("- Industry: Packaging; work with the `packaging` skill");
+    expect(context).not.toContain("general_tolerance=");
+    expect(context).toContain("packaging works to its own allowances");
+    // A tolerance the person stated still holds; a trade Studio does not know is none.
+    const stated = { ...carton, brief: { ...carton.brief, generalTolerance: "±0.5 mm" } };
+    expect(studioProjectContext(stated, "/work/rover-cad")).toContain(
+      '`general_tolerance="±0.5 mm"`',
+    );
+    const unknown = { ...rover, brief: { ...rover.brief, industry: "aerospace" } };
+    expect(studioProjectContext(unknown, "/work/rover-cad")).not.toContain("- Industry:");
+  });
+
   it("tells the agent how to cite", () => {
     const context = studioProjectContext(rover, "/work/rover-cad");
     expect(context).toContain("## Sources\n\nWhen you answer a question about this project, mark");

@@ -1,0 +1,18 @@
+{
+  "name": "packaging",
+  "version": "0.1.0",
+  "description": "Design a folding carton from the product's size and the board's thickness: the dieline with cuts and creases on their own layers, and the carton folded up to check it closes and the product fits.",
+  "author": {
+    "name": "Studio"
+  },
+  "keywords": ["packaging", "dieline", "carton", "box"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Packaging",
+    "shortDescription": "Folding cartons and dielines",
+    "longDescription": "Design a folding carton from the product's size and the board's thickness: the dieline with cuts and creases on their own layers, and the carton folded up to check it closes and the product fits.",
+    "developerName": "Studio",
+    "category": "Creativity",
+    "capabilities": ["Write"]
+  }
+}

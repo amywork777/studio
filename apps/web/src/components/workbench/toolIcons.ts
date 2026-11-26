@@ -6,32 +6,54 @@ import {
   CameraIcon,
   ClipboardCheckIcon,
   ClipboardListIcon,
+  DraftingCompassIcon,
   DrillIcon,
   DropletIcon,
   DumbbellIcon,
   ExpandIcon,
   FileBoxIcon,
   FileCheckIcon,
+  FileOutputIcon,
   FileStackIcon,
+  FlameIcon,
   FlaskConicalIcon,
   FoldVerticalIcon,
+  FootprintsIcon,
+  GemIcon,
+  Grid2x2Icon,
+  Layers2Icon,
   LayersIcon,
+  LayoutPanelTopIcon,
   LightbulbIcon,
+  ListChecksIcon,
   ListOrderedIcon,
   NotebookPenIcon,
   OrbitIcon,
+  PackageCheckIcon,
+  PaletteIcon,
   PencilRulerIcon,
   PlayIcon,
+  PrinterIcon,
   Rotate3dIcon,
   RouteIcon,
+  RulerDimensionLineIcon,
   RulerIcon,
+  ScaleIcon,
   ScanLineIcon,
+  ScrollTextIcon,
   ScissorsIcon,
   ShoppingCartIcon,
+  SplineIcon,
   SpoolIcon,
+  SquareDashedIcon,
+  SquareScissorsIcon,
+  SquareStackIcon,
   SyringeIcon,
+  TableIcon,
+  TablePropertiesIcon,
   TargetIcon,
   TruckIcon,
+  UnfoldHorizontalIcon,
   WeightIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -94,6 +116,37 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   mujoco: OrbitIcon,
 };
 
+/** The pictures of the industry plugins' jobs (`industryJobs.ts`), by id, each its own on its tab. */
+const INDUSTRY_JOB_ICONS: Partial<Record<string, LucideIcon>> = {
+  // Apparel
+  seams: SplineIcon,
+  "cutting-file": SquareScissorsIcon,
+  "print-pattern": PrinterIcon,
+  "lay-plan": Grid2x2Icon,
+  "graded-nest": Layers2Icon,
+  "size-spec": TablePropertiesIcon,
+  // Packaging
+  "carton-fit": PackageCheckIcon,
+  dieline: SquareDashedIcon,
+  "artwork-template": PaletteIcon,
+  // Woodworking
+  "cut-list-check": ListChecksIcon,
+  "cut-list": TableIcon,
+  "sheet-layout": LayoutPanelTopIcon,
+  "furniture-plan": DraftingCompassIcon,
+  // Jewelry
+  "stone-seat": GemIcon,
+  "metal-weight": ScaleIcon,
+  "casting-check": FlameIcon,
+  "casting-file": FileOutputIcon,
+  "ring-spec": ScrollTextIcon,
+  // Footwear
+  "shoe-size": FootprintsIcon,
+  "midsole-print": SquareStackIcon,
+  "flatten-upper": UnfoldHorizontalIcon,
+  "sole-spec": RulerDimensionLineIcon,
+};
+
 /** The jobs with a picture of their own, by id: the test holds each to a real job. */
 export const JOB_ICON_IDS: ReadonlyArray<string> = Object.keys(JOB_ICONS);
 
@@ -121,7 +174,12 @@ const SECTION_ICONS: Partial<Record<string, LucideIcon>> = {
  * bar menu's icon).
  */
 export function toolIcon(action: HardwareAction): LucideIcon {
-  return JOB_ICONS[action.id] ?? SECTION_ICONS[action.section] ?? MENU_ICONS[action.group];
+  return (
+    JOB_ICONS[action.id] ??
+    INDUSTRY_JOB_ICONS[action.id] ??
+    SECTION_ICONS[action.section] ??
+    MENU_ICONS[action.group]
+  );
 }
 
 /** Whether a section (`ACTION_SECTIONS` id) has a picture of its own for its jobs to fall back on. */
