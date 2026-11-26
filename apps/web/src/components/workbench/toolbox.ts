@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 import {
   type HardwareAction,
   type HardwareActionGroup,
@@ -5,7 +7,7 @@ import {
   jobFits,
 } from "./hardwareActions";
 import { libraryHref } from "./library/librarySearch";
-import { MENU_WORDS } from "./kinds";
+import { fileTint, KIND_ICONS, MENU_ICONS, MENU_TINTS, MENU_WORDS } from "./kinds";
 import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { lowerName } from "./partNames";
 
@@ -15,24 +17,82 @@ export interface ToolboxSection {
   readonly actions: ReadonlyArray<HardwareAction>;
 }
 
-/** One of the Toolbox's three groups and its jobs. */
+/** The Toolbox's tabs, by what the engineer means to do: shape it, check it, make it, document it. */
+export type ToolboxTab = "Design" | "Check" | "Make" | "Document";
+
+const TOOLBOX_TABS: ReadonlyArray<ToolboxTab> = ["Design", "Check", "Make", "Document"];
+
+/** One of the Toolbox's tabs and its jobs. */
 export interface ToolboxGroup {
-  readonly group: HardwareActionGroup;
+  readonly tab: ToolboxTab;
   readonly sections: ReadonlyArray<ToolboxSection>;
 }
 
-const GROUP_ORDER: ReadonlyArray<HardwareActionGroup> = ["Evaluate", "Manufacture", "Document"];
+/** What each tab is for, in a line under its name. */
+export const TOOLBOX_PURPOSES: Readonly<Record<ToolboxTab, string>> = {
+  Design: "Ideas to start from, and parts to buy rather than make.",
+  Check: "Will it hold, fit, move and be made as it should?",
+  Make: "The files to print, machine, cut or order it.",
+  Document: "Drawings, instructions and pictures for whoever builds it.",
+};
+
+/** Each tab's picture and hue: Check, Make and Document as their files are, Design as CAD's. */
+export const TOOLBOX_ICONS: Readonly<Record<ToolboxTab, LucideIcon>> = {
+  Design: KIND_ICONS.CAD,
+  Check: MENU_ICONS.Evaluate,
+  Make: MENU_ICONS.Manufacture,
+  Document: MENU_ICONS.Document,
+};
+
+export const TOOLBOX_TINTS: Readonly<Record<ToolboxTab, string>> = {
+  Design: fileTint("CAD"),
+  Check: MENU_TINTS.Evaluate,
+  Make: MENU_TINTS.Manufacture,
+  Document: MENU_TINTS.Document,
+};
+
+/** The sections whose jobs shape the design itself, not check, make or document it. */
+const DESIGN_SECTIONS: ReadonlySet<string> = new Set(["concepts", "standard"]);
 
 /**
- * Jobs as the Toolbox shows them: always Evaluate, Manufacture and Document, in that order, a tab
- * each, every section open and every job a tile like the others. The menus' everyday sections come
- * first and the ones they keep under "More" after, nothing folded; a group with no job has no
- * sections.
+ * A job's tab: Design for concepts and off-the-shelf parts, Check for every analysis and every
+ * check that it can be made, Make for the files to make it, and Document for the rest.
  */
-export function toolboxGroups(menus: ReadonlyArray<HardwareActionMenu>): ToolboxGroup[] {
-  return GROUP_ORDER.map((group) => {
-    const menu = menus.find((entry) => entry.group === group);
-    return { group, sections: menu ? [...menu.sections, ...menu.others] : [] };
+export function toolboxTabOf(action: Pick<HardwareAction, "group" | "section" | "checks">) {
+  if (DESIGN_SECTIONS.has(action.section)) return "Design";
+  if (action.group === "Evaluate") return "Check";
+  if (action.group === "Manufacture") return action.checks ? "Check" : "Make";
+  return "Document";
+}
+
+/**
+ * Jobs as the Toolbox shows them: always Design, Check, Make and Document, a tab each, every
+ * section open. Sections keep the menus' order (the project's own way of making it first, the
+ * ones the menus keep under "More" after), each split among the tabs its jobs belong to. A tab's
+ * starred jobs (`pins`) lead it under Starred, in the order starred, and leave their sections.
+ */
+export function toolboxGroups(
+  menus: ReadonlyArray<HardwareActionMenu>,
+  pins: ReadonlyArray<string> = [],
+): ToolboxGroup[] {
+  const sections = menus.flatMap((menu) => [...menu.sections, ...menu.others]);
+  return TOOLBOX_TABS.map((tab) => {
+    const inTab = (job: HardwareAction) => toolboxTabOf(job) === tab;
+    const jobs = sections.flatMap((section) => section.actions.filter(inTab));
+    const starred = pins.flatMap((id) => jobs.filter((job) => job.id === id));
+    const rest = sections
+      .map((section) => ({
+        title: section.title,
+        actions: section.actions.filter((job) => inTab(job) && !pins.includes(job.id)),
+      }))
+      .filter((section) => section.actions.length > 0);
+    return {
+      tab,
+      sections: [
+        ...(starred.length === 0 ? [] : [{ title: "Starred", actions: starred }]),
+        ...pairLoneSections(rest),
+      ],
+    };
   });
 }
 
@@ -56,27 +116,16 @@ export function pairLoneSections(
   return paired;
 }
 
-/** The Toolbox's tabs: the person's own tools first, then each group. */
-export type ToolboxTab = "Yours" | HardwareActionGroup;
-
-const TABS: ReadonlyArray<ToolboxTab> = ["Yours", ...GROUP_ORDER];
-
 const TAB_KEY = "studio:toolbox-tab";
 
-/**
- * The tab the Toolbox opens on: the one left open on this device, else Yours. With nothing pinned
- * it never opens on Yours, which would hold suggestions alone, but on the first group.
- */
-export function readToolboxTab(pinned: boolean): ToolboxTab {
-  let stored: ToolboxTab | undefined;
+/** The tab the Toolbox opens on: the one left open on this device, else Design. */
+export function readToolboxTab(): ToolboxTab {
   try {
     const value = globalThis.localStorage?.getItem(TAB_KEY);
-    stored = TABS.find((tab) => tab === value);
+    return TOOLBOX_TABS.find((tab) => tab === value) ?? "Design";
   } catch {
-    stored = undefined;
+    return "Design";
   }
-  const tab = stored ?? "Yours";
-  return tab === "Yours" && !pinned ? "Evaluate" : tab;
 }
 
 /** Remembers, for this device, the tab the Toolbox shows. */
@@ -91,46 +140,7 @@ export function writeToolboxTab(tab: ToolboxTab): void {
 const allJobs = (groups: ReadonlyArray<ToolboxGroup>) =>
   groups.flatMap((group) => group.sections.flatMap((section) => section.actions));
 
-/** The pinned jobs the enabled skills can still do, in the order pinned. */
-export function pinnedJobs(
-  groups: ReadonlyArray<ToolboxGroup>,
-  pins: ReadonlyArray<string>,
-): ReadonlyArray<HardwareAction> {
-  const jobs = allJobs(groups);
-  return pins.flatMap((id) => jobs.filter((job) => job.id === id));
-}
-
-/**
- * A few jobs made for the file in front's kind and not pinned, taken from each group in turn so
- * they span checking, making and documenting it. A job for any file is no suggestion.
- */
-export function suggestedJobs(
-  groups: ReadonlyArray<ToolboxGroup>,
-  kind: string | null,
-  pins: ReadonlyArray<string>,
-  limit = 4,
-): ReadonlyArray<HardwareAction> {
-  if (kind === null) return [];
-  const queues = groups.map((group) =>
-    group.sections
-      .flatMap((section) => section.actions)
-      .filter((job) => job.kinds?.includes(kind) === true && !pins.includes(job.id)),
-  );
-  const picked: HardwareAction[] = [];
-  for (
-    let round = 0;
-    picked.length < limit && queues.some((queue) => queue.length > round);
-    round++
-  ) {
-    for (const queue of queues) {
-      const job = queue[round];
-      if (job !== undefined && picked.length < limit) picked.push(job);
-    }
-  }
-  return picked;
-}
-
-/** Every job whose name, what it makes or group holds each word typed. */
+/** Every job whose name, what it makes, menu or tab holds each word typed. */
 export function searchJobs(
   groups: ReadonlyArray<ToolboxGroup>,
   query: string,
@@ -141,8 +151,8 @@ export function searchJobs(
     .filter((word) => word !== "");
   if (words.length === 0) return [];
   return allJobs(groups).filter((job) => {
-    const text = `${job.label} ${job.gets} ${MENU_WORDS[job.group]}`.toLowerCase();
-    return words.every((word) => text.includes(word));
+    const text = `${job.label} ${job.gets} ${MENU_WORDS[job.group]} ${toolboxTabOf(job)}`;
+    return words.every((word) => text.toLowerCase().includes(word));
   });
 }
 
@@ -206,8 +216,8 @@ export function toolboxStart(
 }
 
 /**
- * The line under a group none of whose jobs fit the file in front (a CAM job has nothing in
- * Analysis), where every tile is dimmed; null when one fits.
+ * The line under a tab none of whose jobs fit the file in front (a CAM job has nothing in
+ * Design), where every row is dimmed; null when one fits.
  */
 export function toolboxLeftOut(group: ToolboxGroup, kind: string): string | null {
   const fits = group.sections.some((section) =>
@@ -217,14 +227,26 @@ export function toolboxLeftOut(group: ToolboxGroup, kind: string): string | null
   return `None of these work on this ${lowerName(kind)}. Pause on one to see what it works on.`;
 }
 
+/** The Library's group for a tab's jobs; Design's span two, so it opens the whole Library. */
+const LIBRARY_GROUPS: Readonly<Record<ToolboxTab, HardwareActionGroup | null>> = {
+  Design: null,
+  Check: "Evaluate",
+  Make: "Manufacture",
+  Document: "Document",
+};
+
 /**
- * The footer link "See what each makes": the Library open on the group. Its Make one comes back to
- * `from` only while the workspace has a New to take the request (`workspaceOpen`, as ⌘K's Library
- * does); from elsewhere it goes to Home's.
+ * The footer link "See what each makes": the Library open on the tab's group. Its Make one comes
+ * back to `from` only while the workspace has a New to take the request (`workspaceOpen`, as ⌘K's
+ * Library does); from elsewhere it goes to Home's.
  */
 export function toolboxLibraryLink(
-  group: HardwareActionGroup,
+  tab: ToolboxTab,
   where: { readonly workspaceOpen: boolean; readonly from: string },
 ) {
-  return libraryHref({ group, ...(where.workspaceOpen ? { from: where.from } : {}) });
+  const group = LIBRARY_GROUPS[tab];
+  return libraryHref({
+    ...(group === null ? {} : { group }),
+    ...(where.workspaceOpen ? { from: where.from } : {}),
+  });
 }

@@ -64,7 +64,8 @@ export const ACTION_SECTIONS: ReadonlyArray<ActionSectionDef> = [
     title: "Sheet metal and cutting",
     processes: ["Sheet metal", "Laser or waterjet cutting"],
   },
-  { id: "files", group: "Manufacture", title: "Files and off-the-shelf parts" },
+  { id: "files", group: "Manufacture", title: "Files" },
+  { id: "standard", group: "Manufacture", title: "Off-the-shelf parts" },
   { id: "board-files", group: "Manufacture", title: "Circuit board" },
   { id: "drawings", group: "Document", title: "Drawings" },
   { id: "building", group: "Document", title: "Building it" },
@@ -356,7 +357,7 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
   {
     id: "standard-parts",
     group: "Manufacture",
-    section: "files",
+    section: "standard",
     label: "Off-the-shelf parts",
     gets: "Each part with where to buy it, and its STEP file where the maker offers one.",
     skill: "cad",
@@ -622,13 +623,6 @@ export interface HardwareActionMenu {
   /** The heading over the submenus: "More simulations", "Other ways to make it". */
   readonly moreLabel: string;
 }
-
-/** What each group is for, in a line under its name in the Toolbox. */
-export const GROUP_PURPOSES: Record<HardwareActionGroup, string> = {
-  Evaluate: "Will it hold, fit and move as it should?",
-  Manufacture: "Check it can be made, and make the files to make it.",
-  Document: "Drawings, instructions and pictures for whoever builds it.",
-};
 
 export const MORE_LABELS: Record<HardwareActionGroup, string> = {
   Evaluate: "More simulations",

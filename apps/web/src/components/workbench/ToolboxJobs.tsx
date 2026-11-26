@@ -7,16 +7,15 @@ import { Button } from "../ui/button";
 import type { HardwareAction } from "./hardwareActions";
 import { entryOfAction, plainPrompt } from "./library/libraryCatalog";
 import { LibraryPicture } from "./library/LibraryPicture";
-import { worksOnWords } from "./toolbox";
+import { TOOLBOX_TINTS, toolboxTabOf, worksOnWords } from "./toolbox";
 import type { NewTemplate } from "./newTemplates";
 import type { ToolboxSection } from "./toolbox";
 import { PinStar } from "./PinStar";
 import { GROUP_LABEL } from "./studioLayout";
-import { MENU_TINTS } from "./kinds";
 import { toolIcon } from "./toolIcons";
 
 /**
- * The sections of a group (`StudioToolbox`), one under the next: each tool is a row wide enough to
+ * The sections of a tab (`StudioToolbox`), one under the next: each tool is a row wide enough to
  * say what it makes, never a name alone. (`pairLoneSections` gives them in a steady order.)
  */
 export const SECTION_GRID = "flex min-w-0 flex-col gap-4";
@@ -116,7 +115,7 @@ function ToolRow(props: {
           <span
             className={cn(
               "flex size-8 shrink-0 items-center justify-center rounded-lg bg-current/10 dark:bg-current/15",
-              MENU_TINTS[action.group],
+              TOOLBOX_TINTS[toolboxTabOf(action)],
               !fits && "opacity-64",
             )}
           >
