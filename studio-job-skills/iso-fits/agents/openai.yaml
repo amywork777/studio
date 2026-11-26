@@ -1,4 +1,0 @@
-interface:
-  display_name: "Apply an ISO fit"
-  short_description: "Hole and shaft limits from ISO 286 for the fit you pick, written into the part and its drawing."
-  default_prompt: "Use $iso-fits to apply an ISO fit to the part with $iso-fits: find the hole and shaft that go together, pick the fit for what they do (sliding, press, clearance) or ask me, read the limits off ISO 286 and write them into the part and its drawing."

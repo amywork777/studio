@@ -1,58 +1,44 @@
 /**
- * The `iso-fits` job skill's own instructions and files, after its hand-off (`jobSkillFiles`): the
- * method, and `fits.py` with the table it reads (`fits.json`, written from `isoFits.ts`), so the
- * agent reads a fit's limits off ISO 286 rather than recalling them.
+ * How the agent gives a hole or a shaft a fit from ISO 286, on a drawing's callout or as PMI: the `pmi` job
+ * skill's own instructions after its hand-off (`jobSkillFiles`), with `fits.py` and the table it reads
+ * (`fits.json`, written from `isoFits.ts`), so every limit is read off the standard, never recalled.
  */
 
 import { ISO_FIT_PRESETS, isoFitsTable } from "./isoFits";
 
-export const ISO_FITS_GUIDE = `## Read the limits, never recall them
+export const ISO_FITS_GUIDE = `## Fits from ISO 286, on a drawing or as PMI
 
-Every number comes from this skill's \`fits.py\`, run with the \`cad\` environment's Python (any
-Python 3 runs it; it needs nothing installed). The script is in this skill's folder:
+When the person asks for a fit or a tolerance class ("H7 on this bore", "H7/g6", "a press fit for the
+pin"), on a drawing or as PMI, read its limits off ISO 286 with this skill's \`fits.py\`, never from
+memory. It is in this skill's folder and runs with the \`cad\` environment's Python (any Python 3; it
+needs nothing installed):
 
 \`\`\`sh
-python <this skill's folder>/fits.py H7/g6 20       # a fit at Ø20 mm: hole, shaft, clearances
-python <this skill's folder>/fits.py p6 12          # one tolerance class
+python <this skill's folder>/fits.py H7 22          # one class at Ø22 mm: its limits
+python <this skill's folder>/fits.py H7/g6 22       # a fit: hole, shaft, tightest and loosest
 python <this skill's folder>/fits.py presets        # the preferred fits, by what each is for
 \`\`\`
 
-Add \`--json\` for the same as JSON. It holds ISO 286-1's tables for nominal sizes over 0 up to
-500 mm: holes and shafts c, d, e, f, g, h, js, k, m, n, p, r, s, t and u, grades IT4 to IT13. A
-class it does not hold (a J hole, an a shaft, IT14) it refuses: say so, never fill one in.
+Add \`--json\` for JSON. It holds ISO 286-1's tables over 0 up to 500 mm: holes and shafts c, d, e, f,
+g, h, js, k, m, n, p, r, s, t and u, grades IT4 to IT13. A class it does not hold (a J hole, an a shaft,
+IT14) it refuses: say so, never fill one in.
 
-## Pick the fit
-
-- What the person names wins ("H7/p6", "a press fit", "it should slide"). A word, not a class:
-  take the preset \`fits.py presets\` lists for it, and say which in plain words first, the
-  classes after ("a sliding fit (H7/g6)").
-- Nothing said: read what the two faces do (a pin that turns, a bearing seat, a dowel) and pick,
-  then ask, with the choice made: "I used a press fit (H7/p6) for the bearing seat: keep it, or
-  make it a transition fit (H7/k6) so it comes out by hand?"
-- ISO 286 is metric. On an inch part, ask whether to use it in millimetres or ANSI B4.1's classes,
-  which this table does not hold: those are not checked.
-
-## Write it into the part
-
-- The nominal size stays a named size at the top of the script, and each fitted size is written
-  beside it from the limits the script printed, as a comment that names the class and both limits:
-  \`BORE = 20.0  # Ø20 H7 (ISO 286): 20.000 to 20.021\`. Model it at its nominal size unless the
-  person asks for the middle of its limits, and say which.
-- A fit between two parts goes in both: the hole's class in the part with the hole, the shaft's in
-  the other, the same nominal size in each.
-- A drawing of the part: put the class on the callout with the drawing's own \`fit=\`
-  (\`view.hole(..., fit="H7")\`, \`view.dim(..., fit="g6")\`, \`"H7/g6"\` where both show), the
-  engineering-drawing skill's way, never the limits typed as text. Where there is no drawing, say
-  the fit is in the script and offer one.
-- PMI on the model, where the part has it: \`dimensional_size(..., tolerance=limits(low, high))\`
-  with the printed limits.
-
-## Say what it means
-
-Give the person the fit's kind (clearance, transition or interference), its tightest and loosest
-in mm as \`fits.py\` printed them, and what that means for putting it together (slides by hand,
-light press, heat the hub). Nothing here checks the parts' own geometry: to see they meet, run the
-Fit and clearance check on the assembly.
+- **The class.** What the person names wins. A word, not a class ("it should slide", "a press fit"):
+  take the preset \`fits.py presets\` gives for it, and say it in plain words first, the classes after
+  ("a sliding fit (H7/g6)"). Nothing said: pick from what the faces do, then ask with the choice made
+  ("I used H7/p6 so the bearing presses in: keep it, or H7/k6 so it comes out by hand?").
+- **A drawing.** Put the class on the callout with the drawing's own \`fit=\` (\`view.hole(..., fit="H7")\`,
+  \`view.dim(..., fit="g6")\`, \`"H7/g6"\` where both parts show), as the engineering-drawing skill says,
+  never the limits typed as text. Where the person wants limits printed instead, \`limits=(low, high)\`
+  with the numbers \`fits.py\` printed.
+- **PMI.** \`dimensional_size(..., tolerance=limits(low, high))\` with the printed limits, as
+  references/pmi.md says.
+- **The part.** The nominal size stays a named size in the script, with the class and both limits in its
+  comment: \`BORE = 22.0  # Ø22 H7 (ISO 286): 22.000 to 22.021\`. A fit between two parts goes in both.
+- **ISO 286 is metric.** On an inch part, ask whether to use it in millimetres or ANSI B4.1's classes,
+  which this table does not hold: say those are not checked.
+- **Say what it means:** the fit's kind (clearance, transition or interference) and its tightest and
+  loosest in mm as \`fits.py\` printed them, and what that means for putting it together.
 `;
 
 const FITS_PY = `"""ISO 286-1 limits for a fit or a tolerance class at a nominal size, read off fits.json.

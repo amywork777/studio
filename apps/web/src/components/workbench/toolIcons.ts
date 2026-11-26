@@ -4,7 +4,6 @@ import {
   Axis3dIcon,
   BoxIcon,
   CameraIcon,
-  CircleDotIcon,
   ClipboardCheckIcon,
   ClipboardListIcon,
   DrillIcon,
@@ -50,7 +49,6 @@ const JOB_ICONS: Partial<Record<string, LucideIcon>> = {
   // Fit, motion and mass
   fit: RulerIcon,
   motion: Rotate3dIcon,
-  "iso-fits": CircleDotIcon,
   mass: WeightIcon,
   // Drawings and sketches: a drawing, checked against the part
   "drawing-check": FileCheckIcon,

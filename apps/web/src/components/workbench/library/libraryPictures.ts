@@ -110,7 +110,6 @@ const SKILL_COVERS: Readonly<Record<string, string>> = {
   sendcutsend: "nest",
   "work-instructions": "instructions",
   fit: "clearance",
-  "iso-fits": "iso-fit",
   motion: "motion",
   mass: "fit",
   "drawing-check": "drawing-check",

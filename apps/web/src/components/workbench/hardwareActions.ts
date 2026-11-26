@@ -182,23 +182,6 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     short: (name) => `Range of motion of ${name}`,
   },
   {
-    id: "iso-fits",
-    group: "Evaluate",
-    section: "fit-mass",
-    label: "Apply an ISO fit",
-    gets: "Hole and shaft limits from ISO 286 for the fit you pick, written into the part and its drawing.",
-    skill: "cad",
-    kinds: SOLID,
-    checks: false,
-    prompt: (file) =>
-      `Apply an ISO fit to ${file} with $iso-fits: find the hole and shaft that go together, pick the fit for what they do (sliding, press, clearance) or ask me, read the limits off ISO 286 and write them into the part and its drawing.`,
-    short: (name) => `ISO fit for ${name}`,
-    guide: ISO_FITS_GUIDE,
-    useWhen:
-      "a hole and a shaft, pin or bearing must fit together, or the person names a fit (H7/g6, a press fit)",
-    files: isoFitsSkillFiles,
-  },
-  {
     id: "mass",
     group: "Evaluate",
     section: "fit-mass",
@@ -478,6 +461,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     prompt: (file) =>
       `Add 3D PMI to ${file} as the cad skill's references/pmi.md says: datums on the faces it is located by, the sizes and positions that matter as tolerances, and a general profile note. Then export it as AP242 STEP with its PMI.`,
     short: (name) => `3D PMI for ${name}`,
+    guide: ISO_FITS_GUIDE,
+    useWhen:
+      "a hole and shaft fit or an ISO 286 tolerance class (H7, H7/g6, a press fit) is asked for, as PMI or on a drawing's callout",
+    files: isoFitsSkillFiles,
   },
   {
     id: "parts-list",

@@ -171,7 +171,7 @@ export const LIBRARY_DOCUMENTS: ReadonlyArray<LibraryDocument> = [
     id: "doc:fit-mass",
     name: "Fit, motion and mass",
     templates: [],
-    actions: ["fit", "motion", "iso-fits", "mass"],
+    actions: ["fit", "motion", "mass"],
     what: "Whether an assembly's parts fit and move without hitting, and its weight and center of mass.",
     give: "The assembly.",
     asks: null,

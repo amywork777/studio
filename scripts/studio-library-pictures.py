@@ -627,21 +627,6 @@ def cover_flags():
     return model(mount_parts(only=("servo_bracket",)), mount_camera(), hook)
 
 
-def cover_iso_fit():
-    """A fit on the bracket's holes: each ringed twice, the hole's band and the shaft's inside it.
-    An illustration, with no figure."""
-    tapped, _ = bracket_holes()
-
-    def hook(picture, marks):
-        camera = picture["camera"]
-        for hole in tapped:
-            for radius, width in ((4.6, 3.2), (2.9, 2.2)):
-                ring = arc((hole[0], hole[1], 0.0), radius, 0, 2 * math.pi, steps=36)
-                marks.add(line_path(camera.project(ring)[:, :2], closed=True), "hue", width)
-
-    return model(mount_parts(only=("servo_bracket",)), mount_camera(), hook)
-
-
 @lru_cache
 def bracket_holes():
     """The bracket's four tapped holes' centres on its top face, and the X span of its cutout."""
@@ -1986,7 +1971,6 @@ COVERS = {
     "fmea": cover_fmea,
     "design-review": cover_design_review,
     "clearance": cover_clearance,
-    "iso-fit": cover_iso_fit,
     "motion-video": cover_motion_video,
     "render": cover_render,
     "fea": cover_fea,
