@@ -1,3 +1,4 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import { describe, expect } from "vite-plus/test";
@@ -22,6 +23,6 @@ describe("Studio's cad after the desktop's shell environment", () => {
         environment: { PATH: "/Users/someone/.local/bin:/usr/bin" },
       });
       expect(environment.PATH).toBe("/studio/home/bin:/Users/someone/.local/bin:/usr/bin");
-    }),
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
