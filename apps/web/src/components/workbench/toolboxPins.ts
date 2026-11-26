@@ -30,7 +30,7 @@ interface ToolboxPinsState {
 }
 
 /**
- * The person's own tools: one list for the Toolbox popup's Yours tab and the Toolbox page's Your
+ * The person's own tools: one list for the Toolbox popup's Featured tab and the Toolbox page's Your
  * tools shelf, each tool starred in either.
  */
 export const useToolboxPins = create<ToolboxPinsState>((set, get) => ({

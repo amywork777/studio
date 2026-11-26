@@ -73,6 +73,10 @@ const checksFamily = Atom.family((key: string) =>
   }).pipe(Atom.withLabel(`studio:project-checks:${key}`)),
 );
 
+/** Reads a folder's files again: a file copied in by Studio, not the agent, changes no workspace. */
+export const refreshProjectListing = (environmentId: EnvironmentId, root: string) =>
+  appAtomRegistry.refresh(listing(environmentId, root));
+
 /**
  * Every folder of a project with its files and the checks its parts have been
  * through (`checkResults.ts`), read again when the thread's agent changes

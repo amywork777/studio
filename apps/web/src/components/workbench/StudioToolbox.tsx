@@ -1,6 +1,6 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { SearchIcon, StarIcon } from "lucide-react";
-import { useState } from "react";
+import { SearchIcon, LayoutGridIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
 import type { ComposerHandleRef } from "~/composerHandleContext";
@@ -19,6 +19,8 @@ import type { NewTemplate } from "./newTemplates";
 import { usePartForJobs } from "./StudioPanelBar";
 import { SECTION_GRID, SectionJobs } from "./ToolboxJobs";
 import {
+  featuredJobs,
+  type FeaturedJob,
   pairLoneSections,
   pinnedJobs,
   readToolboxTab,
@@ -31,8 +33,11 @@ import {
   toolboxLibraryLink,
   toolboxStart,
   toolboxWorksOn,
+  uncheckedDrawing,
   writeToolboxTab,
 } from "./toolbox";
+import { ToolboxFeatured } from "./ToolboxFeatured";
+import { refreshProjectListing, useProjectChecks } from "./useProjectChecks";
 import { useToolboxOpen } from "./toolboxOpen";
 import { useToolboxPins } from "./toolboxPins";
 import { ToolboxPopup } from "./ToolboxPopup";
@@ -40,8 +45,9 @@ import { useProjectKinds } from "./useLeadPart";
 import { useToolboxJobs } from "./useToolboxJobs";
 
 /**
- * Every job the skills can do, for the part in front (`usePartForJobs`): Yours (pinned, and a few
- * made for the part), a tab per group, and a search over all. A job that does not fit is dimmed and
+ * Every job the skills can do, for the part in front (`usePartForJobs`): its home, Featured (a few
+ * cards with pictures, then what is pinned and a few made for the part), a tab per group, and a
+ * search over all. A job that does not fit is dimmed and
  * says what it works on, or opens New where New makes its input. Hangs under the title bar's button.
  */
 export function StudioToolbox(props: {
@@ -77,9 +83,7 @@ export function StudioToolbox(props: {
     );
   };
 
-  const [tab, setTabState] = useState(() =>
-    readToolboxTab(useToolboxPins.getState().pins.length > 0),
-  );
+  const [tab, setTabState] = useState(readToolboxTab);
   const setTab = (next: ToolboxTab) => {
     setTabState(next);
     writeToolboxTab(next);
@@ -92,6 +96,24 @@ export function StudioToolbox(props: {
   const found = searchJobs(groups, query);
   const searching = query.trim() !== "";
   const worksOn = (action: HardwareAction) => toolboxWorksOn(action, kind, startFor(action));
+  // The project's own reason to feature a job: a drawing in its References not checked yet.
+  const project = useProjectChecks({
+    environmentId: threadRef.environmentId,
+    folders: props.folder === null ? [] : [props.folder],
+    mutationId: props.mutationId,
+  });
+  // A drawing dropped on the chat is copied into References with no agent turn: read the folder
+  // again each time the Toolbox opens, so the home sees it.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- re-reads the project's folder, held in the atom registry
+  useEffect(() => {
+    if (open && props.folder !== null) refreshProjectListing(threadRef.environmentId, props.folder);
+  }, [open, props.folder, threadRef.environmentId]);
+  const featured = featuredJobs(groups, kind, {
+    uncheckedDrawing: uncheckedDrawing(
+      project.flatMap((folder) => folder.paths ?? []),
+      project.some((folder) => folder.results.some((result) => result.check === "Drawing check")),
+    ),
+  });
 
   const run = (action: HardwareAction) => {
     if (composerRef === null || part === null) return;
@@ -157,8 +179,8 @@ export function StudioToolbox(props: {
               }}
             >
               <ToggleGroupItem value="Yours">
-                <StarIcon aria-hidden="true" className="text-primary" />
-                Yours
+                <LayoutGridIcon aria-hidden="true" className="text-primary" />
+                Featured
               </ToggleGroupItem>
               {groups.map((group) => {
                 const Icon = MENU_ICONS[group.group];
@@ -211,6 +233,9 @@ export function StudioToolbox(props: {
                   )
                 ) : tab === "Yours" ? (
                   <YourJobs
+                    environmentId={threadRef.environmentId}
+                    featured={featured}
+                    onTry={run}
                     pinned={pinnedJobs(groups, pins)}
                     suggested={suggestedJobs(groups, kind, pins)}
                     partName={part === null ? null : (part.name ?? `this ${lowerName(part.kind)}`)}
@@ -294,18 +319,34 @@ const tileProps = (props: TileProps): TileProps => ({
 });
 
 /**
- * Yours: the pinned jobs, in the order pinned, then a few made for the part in front that are not
- * pinned (`suggestedJobs`). With none pinned it says how to pin one.
+ * The home tab, Featured: the featured cards (`ToolboxFeatured`), then the pinned jobs, in the order
+ * pinned, then a few made for the part in front that are not pinned or featured (`suggestedJobs`).
+ * With none pinned it says how to pin one.
  */
 function YourJobs(props: {
+  readonly environmentId: ScopedThreadRef["environmentId"];
+  readonly featured: ReadonlyArray<FeaturedJob>;
+  readonly onTry: (action: HardwareAction) => void;
   readonly pinned: ReadonlyArray<HardwareAction>;
   readonly suggested: ReadonlyArray<HardwareAction>;
   /** The part in front by name, for the suggestions' title; null with none. */
   readonly partName: string | null;
   readonly tiles: TileProps;
 }) {
+  const suggested = props.suggested.filter(
+    (job) => !props.featured.some((entry) => entry.job.id === job.id),
+  );
   return (
     <section aria-label="Your tools" className="flex flex-col gap-4">
+      {props.partName === null ? null : (
+        <ToolboxFeatured
+          environmentId={props.environmentId}
+          featured={props.featured}
+          partName={props.partName}
+          disabled={props.tiles.disabled}
+          onTry={props.onTry}
+        />
+      )}
       {props.pinned.length === 0 ? (
         <p className="px-1 text-xs text-muted-foreground">
           Star a tool in any tab to keep it here, in the order you star them.
@@ -315,10 +356,10 @@ function YourJobs(props: {
           <SectionJobs section={{ title: "Starred", actions: props.pinned }} {...props.tiles} />
         </div>
       )}
-      {props.suggested.length === 0 || props.partName === null ? null : (
+      {suggested.length === 0 || props.partName === null ? null : (
         <div className={SECTION_GRID}>
           <SectionJobs
-            section={{ title: `Suggested for ${props.partName}`, actions: props.suggested }}
+            section={{ title: `Suggested for ${props.partName}`, actions: suggested }}
             {...props.tiles}
           />
         </div>

@@ -64,10 +64,10 @@ const TABS: ReadonlyArray<ToolboxTab> = ["Yours", ...GROUP_ORDER];
 const TAB_KEY = "studio:toolbox-tab";
 
 /**
- * The tab the Toolbox opens on: the one left open on this device, else Yours. With nothing pinned
- * it never opens on Yours, which would hold suggestions alone, but on the first group.
+ * The tab the Toolbox opens on: the one left open on this device, else Yours, its home (Featured,
+ * then what is starred and suggested), which holds the featured jobs even with nothing pinned.
  */
-export function readToolboxTab(pinned: boolean): ToolboxTab {
+export function readToolboxTab(): ToolboxTab {
   let stored: ToolboxTab | undefined;
   try {
     const value = globalThis.localStorage?.getItem(TAB_KEY);
@@ -75,8 +75,7 @@ export function readToolboxTab(pinned: boolean): ToolboxTab {
   } catch {
     stored = undefined;
   }
-  const tab = stored ?? "Yours";
-  return tab === "Yours" && !pinned ? "Evaluate" : tab;
+  return stored ?? "Yours";
 }
 
 /** Remembers, for this device, the tab the Toolbox shows. */
@@ -128,6 +127,74 @@ export function suggestedJobs(
     }
   }
   return picked;
+}
+
+/**
+ * The jobs the Toolbox's home leads with, in order: what most parts are taken through first. A
+ * drawing check needs a drawing to check against, so it leads only when the project has one.
+ */
+const FEATURED: ReadonlyArray<string> = [
+  "strength",
+  "drawing",
+  "fit",
+  "pictures",
+  "render",
+  "export",
+];
+
+export interface FeaturedJob {
+  readonly job: HardwareAction;
+  /** Why it leads, from the project itself ("You added bracket.pdf: …"); null for none. */
+  readonly reason: string | null;
+}
+
+/**
+ * The home's Featured row: a few jobs for the file in front, the project's own reasons first (a
+ * drawing in its References that the part has not been checked against puts Drawing check first),
+ * then `FEATURED` in order. Only jobs that fit the file; with none open, none.
+ */
+export function featuredJobs(
+  groups: ReadonlyArray<ToolboxGroup>,
+  kind: string | null,
+  nudges: {
+    /** A drawing or sketch in the project's References with no drawing check on the part yet. */
+    readonly uncheckedDrawing: string | null;
+  },
+  limit = 3,
+): ReadonlyArray<FeaturedJob> {
+  if (kind === null) return [];
+  const jobs = allJobs(groups).filter((job) => jobFits(job, kind));
+  const byId = (id: string) => jobs.find((job) => job.id === id);
+  const picked: FeaturedJob[] = [];
+  const check = byId("drawing-check");
+  if (nudges.uncheckedDrawing !== null && check !== undefined) {
+    picked.push({
+      job: check,
+      reason: `You added ${nudges.uncheckedDrawing}: check the model against every size on it.`,
+    });
+  }
+  for (const id of FEATURED) {
+    const job = byId(id);
+    if (picked.length >= limit) break;
+    if (job !== undefined && !picked.some((entry) => entry.job.id === id))
+      picked.push({ job, reason: null });
+  }
+  return picked;
+}
+
+/**
+ * A drawing or sketch in the project's References (`brief/references/`, not its drawn pages) that
+ * no drawing check has been run against, by its file name; null with none.
+ */
+export function uncheckedDrawing(
+  paths: ReadonlyArray<string>,
+  drawingChecked: boolean,
+): string | null {
+  if (drawingChecked) return null;
+  const found = paths.find((path) =>
+    /^brief\/references\/[^/]+\.pdf$/i.test(path.replaceAll("\\", "/")),
+  );
+  return found === undefined ? null : (found.replaceAll("\\", "/").split("/").at(-1) ?? null);
 }
 
 /** Every job whose name, what it makes or group holds each word typed. */
