@@ -13,14 +13,13 @@ import { handToChat } from "./handToChat";
 import { withToolLine } from "./toolUsed";
 import { useOpenWorkspaceStore } from "./openWorkspace";
 import { partLink } from "./partLink";
-import { lowerName } from "./partNames";
 import { useNewDialogStore } from "./newDialogStore";
 import type { NewTemplate } from "./newTemplates";
 import { usePartForJobs } from "./StudioPanelBar";
 import { SECTION_GRID, SectionJobs } from "./ToolboxJobs";
 import {
   featuredJobs,
-  type FeaturedJob,
+  homeRows,
   pairLoneSections,
   pinnedJobs,
   readToolboxTab,
@@ -36,7 +35,7 @@ import {
   uncheckedDrawing,
   writeToolboxTab,
 } from "./toolbox";
-import { ToolboxFeatured } from "./ToolboxFeatured";
+import { ToolboxHome } from "./ToolboxFeatured";
 import { refreshProjectListing, useProjectChecks } from "./useProjectChecks";
 import { useToolboxOpen } from "./toolboxOpen";
 import { useToolboxPins } from "./toolboxPins";
@@ -232,14 +231,19 @@ export function StudioToolbox(props: {
                     </div>
                   )
                 ) : tab === "Yours" ? (
-                  <YourJobs
+                  <ToolboxHome
                     environmentId={threadRef.environmentId}
                     featured={featured}
+                    rows={homeRows({
+                      groups,
+                      kind,
+                      featured,
+                      suggested: suggestedJobs(groups, kind, pins),
+                      pinned: pinnedJobs(groups, pins),
+                    })}
+                    disabled={tiles.disabled}
                     onTry={run}
-                    pinned={pinnedJobs(groups, pins)}
-                    suggested={suggestedJobs(groups, kind, pins)}
-                    partName={part === null ? null : (part.name ?? `this ${lowerName(part.kind)}`)}
-                    tiles={tiles}
+                    onSeeAll={setTab}
                   />
                 ) : shown ? (
                   <GroupJobs
@@ -317,53 +321,3 @@ const tileProps = (props: TileProps): TileProps => ({
   onStart: props.onStart,
   pinnable: props.pinnable,
 });
-
-/**
- * The home tab, Featured: the featured cards (`ToolboxFeatured`), then the pinned jobs, in the order
- * pinned, then a few made for the part in front that are not pinned or featured (`suggestedJobs`).
- * With none pinned it says how to pin one.
- */
-function YourJobs(props: {
-  readonly environmentId: ScopedThreadRef["environmentId"];
-  readonly featured: ReadonlyArray<FeaturedJob>;
-  readonly onTry: (action: HardwareAction) => void;
-  readonly pinned: ReadonlyArray<HardwareAction>;
-  readonly suggested: ReadonlyArray<HardwareAction>;
-  /** The part in front by name, for the suggestions' title; null with none. */
-  readonly partName: string | null;
-  readonly tiles: TileProps;
-}) {
-  const suggested = props.suggested.filter(
-    (job) => !props.featured.some((entry) => entry.job.id === job.id),
-  );
-  return (
-    <section aria-label="Your tools" className="flex flex-col gap-4">
-      {props.partName === null ? null : (
-        <ToolboxFeatured
-          environmentId={props.environmentId}
-          featured={props.featured}
-          partName={props.partName}
-          disabled={props.tiles.disabled}
-          onTry={props.onTry}
-        />
-      )}
-      {props.pinned.length === 0 ? (
-        <p className="px-1 text-xs text-muted-foreground">
-          Star a tool in any tab to keep it here, in the order you star them.
-        </p>
-      ) : (
-        <div className={SECTION_GRID}>
-          <SectionJobs section={{ title: "Starred", actions: props.pinned }} {...props.tiles} />
-        </div>
-      )}
-      {suggested.length === 0 || props.partName === null ? null : (
-        <div className={SECTION_GRID}>
-          <SectionJobs
-            section={{ title: `Suggested for ${props.partName}`, actions: suggested }}
-            {...props.tiles}
-          />
-        </div>
-      )}
-    </section>
-  );
-}

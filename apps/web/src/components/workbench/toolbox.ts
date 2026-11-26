@@ -197,6 +197,54 @@ export function uncheckedDrawing(
   return found === undefined ? null : (found.replaceAll("\\", "/").split("/").at(-1) ?? null);
 }
 
+/** A row of the Toolbox's home: its title, its tiles, and where See all goes (a group's tab). */
+export interface HomeRow {
+  readonly title: string;
+  readonly jobs: ReadonlyArray<{ readonly job: HardwareAction; readonly subtitle: string }>;
+  readonly group: HardwareActionGroup | null;
+}
+
+/**
+ * The rows under the home's hero, as an app store's front page has them: For this part (the other
+ * featured jobs, then a few made for it), Starred, then a row per group of the jobs that fit the
+ * file in front, the hero's aside; each tile subtitled by its section ("Simulation"). Empty rows go.
+ */
+export function homeRows(input: {
+  readonly groups: ReadonlyArray<ToolboxGroup>;
+  readonly kind: string | null;
+  readonly featured: ReadonlyArray<FeaturedJob>;
+  readonly suggested: ReadonlyArray<HardwareAction>;
+  readonly pinned: ReadonlyArray<HardwareAction>;
+}): HomeRow[] {
+  const sectionOf = new Map(
+    input.groups.flatMap((group) =>
+      group.sections.flatMap((section) =>
+        section.actions.map((job) => [job.id, section.title] as const),
+      ),
+    ),
+  );
+  const tile = (job: HardwareAction) => ({ job, subtitle: sectionOf.get(job.id) ?? "" });
+  const hero = input.featured[0]?.job.id;
+  const featured = new Set(input.featured.map((entry) => entry.job.id));
+  const forPart = [
+    ...input.featured.slice(1).map((entry) => entry.job),
+    ...input.suggested.filter((job) => !featured.has(job.id)),
+  ];
+  const rows: HomeRow[] = [
+    { title: "For this part", jobs: forPart.map(tile), group: null },
+    { title: "Starred", jobs: input.pinned.map(tile), group: null },
+    ...input.groups.map((group) => ({
+      title: MENU_WORDS[group.group],
+      jobs: group.sections
+        .flatMap((section) => section.actions)
+        .filter((job) => job.id !== hero && input.kind !== null && jobFits(job, input.kind))
+        .map(tile),
+      group: group.group,
+    })),
+  ];
+  return rows.filter((row) => row.jobs.length > 0);
+}
+
 /** Every job whose name, what it makes or group holds each word typed. */
 export function searchJobs(
   groups: ReadonlyArray<ToolboxGroup>,

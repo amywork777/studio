@@ -918,12 +918,14 @@ as they were.
   a popup under the title bar's right button, the Toolbox's one way in (Amy, 11/18: one button, not
   one per group; the sidebar's Toolbox row and the chat's More tools open the same popup in a project,
   and the Toolbox page, with its Browse, elsewhere), opening on the tab used last, else on its
-  home, Featured (Amy, 2026-11-25: surfaced as an app store's front page is, inside the popup):
-  three cards for the part in front, each its Library cover (drawn from the examples' own files),
-  what it makes in a line and Try, which writes the job into the chat as a tile does
-  (`ToolboxFeatured.tsx`, `featuredJobs`); a drawing in the project's References that no drawing
-  check has used puts Check against the drawing first, saying why. Under the cards, the starred
-  tools and a few more suggested for the part. It takes none of the panel, so the model keeps all
+  home, Featured (Amy, 2026-11-25: as an app store's front page, inside the popup): one large card
+  for the job the part most needs, its Library cover (drawn from the examples' own files), what it
+  makes in full and a Try pill, then rows that scroll sideways (For this part, Starred, then a row
+  per group of the jobs that fit the file, each with See all to its tab), each tile a cover, its
+  name, its section and Try, which writes the job into the chat as a tile does
+  (`ToolboxFeatured.tsx`, `featuredJobs`, `homeRows`); a drawing in the project's References that
+  no drawing check has used puts Check against the drawing in the large card, saying why.
+  It takes none of the panel, so the model keeps all
   of it. The button opens it, with the panel if that is shut, and shuts it (`toolboxOpen.ts`), as
   do Escape and a press anywhere but the model; a press on the model leaves it open, so its tiles follow
   the part picked there (`ToolboxPopup.tsx`), and a tile's press shuts it as it starts the job. Every job the

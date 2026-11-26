@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { HARDWARE_ACTIONS, hardwareActions } from "./hardwareActions";
 import {
   featuredJobs,
+  homeRows,
   jobCount,
   pairLoneSections,
   pinnedJobs,
@@ -252,5 +253,43 @@ describe("the home's Featured row", () => {
     expect(uncheckedDrawing(paths, false)).toBe("a.pdf");
     expect(uncheckedDrawing(paths, true)).toBeNull();
     expect(uncheckedDrawing(["docs/a.pdf"], false)).toBeNull();
+  });
+});
+
+describe("the home's rows", () => {
+  const groups = toolboxGroups(
+    hardwareActions(
+      null,
+      new Set(["fea", "cad", "engineering-drawing", "render"]),
+      "CNC machining",
+    ),
+  );
+  const featured = featuredJobs(groups, "Part", { uncheckedDrawing: null });
+
+  it("runs For this part, then a row per group of what fits, each tile under its section", () => {
+    const rows = homeRows({ groups, kind: "Part", featured, suggested: [], pinned: [] });
+    expect(rows.map((row) => row.title)).toEqual([
+      "For this part",
+      "Analysis",
+      "Manufacturing",
+      "Documents",
+    ]);
+    expect(rows[0]!.jobs.map((tile) => tile.job.id)).toEqual(
+      featured.slice(1).map((entry) => entry.job.id),
+    );
+    // The hero is not repeated, and a part never gets an assembly's Fit and clearance.
+    const ids = rows.flatMap((row) => row.jobs.map((tile) => tile.job.id));
+    expect(rows.slice(1).flatMap((row) => row.jobs.map((tile) => tile.job.id))).not.toContain(
+      featured[0]!.job.id,
+    );
+    expect(ids).not.toContain("fit");
+    expect(featured[0]!.job.id).toBe("strength");
+    expect(rows[1]!.jobs.find((tile) => tile.job.id === "mass")?.subtitle).toBe(
+      "Fit, motion and mass",
+    );
+  });
+
+  it("drops empty rows, and has none for the groups with nothing open", () => {
+    expect(homeRows({ groups, kind: null, featured: [], suggested: [], pinned: [] })).toEqual([]);
   });
 });
