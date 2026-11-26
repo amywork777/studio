@@ -839,6 +839,23 @@ def cover_views():
     return {"image": canvas, "marks": Marks()}
 
 
+def cover_concepts():
+    """Four of the examples' parts that hold something, each its own way, side by side as concepts are:
+    a bent sheet bracket, a shelf bracket, a motor plate and a printed stand."""
+    files = [("servo-bracket/parts/servo_bracket.step", ALUMINIUM),
+             ("shelf-bracket/parts/shelf_bracket.step", PLATE),
+             ("motor-mount/parts/motor_plate.step", ADAPTER),
+             ("phone-stand/parts/phone_stand.step", CLIP)]
+    canvas = Image.new("RGBA", SIZE, (0, 0, 0, 0))
+    cell = SAFE / 2
+    for index, (path, colour) in enumerate(files):
+        mesh = step_part(path)
+        centre = (CENTRE[0] + (index % 2 - 0.5) * cell, CENTRE[1] + (index // 2 - 0.5) * cell)
+        camera = Camera().fit(mesh.vertices, cell * 0.78, centre)
+        canvas.alpha_composite(render([Part(mesh, colour)], camera)["image"])
+    return {"image": canvas, "marks": Marks()}
+
+
 def cover_catalog():
     """Real step.parts files from the examples, as bought: a motor, a long and a short screw, a nut."""
     import trimesh
@@ -1947,6 +1964,7 @@ COVERS = {
     "catalog": cover_catalog,
     "exploded": cover_exploded,
     "views": cover_views,
+    "concepts": cover_concepts,
     "motion": cover_motion,
     "fit": cover_fit,
     "pmi": cover_pmi,

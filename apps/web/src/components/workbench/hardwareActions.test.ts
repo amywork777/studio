@@ -68,6 +68,7 @@ describe("hardware actions", () => {
       ["Simulation", ["Strength under load"]],
       ["Fit, motion and mass", ["Apply an ISO fit", "Weight and center of mass"]],
       ["Drawings and sketches", ["Check against the drawing"]],
+      ["Concepts", ["Brainstorm concepts"]],
     ]);
     expect(evaluate!.others).toEqual([]);
   });
@@ -81,6 +82,7 @@ describe("hardware actions", () => {
         ["Fit and clearance", "Range of motion", "Apply an ISO fit", "Weight and center of mass"],
       ],
       ["Drawings and sketches", ["Check against the drawing"]],
+      ["Concepts", ["Brainstorm concepts"]],
     ]);
     const document = menu("Document", "Assembly", [
       "cad",

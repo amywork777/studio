@@ -13,6 +13,7 @@
       "insets": []
     },
     "views": { "image": true, "sheet": false, "marks": [], "insets": [] },
+    "concepts": { "image": true, "sheet": false, "marks": [], "insets": [] },
     "motion": {
       "image": true,
       "sheet": false,
