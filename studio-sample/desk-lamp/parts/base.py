@@ -3,6 +3,7 @@ clevis on top whose two cheeks clamp the arm's lower end on an M5 screw. The cle
 leans forward over the base. Origin: the centre of its underside, on the desk; +Z up, the hinge's axis along Y."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -42,6 +43,7 @@ def base():
     body -= bd.Pos(CLEVIS_X, 0, HEIGHT + HINGE_HEIGHT) * bd.Rot(90, 0, 0) * bd.Cylinder(HINGE_HOLE / 2, 2 * (CHEEK_GAP + 2 * CHEEK))  # M5 clearance hole
 
     body.color = "#C8C8C8"
+    body.material = resolve("PETG")
     body.label = "base"
     return body
 

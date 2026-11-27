@@ -2,6 +2,7 @@
 out. Sawn from Ø90 bar and faced to thickness. Origin: the centre of its underside; +Z up."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -20,6 +21,7 @@ def weight():
     plate = bd.chamfer(plate.edges().filter_by(bd.GeomType.CIRCLE), length=EDGE_CHAMFER)
 
     plate.color = "#C0C0C0"
+    plate.material = resolve("MildSteel_Plain_Carbon_Generic")
     plate.label = "weight"
     return plate
 

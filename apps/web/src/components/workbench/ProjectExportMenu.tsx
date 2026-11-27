@@ -77,7 +77,7 @@ export function ProjectExportMenu(props: {
           <MenuItem disabled={files === 0} onClick={() => props.onExport(chosen)}>
             <DownloadIcon />
             Export zip
-            <MenuItemDetail>{files} files</MenuItemDetail>
+            <MenuItemDetail>{files === 1 ? "1 file" : `${files} files`}</MenuItemDetail>
           </MenuItem>
         </MenuGroup>
         <MenuSeparator />

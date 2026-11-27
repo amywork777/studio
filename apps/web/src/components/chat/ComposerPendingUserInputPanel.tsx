@@ -159,7 +159,12 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
         return;
       }
+      // The composer is the question's free-text answer: empty, a digit picks an option.
+      const composer =
+        target instanceof HTMLElement ? target.closest('[data-testid="composer-editor"]') : null;
+      if (composer !== null && (composer.textContent ?? "").trim() !== "") return;
       if (
+        composer === null &&
         target instanceof HTMLElement &&
         target.closest(
           'select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], [aria-modal="true"], [role="menu"], [role="combobox"], [data-slot$="popup"]',

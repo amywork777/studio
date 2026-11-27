@@ -4,6 +4,7 @@ middle lightens it and takes the LED's lead. Origin: the base hinge's axis; the 
 its thickness along Y."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -31,6 +32,7 @@ def arm():
     link = bd.chamfer(link.faces().filter_by(bd.Axis.Y).sort_by(bd.Axis.Y)[-1].outer_wire().edges() + link.faces().filter_by(bd.Axis.Y).sort_by(bd.Axis.Y)[0].outer_wire().edges(), length=EDGE_CHAMFER)
 
     link.color = "#D9DDE2"
+    link.material = resolve("PETG")
     link.label = "arm"
     return link
 

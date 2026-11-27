@@ -60,6 +60,8 @@ export interface DrawingDimension {
   readonly measured: number | null;
   readonly measuredHow: string | null;
   readonly flag: DrawingFlag | null;
+  /** The engineer's answer to the row's flag ("Centred, as modelled"): settled, no longer to confirm. */
+  readonly confirmed: string | null;
   readonly note: string | null;
   /** Other dimensions it is read against (a chain that does not add up). */
   readonly related: ReadonlyArray<string>;
@@ -87,9 +89,17 @@ export interface DrawingCheck {
 
 /**
  * How a dimension came out. `ok` and `out` are Studio's comparison against its tolerance; `flag`
- * needs the engineer; `reference`, `note` and `not-checked` pass or fail nothing.
+ * needs the engineer, and `confirmed` is a flag the engineer answered; `reference`, `note` and
+ * `not-checked` pass or fail nothing.
  */
-export type DimensionStatus = "ok" | "out" | "flag" | "reference" | "note" | "not-checked";
+export type DimensionStatus =
+  | "ok"
+  | "out"
+  | "flag"
+  | "confirmed"
+  | "reference"
+  | "note"
+  | "not-checked";
 
 export interface GradedDimension extends DrawingDimension {
   readonly status: DimensionStatus;
@@ -216,6 +226,7 @@ export function parseDrawingCheck(contents: string): DrawingCheck | null {
         measured: finite(row.measured),
         measuredHow: text(row.measuredHow),
         flag,
+        confirmed: text(row.confirmed) ?? (row.confirmed === true ? "Confirmed" : null),
         note: text(row.note),
         related: Array.isArray(row.related) ? row.related.flatMap((id) => text(id) ?? []) : [],
       },
@@ -296,7 +307,9 @@ function gradeDimension(
       : dimension.flag === "reference"
         ? "reference"
         : dimension.flag !== null
-          ? "flag"
+          ? dimension.confirmed === null
+            ? "flag"
+            : "confirmed"
           : measured === null || band === null
             ? "not-checked"
             : measured >= band.low - SLACK - Math.abs(band.low) * SLACK &&
@@ -317,6 +330,7 @@ export function gradeDrawingCheck(check: DrawingCheck): GradedDrawingCheck {
     ok: 0,
     out: 0,
     flag: 0,
+    confirmed: 0,
     reference: 0,
     note: 0,
     "not-checked": 0,
@@ -327,7 +341,7 @@ export function gradeDrawingCheck(check: DrawingCheck): GradedDrawingCheck {
 
 /** The verdict in a line, in the report's words: "94 match · 9 to confirm · 1 out of tolerance". */
 export function drawingCheckHeadline(counts: GradedDrawingCheck["counts"]): string {
-  return (["out", "flag", "ok", "not-checked"] as const)
+  return (["out", "flag", "ok", "confirmed", "not-checked"] as const)
     .filter((status) => status === "ok" || counts[status] > 0)
     .map((status) => countWords(status, counts[status]))
     .join(" · ");
@@ -356,6 +370,7 @@ export function countWords(status: DimensionStatus, count: number): string {
     ok: "match",
     out: "out of tolerance",
     flag: "to confirm",
+    confirmed: "confirmed",
     "not-checked": "not checked",
     reference: one ? "reference" : "references",
     note: one ? "note" : "notes",
@@ -367,6 +382,7 @@ export const STATUS_WORDS: Readonly<Record<DimensionStatus, string>> = {
   ok: "Matches",
   out: "Out of tolerance",
   flag: "To confirm",
+  confirmed: "Confirmed",
   reference: "Reference",
   note: "Note",
   "not-checked": "Not checked",
@@ -432,7 +448,7 @@ export function modelWords(row: GradedDimension): string {
 
 /** A row's status in words, with what its flag means: "To confirm: conflict". */
 export const statusWords = (row: GradedDimension) =>
-  row.flag !== null && row.status === "flag"
+  row.flag !== null && (row.status === "flag" || row.status === "confirmed")
     ? `${STATUS_WORDS[row.status]}: ${FLAG_WORDS[row.flag]}`
     : STATUS_WORDS[row.status];
 
@@ -442,8 +458,9 @@ const ROW_ORDER: Readonly<Record<DimensionStatus, number>> = {
   flag: 1,
   "not-checked": 2,
   ok: 3,
-  reference: 4,
-  note: 5,
+  confirmed: 4,
+  reference: 5,
+  note: 6,
 };
 
 export const reportOrder = (rows: ReadonlyArray<GradedDimension>) =>
@@ -506,6 +523,7 @@ const PAPER_TONES: Readonly<Record<DimensionStatus, string>> = {
   ok: "#15803d",
   out: "#b91c1c",
   flag: "#b45309",
+  confirmed: "#15803d",
   reference: "#52525b",
   note: "#52525b",
   "not-checked": "#52525b",

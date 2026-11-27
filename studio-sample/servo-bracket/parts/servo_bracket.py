@@ -5,6 +5,7 @@ wall with two M4 screws. The bend is drawn at SendCutSend's inside radius for th
 +Y out from the wall, +Z up, the shelf's top face at Z = 0 and the flange's back face at Y = 0."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -90,6 +91,7 @@ def servo_bracket():
     bracket = bd.fillet(bracket.edges().filter_by(bd.Axis.Y).group_by(bd.Axis.Z)[0], radius=CORNER)  # Flange corners
 
     bracket.color = "#B9BFC6"
+    bracket.material = resolve("Alu_G5052_H32")
     bracket.label = "servo_bracket"
     return bracket
 
