@@ -87,7 +87,7 @@ describe("describePart", () => {
     });
     expect(describePart("/work/CAM/result.glb", null, null, "/work")).toEqual({
       name: "Result",
-      kind: "CAM job",
+      kind: "CAM plan",
       units: "mm",
     });
   });

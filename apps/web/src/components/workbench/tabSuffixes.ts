@@ -59,11 +59,14 @@ export function tabSuffixes(tabs: ReadonlyArray<TitledTab>): ReadonlyMap<string,
 }
 
 /**
- * Open tabs' titles without the words most of them start with, the project's name as their files
- * are named: "Desk lamp work instructions" reads "Work instructions" beside "Desk lamp" itself. A
- * prefix two tabs or more share and one tab is titled; that tab keeps it.
+ * Open tabs' titles without a name two or more start with and one is: "Desk lamp work
+ * instructions" reads "Work instructions" beside "Desk lamp". A tab of another part (`names`, the
+ * part each tab is of) keeps its whole name: "Flat plate bolt" beside "Flat plate" is never "Bolt".
  */
-export function withoutSharedPrefix(titles: ReadonlyArray<string>): ReadonlyArray<string> {
+export function withoutSharedPrefix(
+  titles: ReadonlyArray<string>,
+  names: ReadonlyArray<string | null> = [],
+): ReadonlyArray<string> {
   const counts = new Map<string, number>();
   for (const title of titles) {
     const words = title.trim().split(/\s+/);
@@ -81,10 +84,15 @@ export function withoutSharedPrefix(titles: ReadonlyArray<string>): ReadonlyArra
   }
   if (shared === null) return titles;
   const cut = shared;
-  return titles.map((title) => {
+  return titles.map((title, index) => {
     const words = title.trim().split(/\s+/);
     const length = cut.split(" ").length;
-    if (words.slice(0, length).join(" ").toLowerCase() !== cut || words.length <= length) {
+    const part = names[index]?.trim().toLowerCase();
+    if (
+      words.slice(0, length).join(" ").toLowerCase() !== cut ||
+      words.length <= length ||
+      (part !== undefined && part !== cut)
+    ) {
       return title;
     }
     const rest = words.slice(length).join(" ");
