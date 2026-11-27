@@ -39,9 +39,6 @@ export function splitForReferences<File extends { readonly type: string }>(
   return { copied, filedByAgent, chat };
 }
 
-/** What asks the agent to file what could not be copied in: the project takes text writes only. */
-export const FILE_ATTACHED_REFERENCES = `File the attached references under ${BRIEF_REFERENCES}/.`;
-
 /**
  * Copies files and folders into a project folder's References (`brief/references`), as Import
  * into a project copies, never over a file there, and resolves to the copies' paths in the

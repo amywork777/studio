@@ -45,6 +45,17 @@ describe("part names", () => {
     expect(partLabel("electronics/servo_power.kicad_pcb")).toBe("Servo power board");
     expect(partLabel("electronics/main_board.kicad_pcb")).toBe("Main board");
     expect(partLabel("electronics/servo_power.bom.csv")).toBe("Servo power bill of materials");
+    // A check and the script that measures it are listed together, so each says which it is.
+    expect(partName("checks/test_plate.drawing-check.json")).toEqual({
+      name: "Test plate",
+      kind: "Drawing check",
+      label: "Test plate drawing check",
+    });
+    expect(partName("checks/test_plate_drawing_check.py")).toEqual({
+      name: "Test plate",
+      kind: "Drawing check",
+      label: "Test plate drawing check script",
+    });
   });
 
   it("names text-to-cad 0.11's results for the folder they were written into", () => {

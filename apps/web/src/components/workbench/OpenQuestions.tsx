@@ -5,7 +5,7 @@ import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh
 import { useProjectFileQuery } from "../files/projectFilesQueryState";
 import { Button } from "../ui/button";
 import { handToChat } from "./handToChat";
-import { questionAnswer, readmeSections } from "./projectReadme";
+import { questionAnswer, readmeSections, unansweredQuestions } from "./projectReadme";
 import { MODULE_HEADING, SECTION_STACK } from "./studioLayout";
 
 /**
@@ -21,8 +21,10 @@ export function OpenQuestions(props: {
   readonly composerRef: ComposerHandleRef | null;
   /** Brings the chat into view, where the answer goes. */
   readonly onShowChat: () => void;
+  /** The project's setup: a question it answers is not asked. */
+  readonly setup: { readonly process: string; readonly material: string } | null;
 }) {
-  const { environmentId, cwd, mutationId, composerRef, onShowChat } = props;
+  const { environmentId, cwd, mutationId, composerRef, onShowChat, setup } = props;
   const readme = useProjectFileQuery(environmentId, cwd, "README.md");
   useWorkspaceMutationRefresh({
     mutationId,
@@ -30,7 +32,7 @@ export function OpenQuestions(props: {
     resourceKey: `studio-readme-questions:${cwd}`,
   });
   const contents = readme.data == null || readme.data.truncated ? null : readme.data.contents;
-  const { questions } = readmeSections(contents);
+  const questions = unansweredQuestions(readmeSections(contents).questions, setup);
   if (questions.length === 0 || composerRef === null) return null;
   const answer = (text: string) => {
     onShowChat();

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { lastExport, measureFileFor, measuredSize, sizeWords } from "./overviewStats";
+import {
+  lastExport,
+  madePartCount,
+  measureFileFor,
+  measuredSize,
+  sizeWords,
+} from "./overviewStats";
+import type { ProjectFile } from "./projectFiles";
 
 describe("the Overview's stats", () => {
   it("finds a part's measured size where its printing check wrote one", () => {
@@ -28,5 +35,29 @@ describe("the Overview's stats", () => {
       ]),
     ).toBe("2026-11-25");
     expect(lastExport(["parts/a.step"])).toBeNull();
+  });
+
+  it("counts the parts the project made, once each, and not their assembly or bought parts", () => {
+    const file = (path: string, kind: string, extra: Partial<ProjectFile> = {}): ProjectFile => ({
+      path,
+      name: path.split("/").at(-1)!,
+      title: path,
+      folder: path.split("/").slice(0, -1).join("/"),
+      group: "CAD",
+      kind,
+      ...extra,
+    });
+    expect(
+      madePartCount([
+        file("parts/plate.py", "Part", { document: "id-plate" }),
+        file("parts/plate.step", "Part"),
+        file("parts/plate.stl", "Mesh"),
+        file("assemblies/plate_assembly.py", "Assembly", { document: "id-assembly" }),
+        file("parts/imported/iso4017_m8x20.py", "Part", {
+          document: "id-bolt",
+          group: "Reference parts",
+        }),
+      ]),
+    ).toBe(1);
   });
 });
