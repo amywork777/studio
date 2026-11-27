@@ -59,6 +59,17 @@ function isSurfaceLauncherKey(event: KeyboardEvent): boolean {
   return key !== null && (launcherKeys?.includes(key) ?? false);
 }
 
+// Studio: keys a control on screen answers wherever focus is (a waiting question's 1-9), which
+// its own document listener takes after this window capture one, so typing must leave them.
+export const PAGE_KEYS_ATTRIBUTE = "data-page-keyshortcuts";
+
+function isKeyClaimedOnPage(event: KeyboardEvent): boolean {
+  const key = event.key.toUpperCase();
+  return Array.from(document.querySelectorAll(`[${PAGE_KEYS_ATTRIBUTE}]`)).some(
+    (element) => element.getAttribute(PAGE_KEYS_ATTRIBUTE)?.split(/\s+/).includes(key) ?? false,
+  );
+}
+
 function isKeyClaimedInPath(event: KeyboardEvent): boolean {
   if (event.shiftKey) return false;
   const key = event.key.toUpperCase();
@@ -89,6 +100,7 @@ export function shouldTypeToFocusComposer(event: KeyboardEvent): boolean {
   if (!shouldRedirectInputToComposer(event)) return false;
   if (isSurfaceLauncherKey(event)) return false;
   if (isKeyClaimedInPath(event)) return false;
+  if (isKeyClaimedOnPage(event)) return false;
 
   return true;
 }

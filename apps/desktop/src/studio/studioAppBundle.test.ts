@@ -3,7 +3,7 @@
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { applyStudioAppBundle, writeFilledCopy } from "./studioAppBundle.ts";
 import {
@@ -12,6 +12,7 @@ import {
   STUDIO_ENGINE_PORT,
   studioEngineEnv,
   studioEngineLimits,
+  stopStudioEngine,
 } from "./studioEngine.ts";
 
 const made: string[] = [];
@@ -123,7 +124,7 @@ describe("applyStudioAppBundle", () => {
     const res = resources();
     const home = tempDir();
     const env: Record<string, string | undefined> = {};
-    applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env });
+    const engine = applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env });
     const studioHome = NodePath.join(home, ".studio-test");
     const marketplace = NodePath.join(studioHome, "studio-app-plugins");
     const python = NodePath.join(res, "studio", "python", "bin", "python3");
@@ -151,6 +152,8 @@ describe("applyStudioAppBundle", () => {
       // The app's Python writes no bytecode into the signed app.
       PYTHONDONTWRITEBYTECODE: "1",
     });
+    // As it quits, the app stops that engine, by its own Python.
+    expect(engine).toEqual({ python, engineDir: NodePath.join(cad, "engine") });
     expect(env.PATH).toBe(NodePath.join(studioHome, "bin"));
     const skill = NodeFS.readFileSync(
       NodePath.join(marketplace, "plugins", "text-to-cad", "skills", "cad", "SKILL.md"),
@@ -328,9 +331,46 @@ describe("applyStudioAppBundle", () => {
 
   it("does nothing without a bundle, as in T3 Code or Studio from a checkout", () => {
     const env: Record<string, string | undefined> = {};
-    applyStudioAppBundle({ resourcesPath: tempDir(), homeDirectory: tempDir(), env });
-    applyStudioAppBundle({ resourcesPath: undefined, homeDirectory: tempDir(), env });
+    expect(applyStudioAppBundle({ resourcesPath: tempDir(), homeDirectory: tempDir(), env })).toBe(
+      null,
+    );
+    expect(applyStudioAppBundle({ resourcesPath: undefined, homeDirectory: tempDir(), env })).toBe(
+      null,
+    );
     expect(env).toEqual({});
+  });
+});
+
+describe("stopStudioEngine", () => {
+  /** A Python that writes down how it was run, as the engine's stop would be. */
+  function recordingPython() {
+    const dir = tempDir();
+    const python = NodePath.join(dir, "python3");
+    const record = NodePath.join(dir, "record");
+    write(python, `#!/bin/sh\necho "$CAD_ENGINE_DIR $*" >> '${record}'\n`);
+    NodeFS.chmodSync(python, 0o755);
+    const runs = () =>
+      NodeFS.existsSync(record) ? NodeFS.readFileSync(record, "utf8").trim().split("\n") : [];
+    return { python, runs };
+  }
+
+  it("stops only Studio's engine, whichever engine the environment names", () => {
+    const { python, runs } = recordingPython();
+    vi.stubEnv("CAD_ENGINE_DIR", "/Users/a/.cad/engine");
+    try {
+      stopStudioEngine({ python, engineDir: "/Users/a/.text-to-cad-studio/cad/engine" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(runs()).toEqual([
+      "/Users/a/.text-to-cad-studio/cad/engine -P -B -m cad_server.engine stop",
+    ]);
+  });
+
+  it("stops nothing without an engine folder, which would name the person's own engine", () => {
+    const { python, runs } = recordingPython();
+    stopStudioEngine({ python, engineDir: "" });
+    expect(runs()).toEqual([]);
   });
 });
 

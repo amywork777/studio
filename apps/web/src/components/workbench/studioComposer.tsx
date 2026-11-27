@@ -12,11 +12,7 @@ import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { drawAttachedPages } from "./drawingPages";
-import {
-  copyIntoReferences,
-  FILE_ATTACHED_REFERENCES,
-  splitForReferences,
-} from "./attachToReferences";
+import { copyIntoReferences, splitForReferences } from "./attachToReferences";
 import { ENGINEERING_RUNTIME_MODES } from "./engineeringTraits";
 import { partLabel } from "./partNames";
 import { SketchDialog } from "./SketchDialog";
@@ -180,10 +176,9 @@ export function useStudioComposer(input: {
       ...filedByAgent,
       ...(references.length > 0 ? [] : copied.flatMap((c) => (c.inChat ? [] : [c.file]))),
     ];
+    // The agent files these from the chat by its standing instructions (`studioProjectContext`),
+    // so nothing is written into the person's own words.
     const inserted = await addComposerAttachments([...chat, ...forAgent]);
-    if (forAgent.length > 0) {
-      insertComposerTextAtEnd(FILE_ATTACHED_REFERENCES, { ensureLeadingBoundary: true });
-    }
     return inserted || references.length > 0 || forAgent.length > 0;
   };
   const attachFilesStable = useStableCallback(attachFiles);

@@ -47,6 +47,10 @@ describe("studio projects", () => {
     expect(context).toContain("## Show your work");
     expect(context).toContain("## References");
     expect(context).toContain("`brief/references/`");
+    // What Studio could not copy in goes with the message, and the agent files it unasked.
+    expect(context).toContain(
+      "attached to a message itself, not linked there (Studio could not copy it in): copy it into `brief/references/`",
+    );
     // An engineer hears about the design, not the tools: Studio keeps a version every turn.
     expect(context).toContain("## Talking to the person");
     expect(context).toContain("never offer to commit");

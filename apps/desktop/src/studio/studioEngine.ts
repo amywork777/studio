@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
 // Read by boot.ts (through studioAppBundle.ts) before any Effect runtime exists, and by
 // scripts/studio.ts, so it stays on Node built-ins.
+import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
@@ -67,4 +68,28 @@ export function checkoutEngineEnv(
 export function studioPath(launcherDir: string, path: string | undefined): string {
   const rest = (path ?? "").split(NodePath.delimiter).filter((entry) => entry !== launcherDir);
   return [launcherDir, ...rest].filter((entry) => entry !== "").join(NodePath.delimiter);
+}
+
+/** How Studio stops its own CAD engine: the bundled Python and the engine folder it runs in. */
+export interface StudioEngineStop {
+  readonly python: string;
+  readonly engineDir: string;
+}
+
+// The engine drains its documents to its cache and stops its workers before it exits.
+const ENGINE_STOP_TIMEOUT_MS = 20_000;
+
+/**
+ * Stops Studio's CAD engine and its workers as the app quits: it runs detached from the agent that
+ * started it. Only `engineDir`'s engine (its door, or Windows's port file), never the person's own.
+ * Synchronous, for the "exit" event.
+ */
+export function stopStudioEngine(stop: StudioEngineStop): void {
+  if (stop.engineDir.trim() === "") return;
+  NodeChildProcess.spawnSync(stop.python, ["-P", "-B", "-m", "cad_server.engine", "stop"], {
+    env: { ...process.env, CAD_ENGINE_DIR: stop.engineDir },
+    stdio: "ignore",
+    timeout: ENGINE_STOP_TIMEOUT_MS,
+    windowsHide: true,
+  });
 }

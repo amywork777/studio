@@ -6,6 +6,7 @@ import { userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import type { PendingUserInput } from "../../session-logic";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
+import { shouldTypeToFocusComposer } from "./composerFocusRedirect";
 
 // Studio's: the composer is the question's free-text answer, so its digit keys pick an option
 // only while it is empty (beside T3 Code's own cases in ComposerPendingUserInputPanel.browser.test.tsx).
@@ -79,3 +80,40 @@ it.each<{ focus: string; control: ReactNode; toggles: boolean }>([
     expect(onToggleOption.mock.calls).toEqual(toggles ? [["question", "GRBL"]] : []);
   },
 );
+
+// A second question in a row: the first one's answer took focus off the composer, so a digit
+// reaches the chat's type-to-focus (`useChatShortcuts`, a window capture listener) first.
+it("digit shortcut with focus on the page picks an option before typing can take it", async () => {
+  const onToggleOption = vi.fn();
+  const typed: string[] = [];
+  const typeToFocus = (event: KeyboardEvent) => {
+    if (!shouldTypeToFocusComposer(event)) return;
+    typed.push(event.key);
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  window.addEventListener("keydown", typeToFocus, true);
+  using _typeToFocus = {
+    [Symbol.dispose]: () => window.removeEventListener("keydown", typeToFocus, true),
+  };
+  await using screen = await render(
+    <ComposerPendingUserInputPanel
+      pendingUserInputs={[prompt]}
+      cwd={undefined}
+      threadRef={threadRef}
+      respondingRequestIds={[]}
+      answers={{}}
+      questionIndex={0}
+      onToggleOption={onToggleOption}
+      onAdvance={vi.fn()}
+      onDismiss={vi.fn()}
+    />,
+  );
+  await expect.element(screen.getByText("GRBL")).toBeVisible();
+  (document.activeElement as HTMLElement | null)?.blur();
+
+  await userEvent.keyboard("1");
+
+  expect(onToggleOption.mock.calls).toEqual([["question", "GRBL"]]);
+  expect(typed).toEqual([]);
+});
