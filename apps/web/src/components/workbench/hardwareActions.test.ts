@@ -140,12 +140,13 @@ describe("hardware actions", () => {
   });
 
   it("says what a job needs that Studio does not bring", () => {
-    // text-to-cad's own files say it: cam plans with the person's FreeCAD, print3d slices with
-    // their OrcaSlicer, a board's checks and exports download kicode the first time, and a render
-    // downloads bpy and the Python 3.13 it is built for (262 or 356 MB, and 65 MB); a MuJoCo check
-    // fetches cad[mujoco] (about 20 MB).
+    // cam plans with FreeCAD, which studio-install-freecad installs on a Mac (about 650 MB); print3d
+    // slices with their OrcaSlicer; boards download kicode the first time; a render downloads bpy and
+    // its Python 3.13 (262 or 356 MB, and 65 MB); a MuJoCo check fetches cad[mujoco] (about 20 MB).
     const needs = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)?.needs;
-    expect(needs("toolpaths")).toBe("Needs FreeCAD 1.1 or newer installed.");
+    expect(needs("toolpaths")).toBe(
+      "Studio installs FreeCAD on first use on a Mac, about 650 MB; on Windows, needs FreeCAD 1.1 or newer installed.",
+    );
     expect(needs("slice")).toBe("Needs OrcaSlicer installed.");
     expect(needs("mujoco")).toBe("Downloads MuJoCo on first use, about 20 MB.");
     expect(needs("render")).toBe(

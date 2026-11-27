@@ -440,7 +440,9 @@ describe("Studio's job skills on the Toolbox page (jobSkills.ts)", () => {
     expect(needs("board-fab")).toBe(boardTools);
     expect(needs("pcb")).toBe(boardTools);
     expect(needs("print3d")).toBe("Needs OrcaSlicer installed.");
-    expect(needs("cam")).toBe("Needs FreeCAD 1.1 or newer installed.");
+    expect(needs("cam")).toBe(
+      "Studio installs FreeCAD on first use on a Mac, about 650 MB; on Windows, needs FreeCAD 1.1 or newer installed.",
+    );
     expect(needs("cad")).toBeNull();
     expect(needs("fdm")).toBeNull();
     expect(entryNeeds({ ...tiles[0]!, pluginId: "harnesses" })).toBeNull();
