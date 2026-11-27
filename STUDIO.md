@@ -294,7 +294,10 @@ Studio's CAD engine keeps its own folders and port, so a CAD engine of the perso
 app's under `~/.text-to-cad-studio/cad` on 3345, a checkout's (`scripts/studio.ts`, every mode)
 under `~/.text-to-cad-studio-dev/cad` on 3346 (`apps/desktop/src/studio/studioEngine.ts`). Only
 the desktop app's boot and `scripts/studio.ts` set them: a headless server started another way (a
-remote `npx t3`, say) runs `cad` with its own folders and port.
+remote `npx t3`, say) runs `cad` with its own folders and port. The engine runs detached from the
+agent that started it, so the packaged app stops its own engine and workers as it quits
+(`stopStudioEngine`, `cad server stop` for its engine folder alone); its cache keeps the next start
+quick.
 
 ## What it adds to T3 Code
 
