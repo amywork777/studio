@@ -41,6 +41,22 @@ STUDIO_SENTENCE = (
 )
 # What no skill Studio carries may tell an agent to run.
 INSTALLS = ("uv tool install", "pip install cad", "pipx install cad", "texttocad.dev/install")
+# The cam skill's macOS step: FreeCAD dragged into Applications, then `open -a FreeCAD` for macOS's question about a
+# downloaded app, which nobody answers while an agent works, so every plan waited (0.1.19). Studio installs its own,
+# which macOS asks nothing about (scripts/studio_freecad.py).
+FREECAD_MAC_STEP = re.compile(
+    r"- macOS: drag the `\.dmg`'s FreeCAD into Applications.*?Never remove FreeCAD's quarantine to skip it\.",
+    re.DOTALL,
+)
+STUDIO_FREECAD_STEP = (
+    "- macOS, in Studio: run `studio-install-freecad`, once the person says yes to a download of about 650 MB. It\n"
+    "  downloads FreeCAD 1.1.4 from FreeCAD's own release, checks its SHA-256 and FreeCAD's signature, and installs it\n"
+    "  in Studio's own folder, where `cad <type> plan` finds it from the next plan, ahead of one in Applications;\n"
+    "  macOS asks no question about it. When a plan says FreeCAD is waiting on macOS's question, this is the fix too.\n"
+    "  Never put FreeCAD in Applications, start it with `open`, or remove its quarantine."
+)
+# What no skill Studio carries may tell an agent to do with FreeCAD on a Mac.
+FREECAD_MAC_INSTALLS = ("open -a FreeCAD", "drag the `.dmg`'s FreeCAD into Applications")
 
 IGNORED = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 
@@ -52,8 +68,9 @@ def server(python: str) -> dict:
 
 
 def studio_skill(text: str) -> str:
-    """A skill's text as Studio carries it: its install sentence replaced by Studio's own."""
-    return INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text)
+    """A skill's text as Studio carries it: its install sentence, and the cam skill's macOS FreeCAD step, replaced
+    by Studio's own."""
+    return FREECAD_MAC_STEP.sub(lambda _match: STUDIO_FREECAD_STEP, INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text))
 
 
 def lay_out(checkout: Path, plugin: Path, version: str, python: str) -> str:
@@ -87,6 +104,13 @@ def refuse_installs(plugin: Path) -> None:
     if found:
         raise SystemExit("Studio's CAD plugin would tell an agent to install cad (scripts/studio_cad_plugin.py's "
                          "INSTALL_SENTENCE no longer matches text-to-cad's Setup):\n  " + "\n  ".join(found))
+    found = [f"{path.relative_to(plugin).as_posix()}: {words}"
+             for path in sorted(plugin.rglob("*.md"))
+             for words in FREECAD_MAC_INSTALLS if words in path.read_text(encoding="utf-8")]
+    if found:
+        raise SystemExit("Studio's CAD plugin would tell an agent to put FreeCAD in Applications on a Mac "
+                         "(scripts/studio_cad_plugin.py's FREECAD_MAC_STEP no longer matches the cam skill):\n  "
+                         + "\n  ".join(found))
 
 
 def write_marketplace(out: Path, catalog: str, owner: str, description: str, name: str, version: str) -> None:
@@ -100,14 +124,20 @@ def write_marketplace(out: Path, catalog: str, owner: str, description: str, nam
 
 
 def write_launcher(folder: Path, python: str) -> list[Path]:
-    """Studio's `cad` command in `folder`, running `python -m cad_server.cli`: `cad` (sh) and `cad.cmd`."""
+    """Studio's commands in `folder`, as the app's (studioAppBundle.ts): `cad` (sh) and `cad.cmd`, running
+    `python -m cad_server.cli`, and `studio-install-freecad`, running this checkout's scripts/studio_freecad.py."""
     folder.mkdir(parents=True, exist_ok=True)
     sh = folder / "cad"
     sh.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P -m cad_server.cli \"$@\"\n", encoding="utf-8")
     sh.chmod(0o755)
     cmd = folder / "cad.cmd"
     cmd.write_text(f'@"{python}" -P -m cad_server.cli %*\r\n', encoding="utf-8")
-    return [sh, cmd]
+    installer = folder / "studio-install-freecad"
+    script = Path(__file__).resolve().parent / "studio_freecad.py"
+    installer.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P {shell_quoted(str(script))} \"$@\"\n",
+                         encoding="utf-8")
+    installer.chmod(0o755)
+    return [sh, cmd, installer]
 
 
 def shell_quoted(text: str) -> str:

@@ -1,0 +1,137 @@
+"""scripts/studio_freecad.py's checks, with macOS's tools stood in for: python3 -m unittest discover -s scripts -p 'studio_*_test.py'"""
+
+from __future__ import annotations
+
+import hashlib
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import studio_cad_plugin
+import studio_freecad as freecad
+from studio_freecad import Place, Refused
+
+TEAM_LINE = f"TeamIdentifier={freecad.TEAM}"
+
+
+class Mac:
+    """macOS's tools as an install meets them: FreeCAD's signed app, no quarantine mark, unless told otherwise."""
+
+    def __init__(self, *, team: str = TEAM_LINE, quarantined: tuple[str, ...] = (), version: str = "FreeCAD 1.1.4"):
+        self.team, self.quarantined, self.version = team, quarantined, version
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args: list[str], **_options) -> subprocess.CompletedProcess:
+        self.calls.append(args)
+        tool = Path(args[0]).name
+        if tool == "xattr":
+            marked = any(args[-1].endswith(name) for name in self.quarantined)
+            return done(0 if marked else 1)
+        if tool == "codesign" and "-dv" in args:
+            return done(0, err=f"Executable=...\n{self.team}\n")
+        if tool == "spctl":
+            return done(0, err=f"{args[-1]}: accepted\nsource=Notarized Developer ID\n")
+        if tool == "ditto":
+            program = Path(args[2]) / freecad.PROGRAM
+            program.parent.mkdir(parents=True)
+            program.write_text("#!/bin/sh\n")
+        if tool == "freecadcmd":
+            return done(0, out=f"{self.version} Revision: 20260928\n")
+        return done(0)
+
+
+def done(code: int, out: str = "", err: str = "") -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess([], code, out, err)
+
+
+class InstallTest(unittest.TestCase):
+    def setUp(self) -> None:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name)
+        self.place = Place(self.root / "home" / "bin")
+        self.dmg = self.root / "FreeCAD.dmg"
+        self.dmg.write_bytes(b"FreeCAD's disk image")
+        name, _hash = freecad.DMGS["arm64"]
+        self.release = {"arm64": (name, hashlib.sha256(b"FreeCAD's disk image").hexdigest())}
+        self.addCleanup(setattr, freecad, "DMGS", freecad.DMGS)
+        freecad.DMGS = self.release
+
+    def install(self, mac: Mac) -> Path:
+        return freecad.install(self.place, self.dmg, "arm64", lambda _line: None, mac)
+
+    def test_installs_in_studios_home_and_links_freecadcmd_beside_cad(self) -> None:
+        mac = Mac()
+        program = self.install(mac)
+        self.assertEqual(program, self.root / "home" / "tools" / "freecad" / "FreeCAD.app" / freecad.PROGRAM)
+        self.assertTrue(program.is_file())
+        self.assertEqual(self.place.link.readlink(), program)
+        # The download, its mount and the staged copy are gone.
+        self.assertEqual(sorted(path.name for path in self.place.folder.iterdir()), ["FreeCAD.app", "installed.json"])
+        self.assertIn(["hdiutil", "detach"], [call[:2] for call in mac.calls])
+
+    def test_refuses_a_download_that_is_not_the_release_file(self) -> None:
+        freecad.DMGS = {"arm64": (self.release["arm64"][0], "0" * 64)}
+        with self.assertRaisesRegex(Refused, "not FreeCAD's release file"):
+            self.install(Mac())
+        self.assertNothingInstalled()
+
+    def test_refuses_freecad_signed_by_another_team(self) -> None:
+        with self.assertRaisesRegex(Refused, "signed by team SOMEONE"):
+            self.install(Mac(team="TeamIdentifier=SOMEONE"))
+        self.assertNothingInstalled()
+
+    def test_refuses_a_quarantined_download_and_never_removes_the_mark(self) -> None:
+        for marked in ("FreeCAD.dmg", "FreeCAD.app", "freecadcmd"):
+            mac = Mac(quarantined=(marked,))
+            with self.subTest(marked=marked), self.assertRaisesRegex(Refused, "quarantine mark"):
+                self.install(mac)
+            self.assertNotIn("-d", [arg for call in mac.calls if call[0] == "xattr" for arg in call])
+            self.assertNothingInstalled()
+
+    def test_refuses_a_freecad_that_does_not_run(self) -> None:
+        with self.assertRaisesRegex(Refused, "did not run"):
+            self.install(Mac(version="dyld: Library not loaded"))
+        self.assertNothingInstalled()
+
+    def test_keeps_the_freecad_already_installed(self) -> None:
+        self.install(Mac())
+        self.place.link.unlink()
+        again = Mac()
+        freecad.install(self.place, None, "arm64", lambda _line: None, again)
+        self.assertEqual(again.calls, [])  # no download, no checks
+        self.assertEqual(self.place.link.readlink(), self.place.program)
+
+    def test_installs_again_when_studios_freecad_was_deleted(self) -> None:
+        self.install(Mac())
+        (self.place.program).unlink()
+        self.assertFalse(freecad.installed(self.place))
+        self.install(Mac())
+        self.assertTrue(self.place.program.is_file())
+
+    def test_leaves_a_freecadcmd_of_someone_elses_alone(self) -> None:
+        self.place.launchers.mkdir(parents=True)
+        self.place.link.write_text("#!/bin/sh\n")
+        with self.assertRaisesRegex(Refused, "someone else's"):
+            self.install(Mac())
+        self.assertEqual(self.place.link.read_text(), "#!/bin/sh\n")
+
+    def assertNothingInstalled(self) -> None:
+        self.assertFalse(self.place.link.is_symlink())
+        self.assertFalse(self.place.record.exists())
+        self.assertFalse(self.place.app.exists())
+        self.assertEqual([path.name for path in self.place.folder.iterdir()], [])
+
+
+class CamSkillTest(unittest.TestCase):
+    def test_studios_cam_skill_installs_freecad_with_studio_on_a_mac(self) -> None:
+        skill = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills" / "cam" / "SKILL.md"
+        studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
+        self.assertIn("run `studio-install-freecad`, once the person says yes", studio)
+        for words in studio_cad_plugin.FREECAD_MAC_INSTALLS:
+            self.assertNotIn(words, studio)
+
+
+if __name__ == "__main__":
+    unittest.main()

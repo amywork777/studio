@@ -170,6 +170,10 @@ describe("applyStudioAppBundle", () => {
     expect(NodeFS.readFileSync(NodePath.join(bin, "cad.cmd"), "utf8")).toBe(
       `@"${python}" -P -m cad_server.cli %*\r\n`,
     );
+    const installer = NodePath.join(res, "studio", "tools", "studio_freecad.py");
+    expect(NodeFS.readFileSync(NodePath.join(bin, "studio-install-freecad"), "utf8")).toBe(
+      `#!/bin/sh\nexec '${python}' -P '${installer}' "$@"\n`,
+    );
   });
 
   it("runs Windows's Python, quoted in the skills where its folder has a space", () => {

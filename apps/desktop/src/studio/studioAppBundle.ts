@@ -67,7 +67,7 @@ export function applyStudioAppBundle(input: {
       "@@STUDIO_PYTHON@@": forPlugin(python),
     });
     setDefault(env, "T3CODE_PLUGIN_MARKETPLACE", marketplace);
-    writeCadCommand(env.CAD_LAUNCHER_DIR!, python);
+    writeStudioCommands(env.CAD_LAUNCHER_DIR!, python, bundle);
   } catch (error) {
     // Studio still opens; it just has no CAD tools this time, and says why in its log.
     // @effect-diagnostics-next-line globalConsole:off - Runs before any Effect logger exists.
@@ -89,15 +89,21 @@ interface StudioSettings {
 }
 
 /**
- * Studio's `cad` command, the bundled Python's (`cad_server.cli`), in `folder`: `cad` for a Mac's
- * shell and `cad.cmd` for Windows. The skills run `cad`; Studio's is never an installed one, which
- * would update itself past the release Studio was built with.
+ * Studio's commands, the bundled Python's, in `folder`. `cad` (`cad_server.cli`) for a Mac's shell
+ * and `cad.cmd` for Windows: the skills run `cad`, and Studio's is never an installed one, which
+ * would update itself past the release Studio was built with. `studio-install-freecad`
+ * (`scripts/studio_freecad.py`), which installs FreeCAD for CNC CAM in Studio's home on a Mac.
  */
-function writeCadCommand(folder: string, python: string): void {
-  const quoted = `'${python.replaceAll("'", `'"'"'`)}'`;
+function writeStudioCommands(folder: string, python: string, bundle: string): void {
+  const quote = (path: string) => `'${path.replaceAll("'", `'"'"'`)}'`;
   writeIfChanged(
     NodePath.join(folder, "cad"),
-    `#!/bin/sh\nexec ${quoted} -P -m cad_server.cli "$@"\n`,
+    `#!/bin/sh\nexec ${quote(python)} -P -m cad_server.cli "$@"\n`,
+    0o755,
+  );
+  writeIfChanged(
+    NodePath.join(folder, "studio-install-freecad"),
+    `#!/bin/sh\nexec ${quote(python)} -P ${quote(NodePath.join(bundle, "tools", "studio_freecad.py"))} "$@"\n`,
     0o755,
   );
   writeIfChanged(

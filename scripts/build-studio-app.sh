@@ -236,6 +236,11 @@ JSON
 step "Copying the examples"
 cp -R "$ROOT/studio-sample" "$BUNDLE/sample"
 
+# Studio's FreeCAD installer for CNC CAM on a Mac, which the app's `studio-install-freecad` command
+# runs (studioAppBundle.ts).
+mkdir -p "$BUNDLE/tools"
+cp "$ROOT/scripts/studio_freecad.py" "$BUNDLE/tools/"
+
 # The notices the app carries as files, in its resources' studio/licenses: T3 Code's, whose app
 # Studio is built on, and on a Mac Electron's and Chromium's (found above), under the names
 # electron-builder gives them on Windows. The CAD tools' Python and its packages keep theirs where

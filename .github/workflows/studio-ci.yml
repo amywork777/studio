@@ -160,3 +160,7 @@ jobs:
 
       - name: The usage receiver
         run: node --test infra/usage/src/*.test.mjs
+
+      # Studio's FreeCAD installer's checks, and the cam skill as Studio's plugin carries it.
+      - name: Studio's scripts
+        run: python3 -m unittest discover -s scripts -p 'studio_*_test.py'
