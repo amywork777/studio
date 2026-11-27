@@ -4,13 +4,14 @@ import {
   ProviderDriverKind,
   type ProviderInstanceId,
 } from "@t3tools/contracts";
-import { CreditCardIcon } from "lucide-react";
+import { CheckIcon, CreditCardIcon } from "lucide-react";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 
 import { readLocalApi } from "~/localApi";
 import { serverEnvironment } from "~/state/server";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { SettingsRow } from "../settings/settingsLayout";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -22,7 +23,6 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Radio, RadioGroup } from "../ui/radio-group";
 import { toastManager } from "../ui/toast";
 import { HARDWARE_FOCUS } from "./hardwareActions";
 import {
@@ -41,6 +41,7 @@ import {
   STUDIO_PRO_PLANS,
   type StudioProPlan,
 } from "./studioPro";
+import { cn } from "~/lib/utils";
 import { useProviderInstance } from "./useProviderInstance";
 
 const CLAUDE = "claudeAgent";
@@ -89,6 +90,54 @@ function useProUsage(account: string | null) {
   return "message" in usage.read ? usage.read.message : proUsageLine(usage.read);
 }
 
+/** One plan's card: what it is for, its price, what it includes, and the way to pay for it. */
+function StudioProPlanCard(props: {
+  readonly option: (typeof STUDIO_PRO_PLANS)[number];
+  readonly onChoose: () => void;
+}) {
+  const { option } = props;
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col rounded-xl border bg-card p-5",
+        option.recommended ? "border-foreground shadow-lg" : "border-border",
+      )}
+    >
+      {option.recommended ? (
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+          <Badge>Recommended</Badge>
+        </span>
+      ) : null}
+      <h3 className="text-base font-semibold tracking-tight">{option.name}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{option.tagline}</p>
+      <p className="mt-3 flex items-baseline gap-1">
+        <span className="text-3xl font-semibold tracking-tight tabular-nums">{option.price}</span>
+        <span className="text-sm text-muted-foreground">/mo</span>
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">Billed monthly</p>
+      <div className="mt-5 flex-1">
+        <p className="text-xs font-medium text-muted-foreground">{option.lead}</p>
+        <ul className="mt-3 flex flex-col gap-2.5">
+          {option.includes.map((line) => (
+            <li key={line} className="flex items-start gap-2 text-sm leading-snug">
+              <CheckIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <Button
+        type="button"
+        className="mt-6 w-full"
+        variant={option.recommended ? "default" : "outline"}
+        onClick={props.onChoose}
+      >
+        Get {option.name}
+      </Button>
+    </div>
+  );
+}
+
 /**
  * Upgrade: choose a plan, pay on Stripe's page in the browser, and Studio signs in by itself as the
  * payment goes through (it asks Studio Pro with the claim only it holds). A key from another
@@ -101,7 +150,6 @@ export function StudioProDialog(props: {
 }) {
   const { environmentId, onClose } = props;
   const { start } = useStudioPro(environmentId, props.instanceId ?? CLAUDE_INSTANCE);
-  const [plan, setPlan] = useState<StudioProPlan>("starter");
   const [step, setStep] = useState<"plan" | "paying" | "key" | "saving">("plan");
   const [claim, setClaim] = useState<{ secret: string; url: string } | null>(null);
   const [key, setKey] = useState("");
@@ -145,7 +193,7 @@ export function StudioProDialog(props: {
     };
   }, [step, claim]);
 
-  const upgrade = async () => {
+  const upgrade = async (plan: StudioProPlan) => {
     setError(null);
     const { secret, hash } = await newProClaim();
     const url = proUpgradeUrl(plan, hash);
@@ -165,13 +213,12 @@ export function StudioProDialog(props: {
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogPopup className="max-w-md">
+      <DialogPopup className={step === "plan" ? "max-w-2xl" : "max-w-md"}>
         <form
           className="flex min-h-0 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            if (step === "plan") void upgrade();
-            else if (step === "key") submitKey();
+            if (step === "key") submitKey();
           }}
         >
           <DialogHeader>
@@ -181,33 +228,27 @@ export function StudioProDialog(props: {
             <DialogDescription>
               {step === "key"
                 ? "Paste the key from the page you saw after paying, or from another computer."
-                : "Studio's AI is included: Claude, or GPT if you choose it, with no subscription of their own. Your chats go through Studio's server and OpenRouter to that model; Studio keeps how much AI you used, never what you said."}
+                : "Pick a plan, switch or cancel any time. Studio's AI is included, so Claude or GPT needs no subscription of its own."}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
             {step === "plan" ? (
-              <RadioGroup
-                aria-label="Studio Pro plan"
-                value={plan}
-                onValueChange={(value) => setPlan(value as StudioProPlan)}
-              >
-                {STUDIO_PRO_PLANS.map((option) => (
-                  <label
-                    key={option.plan}
-                    className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-sm"
-                  >
-                    <span className="pt-0.5">
-                      <Radio value={option.plan} />
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="font-medium">
-                        {option.name} · {option.price}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{option.detail}</span>
-                    </span>
-                  </label>
-                ))}
-              </RadioGroup>
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-4 pt-2 sm:grid-cols-2">
+                  {STUDIO_PRO_PLANS.map((option) => (
+                    <StudioProPlanCard
+                      key={option.plan}
+                      option={option}
+                      onChoose={() => void upgrade(option.plan)}
+                    />
+                  ))}
+                </div>
+                <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                  Your chats go through Studio's server and OpenRouter to the model you chose;
+                  Studio keeps how much AI you used, never what you said. Your own Claude or Codex
+                  sign-in stays free.
+                </p>
+              </div>
             ) : step === "key" ? (
               <Input
                 aria-label="License key"
@@ -258,9 +299,9 @@ export function StudioProDialog(props: {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            {step === "plan" || step === "key" ? (
-              <Button type="submit" disabled={step === "key" && normalizedProKey(key) === ""}>
-                {step === "plan" ? "Continue to payment" : "Use key"}
+            {step === "key" ? (
+              <Button type="submit" disabled={normalizedProKey(key) === ""}>
+                Use key
               </Button>
             ) : null}
           </DialogFooter>

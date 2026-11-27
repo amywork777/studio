@@ -81,11 +81,11 @@ token): a turn reads about 1.3M tokens from
 cache, writes about 34K to it and writes about 9K out. A turn costs **$0.61 on Opus 5.5**, $0.31 on
 Sonnet 5.5 and $0.02 on Haiku 5.5. Cache reads are 43% of that, output 30% and cache writes 27%.
 
-| A month of                                     | Opus 5.5 | Sonnet 5.5 |
-| ---------------------------------------------- | -------- | ---------- |
-| 100 turns (a few projects)                     | $61      | $31        |
-| 300 turns (15 working days of 20, Dave's pace) | $184     | $92        |
-| 600 turns (Dave's heaviest weeks)              | $368     | $184       |
+| A month of                                   | Opus 5.5 | Sonnet 5.5 |
+| -------------------------------------------- | -------- | ---------- |
+| 100 turns (a few projects)                   | $61      | $31        |
+| 300 turns (15 working days of 20, full time) | $184     | $92        |
+| 600 turns (the heaviest weeks)               | $368     | $184       |
 
 The turn counts are assumptions; the cost per turn is measured. After Stripe's published US fees
 (2.9% + $0.30 a card payment, 0.7% for Billing; check them against the account), $20 a month pays
@@ -98,7 +98,7 @@ out $18.98 and $60 pays out $57.54. A month averages 52 ÷ 12 ≈ 4.33 weeks, so
 
 So a subscriber who uses the whole allowance every week costs Studio at most the card fees more than
 they pay, before OpenRouter's fee. The allowance is small next to how engineers work: Starter's month
-is about 32 Opus turns or 64 Sonnet turns, Pro's about 98 or 193, and Dave's 300-turn month on Opus
+is about 32 Opus turns or 64 Sonnet turns, Pro's about 98 or 193, and a full-time 300-turn month on Opus
 ($184) would run out of Pro's week by Tuesday. How much of the allowance subscribers really use is
 what `pro_week_usage` shows; nothing here measures that yet.
 
@@ -117,7 +117,8 @@ Amy makes these once:
 
 1. **Stripe** (test mode): two Products with one recurring Price each, "Studio Pro, Starter" at $20 a
    month and "Studio Pro, Pro" at $60 a month; in Settings → Billing → Customer portal, turn on the
-   portal's login link. Note the two `price_…` ids, the test secret key `sk_test_…` and the
+   portal's login link and let customers switch between those two products (the server reads the
+   new plan from the subscription's price, within minutes for a capped account). Note the two `price_…` ids, the test secret key `sk_test_…` and the
    `https://billing.stripe.com/p/login/test_…` link.
 2. **OpenRouter:** an account with credits, and an API key (`sk-or-v1-…`) named "Studio Pro",
    with a credit limit on the key as the backstop. Under the account's provider settings, put

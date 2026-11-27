@@ -20,6 +20,8 @@ export const MAX_BODY = 4.5 * 1024 * 1024;
 // How long an instance trusts what it read about an account, and Stripe about a subscription.
 const ACCOUNT_TTL_MS = 30_000;
 const SUBSCRIPTION_TTL_MS = 6 * 60 * 60_000;
+// A capped account may have just moved to Pro on Stripe's billing page: check it sooner.
+const CAPPED_SUBSCRIPTION_TTL_MS = 5 * 60_000;
 // An Upgrade click's claim stays good for a day.
 const CLAIM_TTL_MS = 24 * 60 * 60_000;
 // OpenRouter's Anthropic Messages endpoint: one key for Claude, GPT and the rest.
@@ -96,6 +98,11 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
 
   const capOf = (account) =>
     weeklyOf(Number(account.cap_usd ?? caps[account.plan] ?? caps.starter));
+  // The plan a subscription pays for now, by its price: a switch on Stripe's billing page moves it.
+  const planOf = (subscription) => {
+    const price = subscription?.items?.data?.[0]?.price?.id;
+    return PLANS.find((plan) => price !== undefined && config.prices[plan] === price);
+  };
 
   /** Makes or updates the account a paid Checkout bought, and answers it. */
   async function activate(session, plan) {
@@ -104,7 +111,9 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
       stripe_customer: session.customer,
       stripe_subscription: session.subscription,
       email: session.customer_details?.email ?? session.customer_email ?? null,
-      plan: PLANS.includes(session.metadata?.plan) ? session.metadata.plan : plan,
+      plan:
+        planOf(subscription) ??
+        (PLANS.includes(session.metadata?.plan) ? session.metadata.plan : plan),
       status: subscription.status,
       period_end: periodEndOf(subscription),
       checked_at: new Date(now()).toISOString(),
@@ -122,13 +131,17 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
     if (!known || now() - known.at >= ACCOUNT_TTL_MS) {
       let account = await store.account(id);
       if (!account) return { refused: "noKey" };
-      if (now() - Date.parse(account.checked_at) >= SUBSCRIPTION_TTL_MS) {
+      const spent = await store.weekSpend(id);
+      const trust = spent >= capOf(account) ? CAPPED_SUBSCRIPTION_TTL_MS : SUBSCRIPTION_TTL_MS;
+      if (now() - Date.parse(account.checked_at) >= trust) {
         try {
           const subscription = await stripe.subscription(account.stripe_subscription);
+          const plan = planOf(subscription);
           const patch = {
             status: subscription.status,
             period_end: periodEndOf(subscription),
             checked_at: new Date(now()).toISOString(),
+            ...(plan ? { plan } : {}),
           };
           await store.updateAccount(id, patch);
           account = { ...account, ...patch };
@@ -136,7 +149,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
           // Stripe unreachable: the status last read stands until the next try.
         }
       }
-      known = { account, spent: await store.weekSpend(id), at: now() };
+      known = { account, spent, at: now() };
       accounts.set(id, known);
     }
     const { account, spent } = known;

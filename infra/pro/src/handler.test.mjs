@@ -9,14 +9,14 @@ const ID = "0b7e4c5a-3c2d-4f6e-9a1b-2c3d4e5f6a7b";
 const NOW = Date.parse("2026-11-25T12:00:00Z");
 const CLAIM = "c".repeat(43);
 
-function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
+function fakes({ account = {}, spent = 0, paid = true, upstream, price } = {}) {
   const state = {
     accounts: new Map([
       [
         ID,
         {
           id: ID,
-          email: "dave@example.com",
+          email: "engineer@example.com",
           stripe_customer: "cus_1",
           stripe_subscription: "sub_1",
           plan: "starter",
@@ -74,7 +74,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     payment_status: paid ? "paid" : "unpaid",
     customer: "cus_1",
     subscription: "sub_1",
-    customer_details: { email: "dave@example.com" },
+    customer_details: { email: "engineer@example.com" },
     metadata: { plan: "pro" },
   };
   const stripe = {
@@ -85,7 +85,7 @@ function fakes({ account = {}, spent = 0, paid = true, upstream } = {}) {
     session: async () => session,
     subscription: async () => ({
       status: "active",
-      items: { data: [{ current_period_end: NOW / 1000 + 86400 * 30 }] },
+      items: { data: [{ current_period_end: NOW / 1000 + 86400 * 30, price: { id: price } }] },
     }),
   };
   const send = async (url, init) => {
@@ -280,6 +280,20 @@ NodeTest.test("checks a stale subscription with Stripe before running", async ()
 });
 
 NodeTest.test(
+  "a capped Starter moved to Pro on Stripe's billing page runs again soon",
+  async () => {
+    const minutesAgo = new Date(NOW - 10 * 60_000).toISOString();
+    const moved = fakes({ spent: 5, price: "price_p", account: { checked_at: minutesAgo } });
+    NodeAssert.equal((await moved.handle(await messages())).status, 200);
+    NodeAssert.equal(moved.state.accounts.get(ID).plan, "pro");
+
+    const under = fakes({ spent: 1, price: "price_p", account: { checked_at: minutesAgo } });
+    await under.handle(await messages());
+    NodeAssert.equal(under.state.accounts.get(ID).plan, "starter");
+  },
+);
+
+NodeTest.test(
   "Upgrade opens Checkout tied to the app's claim, and the claim answers the key once paid",
   async () => {
     const hash = await claimHashOf(CLAIM);
@@ -313,7 +327,7 @@ NodeTest.test(
     NodeAssert.equal(answer.status, 200);
     NodeAssert.deepEqual(await answer.json(), {
       key: await key(),
-      email: "dave@example.com",
+      email: "engineer@example.com",
       plan: "pro",
     });
     NodeAssert.ok(paid.state.claims.get(hash).claimed_at);

@@ -19,25 +19,40 @@ export type StudioProPlan = "starter" | "pro";
 
 /**
  * The two plans, as Checkout charges them (`STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`): each buys
- * its price in AI a month, refilled a week's share at a time, Monday 00:00 UTC.
+ * its price in AI a month, refilled a week's share at a time, Monday 00:00 UTC. Each card's list
+ * follows the one before it.
  */
 export const STUDIO_PRO_PLANS: ReadonlyArray<{
   readonly plan: StudioProPlan;
   readonly name: string;
+  readonly tagline: string;
   readonly price: string;
-  readonly detail: string;
+  readonly lead: string;
+  readonly includes: ReadonlyArray<string>;
+  readonly recommended: boolean;
 }> = [
   {
     plan: "starter",
     name: "Starter",
-    price: "$20 a month",
-    detail: "$20 of AI a month, refilled every Monday (about $4.62 a week).",
+    tagline: "Try Studio's AI on a project.",
+    price: "$20",
+    lead: "Includes:",
+    includes: [
+      "$20 of AI a month, refilled every Monday",
+      "Claude Opus, Sonnet, Haiku and Fable, or GPT-6.2 Astra",
+      "No Claude or ChatGPT subscription of your own",
+      "Your license key works on your other computers",
+    ],
+    recommended: false,
   },
   {
     plan: "pro",
     name: "Pro",
-    price: "$60 a month",
-    detail: "$60 of AI a month, refilled every Monday (about $13.85 a week).",
+    tagline: "For designing parts every week.",
+    price: "$60",
+    lead: "Everything in Starter, plus:",
+    includes: ["$60 of AI a month, refilled every Monday", "Three times Starter's AI each week"],
+    recommended: true,
   },
 ];
 
