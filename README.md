@@ -107,7 +107,7 @@ server, [`infra/pro`](infra/pro/README.md), and OpenRouter to the model you chos
 only how much AI each account used and what it cost, never what was said. Each plan buys
 its price in AI a month (Starter $20, Pro $60), refilled a week's share every Monday (about $4.62 and
 $13.85); past it, Claude asks you to wait for Monday or sign in with your own Claude.
-**Stop using it** in the same places puts Claude back on your own sign-in.
+Past the week's AI, **Add AI** buys more ($10, $25 or $50, used only once the week's runs out), or **use your own API key** (Anthropic or OpenRouter) in the upgrade dialog for no Studio limit, billed by that provider and never through Studio's server. **Stop using it** in the same places puts Claude back on your own sign-in.
 
 ## Contributing
 

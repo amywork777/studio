@@ -10,7 +10,12 @@ const STUDIO_PRO_SERVER: string =
 const BASE_URL = "ANTHROPIC_BASE_URL";
 const TOKEN = "ANTHROPIC_AUTH_TOKEN";
 const ACCOUNT = "STUDIO_PRO_ACCOUNT";
+const API_KEY = "ANTHROPIC_API_KEY";
 const PRO_VARIABLES = new Set([BASE_URL, TOKEN, ACCOUNT]);
+// What either way of paying for the AI sets: Pro, or the person's own API key.
+const KEY_VARIABLES = new Set([BASE_URL, TOKEN, ACCOUNT, API_KEY]);
+// OpenRouter's Anthropic-compatible endpoint, as its Claude Code guide sets it.
+const OPENROUTER_BASE = "https://openrouter.ai/api";
 // What Pro adds to Claude's own models, by the OpenRouter slug the server runs it as.
 const PRO_MODELS = [{ slug: "openai/gpt-6.2-astra", name: "GPT-6.2 Astra" }];
 const PRO_SLUGS = new Set(PRO_MODELS.map((model) => model.slug));
@@ -112,7 +117,7 @@ export function proInstance(
       customModels: [...ownModels(instance.config), ...PRO_MODELS],
     },
     environment: [
-      ...(instance.environment ?? []).filter((entry) => !PRO_VARIABLES.has(entry.name)),
+      ...(instance.environment ?? []).filter((entry) => !KEY_VARIABLES.has(entry.name)),
       { name: BASE_URL, value: `${server}/anthropic`, sensitive: false },
       { name: TOKEN, value: key, sensitive: true },
       { name: ACCOUNT, value: account, sensitive: false },
@@ -126,6 +131,60 @@ export function instanceWithoutPro(instance: ProviderInstanceConfig): ProviderIn
     ...instance,
     config: { ...configOf(instance.config), customModels: ownModels(instance.config) },
     environment: (instance.environment ?? []).filter((entry) => !PRO_VARIABLES.has(entry.name)),
+  };
+}
+
+export type OwnKeyKind = "anthropic" | "openrouter";
+
+/** Whose API key this is, by its prefix: Anthropic's (`sk-ant-`) or OpenRouter's (`sk-or-`). */
+export function ownKeyKind(key: string): OwnKeyKind | null {
+  if (/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) return "anthropic";
+  if (/^sk-or-v1-[A-Za-z0-9]{20,}$/.test(key)) return "openrouter";
+  return null;
+}
+
+/**
+ * The Claude instance on the person's own API key, billed to them with no Studio limit: Anthropic's
+ * as Claude Code's own key, or OpenRouter's at its endpoint (empty `ANTHROPIC_API_KEY`, as its
+ * guide says). Pro, if it was on, is off.
+ */
+export function ownKeyInstance(
+  instance: ProviderInstanceConfig,
+  key: string,
+): ProviderInstanceConfig {
+  const kind = ownKeyKind(key);
+  if (kind === null) throw new Error("That is not an Anthropic or OpenRouter API key.");
+  const rest = instanceWithoutOwnKey(instance);
+  return {
+    ...rest,
+    enabled: true,
+    environment: [
+      ...(rest.environment ?? []),
+      ...(kind === "anthropic"
+        ? [{ name: API_KEY, value: key, sensitive: true }]
+        : [
+            { name: BASE_URL, value: OPENROUTER_BASE, sensitive: false },
+            { name: TOKEN, value: key, sensitive: true },
+            { name: API_KEY, value: "", sensitive: false },
+          ]),
+    ],
+  };
+}
+
+/** Which own API key the Claude instance runs on, if any; by names alone, as a secret reads back. */
+export function ownKeyIn(instance: ProviderInstanceConfig): OwnKeyKind | null {
+  const base = variable(instance, BASE_URL)?.value;
+  if (base === OPENROUTER_BASE && variable(instance, TOKEN)) return "openrouter";
+  if (base === undefined && variable(instance, API_KEY)?.sensitive) return "anthropic";
+  return null;
+}
+
+/** The Claude instance off any key Studio set, Pro's or the person's: back on their sign-in. */
+export function instanceWithoutOwnKey(instance: ProviderInstanceConfig): ProviderInstanceConfig {
+  const rest = instanceWithoutPro(instance);
+  return {
+    ...rest,
+    environment: (rest.environment ?? []).filter((entry) => !KEY_VARIABLES.has(entry.name)),
   };
 }
 
@@ -195,7 +254,16 @@ export type ProUsage = {
   readonly refused: string | null;
   readonly usedPercent: number;
   readonly resetsAt: string;
+  /** What is left of AI bought on top, used once the week's is. */
+  readonly addedUsd?: number;
 };
+
+/** The AI a subscriber can add, in dollars, each priced at what it buys (the server's `TOPUPS`). */
+export const STUDIO_PRO_TOPUPS = [10, 25, 50] as const;
+
+/** Add AI's checkout, in the person's browser, for the account the app keeps. */
+export const proTopUpUrl = (account: string, usd: number, server = STUDIO_PRO_SERVER) =>
+  `${server}/v1/topup?account=${encodeURIComponent(account)}&usd=${usd}`;
 
 /** The plan and this week's share used, for the Pro row; a sentence when it can't be read. */
 export async function readProUsage(
@@ -225,5 +293,6 @@ export function proUsageLine(usage: ProUsage, now = new Date()): string {
     timeZone: "UTC",
     ...(resets.getUTCFullYear() === now.getUTCFullYear() ? {} : { year: "numeric" }),
   });
-  return `${plan}. ${usage.usedPercent}% of this week's AI used; it refills ${day}.`;
+  const added = usage.addedUsd ? ` $${usage.addedUsd.toFixed(2)} of added AI left.` : "";
+  return `${plan}. ${usage.usedPercent}% of this week's AI used; it refills ${day}.${added}`;
 }

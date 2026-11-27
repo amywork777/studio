@@ -52,6 +52,25 @@ export function stripeClient({ key, fetch: send = fetch }) {
         subscription_data: { metadata: { plan } },
       });
     },
+    /** A one-time payment for AI on top of an account's plan, priced inline: no Product to make. */
+    topupCheckout({ accountId, usd, successUrl, cancelUrl }) {
+      return call("POST", "/checkout/sessions", {
+        mode: "payment",
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(usd * 100),
+              product_data: { name: `Studio Pro: $${usd} of added AI` },
+            },
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { kind: "topup", account: accountId, usd },
+      });
+    },
     session: (id) => call("GET", `/checkout/sessions/${encodeURIComponent(id)}`),
     subscription: (id) => call("GET", `/subscriptions/${encodeURIComponent(id)}`),
   };
@@ -65,3 +84,9 @@ export const sessionPaid = (session) =>
   session?.status === "complete" &&
   (session.payment_status === "paid" || session.payment_status === "no_payment_required") &&
   typeof session.subscription === "string";
+
+/** Whether a finished Checkout session paid for added AI. */
+export const topupPaid = (session) =>
+  session?.status === "complete" &&
+  session.payment_status === "paid" &&
+  session.metadata?.kind === "topup";

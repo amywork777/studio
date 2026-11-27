@@ -32,6 +32,8 @@ function fakes({ account = {}, spent = 0, paid = true, upstream, price } = {}) {
     usage: [],
     upstream: [],
     checkouts: [],
+    topups: new Map(),
+    sessions: new Map(),
   };
   const store = {
     async addClaim({ claimHash, sessionId, plan }) {
@@ -66,6 +68,20 @@ function fakes({ account = {}, spent = 0, paid = true, upstream, price } = {}) {
       state.usage.push(row);
     },
     weekSpend: async () => spent + state.usage.reduce((sum, row) => sum + row.cost_usd, 0),
+    async addTopup({ sessionId, accountId, usd }) {
+      state.topups.set(sessionId, { account_id: accountId, usd, paid_at: null, created_at: NOW });
+    },
+    async markTopupPaid(sessionId) {
+      const row = state.topups.get(sessionId);
+      if (row && !row.paid_at) row.paid_at = NOW;
+    },
+    unpaidTopups: async (accountId) =>
+      [...state.topups]
+        .filter(([, row]) => row.account_id === accountId && !row.paid_at)
+        .map(([id]) => id),
+    topupBalance: async () =>
+      [...state.topups.values()].reduce((sum, row) => sum + (row.paid_at ? row.usd : 0), 0) -
+      state.usage.reduce((sum, row) => sum + row.topup_usd, 0),
     ready: async () => undefined,
   };
   const session = {
@@ -82,7 +98,11 @@ function fakes({ account = {}, spent = 0, paid = true, upstream, price } = {}) {
       state.checkouts.push(input);
       return { id: "cs_test_1", url: "https://checkout.stripe.com/c/pay/cs_test_1" };
     },
-    session: async () => session,
+    async topupCheckout(input) {
+      state.checkouts.push(input);
+      return { id: "cs_topup_1", url: "https://checkout.stripe.com/c/pay/cs_topup_1" };
+    },
+    session: async (id) => state.sessions.get(id) ?? session,
     subscription: async () => ({
       status: "active",
       items: { data: [{ current_period_end: NOW / 1000 + 86400 * 30, price: { id: price } }] },
@@ -161,6 +181,7 @@ NodeTest.test(
         output_tokens: 10_000,
         web_searches: 0,
         cost_usd: 0.4123,
+        topup_usd: 0,
       },
     ]);
   },
@@ -205,7 +226,7 @@ NodeTest.test(
     NodeAssert.equal(refused.status, 403);
     NodeAssert.match(
       (await refused.json()).error.message,
-      /this week's Studio Pro AI. It refills on Monday/,
+      /this week's Studio Pro AI. Add AI in Settings, wait for Monday's refill/,
     );
     NodeAssert.equal(capped.state.upstream.length, 0);
 
@@ -379,6 +400,7 @@ NodeTest.test(
       refused: null,
       usedPercent: 26,
       resetsAt: "2026-11-30T00:00:00.000Z",
+      addedUsd: 0,
     });
     const pro = await usage(fakes({ spent: 6.93, account: { plan: "pro" } }).handle);
     NodeAssert.equal(pro.runs, true);
@@ -386,11 +408,54 @@ NodeTest.test(
     const capped = await usage(fakes({ spent: 30 }).handle);
     NodeAssert.equal(capped.runs, false);
     NodeAssert.equal(capped.usedPercent, 100);
-    NodeAssert.match(capped.refused, /It refills on Monday/);
+    NodeAssert.match(capped.refused, /wait for Monday's refill/);
     const unknown = await fakes().handle(
       new Request("https://pro.example/v1/usage?account=0b7e4c5a-0000-4000-8000-000000000000"),
     );
     NodeAssert.equal(unknown.status, 404);
+  },
+);
+
+NodeTest.test(
+  "Add AI: a paid top-up runs a week past its allowance, and pays only for the part past it",
+  async () => {
+    const { state, handle } = fakes({ spent: 4.5 });
+    const add = (query) => handle(new Request(`https://pro.example/v1/topup?${query}`));
+    NodeAssert.equal((await add(`account=${ID}&usd=7`)).status, 400);
+    const opened = await add(`account=${ID}&usd=10`);
+    NodeAssert.equal(opened.status, 303);
+    NodeAssert.equal(
+      opened.headers.get("location"),
+      "https://checkout.stripe.com/c/pay/cs_topup_1",
+    );
+    NodeAssert.equal(state.checkouts[0].usd, 10);
+
+    // Starter's week is $4.62: this call crosses it, and only the part past it is added AI's.
+    await (await handle(await messages())).text();
+    NodeAssert.equal(state.usage[0].topup_usd, Number((4.5 + 0.4123 - (20 * 12) / 52).toFixed(6)));
+    // Not yet paid: the week is used up, so the next call is refused.
+    NodeAssert.equal((await handle(await messages())).status, 403);
+
+    // Paid in the browser but the page never opened: the server asks Stripe once it is needed.
+    state.sessions.set("cs_topup_1", {
+      status: "complete",
+      payment_status: "paid",
+      metadata: { kind: "topup", account: ID, usd: "10" },
+    });
+    const usage = await (
+      await handle(new Request(`https://pro.example/v1/usage?account=${ID}`))
+    ).json();
+    NodeAssert.equal(usage.runs, true);
+    NodeAssert.equal(usage.addedUsd, Number((10 - state.usage[0].topup_usd).toFixed(2)));
+    const ran = await handle(await messages());
+    NodeAssert.equal(ran.status, 200);
+    await ran.text();
+    NodeAssert.equal(state.usage[1].topup_usd, 0.4123);
+
+    const page = await handle(
+      new Request("https://pro.example/v1/topped-up?session_id=cs_topup_1"),
+    );
+    NodeAssert.match(await page.text(), /\$10 of AI added/);
   },
 );
 

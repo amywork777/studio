@@ -35,8 +35,11 @@ key for another computer (Settings, Studio Pro, I have a license key).
 - `GET /v1/upgrade?plan=starter|pro&claim=<64 hex>`: makes a Checkout session and redirects to it.
 - `POST /v1/claim {claim}`: `202` while unpaid, `200 {key, email, plan}` once paid, `410` after a day.
 - `GET /v1/welcome?session_id=`, `GET /v1/cancelled`: the pages Checkout returns to.
-- `GET /v1/usage?account=`: the plan, whether the AI runs, and the share of the week used. No
-  email and no amounts, since an account id proves nothing about who asks.
+- `GET /v1/topup?account=&usd=10|25|50`: Add AI, a one-time Checkout for an account
+  that runs, priced inline so no Stripe Product is needed. `GET /v1/topped-up?session_id=` is the
+  page it returns to.
+- `GET /v1/usage?account=`: the plan, whether the AI runs, the share of the week used, and what is
+  left of added AI. No email, since an account id proves nothing about who asks.
 - `GET /v1/manage`: redirects to Stripe's billing login (`STRIPE_PORTAL_LOGIN_URL`), which signs
   the person in by email to change their card or plan, or cancel.
 - `POST /anthropic/v1/messages`, `POST /anthropic/v1/messages/count_tokens`,
@@ -60,8 +63,8 @@ cost Studio. The cost is OpenRouter's own `usage.cost` from the answer (`cost_so
 `pro_week_usage` (a view) shows each account's week so far against revenue.
 
 **Limits.** Each account's AI may cost Studio a week's share of its plan's monthly allowance, from
-Monday 00:00 UTC (about $4.62 on Starter, $13.85 on Pro), then Claude Code shows "You have used this week's Studio Pro AI. It
-refills on Monday…". Fast mode and models not in `MODELS` are
+Monday 00:00 UTC (about $4.62 on Starter, $13.85 on Pro), then, unless the account has added AI, Claude Code shows "You have used this week's Studio Pro AI. Add
+AI in Settings, wait for Monday's refill…". Fast mode and models not in `MODELS` are
 refused. A request body may be at most 4.5 MB, Vercel's limit for a function, and an answer may
 take at most 5 minutes. A very long chat with many drawings can pass 4.5 MB, and Claude Code then
 shows "This chat is too long for Studio Pro". The handler is a plain `fetch` handler, so moving it to
@@ -102,11 +105,24 @@ is about 32 Opus turns or 64 Sonnet turns, Pro's about 98 or 193, and a full-tim
 ($184) would run out of Pro's week by Tuesday. How much of the allowance subscribers really use is
 what `pro_week_usage` shows; nothing here measures that yet.
 
-Someone who reaches the week's allowance goes on with their own Claude sign-in until Monday, or Amy
-raises their own cap (`cap_usd` on their row, dollars a month, held the same way a week at a time).
-OpenRouter also charges a fee when credits are bought; check its current rate and add it to each
-plan's cost. GPT-6.2 Astra costs twice Opus 5.5 per token ($8 and $40 a million), so a week on it
-reaches the allowance in about half as many turns.
+**For heavy users,** past the week's allowance:
+
+- **Add AI** (Settings or Welcome's Pro row, while on Pro): $10, $25 or $50, each costing what it
+  buys, so like the plans it costs Studio its card fee (Stripe takes $0.59 of $10). Added AI is
+  used only once the week's allowance is, and keeps from week to week while the subscription runs.
+  Each usage row keeps the part past the allowance in `topup_usd`; `pro_topup_balance` is every
+  paid top-up less those parts. There is no webhook here either: a top-up counts once its return
+  page opens, or once the account next needs it, when the server asks Stripe about its checkouts
+  of the last day not yet seen paid (`pro_topups.paid_at`).
+- **Their own API key** (the upgrade dialog's "use your own API key"): an Anthropic key becomes
+  Claude Code's `ANTHROPIC_API_KEY`, and an OpenRouter key runs Claude Code at
+  `https://openrouter.ai/api`, as OpenRouter's Claude Code guide sets it. Either is billed by that
+  provider with no Studio limit, never touches this server, and Stop using it takes it off.
+- **Their own Claude sign-in** until Monday, as before, or Amy raises their own cap (`cap_usd` on
+  their row, dollars a month, held the same way a week at a time).
+  OpenRouter also charges a fee when credits are bought; check its current rate and add it to each
+  plan's cost. GPT-6.2 Astra costs twice Opus 5.5 per token ($8 and $40 a million), so a week on it
+  reaches the allowance in about half as many turns.
 
 To change a plan's allowance, set `CAP_STARTER_USD` or `CAP_PRO_USD` (dollars a month) on the Vercel
 project and deploy again; to change it for everyone by default, edit `DEFAULT_CAPS`.

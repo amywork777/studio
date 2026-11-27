@@ -7,7 +7,7 @@ import { accountIdOf, claimHashOf, keyMatches, keyOf, licenseKey } from "./licen
 import { meteredBody } from "./meter.mjs";
 import { costOf, modelOf } from "./prices.mjs";
 import { cancelledPage, welcomePage } from "./pages.mjs";
-import { sessionPaid, STATUS_RUNS } from "./stripe.mjs";
+import { sessionPaid, STATUS_RUNS, topupPaid } from "./stripe.mjs";
 
 export const PLANS = ["starter", "pro"];
 // What Studio's AI may cost per account per month, in dollars, unless the host says otherwise
@@ -15,6 +15,9 @@ export const PLANS = ["starter", "pro"];
 // Monday 00:00 UTC: a month's allowance spread over a year's 52 weeks. README.md says why.
 export const DEFAULT_CAPS = { starter: 20, pro: 60 };
 export const weeklyOf = (monthly) => (monthly * 12) / 52;
+// AI a subscriber can add on top, in dollars, each sold at what it buys. It is drawn on only once
+// the week's allowance is used, and keeps while the subscription runs.
+export const TOPUPS = [10, 25, 50];
 // Vercel's most for a request body, said here so the refusal is a sentence and not Vercel's page.
 export const MAX_BODY = 4.5 * 1024 * 1024;
 // How long an instance trusts what it read about an account, and Stripe about a subscription.
@@ -22,7 +25,7 @@ const ACCOUNT_TTL_MS = 30_000;
 const SUBSCRIPTION_TTL_MS = 6 * 60 * 60_000;
 // A capped account may have just moved to Pro on Stripe's billing page: check it sooner.
 const CAPPED_SUBSCRIPTION_TTL_MS = 5 * 60_000;
-// An Upgrade click's claim stays good for a day.
+// An Upgrade click's claim stays good for a day, and so does an unpaid top-up's checkout.
 const CLAIM_TTL_MS = 24 * 60 * 60_000;
 // OpenRouter's Anthropic Messages endpoint: one key for Claude, GPT and the rest.
 const OPENROUTER = "https://openrouter.ai/api/";
@@ -36,6 +39,7 @@ const PASSED_DOWN =
   /^(content-type|cache-control|request-id|x-request-id|retry-after|x-should-retry)$/i;
 // How Studio Pro's calls show on OpenRouter's dashboard.
 const ATTRIBUTION = { "http-referer": "https://texttocad.studio", "x-title": "Studio Pro" };
+const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, content-type",
@@ -47,7 +51,7 @@ export const SAY = {
   ended:
     "Your Studio Pro subscription has ended. Renew it in Settings, or sign in with your own Claude account.",
   capped:
-    "You have used this week's Studio Pro AI. It refills on Monday, or sign in with your own Claude account until then.",
+    "You have used this week's Studio Pro AI. Add AI in Settings, wait for Monday's refill, or use your own Claude sign-in or API key until then.",
   model: "Studio Pro does not run that model. Choose another model in Studio.",
   fast: "Studio Pro runs at standard speed only. Turn fast mode off.",
   tooLarge: "This chat is too long for Studio Pro. Start a new chat and try again.",
@@ -120,6 +124,23 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
     });
   }
 
+  /** What is left of an account's added AI, after asking Stripe about checkouts not yet seen paid. */
+  async function topupBalanceOf(id) {
+    const since = new Date(now() - CLAIM_TTL_MS).toISOString();
+    for (const sessionId of await store.unpaidTopups(id, since)) {
+      try {
+        if (topupPaid(await stripe.session(sessionId))) {
+          await store.markTopupPaid(sessionId);
+          // What this instance remembers of the account's added AI is out of date now.
+          if (accounts.has(id)) delete accounts.get(id).balance;
+        }
+      } catch {
+        // Stripe unreachable: the top-up counts once it answers.
+      }
+    }
+    return store.topupBalance(id);
+  }
+
   const keyFor = (account) => licenseKey(config.licenseSecret, account.id, account.key_generation);
 
   /** The account a key belongs to, with this week's spend; or why it may not run. */
@@ -156,11 +177,19 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
     if (!(await keyMatches(config.licenseSecret, key, account.id, account.key_generation)))
       return { refused: "noKey" };
     if (!STATUS_RUNS.has(account.status)) return { refused: "ended", account };
-    if (spent >= capOf(account)) return { refused: "capped", account };
+    if (spent >= capOf(account)) {
+      known.balance ??= await topupBalanceOf(id);
+      if (known.balance <= 0) return { refused: "capped", account };
+    }
     return { account, spent };
   }
 
   async function record(account, model, cost) {
+    const known = accounts.get(account.id);
+    const spent = known?.spent ?? (await store.weekSpend(account.id));
+    const cap = capOf(account);
+    // The part of this call past the week's allowance, which added AI pays for.
+    const fromTopup = Math.max(0, spent + cost.usd - cap) - Math.max(0, spent - cap);
     await store.addUsage({
       account_id: account.id,
       provider: "openrouter",
@@ -172,9 +201,12 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
       output_tokens: cost.tokens.output,
       web_searches: cost.tokens.webSearches,
       cost_usd: Number(cost.usd.toFixed(6)),
+      topup_usd: Number(fromTopup.toFixed(6)),
     });
-    const known = accounts.get(account.id);
-    if (known) known.spent += cost.usd;
+    if (known) {
+      known.spent += cost.usd;
+      if (known.balance !== undefined) known.balance -= fromTopup;
+    }
   }
 
   async function bodyOf(request) {
@@ -293,6 +325,64 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
     });
   }
 
+  /** Add AI: a one-time Checkout for an account that runs, by the id the app keeps. */
+  async function topup(url) {
+    const id = url.searchParams.get("account") ?? "";
+    const usd = Number(url.searchParams.get("usd"));
+    const account = ACCOUNT_ID.test(id) ? await store.account(id) : null;
+    if (!account || !TOPUPS.includes(usd))
+      return html(
+        400,
+        cancelledPage({
+          title: "That link is not complete",
+          line: "Choose Add AI in Studio again.",
+        }),
+      );
+    if (!STATUS_RUNS.has(account.status))
+      return html(
+        403,
+        cancelledPage({ title: "Your Studio Pro subscription has ended", line: SAY.ended }),
+      );
+    const session = await stripe.topupCheckout({
+      accountId: account.id,
+      usd,
+      successUrl: `${url.origin}/v1/topped-up?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${url.origin}/v1/cancelled`,
+    });
+    await store.addTopup({ sessionId: session.id, accountId: account.id, usd });
+    return new Response(null, {
+      status: 303,
+      headers: { location: session.url, "cache-control": "no-store" },
+    });
+  }
+
+  async function toppedUp(url) {
+    const id = url.searchParams.get("session_id") ?? "";
+    if (!/^cs_[A-Za-z0-9_]+$/.test(id))
+      return html(
+        400,
+        cancelledPage({ title: "That link is not complete", line: "Go back to Studio." }),
+      );
+    const session = await stripe.session(id);
+    if (!topupPaid(session))
+      return html(
+        200,
+        cancelledPage({
+          title: "Your payment is still going through",
+          line: "The AI is added as soon as it is done. You can close this page.",
+        }),
+      );
+    await store.markTopupPaid(id);
+    accounts.delete(session.metadata?.account);
+    return html(
+      200,
+      cancelledPage({
+        title: `$${session.metadata?.usd} of AI added`,
+        line: "Studio uses it once this week's AI runs out. Go back to Studio.",
+      }),
+    );
+  }
+
   async function claim(request) {
     let secret;
     try {
@@ -347,14 +437,14 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
    */
   async function usage(url) {
     const id = url.searchParams.get("account") ?? "";
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id))
-      return json(404, { error: SAY.noKey }, CORS);
+    if (!ACCOUNT_ID.test(id)) return json(404, { error: SAY.noKey }, CORS);
     const account = await store.account(id);
     if (!account) return json(404, { error: SAY.noKey }, CORS);
     const spent = await store.weekSpend(id);
+    const added = Math.max(0, await topupBalanceOf(id));
     const refused = !STATUS_RUNS.has(account.status)
       ? "ended"
-      : spent >= capOf(account)
+      : spent >= capOf(account) && added <= 0
         ? "capped"
         : null;
     return json(
@@ -365,6 +455,7 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
         refused: refused === null ? null : SAY[refused],
         usedPercent: Math.min(100, Math.floor((spent / capOf(account)) * 100)),
         resetsAt: weekEndOf(now()).toISOString(),
+        addedUsd: Number(added.toFixed(2)),
       },
       CORS,
     );
@@ -390,13 +481,20 @@ export function proServer({ store, stripe, config, fetch: send = fetch, now = Da
       if (path.startsWith("anthropic/"))
         return await anthropic(request, path.slice("anthropic/".length), url.search);
       if (path === "v1/health") return await health();
-      if (limiter && ["v1/upgrade", "v1/claim", "v1/welcome", "v1/usage"].includes(path)) {
+      if (
+        limiter &&
+        ["v1/upgrade", "v1/claim", "v1/welcome", "v1/usage", "v1/topup", "v1/topped-up"].includes(
+          path,
+        )
+      ) {
         if (!limiter.take(`${path}:${client}`).ok)
           return json(429, { error: SAY.busy }, { ...CORS, "retry-after": "60" });
       }
       if (path === "v1/upgrade" && request.method === "GET") return await upgrade(url);
       if (path === "v1/claim" && request.method === "POST") return await claim(request);
       if (path === "v1/welcome" && request.method === "GET") return await welcome(url);
+      if (path === "v1/topup" && request.method === "GET") return await topup(url);
+      if (path === "v1/topped-up" && request.method === "GET") return await toppedUp(url);
       if (path === "v1/cancelled" && request.method === "GET")
         return html(
           200,

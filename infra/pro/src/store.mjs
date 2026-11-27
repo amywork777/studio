@@ -86,6 +86,31 @@ export function databaseStore({ url, key, fetch: send = fetch }) {
       });
       return Number(spent) || 0;
     },
+    addTopup: ({ sessionId, accountId, usd }) =>
+      call("pro_topups", {
+        method: "POST",
+        headers: { prefer: "return=minimal" },
+        body: JSON.stringify({ session_id: sessionId, account_id: accountId, usd }),
+      }),
+    /** Marks a top-up paid once; answers nothing either way. */
+    markTopupPaid: (sessionId) =>
+      call(`pro_topups?session_id=${eq(sessionId)}&paid_at=is.null`, {
+        method: "PATCH",
+        headers: { prefer: "return=minimal" },
+        body: JSON.stringify({ paid_at: new Date().toISOString() }),
+      }),
+    /** An account's top-ups not yet seen paid, opened since `since` (ISO), newest first. */
+    unpaidTopups: (accountId, since) =>
+      call(
+        `pro_topups?account_id=${eq(accountId)}&paid_at=is.null&created_at=gte.${encodeURIComponent(since)}&select=session_id&order=created_at.desc&limit=5`,
+      ).then((rows) => (rows ?? []).map((row) => row.session_id)),
+    async topupBalance(accountId) {
+      const left = await call("rpc/pro_topup_balance", {
+        method: "POST",
+        body: JSON.stringify({ account: accountId }),
+      });
+      return Number(left) || 0;
+    },
     ready: () => call("pro_accounts?select=id&limit=1").then(() => undefined),
   };
 }

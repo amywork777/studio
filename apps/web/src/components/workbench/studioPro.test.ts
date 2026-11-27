@@ -3,7 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   checkProClaim,
+  instanceWithoutOwnKey,
   instanceWithoutPro,
+  ownKeyIn,
+  ownKeyInstance,
   newProClaim,
   proAccountIn,
   proAccountOf,
@@ -46,6 +49,46 @@ describe("Studio Pro on the Claude instance", () => {
       { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
     ]);
     expect(instanceWithoutPro(pro).config).toEqual(claude.config);
+  });
+
+  it("runs Claude on the person's own Anthropic or OpenRouter key instead of Pro, and back", () => {
+    const anthropicKey = `sk-ant-api03-${"b".repeat(40)}`;
+    const openrouterKey = `sk-or-v1-${"c".repeat(64)}`;
+    const pro = proInstance(claude, KEY, SERVER);
+
+    const own = ownKeyInstance(pro, anthropicKey);
+    expect(own.environment).toEqual([
+      { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
+      { name: "ANTHROPIC_API_KEY", value: anthropicKey, sensitive: true },
+    ]);
+    expect(own.config).toEqual(claude.config);
+    expect(proAccountIn(own, SERVER)).toBeNull();
+    // As the app reads it back, with the secret's value redacted.
+    expect(
+      ownKeyIn({
+        ...own,
+        environment: [
+          { name: "ANTHROPIC_API_KEY", value: "", sensitive: true, valueRedacted: true },
+        ],
+      }),
+    ).toBe("anthropic");
+
+    const viaOpenRouter = ownKeyInstance(own, openrouterKey);
+    expect(viaOpenRouter.environment).toEqual([
+      { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
+      { name: "ANTHROPIC_BASE_URL", value: "https://openrouter.ai/api", sensitive: false },
+      { name: "ANTHROPIC_AUTH_TOKEN", value: openrouterKey, sensitive: true },
+      { name: "ANTHROPIC_API_KEY", value: "", sensitive: false },
+    ]);
+    expect(ownKeyIn(viaOpenRouter)).toBe("openrouter");
+    expect(ownKeyIn(pro)).toBeNull();
+
+    // Pro after an own key drops that key, so Claude Code is not left choosing between two.
+    expect(proInstance(own, KEY, SERVER).environment).toEqual(pro.environment);
+    expect(instanceWithoutOwnKey(viaOpenRouter).environment).toEqual([
+      { name: "HTTPS_PROXY", value: "http://proxy", sensitive: false },
+    ]);
+    expect(() => ownKeyInstance(claude, KEY)).toThrow();
   });
 
   it("takes only a Pro key", () => {
@@ -105,5 +148,8 @@ describe("the Pro row's line", () => {
     expect(
       proUsageLine({ ...usage, plan: "pro", runs: false, refused: "It has ended." }, now),
     ).toBe("Pro. It has ended.");
+    expect(proUsageLine({ ...usage, addedUsd: 9.5 }, now)).toBe(
+      "Starter. 12% of this week's AI used; it refills Mon, Dec 7. $9.50 of added AI left.",
+    );
   });
 });

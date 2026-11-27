@@ -38,7 +38,17 @@ create table if not exists public.pro_usage (
   output_tokens integer not null default 0,
   web_searches integer not null default 0,
   cost_usd numeric(12, 6) not null,
-  cost_source text not null default 'openrouter' -- 'openrouter': its reported cost; 'tokens': its listed prices times the tokens
+  cost_source text not null default 'openrouter', -- 'openrouter': its reported cost; 'tokens': its listed prices times the tokens
+  topup_usd numeric(12, 6) not null default 0   -- the part of cost_usd past the week's allowance, drawn from added AI
+);
+
+-- AI bought on top of a plan, one row a Checkout payment: used only once the week's allowance is.
+create table if not exists public.pro_topups (
+  session_id text primary key,                  -- the Checkout session that sells it
+  account_id uuid not null references public.pro_accounts (id),
+  usd numeric(10, 2) not null check (usd > 0),
+  paid_at timestamptz,                          -- null until Stripe says it is paid
+  created_at timestamptz not null default now()
 );
 
 create index if not exists pro_usage_account_at on public.pro_usage (account_id, at);
@@ -47,6 +57,7 @@ create index if not exists pro_usage_account_at on public.pro_usage (account_id,
 alter table public.pro_accounts enable row level security;
 alter table public.pro_claims enable row level security;
 alter table public.pro_usage enable row level security;
+alter table public.pro_topups enable row level security;
 
 -- What an account's AI has cost Studio this week, from Monday 00:00 UTC: the number the cap is held to.
 create or replace function public.pro_week_spend(account uuid)
@@ -61,6 +72,19 @@ as $$
 $$;
 revoke execute on function public.pro_week_spend(uuid) from public, anon, authenticated;
 grant execute on function public.pro_week_spend(uuid) to service_role;
+
+-- What is left of an account's added AI: every paid top-up, less what went past a week's allowance.
+create or replace function public.pro_topup_balance(account uuid)
+returns numeric
+language sql
+stable
+security invoker
+as $$
+  select coalesce((select sum(usd) from public.pro_topups where account_id = account and paid_at is not null), 0)
+       - coalesce((select sum(topup_usd) from public.pro_usage where account_id = account), 0);
+$$;
+revoke execute on function public.pro_topup_balance(uuid) from public, anon, authenticated;
+grant execute on function public.pro_topup_balance(uuid) to service_role;
 
 -- Each Pro account's week so far, for the owner to read in the SQL editor: cost against revenue.
 create or replace view public.pro_week_usage with (security_invoker = true) as
