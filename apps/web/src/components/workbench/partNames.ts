@@ -133,6 +133,12 @@ const ENDINGS: ReadonlyArray<{
     kind: "Pick and place",
     suffix: "pick and place file",
   },
+  // A check's result and the script that measures it, never the model: `plate.drawing-check.json`.
+  {
+    ending: /(?:^|[._-])([a-z]+)[._-]check\.(?:json|py)$/i,
+    kind: (match) => `${capitalize(match[1]!)} check`,
+    suffix: (match) => `${match[1]!.toLowerCase()} check`,
+  },
   { ending: /\.(?:nc|gcode|ngc|tap|gco)$/i, kind: "G-code", suffix: "G-code" },
   { ending: /\.(?:gbr|drl)$/i, kind: "Gerbers", suffix: "Gerbers" },
   { ending: /\.(?:step|stp|xbf)$/i, kind: "Part", suffix: "" },

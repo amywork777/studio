@@ -27,6 +27,9 @@ CAD="$ROOT/text-to-cad"
 BUNDLE="$ROOT/build/studio-bundle"
 VERSION="${1:-0.1.0}"
 export PATH="$ROOT/node_modules/.bin:$HOME/.local/bin:$PATH"
+# The build's own runs of the bundle's Python write no bytecode of their own (a timestamp's, which a
+# copy into the app could make stale): it compiles every file once, below, for the app to read.
+export PYTHONDONTWRITEBYTECODE=1
 # Its scratch folders (the work folder here, the desktop build's stage) stay out of the system's
 # temp folder, which macOS empties nightly of files unopened for three days (dirhelper): a build
 # then lost the bundle's old empty files and its update zip no longer matched the signature. On a
@@ -254,6 +257,13 @@ if [ -n "$electron_notices" ]; then
   cp "$electron_notices/LICENSES.chromium.html" "$BUNDLE/licenses/LICENSES.chromium.html"
 fi
 
+# The bundle's Python compiled once, every module's `.pyc` checked by nothing (`unchecked-hash`): the
+# signed app seals them, so its imports are fast from the first, and its Python never needs to write
+# one into the app, which would break the app's seal (the app also sets PYTHONDONTWRITEBYTECODE,
+# studioAppBundle.ts). A file that does not compile (a package's sample of old syntax) is skipped.
+step "Compiling the CAD tools' Python"
+"$bundle_python" -m compileall -q -f -j 0 --invalidation-mode unchecked-hash "$(native "$BUNDLE/python")" >/dev/null || true
+
 step "Building the app"
 cd "$ROOT"
 T3CODE_DESKTOP_SIGNED="$signed" T3CODE_DESKTOP_STUDIO_BUNDLE="$(native "$BUNDLE")" VITE_APP_BASE_NAME=Studio \
@@ -280,21 +290,32 @@ fi
 # to what the examples ship with (scripts/studio-app-check.py), and the app must open
 # (scripts/studio-app-open-check.mjs): a build that fails is not offered for publishing. On Windows
 # the workflow checks the installed app the same way.
-# It checks the app inside the DMG, the one a person downloads, mounted read-only.
+# It checks the app the DMG holds, the one a person downloads, copied out as a person copies it into
+# Applications: somewhere it can be written, so a file its Python writes into it shows here, as the
+# app's broken seal (`codesign --verify`), and not first on that person's Mac. Its Python runs here
+# without the app's PYTHONDONTWRITEBYTECODE, so the compiled files alone must leave nothing to write.
 step "Checking the app's CAD tools"
 mounted="$(mktemp -d "$TMPDIR/studio-dmg.XXXXXX")"
 hdiutil attach -readonly -nobrowse -mountpoint "$mounted" "$ROOT/release/Studio-$VERSION-arm64.dmg" >/dev/null
-app_studio="$mounted/Studio.app/Contents/Resources/studio"
+copied="$(mktemp -d "$TMPDIR/studio-app.XXXXXX")"
+ditto "$mounted/Studio.app" "$copied/Studio.app"
+hdiutil detach "$mounted" >/dev/null || hdiutil detach -force "$mounted" >/dev/null
+app="$copied/Studio.app"
+codesign --verify --deep --strict "$app" || stop "The built app's signature does not hold as it comes out of the DMG."
+app_studio="$app/Contents/Resources/studio"
 checked=true
-"$app_studio/python/bin/python3" "$ROOT/scripts/studio-app-check.py" "$app_studio" || checked=false
+env -u PYTHONDONTWRITEBYTECODE "$app_studio/python/bin/python3" "$ROOT/scripts/studio-app-check.py" "$app_studio" || checked=false
 # A release must open: the same app starts on a home of its own and shows its first screen.
 step "Opening the app"
 opened=true
-node "$ROOT/scripts/studio-app-open-check.mjs" "$mounted/Studio.app" || opened=false
-# The app's background setup can still be running from the disk image for a moment.
-hdiutil detach "$mounted" >/dev/null || hdiutil detach -force "$mounted" >/dev/null
+env -u PYTHONDONTWRITEBYTECODE node "$ROOT/scripts/studio-app-open-check.mjs" "$app" || opened=false
 [ "$checked" = true ] || stop "The built app could not rebuild the examples or solve their strength studies."
 [ "$opened" = true ] || stop "The built app did not open to its first screen."
+step "Checking the app is as it was signed"
+written="$(find "$app" -newer "$copied" -name '*.pyc' | head -5)"
+codesign --verify --deep --strict "$app" ||
+  stop "Running the app changed it, so its signature no longer holds (a sealed resource is missing or invalid). Files it wrote: ${written:-none found by name}"
+rm -rf "$copied"
 
 # The download's one name: the guide page and amywork777/studio-download's README link to
 # releases/latest/download/Studio-arm64.dmg, so publishing a version changes no link.

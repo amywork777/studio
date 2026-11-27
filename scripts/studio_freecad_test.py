@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -127,6 +128,41 @@ class InstallTest(unittest.TestCase):
             self.install(Mac())
         self.assertEqual(self.place.link.read_text(), "#!/bin/sh\n")
 
+    def test_the_stand_in_stops_at_once_saying_freecad_is_not_installed_until_the_install_replaces_it(self) -> None:
+        freecad.stand_in(self.place)
+        said = subprocess.run([str(self.place.link), "--version"], capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(said.returncode, 0)
+        self.assertEqual((said.stdout, said.stderr.strip()), ("", freecad.NOT_INSTALLED))
+        self.assertEqual(freecad.check(self.place)[0], 1)
+        self.install(Mac())
+        self.assertEqual(self.place.link.readlink(), self.place.program)
+        freecad.stand_in(self.place)  # Studio's next start leaves Studio's FreeCAD linked
+        self.assertEqual(self.place.link.readlink(), self.place.program)
+        shutil.rmtree(self.place.app)
+        freecad.stand_in(self.place)  # and stands in again once it is deleted
+        self.assertTrue(freecad.is_stand_in(self.place.link) and not self.place.link.is_symlink())
+
+    def test_the_stand_in_leaves_a_freecadcmd_of_someone_elses_alone(self) -> None:
+        self.place.launchers.mkdir(parents=True)
+        self.place.link.write_text("#!/bin/sh\n")
+        freecad.stand_in(self.place)
+        self.assertEqual(self.place.link.read_text(), "#!/bin/sh\n")
+
+    def test_the_app_writes_the_same_stand_in(self) -> None:
+        app = (Path(__file__).resolve().parents[1] / "apps" / "desktop" / "src" / "studio" / "studioAppBundle.ts")
+        source = app.read_text(encoding="utf-8")
+        self.assertIn(freecad.STAND_IN_MARK, source)
+        self.assertIn(f"echo '{freecad.NOT_INSTALLED}' >&2", source)
+
+    def test_a_checkouts_launchers_write_no_bytecode_and_stand_in_for_freecad_on_a_mac(self) -> None:
+        for platform, stands_in in (("darwin", True), ("win32", False)):
+            with self.subTest(platform=platform):
+                folder = self.root / platform
+                written = studio_cad_plugin.write_launcher(folder, "/py/python3", platform)
+                for launcher in written:
+                    self.assertIn("-P -B ", launcher.read_text(encoding="utf-8"))
+                self.assertEqual(freecad.is_stand_in(folder / "freecadcmd"), stands_in)
+
     def assertNothingInstalled(self) -> None:
         self.assertFalse(self.place.link.is_symlink())
         self.assertFalse(self.place.record.exists())
@@ -141,6 +177,7 @@ class CamSkillTest(unittest.TestCase):
         self.assertIn("before the first plan, run `studio-install-freecad --check`", studio)
         self.assertIn("run `studio-install-freecad` once they say yes", studio)
         self.assertIn("If a plan says macOS is waiting for someone to answer whether to open FreeCAD", studio)
+        self.assertIn("a plan stops at once saying Studio's `freecadcmd` reports no version", studio)
         for words in studio_cad_plugin.FREECAD_MAC_INSTALLS:
             self.assertNotIn(words, studio)
 

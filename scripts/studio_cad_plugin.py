@@ -16,7 +16,10 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
+
+import studio_freecad
 
 # Codex waits this long for the CAD server to start: a cold kernel import on a slow disk.
 STARTUP_SECONDS = 300
@@ -25,9 +28,10 @@ STARTUP_SECONDS = 300
 # itself, and sends no telemetry. `CAD_STUDIO_ENGINE=1` (studio-base's cad_mcp/studio.py): `cad mcp`
 # starts Studio's own server even where the person has a global cad installed, which 0.11.12+ would
 # otherwise hand the start to. `CAD_MCP_PRESENTATION=tabs`: 0.11.12+ serves CAD views only to a client
-# named codex, and Studio (t3code) shows them as tabs.
+# named codex, and Studio (t3code) shows them as tabs. `PYTHONDONTWRITEBYTECODE=1`, as the app's
+# (studioAppBundle.ts): the app's Python writes no `.pyc` into the signed app, which would break its seal.
 SERVER_ENV = {"CAD_UPDATE_CHECK": "0", "CAD_TELEMETRY": "0", "CAD_STUDIO_ENGINE": "1",
-              "CAD_MCP_PRESENTATION": "tabs"}
+              "CAD_MCP_PRESENTATION": "tabs", "PYTHONDONTWRITEBYTECODE": "1"}
 
 # The one sentence in every skill's Setup that installs cad (0.11.12+): "If `cad` is missing or older
 # than 0.11.12, run `uv tool install cad`, adding `--force` if uv says `cad` already exists."
@@ -54,7 +58,9 @@ STUDIO_FREECAD_STEP = (
     "  Studio install FreeCAD (a download of about 650 MB), and run `studio-install-freecad` once they say yes. It\n"
     "  downloads FreeCAD 1.1.4 from FreeCAD's own release, checks its SHA-256 and FreeCAD's signature, and installs it\n"
     "  in Studio's own folder, where `cad <type> plan` finds it from the next plan, ahead of one in Applications;\n"
-    "  macOS asks no question about it. If a plan says macOS is waiting for someone to answer whether to open FreeCAD,\n"
+    "  macOS asks no question about it. Until then Studio's `freecadcmd` only says FreeCAD is not installed for\n"
+    "  Studio, so a plan stops at once saying Studio's `freecadcmd` reports no version: that means the same, whatever\n"
+    "  install advice follows it. If a plan says macOS is waiting for someone to answer whether to open FreeCAD,\n"
     "  the answer to recommend is the same: install FreeCAD for Studio with `studio-install-freecad`. Never recommend\n"
     "  opening FreeCAD from Applications or answering macOS's question, and never put FreeCAD in Applications, start\n"
     "  it with `open`, or remove its quarantine."
@@ -211,20 +217,23 @@ def write_marketplace(out: Path, catalog: str, owner: str, description: str, nam
     })
 
 
-def write_launcher(folder: Path, python: str) -> list[Path]:
+def write_launcher(folder: Path, python: str, platform: str = sys.platform) -> list[Path]:
     """Studio's commands in `folder`, as the app's (studioAppBundle.ts): `cad` (sh) and `cad.cmd`, running
-    `python -m cad_server.cli`, and `studio-install-freecad`, running this checkout's scripts/studio_freecad.py."""
+    `python -m cad_server.cli`, and `studio-install-freecad`, running this checkout's scripts/studio_freecad.py;
+    on a Mac, until Studio's FreeCAD is installed, the stand-in `freecadcmd` (studio_freecad.STAND_IN)."""
     folder.mkdir(parents=True, exist_ok=True)
     sh = folder / "cad"
-    sh.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P -m cad_server.cli \"$@\"\n", encoding="utf-8")
+    sh.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P -B -m cad_server.cli \"$@\"\n", encoding="utf-8")
     sh.chmod(0o755)
     cmd = folder / "cad.cmd"
-    cmd.write_text(f'@"{python}" -P -m cad_server.cli %*\r\n', encoding="utf-8")
+    cmd.write_text(f'@"{python}" -P -B -m cad_server.cli %*\r\n', encoding="utf-8")
     installer = folder / "studio-install-freecad"
     script = Path(__file__).resolve().parent / "studio_freecad.py"
-    installer.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P {shell_quoted(str(script))} \"$@\"\n",
+    installer.write_text(f"#!/bin/sh\nexec {shell_quoted(python)} -P -B {shell_quoted(str(script))} \"$@\"\n",
                          encoding="utf-8")
     installer.chmod(0o755)
+    if platform == "darwin":
+        studio_freecad.stand_in(studio_freecad.Place(folder))
     return [sh, cmd, installer]
 
 

@@ -47,7 +47,11 @@ scratch home, it imports every package a skill's part script names in its header
 strength study, held to the answer the example ships with. Last, it fails if any of that wrote outside the CAD
 tools' own folders in the scratch home, where a text-to-cad installed beside Studio keeps its data
 (Jake's condition for Studio's own copy). Then `scripts/studio-app-open-check.mjs`
-starts the app from the disk image. A build that fails either is not offered for publishing. Building it needs Rust 1.95 or newer for the resource monitor (`RUSTUP_TOOLCHAIN=1.95` uses one
+starts the app. Both run on a writable copy of the disk image's app, as a person's Applications
+is, and the app's signature must still hold after them (`codesign --verify --deep --strict`): its
+Python writes no `.pyc` into the app, whose seal a new file breaks (0.1.18). The build compiles
+every module once (`unchecked-hash`, read without checking its source, which the seal holds), and
+the app runs its Python with `PYTHONDONTWRITEBYTECODE=1` and `-B`. A build that fails is not offered for publishing. Building it needs Rust 1.95 or newer for the resource monitor (`RUSTUP_TOOLCHAIN=1.95` uses one
 installed beside an older default) and about 7 GB free; the download is about 400 MB and the app 1.2
 GB (from 0.1.4; 600 MB and 1.9 GB while the CAD tools went in twice). The disk image step reserves
 its whole temporary image (about 2.3 GB) at once, so it fails with "No space left" while gigabytes
@@ -160,7 +164,10 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   release with Python (which marks nothing as quarantined), holds it to the release's SHA-256, the
   FreeCAD project's signing team and Gatekeeper, refuses a quarantined file rather than clearing it,
   and installs it in `<home>/tools/freecad`, linking `freecadcmd` into `<home>/bin`. cad looks on
-  PATH before Applications, so the next plan uses it with no restart. Windows keeps the skill's own
+  PATH before Applications, so the next plan uses it with no restart. Until then the boot step puts
+  a stand-in `freecadcmd` there that exits at once saying FreeCAD is not installed for Studio, so a
+  plan never falls through to a FreeCAD in Applications and waits on its question; the install
+  replaces it. Windows keeps the skill's own
   steps (FreeCAD's installer), and the command says so there.
 
 **The Windows app.** The same script, run in Git Bash on Windows, builds the installer
