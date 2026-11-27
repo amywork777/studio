@@ -11,7 +11,9 @@ never touches Applications and never removes a quarantine mark: it refuses a fil
 FreeCAD goes in `<home>/tools/freecad/FreeCAD.app`, `<home>` being the folder that holds
 `CAD_LAUNCHER_DIR`, and its `freecadcmd` is linked into `CAD_LAUNCHER_DIR`, first on PATH for
 Studio's agents and CAD server. cad's CAM looks on PATH before an installer's place, so the next
-plan uses this FreeCAD, with no restart; a link left by a deleted FreeCAD is skipped.
+plan uses this FreeCAD, with no restart. Until then Studio puts a stand-in there (`STAND_IN`), so cad's
+CAM never falls through to a FreeCAD in Applications, whose first run waits on macOS's question: a plan
+stops at once, and the stand-in says FreeCAD is not installed for Studio. The install replaces it.
 
     studio-install-freecad [--from <the release's .dmg, already downloaded>]
     studio-install-freecad --check    # whether it is installed, running nothing (exit 0 yes, 1 no)
@@ -47,6 +49,12 @@ TEAM = "289DJRF23X"
 QUARANTINE = "com.apple.quarantine"
 VERSION_TIMEOUT_S = 60
 PROGRAM = Path("Contents", "Resources", "bin", "freecadcmd")
+# Studio's `freecadcmd` on a Mac until its FreeCAD is installed (written here for a checkout, by studioAppBundle.ts for
+# the app, the same text): it exits at once and says why on stderr, never a "FreeCAD <version>" cad would take.
+STAND_IN_MARK = "# Studio's freecadcmd until studio-install-freecad installs FreeCAD for Studio."
+NOT_INSTALLED = ("FreeCAD is not installed for Studio: ask the person whether to install it (a download of about 650 MB), "
+                 "then run studio-install-freecad.")
+STAND_IN = f"#!/bin/sh\n{STAND_IN_MARK}\necho '{NOT_INSTALLED}' >&2\nexit 1\n"
 
 
 class Refused(Exception):
@@ -148,9 +156,32 @@ def check_runs(program: Path, run: Run = run) -> None:
         raise Refused(f"FreeCAD did not run: {last_line(said.stderr or said.stdout) or f'exit {said.returncode}'}")
 
 
-def link(place: Place) -> None:
-    """`freecadcmd` in Studio's command folder, a link to Studio's FreeCAD (replacing only a link)."""
+def is_stand_in(path: Path) -> bool:
+    """Whether `path` is Studio's stand-in `freecadcmd` (`STAND_IN`)."""
+    try:
+        with path.open("rb") as file:
+            return STAND_IN_MARK.encode() in file.read(256)
+    except OSError:
+        return False
+
+
+def stand_in(place: Place) -> None:
+    """The stand-in `freecadcmd` in Studio's command folder, unless Studio's FreeCAD is linked there (a link to a file
+    that is there) or the file is someone else's. A link left by a deleted FreeCAD is replaced: cad would skip it."""
     if place.link.is_symlink():
+        if place.link.exists():
+            return
+        place.link.unlink()
+    elif place.link.exists() and not is_stand_in(place.link):
+        return
+    place.launchers.mkdir(parents=True, exist_ok=True)
+    place.link.write_text(STAND_IN, encoding="utf-8")
+    place.link.chmod(0o755)
+
+
+def link(place: Place) -> None:
+    """`freecadcmd` in Studio's command folder, a link to Studio's FreeCAD (replacing only a link or the stand-in)."""
+    if place.link.is_symlink() or is_stand_in(place.link):
         place.link.unlink()
     elif place.link.exists():
         raise Refused(f"{place.link} is a file of someone else's, so Studio left it alone")

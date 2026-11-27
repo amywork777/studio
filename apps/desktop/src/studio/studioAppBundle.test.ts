@@ -148,6 +148,8 @@ describe("applyStudioAppBundle", () => {
       CAD_TELEMETRY: "0",
       // A `cad mcp` it starts runs Studio's own server, never a global cad's.
       CAD_STUDIO_ENGINE: "1",
+      // The app's Python writes no bytecode into the signed app.
+      PYTHONDONTWRITEBYTECODE: "1",
     });
     expect(env.PATH).toBe(NodePath.join(studioHome, "bin"));
     const skill = NodeFS.readFileSync(
@@ -165,14 +167,14 @@ describe("applyStudioAppBundle", () => {
     // Studio's own `cad`, the bundled Python's, where the skills look for it.
     const bin = NodePath.join(studioHome, "bin");
     expect(NodeFS.readFileSync(NodePath.join(bin, "cad"), "utf8")).toBe(
-      `#!/bin/sh\nexec '${python}' -P -m cad_server.cli "$@"\n`,
+      `#!/bin/sh\nexec '${python}' -P -B -m cad_server.cli "$@"\n`,
     );
     expect(NodeFS.readFileSync(NodePath.join(bin, "cad.cmd"), "utf8")).toBe(
-      `@"${python}" -P -m cad_server.cli %*\r\n`,
+      `@"${python}" -P -B -m cad_server.cli %*\r\n`,
     );
     const installer = NodePath.join(res, "studio", "tools", "studio_freecad.py");
     expect(NodeFS.readFileSync(NodePath.join(bin, "studio-install-freecad"), "utf8")).toBe(
-      `#!/bin/sh\nexec '${python}' -P '${installer}' "$@"\n`,
+      `#!/bin/sh\nexec '${python}' -P -B '${installer}' "$@"\n`,
     );
   });
 
@@ -195,8 +197,38 @@ describe("applyStudioAppBundle", () => {
     const config = JSON.parse(NodeFS.readFileSync(NodePath.join(plugin, "codex.mcp.json"), "utf8"));
     expect(config.mcpServers.cad.command).toBe(python);
     expect(NodeFS.readFileSync(NodePath.join(home, ".studio-test", "bin", "cad.cmd"), "utf8")).toBe(
-      `@"${python}" -P -m cad_server.cli %*\r\n`,
+      `@"${python}" -P -B -m cad_server.cli %*\r\n`,
     );
+  });
+
+  it("stands in for freecadcmd on a Mac until Studio's FreeCAD is installed, never over it", () => {
+    const res = resources();
+    const home = tempDir();
+    const bin = NodePath.join(home, ".studio-test", "bin");
+    const freecadcmd = NodePath.join(bin, "freecadcmd");
+    const start = (platform: NodeJS.Platform) =>
+      applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env: {}, platform });
+    start("win32");
+    expect(NodeFS.existsSync(freecadcmd)).toBe(false);
+    start("darwin");
+    const standIn = NodeFS.readFileSync(freecadcmd, "utf8");
+    expect(standIn).toContain("studio-install-freecad installs FreeCAD for Studio.");
+    expect(NodeFS.statSync(freecadcmd).mode & 0o111).not.toBe(0);
+    // Studio's FreeCAD, once linked, stays; a link to a deleted one goes back to the stand-in.
+    const program = NodePath.join(home, "FreeCAD.app", "freecadcmd");
+    write(program, "#!/bin/sh\n");
+    NodeFS.rmSync(freecadcmd);
+    NodeFS.symlinkSync(program, freecadcmd);
+    start("darwin");
+    expect(NodeFS.readlinkSync(freecadcmd)).toBe(program);
+    NodeFS.rmSync(program);
+    start("darwin");
+    expect(NodeFS.lstatSync(freecadcmd).isSymbolicLink()).toBe(false);
+    expect(NodeFS.readFileSync(freecadcmd, "utf8")).toBe(standIn);
+    // A freecadcmd of someone else's is left alone.
+    NodeFS.writeFileSync(freecadcmd, "#!/bin/sh\nexec their-freecad\n");
+    start("darwin");
+    expect(NodeFS.readFileSync(freecadcmd, "utf8")).toBe("#!/bin/sh\nexec their-freecad\n");
   });
 
   it("points the app at its samples folder when the bundle has one", () => {
