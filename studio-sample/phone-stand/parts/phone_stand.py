@@ -10,6 +10,7 @@ desk, halfway across; +Y back from the viewer, +Z up."""
 from math import cos, radians, sin
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -122,6 +123,7 @@ def phone_stand():
                        align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN)))  # Cable pass
 
     stand.color = "#C9B8E8"
+    stand.material = resolve("PLA")
     stand.label = "phone_stand"
     return stand
 

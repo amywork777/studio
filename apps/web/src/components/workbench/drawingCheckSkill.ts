@@ -55,6 +55,11 @@ its own row with a \`flag\`:
 Each flagged row is a question for the engineer: say what you modelled in \`note\`, and add the
 question to the README's Open questions with what you assumed first.
 
+When the engineer answers one, keep its \`flag\` and add \`confirmed\`: their answer in a few
+words ("Centred, as modelled"), changing the model first if the answer does. Studio then shows the
+row as confirmed, not to confirm, and the question leaves the open issues; move it from the
+README's Open questions to its Decisions.
+
 ## Build, then measure
 
 Build the part from the drawing as the cad skill says, every drawing value a named size at the
@@ -132,6 +137,7 @@ matched or out of tolerance itself.
 - \`flag\`: "conflict", "missing", "unclear", "reference" (a REF size: shown, never graded) or
   "note" (a thread, a finish or a process carried as text). \`related\`: the rows it is read
   against.
+- \`confirmed\`: the engineer's answer to a flagged row; leave it out until they answer.
 
 Once it is written, give its path in code formatting (\`checks/flange.drawing-check.json\`):
 Studio opens it as the drawing check, each row with its place on the sheet.

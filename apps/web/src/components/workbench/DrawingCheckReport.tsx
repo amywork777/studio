@@ -54,6 +54,7 @@ const STATUS_LOOK: Readonly<
   out: { variant: "error", Icon: CircleXIcon },
   flag: { variant: "warning", Icon: TriangleAlertIcon },
   ok: { variant: "success", Icon: CircleCheckIcon },
+  confirmed: { variant: "success", Icon: CircleCheckIcon },
   "not-checked": { variant: "outline", Icon: MinusCircleIcon },
   reference: { variant: "outline", Icon: InfoIcon },
   note: { variant: "outline", Icon: InfoIcon },
@@ -66,6 +67,7 @@ const FILTERS: ReadonlyArray<{ readonly id: "all" | DimensionStatus; readonly wo
   { id: "flag", word: STATUS_WORDS.flag },
   { id: "not-checked", word: STATUS_WORDS["not-checked"] },
   { id: "ok", word: STATUS_WORDS.ok },
+  { id: "confirmed", word: STATUS_WORDS.confirmed },
 ];
 
 const CROP_ASPECT = 16 / 9;
@@ -227,10 +229,11 @@ export function DrawingCheckReport(props: {
     <section aria-label="Drawing check" className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          {(["out", "flag", "ok", "not-checked", "reference", "note"] as const).map((status) =>
-            check.counts[status] === 0 && status !== "ok" ? null : (
-              <CountBadge key={status} status={status} count={check.counts[status]} />
-            ),
+          {(["out", "flag", "ok", "confirmed", "not-checked", "reference", "note"] as const).map(
+            (status) =>
+              check.counts[status] === 0 && status !== "ok" ? null : (
+                <CountBadge key={status} status={status} count={check.counts[status]} />
+              ),
           )}
         </div>
         <p className="text-sm text-muted-foreground">
@@ -367,6 +370,12 @@ export function DrawingCheckReport(props: {
                   ) : null}
                   {row.note === null ? null : <p className="text-sm text-foreground">{row.note}</p>}
                   <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+                    {row.confirmed === null ? null : (
+                      <>
+                        <dt className="text-muted-foreground">Confirmed</dt>
+                        <dd className="text-foreground">{row.confirmed}</dd>
+                      </>
+                    )}
                     {row.measuredHow === null ? null : (
                       <>
                         <dt className="text-muted-foreground">Measured</dt>

@@ -149,6 +149,23 @@ describe("a drawing check among a part's checks", () => {
           note: "the section draws it wider",
         },
         { feature: "Bore", text: "Ø2.50", nominal: 2.5, measured: 2.5 },
+        // A question the engineer answered is settled, whatever the drawing printed.
+        {
+          feature: "Hole position",
+          nominal: 1.5,
+          measured: 1.5,
+          flag: "missing",
+          note: "Centred on the plate.",
+          confirmed: "Centred, as modelled",
+        },
+        {
+          feature: "Rib",
+          text: ".25",
+          nominal: 0.25,
+          measured: 0.3,
+          flag: "conflict",
+          confirmed: true,
+        },
       ],
     });
     const result = parseCheckResult("checks/flange.drawing-check.json", contents);
@@ -157,7 +174,7 @@ describe("a drawing check among a part's checks", () => {
       model: "checks/flange.drawing-check.json",
       check: "Drawing check",
       status: "fix",
-      headline: "1 out of tolerance · 1 to confirm · 1 match",
+      headline: "1 out of tolerance · 1 to confirm · 1 match · 2 confirmed",
       issues: [
         {
           severity: "error",

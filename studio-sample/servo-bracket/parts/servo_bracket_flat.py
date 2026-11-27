@@ -6,6 +6,7 @@ bend line and the flange -Y, both seen from the bracket's outside face. The cut 
 from math import pi
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -90,6 +91,7 @@ def servo_bracket_flat():
     flat = bd.extrude(blank.face(), amount=THICKNESS)
 
     flat.color = "#B9BFC6"
+    flat.material = resolve("Alu_G5052_H32")
     flat.label = "servo_bracket_flat"
     return flat
 

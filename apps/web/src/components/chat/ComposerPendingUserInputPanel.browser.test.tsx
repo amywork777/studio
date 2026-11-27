@@ -73,6 +73,27 @@ it.each<{ focus: string; control: ReactNode; toggles: boolean }>([
     ),
     toggles: false,
   },
+  // The composer is the question's free-text answer: empty, a digit picks; typed into, it types.
+  {
+    focus: "the empty composer",
+    control: <div data-testid="composer-editor" contentEditable aria-label="Focused" />,
+    toggles: true,
+  },
+  {
+    focus: "the composer holding a typed answer",
+    control: (
+      <div
+        data-testid="composer-editor"
+        contentEditable
+        suppressContentEditableWarning
+        aria-label="Focused"
+      >
+        12 mm
+      </div>
+    ),
+    toggles: false,
+  },
+  { focus: "a text field", control: <input aria-label="Focused" />, toggles: false },
   {
     focus: "a device screen that takes the key",
     control: (

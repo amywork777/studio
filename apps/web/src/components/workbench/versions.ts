@@ -39,7 +39,8 @@ function sameAsEarlier(versions: ReadonlyArray<Pick<PartVersion, "blob">>, index
 /**
  * The versions as Versions lists them, oldest first: "Version 3" (or "Now", the file on disk), and
  * when, with the chat that made it; a kept one says it is what the person had before restoring,
- * and Now says which version it was restored from, else that it was changed by hand.
+ * and Now says which version it was restored from, else that it was changed by hand (unless no
+ * version comes before it). A chat is credited only with the versions its turns made.
  */
 export function versionChoices(
   versions: ReadonlyArray<PartVersion>,
@@ -55,14 +56,26 @@ export function versionChoices(
       return {
         id: version.id,
         label,
-        detail: same === -1 ? `changed by hand ${when}` : `restored from ${labelAt(same)}, ${when}`,
+        detail:
+          index === 0
+            ? `${when}, no chat has changed it yet`
+            : same === -1
+              ? `changed by hand ${when}`
+              : `restored from ${labelAt(same)}, ${when}`,
       };
     }
     if (isKeptVersion(version)) {
       return { id: version.id, label, detail: `${when}, what you had before restoring` };
     }
     const chat = chatOf(version);
-    return { id: version.id, label, detail: chat === null ? when : `${when}, ${chat}` };
+    if (chat === null) return { id: version.id, label, detail: when };
+    // A chat's checkpoint 0 is the folder as the chat found it, not a change it made.
+    const started = readCheckpointRef(version.ref)?.turn === 0;
+    return {
+      id: version.id,
+      label,
+      detail: started ? `${when}, before ${chat}` : `${when}, ${chat}`,
+    };
   });
 }
 

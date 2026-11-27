@@ -3,6 +3,7 @@ servo. The lead is pressed into the channel through its opening. The channel run
 standing up, the way it is drawn, with nothing overhanging. Origin: the centre of the bonded face; +Y out of it."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -43,6 +44,7 @@ def cable_clip():
     clip -= bd.extrude(opening.face(), amount=clip.bounding_box().diagonal, both=True)
 
     clip.color = "#3E6FA8"
+    clip.material = resolve("PETG")
     clip.label = "cable_clip"
     return clip
 

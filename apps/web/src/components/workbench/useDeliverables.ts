@@ -52,7 +52,7 @@ export function useDeliverables(environmentId: EnvironmentId) {
     toastManager.update(toastId, {
       type: failed.length > 0 ? "warning" : "success",
       title: "Exported",
-      description: `${files.length} files in ${zip.split(/[\\/]/).pop()}${left === 0 ? "" : `, ${left} not in it`}.${plan.receipt === null ? "" : " RECEIPT.md says what was checked."}`,
+      description: `${files.length === 1 ? "1 file" : `${files.length} files`} in ${zip.split(/[\\/]/).pop()}${left === 0 ? "" : `, ${left} not in it`}.${plan.receipt === null ? "" : " RECEIPT.md says what was checked."}`,
       timeout: 10_000,
       ...(reveals
         ? {

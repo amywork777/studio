@@ -205,6 +205,22 @@ describe("restoring a version", () => {
         () => "now",
       )[1],
     ).toMatchObject({ label: "Now", detail: "changed by hand now" });
+    // A file no version holds yet, as a new project or a copied example starts, is no hand edit.
+    expect(
+      versionChoices(
+        [version("now", "blob-1", null)],
+        () => null,
+        () => "just now",
+      )[0],
+    ).toMatchObject({ label: "Now", detail: "just now, no chat has changed it yet" });
+    // A chat's first checkpoint is what it started from, not its work: the chat is not credited.
+    expect(
+      versionChoices(
+        [version("a1", "blob-1", REF.replace("/ordinal/7", "/ordinal/0"))],
+        () => "Strength check",
+        () => "30m ago",
+      )[0],
+    ).toMatchObject({ label: "Version 1", detail: "30m ago, before Strength check" });
   });
 
   it("tells the agent which part went back, to which version, and its files", () => {

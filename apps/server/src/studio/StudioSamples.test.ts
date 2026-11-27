@@ -112,6 +112,11 @@ it.effect("lists every example Studio ships, each with its files in place", () =
       assert.isTrue(yield* fileSystem.exists(path.join(sample.path, "README.md")), sample.id);
       assert.isTrue((sample.process ?? "") !== "" && (sample.material ?? "") !== "", sample.id);
       assert.isTrue(sample.shows.length > 0, sample.id);
+      // A part's material is in its script, so the part tree names the one the Overview does.
+      if (sample.open.startsWith("parts/")) {
+        const script = yield* fileSystem.readFileString(path.join(sample.path, sample.open));
+        assert.match(script, /\.material = /, sample.id);
+      }
     }
     // The CNC part carries its requirements on the model: the example 3D PMI's library entry opens.
     assert.include(samples.find((sample) => sample.id === "motor-mount")?.shows ?? [], "3D PMI");

@@ -4,6 +4,7 @@ the servo's horn screw, with four M3 tapped holes to bolt an arm or a load to. I
 the servo's output axis."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 from cad.sketch import Sketch
 
@@ -54,6 +55,7 @@ def horn_adapter():
     adapter = bd.chamfer(adapter.faces().sort_by(bd.Axis.Z)[-1].outer_wire().edges(), length=CHAMFER)
 
     adapter.color = "#8E99A6"
+    adapter.material = resolve("Alu_G6061_T6")
     adapter.label = "horn_adapter"
     return adapter
 

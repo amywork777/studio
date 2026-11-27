@@ -4,6 +4,7 @@ screw, whose clamp holds the head where it is tilted. Origin: the head hinge's a
 of it along +X, its opening down (-Z)."""
 
 import build123d as bd
+from bd_materials import resolve
 from cad import model
 
 from sizes import CHEEK, CHEEK_GAP, HINGE_HOLE, LED_SCREW_SPACING
@@ -47,6 +48,7 @@ def head():
     shade -= bd.Rot(90, 0, 0) * bd.Cylinder(HINGE_HOLE / 2, 2 * (CHEEK_GAP + 2 * CHEEK))  # M5 clearance hole
 
     shade.color = "#E07A3F"
+    shade.material = resolve("PETG")
     shade.label = "head"
     return shade
 
