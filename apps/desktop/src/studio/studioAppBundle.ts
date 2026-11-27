@@ -4,13 +4,13 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
-import { studioEngineEnv, studioPath } from "./studioEngine.ts";
+import { type StudioEngineStop, studioEngineEnv, studioPath } from "./studioEngine.ts";
 
 /**
  * Points the Studio app at the bundle in its resources (`Contents/Resources/studio`, or
  * `resources\studio` on Windows) on each start, before anything reads the environment: a home and
  * profile apart from T3 Code's `~/.t3`, so the apps never share state or a single-instance lock.
- * Anything already set in the environment wins, so a test can point elsewhere; no bundle, no change.
+ * What the environment sets wins; no bundle, no change (null), else how it stops its CAD engine.
  */
 export function applyStudioAppBundle(input: {
   readonly resourcesPath: string | undefined;
@@ -18,11 +18,11 @@ export function applyStudioAppBundle(input: {
   readonly env: Record<string, string | undefined>;
   /** The system the app runs on: the running one, unless a test names another. */
   readonly platform?: NodeJS.Platform;
-}): void {
-  if (input.resourcesPath === undefined || input.resourcesPath === "") return;
+}): StudioEngineStop | null {
+  if (input.resourcesPath === undefined || input.resourcesPath === "") return null;
   const bundle = NodePath.join(input.resourcesPath, "studio");
   const settings = readSettings(NodePath.join(bundle, "studio.json"));
-  if (settings === null) return;
+  if (settings === null) return null;
   const { env } = input;
   // oxlint-disable-next-line t3code/no-global-process-runtime -- Runs before any Effect runtime.
   const platform = input.platform ?? process.platform;
@@ -76,6 +76,7 @@ export function applyStudioAppBundle(input: {
     // @effect-diagnostics-next-line globalConsole:off - Runs before any Effect logger exists.
     console.error("[studio] Could not set up the CAD tools:", error);
   }
+  return { python, engineDir: env.CAD_ENGINE_DIR! };
 }
 
 interface StudioSettings {
