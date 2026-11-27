@@ -11,7 +11,7 @@ import {
   CLAUDE_PROVIDER,
   makeClaudeQueryOptions,
 } from "../../apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts";
-import { gradeReply, studioReplyCases } from "./cases.ts";
+import { type CommandFixture, gradeReply, studioReplyCases } from "./cases.ts";
 
 const { values } = NodeUtil.parseArgs({
   options: {
@@ -60,9 +60,54 @@ const appendFor = (folder: string) => {
     : "";
 };
 
-// Claude Code itself runs each turn in the case's project folder, able only to look: the reply is graded.
-const reply = (prompt: string, folder: string) =>
+const repo = NodePath.resolve(import.meta.dirname, "../..");
+const scratch = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "studio-replies-"));
+process.on("exit", () => NodeFS.rmSync(scratch, { recursive: true, force: true }));
+
+// Studio's copy of text-to-cad's skills, laid out as the app's plugin is (scripts/studio_cad_plugin.py).
+const plugin = NodePath.join(scratch, "plugin");
+if (cases.some((testCase) => testCase.skills)) {
+  NodeChildProcess.execFileSync("python3", [
+    "-I",
+    "-c",
+    [
+      "import sys",
+      "from pathlib import Path",
+      "sys.path.insert(0, sys.argv[1])",
+      "from studio_cad_plugin import lay_out",
+      "from studio_job_skills import add_job_skills",
+      "lay_out(Path(sys.argv[2]), Path(sys.argv[3]), '0.0.0', 'python3')",
+      "add_job_skills(Path(sys.argv[3]))",
+    ].join("\n"),
+    NodePath.join(repo, "scripts"),
+    NodePath.join(repo, "text-to-cad"),
+    plugin,
+  ]);
+}
+
+// A command answered from its fixtures, each call logged (`name args`) for `mustRun`.
+const stub = (name: string, fixtures: ReadonlyArray<CommandFixture>, log: string) =>
+  [
+    "#!/usr/bin/env node",
+    `const fixtures = ${JSON.stringify(fixtures)};`,
+    "const args = process.argv.slice(2).join(' ');",
+    `require('node:fs').appendFileSync(${JSON.stringify(log)}, ${JSON.stringify(name)} + ' ' + args + '\\n');`,
+    "const hit = fixtures.find((fixture) => new RegExp(fixture.args).test(args));",
+    "const out = process.argv[process.argv.indexOf('--out') + 1];",
+    "if (hit?.writes && process.argv.includes('--out')) {",
+    "  require('node:fs').mkdirSync(out, { recursive: true });",
+    "  for (const [file, text] of Object.entries(hit.writes)) require('node:fs').writeFileSync(require('node:path').join(out, file), text);",
+    "}",
+    "if (hit) process.stdout.write(hit.stdout);",
+    `else { process.stderr.write(${JSON.stringify(name)} + ': not answered in this eval: ' + args + '\\n'); process.exit(2); }`,
+    "",
+  ].join("\n");
+
+// Claude Code itself runs each turn in the case's project folder. It can only look, unless the case
+// gives it commands: then it can also write files and run those commands, and nothing else.
+const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
   new Promise<string>((resolve, reject) => {
+    const commands = Object.keys(testCase.commands ?? {});
     NodeChildProcess.execFile(
       "claude",
       [
@@ -72,17 +117,31 @@ const reply = (prompt: string, folder: string) =>
         "--append-system-prompt",
         appendFor(folder),
         "--tools",
-        "Read,Glob,Grep",
+        [
+          "Read",
+          "Glob",
+          "Grep",
+          ...(commands.length > 0 ? ["Write", "Edit", "Bash"] : []),
+          ...(testCase.skills ? ["Skill"] : []),
+        ].join(","),
+        ...(commands.length > 0
+          ? ["--allowedTools", "Write", "Edit", ...commands.map((name) => `Bash(${name}:*)`)]
+          : []),
         "--setting-sources",
         "project,local",
         "--strict-mcp-config",
-        "--disable-slash-commands",
+        ...(testCase.skills ? ["--plugin-dir", plugin] : ["--disable-slash-commands"]),
         "--no-session-persistence",
         "--output-format",
         "json",
-        prompt,
+        "--",
+        testCase.prompt,
       ],
-      { cwd: folder, maxBuffer: 16 * 1024 * 1024 },
+      {
+        cwd: folder,
+        env: { ...process.env, PATH: `${bin}${NodePath.delimiter}${process.env.PATH ?? ""}` },
+        maxBuffer: 16 * 1024 * 1024,
+      },
       (error, stdout) => {
         if (error) return reject(error);
         const result = JSON.parse(stdout) as { result?: string; total_cost_usd?: number };
@@ -101,10 +160,24 @@ const rows = await Promise.all(
         NodeFS.mkdirSync(NodePath.dirname(NodePath.join(folder, file)), { recursive: true });
         NodeFS.writeFileSync(NodePath.join(folder, file), content);
       }
-      const text = await reply(testCase.prompt, folder).finally(() =>
+      const bin = NodeFS.mkdtempSync(NodePath.join(scratch, "bin-"));
+      const log = NodePath.join(bin, "ran.log");
+      NodeFS.writeFileSync(log, "");
+      for (const [name, fixtures] of Object.entries(testCase.commands ?? {})) {
+        NodeFS.writeFileSync(NodePath.join(bin, name), stub(name, fixtures, log), { mode: 0o755 });
+      }
+      const text = await reply(testCase, folder, bin).finally(() =>
         NodeFS.rmSync(folder, { recursive: true, force: true }),
       );
-      return { id: testCase.id, kind: testCase.kind, sample, ...gradeReply(testCase, text), text };
+      const ran = NodeFS.readFileSync(log, "utf8").split("\n").filter(Boolean);
+      return {
+        id: testCase.id,
+        kind: testCase.kind,
+        sample,
+        ...gradeReply(testCase, text, ran),
+        ran,
+        text,
+      };
     }),
   ),
 );

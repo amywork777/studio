@@ -69,6 +69,63 @@ STUDIO_FREECAD_STALL = (
 # What no skill Studio carries may tell an agent to do with FreeCAD on a Mac.
 FREECAD_MAC_INSTALLS = ("open -a FreeCAD", "drag the `.dmg`'s FreeCAD into Applications",
                         "answer macOS's question about opening FreeCAD")
+# The cam skill's step 2: ask for the machine and every tool's data, and never fill one in, before any plan. An agent
+# stopped there to ask for flute lengths, stickout, stock, clamping and travel (0.1.19); Studio builds first, then
+# asks (AGENTS.md, law 5).
+CAM_ASK_FIRST = re.compile(r"2\. \*\*Ask what you cannot see\.\*\*.*?which features are\s+critical\.\n", re.DOTALL)
+STUDIO_CAM_DEFAULTS = (
+    "2. **Plan first, with stated defaults, then ask.** In Studio you make the job and plan it before asking\n"
+    "   anything about the machine or the tools: never stop to ask for tool data, stock, holding or travel first.\n"
+    "   Fill in what the person has not said with these, and list each as an assumption:\n"
+    "   - **The controller** (`machine.post`): a dialect read by the wrong controller moves the machine wrongly, so\n"
+    "     never guess it from the make. When the person has not named it, plan with `grbl`, say at the top of your\n"
+    "     reply that the G-code is for GRBL only and must not run on another controller, and ask which controller\n"
+    "     runs the machine (GRBL, LinuxCNC, Mach3/4, Fanuc, Centroid, UCCNC, Smoothieware), with no answer marked\n"
+    "     (Recommended); plan again with its post.\n"
+    "   - **The spindle's top speed** (`machine.max_rpm`): 10000, unless the person names the spindle or machine.\n"
+    "     On a faster spindle that only cuts slower, never harder.\n"
+    "   - The machine's travel, slowest spindle speed and feed limit: left out, so the report says travel and feed\n"
+    "     limits were not checked.\n"
+    "   - **The tools**: the fewest common carbide tools that fit, each one's data stated: a 6 mm 3-flute flat end mill\n"
+    "     (20 mm flutes, 30 mm stickout, 6 mm shank); a 3 mm one (12 mm flutes, 20 mm stickout, 6 mm shank) only\n"
+    "     where a pocket corner or slot needs it; a jobber drill of each hole's size (118° point, flutes 5 mm past\n"
+    "     the hole's depth, stickout 15 mm past the flutes), numbered T1, T2 and on; longer flutes where the part is\n"
+    "     deeper.\n"
+    "   - **The stock**: the part's bounds plus `margin_mm` `[3, 3, 1]`.\n"
+    "   - **How the part is held**: in a machine vise, cut from the top (`+Z`, `stock-top-center`); a second setup,\n"
+    "     flipped, only for faces the top cannot reach.\n"
+    "   - The material the person named (6061, not \"aluminium\"), else 6061 for an aluminium part.\n"
+    "   Tool data the person gives, or their tool table, replaces these. Once the plan has run, ask about the\n"
+    "   assumptions that matter most (the tools, the spindle speed, how the part is held), each with the answer you\n"
+    "   planned with marked (Recommended), and plan again with what they change. Only the FreeCAD download is asked\n"
+    "   before the first plan (Install FreeCAD).\n"
+)
+# The words that told an agent to ask before planning, which no cam skill Studio carries may keep.
+CAM_ASKS_FIRST = ("Ask what you cannot see", "Never fill one of these in yourself")
+
+# Each skill's Show the model gives the person the viewer's page as a link, and the cam skill's step 6 gives the `url`
+# `cad viewer` prints: that link carries the viewer's access token (`?token=`), and an agent pasted it into a chat
+# (0.1.19). Studio shows models and files in its own tabs.
+SHOW_LINK = re.compile(
+    r"2\. A tool that opens a page in the app's own browser pane.*?3\. Neither: give the person the link, to open in\s+"
+    r"their browser\.",
+    re.DOTALL,
+)
+STUDIO_SHOW = (
+    "2. Neither, in Studio: name the model's script or the file in code formatting (`parts/bracket.py`), which\n"
+    "   Studio opens in its viewer.\n\n"
+    "In Studio, never put a page's link in a reply (the `view:` line or the `url` `cad viewer` prints): it carries\n"
+    "the viewer's access key (`token=`), and Studio shows every model and file in its own tabs."
+)
+CAM_SHOW_LINK = re.compile(
+    r"otherwise run `cad viewer --json CAM/result\.glb` and give the user the `url` it prints for\s+the file, once\."
+)
+STUDIO_CAM_SHOW = (
+    "otherwise name `CAM/result.glb` in code formatting, which Studio opens in its viewer. Never put a viewer\n"
+    "   link in a reply: it carries the viewer's access key (`token=`)."
+)
+# What no skill Studio carries may tell an agent to do with a viewer page's link.
+VIEWER_LINKS = ("give the person the link", "give the user the `url`")
 
 IGNORED = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 
@@ -80,11 +137,14 @@ def server(python: str) -> dict:
 
 
 def studio_skill(text: str) -> str:
-    """A skill's text as Studio carries it: its install sentence, and the cam skill's macOS FreeCAD step and its
-    word on a stalled plan, replaced by Studio's own."""
+    """A skill's text as Studio carries it: its install sentence, the cam skill's macOS FreeCAD step, its word on a
+    stalled plan and its asking before a plan, and every viewer link it gives the person, replaced by Studio's own."""
     text = INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text)
     text = FREECAD_MAC_STEP.sub(lambda _match: STUDIO_FREECAD_STEP, text)
-    return FREECAD_MAC_STALL.sub(lambda _match: STUDIO_FREECAD_STALL, text)
+    text = FREECAD_MAC_STALL.sub(lambda _match: STUDIO_FREECAD_STALL, text)
+    text = CAM_ASK_FIRST.sub(lambda _match: STUDIO_CAM_DEFAULTS, text)
+    text = SHOW_LINK.sub(lambda _match: STUDIO_SHOW, text)
+    return CAM_SHOW_LINK.sub(lambda _match: STUDIO_CAM_SHOW, text)
 
 
 def lay_out(checkout: Path, plugin: Path, version: str, python: str) -> str:
@@ -125,6 +185,20 @@ def refuse_installs(plugin: Path) -> None:
         raise SystemExit("Studio's CAD plugin would tell an agent to put FreeCAD in Applications on a Mac "
                          "(scripts/studio_cad_plugin.py's FREECAD_MAC_STEP no longer matches the cam skill):\n  "
                          + "\n  ".join(found))
+    found = [f"{path.relative_to(plugin).as_posix()}: {words}"
+             for path in sorted(plugin.rglob("*.md"))
+             for words in CAM_ASKS_FIRST if words in path.read_text(encoding="utf-8")]
+    if found:
+        raise SystemExit("Studio's CAD plugin would tell an agent to ask for the machine and tools before a CNC plan "
+                         "(scripts/studio_cad_plugin.py's CAM_ASK_FIRST no longer matches the cam skill):\n  "
+                         + "\n  ".join(found))
+    found = [f"{path.relative_to(plugin).as_posix()}: {words}"
+             for path in sorted(plugin.rglob("*.md"))
+             for words in VIEWER_LINKS if words in path.read_text(encoding="utf-8")]
+    if found:
+        raise SystemExit("Studio's CAD plugin would tell an agent to give the person a viewer link, which carries its "
+                         "access token (scripts/studio_cad_plugin.py's SHOW_LINK or CAM_SHOW_LINK no longer matches):"
+                         "\n  " + "\n  ".join(found))
 
 
 def write_marketplace(out: Path, catalog: str, owner: str, description: str, name: str, version: str) -> None:

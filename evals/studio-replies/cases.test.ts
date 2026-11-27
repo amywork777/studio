@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { YES_NO_OFFER } from "./cases.ts";
+import { VIEWER_URL, YES_NO_OFFER } from "./cases.ts";
 
 describe("YES_NO_OFFER", () => {
   it.each([
@@ -18,4 +18,17 @@ describe("YES_NO_OFFER", () => {
     "Which one should I start with?",
     "Do you want the drawing next, or a CAM plan first?",
   ])("leaves the choice %j", (reply) => expect(YES_NO_OFFER.test(reply)).toBe(false));
+});
+
+describe("VIEWER_URL", () => {
+  it.each([
+    "The toolpaths are in the viewer: http://127.0.0.1:4178/9c3e?token=1767225600.k3Jq",
+    "Open http://localhost:4178/ in your browser.",
+    "The page is `/9c3e?token=1767225600.k3Jq`.",
+  ])("flags the link %j", (reply) => expect(VIEWER_URL.test(reply)).toBe(true));
+
+  it.each([
+    "The toolpaths are in `CAM/result.glb`; it is open in the viewer.",
+    "FreeCAD comes from https://www.freecad.org/downloads.php.",
+  ])("leaves %j", (reply) => expect(VIEWER_URL.test(reply)).toBe(false));
 });

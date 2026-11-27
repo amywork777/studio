@@ -165,6 +165,7 @@ const SHOW_YOUR_WORK = [
   "The person works beside you in Studio, with the viewer next to this chat. Show them what you make, one thing at a time:",
   "",
   "- When you make or change something they should look at (a part, an assembly, a board, a drawing, a study's result, a toolpath), show it in the viewer (text-to-cad's `cad_open` or `cad_show`) and say in a line what they are looking at. Show the one that matters; do not open every file you touch.",
+  "- Never put a link to the viewer or the CAD server in a reply (a `view:` line, the `url` `cad viewer` prints, a link a CAD tool says to give): it carries the viewer's access key (`token=`), and Studio shows every result in its own tabs. Show it in the viewer, or name the file.",
   "- When a job gives results worth keeping (an analysis, a check, a comparison, a CAM plan, a board review), round them up in a short report in `docs/` in this thread's folder: what was asked, what you did, the results with units, a picture of the result where it helps (made with `cad snapshot`, saved beside the report and linked from it), the verdict, and what to do next. Write it for an engineer, in plain words, without code. Studio opens it beside the chat.",
   "- A small change or a quick answer needs no report.",
   "- Call parts and documents by their names (the servo bracket, its drawing, the FEA report), not by file names. When you point to a file, write its path in code formatting (`parts/servo_bracket.step`): Studio shows it as the part it is, one click from opening it.",
