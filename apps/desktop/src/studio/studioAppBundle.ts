@@ -54,6 +54,9 @@ export function applyStudioAppBundle(input: {
     setDefault(env, name, value);
   }
   env.PATH = studioPath(env.CAD_LAUNCHER_DIR!, env.PATH);
+  // The app's Python writes no `.pyc` into the signed app, whose seal a new file breaks; the build
+  // compiled them already (scripts/build-studio-app.sh). Its agents' and engine's Pythons inherit it.
+  setDefault(env, "PYTHONDONTWRITEBYTECODE", "1");
   const samples = NodePath.join(bundle, "sample");
   if (NodeFS.existsSync(samples)) setDefault(env, "T3CODE_SAMPLES_DIR", samples);
   // The library's wheel, which an integration made on first use (kicad's) installs from.
@@ -67,7 +70,7 @@ export function applyStudioAppBundle(input: {
       "@@STUDIO_PYTHON@@": forPlugin(python),
     });
     setDefault(env, "T3CODE_PLUGIN_MARKETPLACE", marketplace);
-    writeStudioCommands(env.CAD_LAUNCHER_DIR!, python, bundle);
+    writeStudioCommands(env.CAD_LAUNCHER_DIR!, python, bundle, platform);
   } catch (error) {
     // Studio still opens; it just has no CAD tools this time, and says why in its log.
     // @effect-diagnostics-next-line globalConsole:off - Runs before any Effect logger exists.
@@ -89,28 +92,60 @@ interface StudioSettings {
 }
 
 /**
- * Studio's commands, the bundled Python's, in `folder`. `cad` (`cad_server.cli`) for a Mac's shell
- * and `cad.cmd` for Windows: the skills run `cad`, and Studio's is never an installed one, which
- * would update itself past the release Studio was built with. `studio-install-freecad`
- * (`scripts/studio_freecad.py`), which installs FreeCAD for CNC CAM in Studio's home on a Mac.
+ * Studio's own `cad` (and `cad.cmd`), never an installed one that updates itself past Studio's pin;
+ * `studio-install-freecad` (`scripts/studio_freecad.py`) and on a Mac, until it has run, a stand-in
+ * `freecadcmd`. `-B`: the bundled Python writes no `.pyc` into the signed app.
  */
-function writeStudioCommands(folder: string, python: string, bundle: string): void {
+function writeStudioCommands(
+  folder: string,
+  python: string,
+  bundle: string,
+  platform: NodeJS.Platform,
+): void {
   const quote = (path: string) => `'${path.replaceAll("'", `'"'"'`)}'`;
   writeIfChanged(
     NodePath.join(folder, "cad"),
-    `#!/bin/sh\nexec ${quote(python)} -P -m cad_server.cli "$@"\n`,
+    `#!/bin/sh\nexec ${quote(python)} -P -B -m cad_server.cli "$@"\n`,
     0o755,
   );
   writeIfChanged(
     NodePath.join(folder, "studio-install-freecad"),
-    `#!/bin/sh\nexec ${quote(python)} -P ${quote(NodePath.join(bundle, "tools", "studio_freecad.py"))} "$@"\n`,
+    `#!/bin/sh\nexec ${quote(python)} -P -B ${quote(NodePath.join(bundle, "tools", "studio_freecad.py"))} "$@"\n`,
     0o755,
   );
   writeIfChanged(
     NodePath.join(folder, "cad.cmd"),
-    `@"${python}" -P -m cad_server.cli %*\r\n`,
+    `@"${python}" -P -B -m cad_server.cli %*\r\n`,
     0o644,
   );
+  if (platform === "darwin") writeFreecadStandIn(NodePath.join(folder, "freecadcmd"));
+}
+
+// scripts/studio_freecad.py's STAND_IN, which `studio-install-freecad` knows by its mark and replaces.
+const STAND_IN_MARK =
+  "# Studio's freecadcmd until studio-install-freecad installs FreeCAD for Studio.";
+const STAND_IN = `#!/bin/sh\n${STAND_IN_MARK}\necho 'FreeCAD is not installed for Studio: ask the person whether to install it (a download of about 650 MB), then run studio-install-freecad.' >&2\nexit 1\n`;
+
+/**
+ * A `freecadcmd` that exits at once saying FreeCAD is not installed for Studio, first on PATH, so
+ * cad's CAM never falls through to a FreeCAD in Applications whose first run waits on macOS's
+ * question. Never over Studio's FreeCAD (a link to a file that is there) or a file of someone
+ * else's; a link left by a deleted FreeCAD, which cad would skip, is replaced.
+ */
+function writeFreecadStandIn(file: string): void {
+  let entry: NodeFS.Stats | null = null;
+  try {
+    entry = NodeFS.lstatSync(file);
+  } catch {
+    entry = null;
+  }
+  if (entry?.isSymbolicLink()) {
+    if (NodeFS.existsSync(file)) return;
+    NodeFS.rmSync(file);
+  } else if (entry !== null && !NodeFS.readFileSync(file, "utf8").includes(STAND_IN_MARK)) {
+    return;
+  }
+  writeIfChanged(file, STAND_IN, 0o755);
 }
 
 function writeIfChanged(file: string, content: string, mode: number): void {
