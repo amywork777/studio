@@ -10,7 +10,7 @@ from cad import model, step
 from cad.mates import Coincident, Concentric, mate
 
 PARTS = Path(__file__).resolve().parent.parent / "parts"
-sys.path.insert(0, str(PARTS))  # the parts are models in ../parts, each built in this run with its own document
+sys.path[:0] = [str(PARTS), str(PARTS / "imported")]  # the parts, and the bought motor, are models built in this run, each with its own document
 
 from motor_plate import SCREW_CLEARANCE, motor_plate  # noqa: E402
 from nema17 import nema17  # noqa: E402

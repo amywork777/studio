@@ -11,7 +11,7 @@ from pathlib import Path
 from cad import model
 
 ROOT = Path(__file__).resolve().parent
-sys.path[:0] = [str(ROOT / "parts"), str(ROOT / "assemblies")]
+sys.path[:0] = [str(ROOT / "parts"), str(ROOT / "parts/imported"), str(ROOT / "assemblies")]
 
 from motor_mount import motor_mount  # noqa: E402
 from motor_plate import motor_plate  # noqa: E402
@@ -19,5 +19,5 @@ from nema17 import nema17  # noqa: E402
 
 if __name__ == "__main__":
     model.export(motor_plate, ROOT / "parts/motor_plate.step")
-    model.export(nema17, ROOT / "parts/nema17.step")
+    model.export(nema17, ROOT / "parts/imported/nema17.step")
     model.export(motor_mount, ROOT / "assemblies/motor_mount.step")
