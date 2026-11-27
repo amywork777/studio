@@ -79,6 +79,16 @@ describe("tab titles without the project's name they share", () => {
     expect(withoutSharedPrefix(["Bracket", "Plate"])).toEqual(["Bracket", "Plate"]);
   });
 
+  it("keeps the whole name of another part that starts with the shared one", () => {
+    // The "Flat plate bolt" assembly beside the plate itself is not "Bolt"; the plate's drawing is.
+    expect(
+      withoutSharedPrefix(
+        ["Flat plate", "Flat plate bolt", "Flat plate drawing", "Flat plate work instructions"],
+        ["Flat plate", "Flat plate bolt", "Flat plate", null],
+      ),
+    ).toEqual(["Flat plate", "Flat plate bolt", "Drawing", "Work instructions"]);
+  });
+
   it("keeps a first word two tabs share when no tab is that name itself", () => {
     // The servo example: two horn files, and no "Horn" open, so neither is cut to "Link STL".
     const titles = ["Servo bracket", "Horn link STL", "Horn adapter bottom G-code"];

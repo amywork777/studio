@@ -56,7 +56,7 @@ describe("project files", () => {
         "Manufacturing",
         [
           ["CAM/plate.top.nc", "G-code"],
-          ["CAM/result.glb", "CAM job"],
+          ["CAM/result.glb", "CAM plan"],
         ],
       ],
     ]);

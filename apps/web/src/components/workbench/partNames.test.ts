@@ -18,6 +18,15 @@ describe("part names", () => {
     expect(humanName("Product_xRD")).toBe("Product xRD");
   });
 
+  it("names a bought part by its standard and size, as the standard prints it", () => {
+    expect(humanName("iso4017_m8x16")).toBe("ISO 4017 M8×16");
+    expect(humanName("iso4032_m8")).toBe("ISO 4032 M8");
+    expect(humanName("iso7089_m8")).toBe("ISO 7089 M8");
+    expect(humanName("iso7380_1_m4x10")).toBe("ISO 7380-1 M4×10");
+    expect(humanName("din931_m2_5x20")).toBe("DIN 931 M2.5×20");
+    expect(partLabel("parts/imported/iso4762_m3x8.py")).toBe("ISO 4762 M3×8 source");
+  });
+
   it("names a part by its name and what was made from it by the part", () => {
     expect(partName("parts/STEP/servo_bracket.step")).toEqual({
       name: "Servo bracket",
@@ -65,9 +74,16 @@ describe("part names", () => {
       label: "Tip load FEA results",
     });
     expect(partLabel("studies\\servo_bracket-fea\\result.json")).toBe("Servo bracket FEA results");
-    expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter toolpaths");
+    // A CAM job's plan is not the job: `flat_plate.cam.json` and the folder its plan wrote.
+    expect(partName("manufacturing/flat_plate_cam/result.json")).toEqual({
+      name: "Flat plate",
+      kind: "CAM plan",
+      label: "Flat plate CAM plan",
+    });
+    expect(partName("parts/flat_plate.cam.json")?.kind).toBe("CAM job");
+    expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter CAM plan");
     // A folder that only says what it holds names nothing more.
-    expect(partLabel("CAM/result.glb")).toBe("CAM job");
+    expect(partLabel("CAM/result.glb")).toBe("CAM plan");
     expect(partLabel("FEA/result.json")).toBe("FEA study");
     expect(partName("parts/result.step")?.kind).toBe("Part");
   });

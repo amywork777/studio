@@ -1,5 +1,5 @@
 import { drawingCheckResult, isDrawingCheckPath } from "./drawingCheck";
-import { folderResult } from "./partNames";
+import { folderResult, lowerName } from "./partNames";
 import { classifyProjectFile, type ProjectFile } from "./projectFiles";
 
 /**
@@ -14,7 +14,7 @@ const RESULT_FILE = /\.fea\.json$/i;
 /** A study's numbers saved beside its picture, as `.result.json` or an agent's `-result.json`. */
 const STUDY_NUMBERS = /([._-]result)?\.json$/i;
 
-/** A 0.11 study's or CAM job's answer, in the folder its run wrote: `studies/tip-load/result.json`. */
+/** A 0.11 study's or CAM plan's answer, in the folder its run wrote: `studies/tip-load/result.json`. */
 const isFolderAnswer = (path: string) => /\.json$/i.test(path) && folderResult(path) !== null;
 
 /** Whether the file is a check's result the overview reads. */
@@ -138,7 +138,17 @@ export function parseCheckResult(
   // What the check found on the part: a note about the run is neither a warning nor the verdict.
   const found = issues.filter((issue) => issue.note !== true);
 
-  const verdict = isRecord(data.verdict) ? data.verdict : null;
+  // text-to-cad 0.11's `result.json`, in its study's folder beside `result.glb`: the solved
+  // document is its `path` (a model's document id, or the file), its numbers its `measurements`.
+  const measurements = isRecord(data.measurements) ? data.measurements : null;
+  const inFolder = isFolderAnswer(path) && measurements !== null;
+  // A CAM plan's verdict is in its measurements: "Ready to cut · 5 min · 4 tools", or "2 to fix".
+  const planVerdict =
+    inFolder && folderResult(path)?.kind === "CAM plan" && isRecord(measurements.verdict)
+      ? measurements.verdict
+      : null;
+  const cam = planVerdict !== null;
+  const verdict = isRecord(data.verdict) ? data.verdict : planVerdict;
   const errors = found.filter((issue) => issue.severity === "error").length;
   const status: CheckStatus =
     verdict?.status === "fix" || (verdict === null && errors > 0)
@@ -147,17 +157,12 @@ export function parseCheckResult(
         ? "warnings"
         : "ready";
 
-  // text-to-cad 0.11's `result.json`, in its study's folder beside `result.glb`: the solved
-  // document is its `path` (a model's document id, or the file), its numbers its `measurements`.
-  const measurements = isRecord(data.measurements) ? data.measurements : null;
-  const inFolder = isFolderAnswer(path) && measurements !== null;
-  // A CAM job's answer is its plan's verdict (`measurements.verdict`), not a check of the part.
-  if (inFolder && isRecord(measurements.verdict)) return null;
   // text-to-cad 0.10's `cad fea solve --json` names no generator: its study, and its picture at the
   // top. An agent saves it beside that picture, which stays its own when the files are renamed.
   const solved = isRecord(data.study) && text(data.glb) !== null;
   const picture = isRecord(data.files) ? text(data.files.glb) : null;
-  const fea = /\.fea\.json$/i.test(path) || data.generator === "cadgen fea" || solved || inFolder;
+  const fea =
+    !cam && (/\.fea\.json$/i.test(path) || data.generator === "cadgen fea" || solved || inFolder);
   const study = isRecord(data.study)
     ? data.study
     : isRecord(measurements?.study)
@@ -190,9 +195,11 @@ export function parseCheckResult(
           ? `${folder}${baseName(picture)}`
           : path.replace(fea ? /\.json$/i : /\.result\.json$/i, ".glb"),
     part: baseName(document ?? name.slice(0, name.indexOf("."))),
-    check: fea
-      ? (named ?? ANALYSIS_WORDS[analysis ?? "static"] ?? humanize(analysis ?? "simulation"))
-      : humanize(analysis ?? name.split(".").at(-3) ?? "Check"),
+    check: cam
+      ? "CAM plan"
+      : fea
+        ? (named ?? ANALYSIS_WORDS[analysis ?? "static"] ?? humanize(analysis ?? "simulation"))
+        : humanize(analysis ?? name.split(".").at(-3) ?? "Check"),
     status,
     headline:
       (verdict === null ? null : text(verdict.headline)) ??
@@ -401,7 +408,7 @@ export function proposeFixPrompt(
   issue: CheckIssue,
   part: string = result.part,
 ): string {
-  const check = result.check.toLowerCase();
+  const check = lowerName(result.check);
   const suggestion = issue.detail === null ? "" : ` The check adds: ${sentence(issue.detail)}.`;
   return (
     `The ${check} check on ${part} found: ${sentence(issue.summary)}.${suggestion} ` +

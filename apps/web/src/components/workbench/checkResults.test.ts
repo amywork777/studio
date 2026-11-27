@@ -465,16 +465,50 @@ describe("check results", () => {
     expect(shelf.issues.map((issue) => issue.note ?? false)).toEqual([false, false, true, true]);
   });
 
-  it("leaves a 0.11 CAM job's answer out of the part's checks, and files it with the part", () => {
-    const plan = JSON.stringify({
-      ok: true,
-      path: "/work/parts/plate.step",
-      findings: [],
-      summary: "Ready to cut",
-      measurements: { verdict: { status: "ready", headline: "Ready to cut" } },
+  it("reads a 0.11 CAM plan's verdict as the part's check, and files it with the part", () => {
+    const plan = (findings: unknown[], verdict: Record<string, unknown>) =>
+      JSON.stringify({
+        ok: verdict.status === "ready",
+        path: "/work/parts/plate.step",
+        findings,
+        summary: verdict.headline,
+        measurements: { verdict, duration_s: 313.26, tools: 4 },
+      });
+    const clamped = {
+      severity: "warning",
+      code: "clamped",
+      message: "T2 6 mm flat: spindle 13260 rpm clamped to the machine's 10000 rpm",
+    };
+    expect(isCheckResultPath("manufacturing/plate_cam/result.json")).toBe(true);
+    const ready = parseCheckResult(
+      "manufacturing/plate_cam/result.json",
+      plan([], { status: "ready", headline: "Ready to cut · 5 min · 4 tools", errors: 0 }),
+    );
+    expect(ready).toMatchObject({
+      part: "plate.step",
+      check: "CAM plan",
+      status: "ready",
+      headline: "Ready to cut · 5 min · 4 tools",
+      model: "manufacturing/plate_cam/result.glb",
     });
-    expect(isCheckResultPath("CAM/result.json")).toBe(true);
-    expect(parseCheckResult("CAM/result.json", plan)).toBeNull();
+    expect(resultsFor(file("parts/plate.step"), [ready!])).toHaveLength(1);
+    expect(
+      parseCheckResult(
+        "CAM/result.json",
+        plan([clamped], { status: "ready", headline: "Ready to cut · 5 min · 4 tools" }),
+      ),
+    ).toMatchObject({ status: "warnings", headline: "Ready to cut · 5 min · 4 tools" });
+    const unreachable = {
+      severity: "error",
+      code: "unreachable",
+      message: "Face 3 is under the part",
+    };
+    const toFix = parseCheckResult(
+      "CAM/result.json",
+      plan([unreachable], { status: "fix", headline: "1 to fix · 5 min · 4 tools", errors: 1 }),
+    )!;
+    expect(toFix).toMatchObject({ status: "fix", headline: "1 to fix · 5 min · 4 tools" });
+    expect(proposeFixPrompt(toFix, toFix.issues[0]!)).toMatch(/^The CAM plan check on plate\.step/);
     const parts = [file("parts/plate.step"), file("parts/bracket.step")];
     const studies = [
       "studies/plate-load/result.glb",

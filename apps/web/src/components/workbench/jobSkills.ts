@@ -35,6 +35,7 @@ const SUBJECTS: Readonly<Record<string, string>> = {
   "FEA study": "the study",
   Result: "the result",
   "CAM job": "the CAM job",
+  "CAM plan": "the CAM plan",
 };
 
 const subjectOf = (job: HardwareAction) =>
