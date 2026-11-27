@@ -3,8 +3,9 @@ import { type LucideIcon, PuzzleIcon } from "lucide-react";
 import { createElement, type ReactNode, useState } from "react";
 
 import { cn } from "~/lib/utils";
-import { fileTint, KIND_ICONS, KIND_TINT, MENU_TINTS, templateIcon } from "../kinds";
+import { KIND_ICONS, KIND_TINT, templateIcon } from "../kinds";
 import { DOCUMENT_TEMPLATES, NEW_TEMPLATES } from "../newTemplates";
+import { TOOLBOX_TINTS } from "../toolbox";
 import { Page } from "../OverviewModules";
 import type { LibraryDocument, LibraryEntry } from "./libraryCatalog";
 import { COVER_SHEET, COVER_VIEW, coverOf, type LibraryCover } from "./libraryPictures";
@@ -138,7 +139,7 @@ const MARK_TONES: Readonly<Record<string, string>> = {
 /** The hue of the shelf an entry stands on (`LibraryPage`). */
 function shelfTint(entry: LibraryEntry) {
   const group = entry.kind === "skill" ? skillGroup(entry.name) : documentGroup(entry);
-  return group === "New" ? fileTint("CAD") : MENU_TINTS[group];
+  return TOOLBOX_TINTS[group];
 }
 
 /** A cover's sheet, the other covers' pictures on it, and its marks. */

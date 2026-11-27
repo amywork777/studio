@@ -1,6 +1,6 @@
 import { MY_SKILLS_PLUGIN_ID, type EnvironmentId, type InstalledPlugin } from "@t3tools/contracts";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { PlusIcon, PuzzleIcon, SearchIcon, StarIcon, UserRoundIcon } from "lucide-react";
+import { PuzzleIcon, SearchIcon, StarIcon, UserRoundIcon } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { usePrimaryEnvironmentId } from "~/state/environments";
@@ -19,11 +19,12 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../../ui/input-group";
 import { ChatPage } from "../ChatPages";
 import { useDocumentTemplates } from "../documentTemplates";
-import { fileTint, MENU_ICONS, MENU_TINTS, MENU_WORDS } from "../kinds";
+import { fileTint } from "../kinds";
 import { useNewDialogStore } from "../newDialogStore";
 import type { NewTemplate } from "../newTemplates";
 import { jobOfSkill } from "../jobSkills";
 import { useEngineeringInterface } from "../studioInterface";
+import { TOOLBOX_ICONS, TOOLBOX_TABS, TOOLBOX_TINTS } from "../toolbox";
 import { useToolboxPins } from "../toolboxPins";
 import {
   availability,
@@ -52,28 +53,12 @@ import {
   shelfAnchor,
   type Shelf,
 } from "./LibraryShelf";
-import {
-  documentGroup,
-  filterLibrary,
-  LIBRARY_GROUPS,
-  type LibraryGroup,
-  type LibrarySearch,
-  skillGroup,
-} from "./librarySearch";
+import { documentGroup, filterLibrary, type LibrarySearch, skillGroup } from "./librarySearch";
 import { NeedsSkill } from "./NeedsSkill";
 import { SeeTheExample } from "./SeeTheExample";
 import { SkillDetail } from "./SkillDetail";
 import { TEXT_TO_CAD } from "./skillAvailability";
 import { useExamples } from "./useSampleProject";
-
-/** Each group of document types by its place's icon: New's, then each part menu's (`kinds.ts`). */
-const GROUP_ICONS = { New: PlusIcon, ...MENU_ICONS } satisfies Record<LibraryGroup, unknown>;
-
-/** Each group's hue: the kind it holds (`kinds.ts`). */
-const GROUP_TINTS: Readonly<Record<LibraryGroup, string>> = {
-  New: fileTint("CAD"),
-  ...MENU_TINTS,
-};
 
 /** An entry's name: a document type's as New or the menus say it, a skill's as `skillLabel` does. */
 const entryName = (entry: LibraryEntry, skillLabel: (name: string) => string) =>
@@ -154,13 +139,14 @@ function LibraryContent(props: {
       matching.has(entry) &&
       !skillsBehind(entry).some((skill) => ourSkills.some((own) => own.name === skill)),
   );
-  const workShelves: ReadonlyArray<Group> = LIBRARY_GROUPS.map((group) =>
+  // The Toolbox popup's tabs, named, pictured and in the order it shows them.
+  const workShelves: ReadonlyArray<Group> = TOOLBOX_TABS.map((group) =>
     shelfOf(
       {
         key: group,
-        title: group === "New" ? group : MENU_WORDS[group],
-        icon: GROUP_ICONS[group],
-        tint: GROUP_TINTS[group],
+        title: group,
+        icon: TOOLBOX_ICONS[group],
+        tint: TOOLBOX_TINTS[group],
         source: "text-to-cad",
       },
       [
