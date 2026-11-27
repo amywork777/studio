@@ -45,6 +45,9 @@ export interface ReadmeSections {
 
 /** The headings the open questions go under; the first is the one the agent is told to write. */
 const QUESTION_HEADINGS = new Set(["open questions", "questions", "assumptions"]);
+/** A line saying there is no open question, which is not one: `None.`, `- None`, `_No open questions._`, `—`. */
+const NO_QUESTIONS =
+  /^\s*(?:[-*]\s+)?[_*]*\s*(?:none|n\/a|nothing(?: open)?|no(?: open)? questions?|[-—–]+)\s*\.?\s*[_*]*\s*$/i;
 /** A question's answers at its end: `[2 mm | 3 mm]`. */
 const ANSWERS = /^(.*?)\s*\[([^\[\]]*\|[^\[\]]*|[^\[\]|]+)\]\s*$/;
 
@@ -233,7 +236,12 @@ export function readmeSections(markdown: string | null): ReadmeSections {
     }),
   ];
   const isQuestions = (heading: string) => QUESTION_HEADINGS.has(heading.toLowerCase());
-  const questions = sections
+  const asked = sections.map((section) =>
+    isQuestions(section.heading)
+      ? { ...section, lines: section.lines.filter((line) => !NO_QUESTIONS.test(line)) }
+      : section,
+  );
+  const questions = asked
     .filter(({ heading }) => isQuestions(heading))
     .flatMap(({ lines }) =>
       lines.flatMap((line) => {
@@ -244,7 +252,7 @@ export function readmeSections(markdown: string | null): ReadmeSections {
       }),
     )
     .filter((question) => question.text !== "");
-  const more = sections
+  const more = asked
     .filter(({ heading }) => !["what it is", "decisions"].includes(heading.toLowerCase()))
     // A questions section is asked as taps once it holds a question; else it reads as written.
     .filter(({ heading }) => !(isQuestions(heading) && questions.length > 0))
