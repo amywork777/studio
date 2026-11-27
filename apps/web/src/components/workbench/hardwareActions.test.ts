@@ -28,7 +28,8 @@ describe("hardware actions", () => {
           "Check for metal printing",
         ],
       ],
-      ["Files and off-the-shelf parts", ["Off-the-shelf parts", "Export"]],
+      ["Files", ["Export"]],
+      ["Off-the-shelf parts", ["Off-the-shelf parts"]],
     ]);
     expect(titled(manufacture!.others)).toEqual([
       [
@@ -44,7 +45,8 @@ describe("hardware actions", () => {
     const manufacture = menu("Manufacture", "Part", ["cad"], "CNC machining");
     expect(titled(manufacture!.sections)).toEqual([
       ["Machining and molding", ["Check for CNC machining", "Check for injection molding"]],
-      ["Files and off-the-shelf parts", ["Off-the-shelf parts", "Export"]],
+      ["Files", ["Export"]],
+      ["Off-the-shelf parts", ["Off-the-shelf parts"]],
     ]);
     expect(menu("Manufacture", "Board", ["cad"])).toBeUndefined();
   });
@@ -52,7 +54,8 @@ describe("hardware actions", () => {
   it("keeps every way to make it apart until the project chooses one", () => {
     const manufacture = menu("Manufacture", "Part", ["cad", "sendcutsend"]);
     expect(manufacture!.sections.map((section) => section.title)).toEqual([
-      "Files and off-the-shelf parts",
+      "Files",
+      "Off-the-shelf parts",
     ]);
     expect(manufacture!.others.map((section) => section.title)).toEqual([
       "3D printing",

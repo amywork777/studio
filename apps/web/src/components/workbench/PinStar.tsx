@@ -4,8 +4,8 @@ import { cn } from "~/lib/utils";
 import { useToolboxPins } from "./toolboxPins";
 
 /**
- * A tool's star, over the end of its row, named as Home's project stars are: stars it into Yours or
- * takes it out (`useToolboxPins`). Shown
+ * A tool's star, over the end of its row, named as Home's project stars are: stars it to the top of
+ * its Toolbox tab or takes it out (`useToolboxPins`). Shown
  * on a pinned tool, and on another while the pointer or focus is on its row (`group/pin`). The
  * brand's hue, never amber: red, amber and green are for status alone.
  */

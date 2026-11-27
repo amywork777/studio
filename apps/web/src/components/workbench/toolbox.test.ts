@@ -4,15 +4,15 @@ import { HARDWARE_ACTIONS, hardwareActions } from "./hardwareActions";
 import {
   jobCount,
   pairLoneSections,
-  pinnedJobs,
   readToolboxTab,
   searchJobs,
-  suggestedJobs,
   toolboxGroups,
+  toolboxTabOf,
   toolboxStart,
   toolboxLeftOut,
   toolboxLibraryLink,
   toolboxWorksOn,
+  worksOnWords,
   writeToolboxTab,
 } from "./toolbox";
 
@@ -45,75 +45,85 @@ describe("pairLoneSections", () => {
 });
 
 describe("toolboxGroups", () => {
-  it("always gives the three groups in order, empty when nothing applies", () => {
+  const tabOf = (id: string) => toolboxTabOf(HARDWARE_ACTIONS.find((job) => job.id === id)!);
+
+  it("always gives the four tabs in order, empty when nothing applies", () => {
     const groups = toolboxGroups([]);
-    expect(groups.map((group) => group.group)).toEqual(["Evaluate", "Manufacture", "Document"]);
+    expect(groups.map((group) => group.tab)).toEqual(["Design", "Check", "Make", "Document"]);
     expect(groups.every((group) => group.sections.length === 0)).toBe(true);
   });
 
-  it("lists the everyday sections first and the menus' others after, nothing folded", () => {
-    const [evaluate, manufacture] = toolboxGroups(menus());
-    expect(evaluate?.sections[0]?.title).toBe("Simulation");
-    expect(manufacture?.sections[0]?.title).toBe("Machining and molding");
-    expect(manufacture?.sections.map((section) => section.title)).toContain("3D printing");
-    expect(Object.keys(manufacture?.sections[0] ?? {}).toSorted()).toEqual(["actions", "title"]);
+  it("files each job by what it is for: shape it, check it, make it or document it", () => {
+    expect(["brainstorm", "standard-parts"].map(tabOf)).toEqual(["Design", "Design"]);
+    expect(["strength", "fit", "drawing-check", "board-check"].map(tabOf)).toEqual(
+      Array(4).fill("Check"),
+    );
+    // A check that it can be made is a check, whichever way of making it it is for.
+    expect(["cnc", "sheet-metal", "molding", "powder"].map(tabOf)).toEqual(Array(4).fill("Check"));
+    expect(["slice", "toolpaths", "dxf", "export", "board-fab"].map(tabOf)).toEqual(
+      Array(5).fill("Make"),
+    );
+    expect(["drawing", "pmi", "render", "write-up"].map(tabOf)).toEqual(Array(4).fill("Document"));
+  });
+
+  it("keeps the project's own way of making it first, in Check and in Make", () => {
+    const [, check, make] = toolboxGroups(menus());
+    const titles = (group: typeof check) => group?.sections.map((section) => section.title);
+    expect(titles(check)).toContain("Simulation");
+    expect(titles(check)).toContain("Machining and molding");
+    expect(titles(make)?.[0]).toBe("Machining and molding");
+    expect(make?.sections[0]?.actions.map((job) => job.id)).toEqual(["toolpaths"]);
   });
 
   it("lists every job exactly once", () => {
     const fromMenus = menus().flatMap((menu) =>
       [...menu.sections, ...menu.others].flatMap((section) => section.actions.map((a) => a.id)),
     );
-    const fromGroups = toolboxGroups(menus()).flatMap((group) =>
-      group.sections.flatMap((section) => section.actions.map((a) => a.id)),
+    for (const pins of [[], ["strength", "slice", "gone"]]) {
+      const fromGroups = toolboxGroups(menus(), pins).flatMap((group) =>
+        group.sections.flatMap((section) => section.actions.map((a) => a.id)),
+      );
+      expect(fromGroups.toSorted()).toEqual(fromMenus.toSorted());
+      expect(new Set(fromGroups).size).toBe(fromGroups.length);
+    }
+  });
+
+  it("leads each tab with its own starred jobs, in the order starred", () => {
+    const groups = toolboxGroups(
+      hardwareActions(null, new Set(["fea", "cad", "cam"]), "CNC machining"),
+      ["mass", "toolpaths", "strength", "gone"],
     );
-    expect(fromGroups.toSorted()).toEqual(fromMenus.toSorted());
-    expect(new Set(fromGroups).size).toBe(fromGroups.length);
+    const first = (tab: string) => groups.find((group) => group.tab === tab)?.sections[0];
+    expect(first("Check")).toEqual({
+      title: "Starred",
+      actions: [
+        expect.objectContaining({ id: "mass" }),
+        expect.objectContaining({ id: "strength" }),
+      ],
+    });
+    expect(first("Make")?.actions.map((job) => job.id)).toEqual(["toolpaths"]);
+    expect(first("Document")?.title).not.toBe("Starred");
   });
 });
 
 describe("the Toolbox tab", () => {
-  it("opens on the tab left open on this device, else Yours", () => {
+  it("opens on the tab left open on this device, else Design", () => {
     globalThis.localStorage?.removeItem("studio:toolbox-tab");
-    expect(readToolboxTab(true)).toBe("Yours");
-    writeToolboxTab("Document");
-    expect(readToolboxTab(true)).toBe(globalThis.localStorage ? "Document" : "Yours");
-    globalThis.localStorage?.setItem("studio:toolbox-tab", "Nonsense");
-    expect(readToolboxTab(true)).toBe("Yours");
-  });
-
-  it("never opens on Yours with nothing pinned", () => {
-    globalThis.localStorage?.removeItem("studio:toolbox-tab");
-    expect(readToolboxTab(false)).toBe("Evaluate");
-    writeToolboxTab("Yours");
-    expect(readToolboxTab(false)).toBe("Evaluate");
-    writeToolboxTab("Manufacture");
-    expect(readToolboxTab(false)).toBe(globalThis.localStorage ? "Manufacture" : "Evaluate");
+    expect(readToolboxTab()).toBe("Design");
+    writeToolboxTab("Make");
+    expect(readToolboxTab()).toBe(globalThis.localStorage ? "Make" : "Design");
+    // The tabs before these, Yours among them, open on Design.
+    for (const old of ["Yours", "Evaluate", "Nonsense"]) {
+      globalThis.localStorage?.setItem("studio:toolbox-tab", old);
+      expect(readToolboxTab()).toBe("Design");
+    }
   });
 });
 
-describe("the Yours tab and search", () => {
+describe("search", () => {
   const groups = toolboxGroups(
     hardwareActions(null, new Set(["fea", "cad", "cam", "fdm", "sheet-metal"]), "FDM printing"),
   );
-  const jobs = groups.flatMap((group) => group.sections.flatMap((section) => section.actions));
-  const [first, second] = jobs;
-
-  it("keeps pins in the order pinned and drops ones no skill can do now", () => {
-    expect(pinnedJobs(groups, [second!.id, "gone", first!.id]).map((job) => job.id)).toEqual([
-      second!.id,
-      first!.id,
-    ]);
-  });
-
-  it("suggests jobs made for the kind, across groups, leaving out pins and any-file jobs", () => {
-    const suggested = suggestedJobs(groups, "Part", [], 6);
-    expect(suggested.length).toBeGreaterThan(0);
-    expect(suggested.every((job) => job.kinds?.includes("Part"))).toBe(true);
-    expect(new Set(suggested.map((job) => job.group)).size).toBeGreaterThan(1);
-    const pinned = suggested[0]!.id;
-    expect(suggestedJobs(groups, "Part", [pinned], 6).map((job) => job.id)).not.toContain(pinned);
-    expect(suggestedJobs(groups, null, [])).toEqual([]);
-  });
 
   it("finds a job by every word typed, in any case", () => {
     const found = searchJobs(groups, "FDM check");
@@ -122,26 +132,36 @@ describe("the Yours tab and search", () => {
     expect(searchJobs(groups, "  ")).toEqual([]);
     expect(searchJobs(groups, "zzz-nothing")).toEqual([]);
   });
+
+  it("finds a tab's jobs by its name", () => {
+    const found = searchJobs(groups, "make");
+    expect(found.map((job) => job.id)).toContain("toolpaths");
+  });
 });
 
 describe("jobCount", () => {
-  it("counts a group's jobs in all its sections", () => {
-    const [evaluate] = toolboxGroups(menus());
-    const all = evaluate?.sections.flatMap((section) => section.actions) ?? [];
-    expect(evaluate && jobCount(evaluate)).toBe(all.length);
+  it("counts a tab's jobs in all its sections", () => {
+    const [, check] = toolboxGroups(menus());
+    const all = check?.sections.flatMap((section) => section.actions) ?? [];
+    expect(check && jobCount(check)).toBe(all.length);
     expect(all.length).toBeGreaterThan(0);
-    expect(toolboxGroups([]).map(jobCount)).toEqual([0, 0, 0]);
+    expect(toolboxGroups([]).map(jobCount)).toEqual([0, 0, 0, 0]);
   });
 });
 
 describe("toolboxLibraryLink", () => {
-  it("opens the Library on the group, coming back here while the workspace can take a request", () => {
-    expect(
-      toolboxLibraryLink("Evaluate", { workspaceOpen: true, from: "/chat/t1" }).search,
-    ).toEqual({
+  it("opens the Library on the tab's group, coming back here while the workspace can take a request", () => {
+    expect(toolboxLibraryLink("Check", { workspaceOpen: true, from: "/chat/t1" }).search).toEqual({
       group: "Evaluate",
       from: "/chat/t1",
     });
+    expect(toolboxLibraryLink("Make", { workspaceOpen: false, from: "/" }).search).toEqual({
+      group: "Manufacture",
+    });
+  });
+
+  it("opens the whole Library from Design, whose jobs span two groups", () => {
+    expect(toolboxLibraryLink("Design", { workspaceOpen: false, from: "/" }).search).toEqual({});
   });
 
   it("leaves out where to come back to when no workspace is open", () => {
@@ -155,8 +175,8 @@ describe("toolboxLibraryLink", () => {
 describe("the Toolbox, whatever file is in front", () => {
   const SKILLS = new Set(["fea", "cad", "cam", "sendcutsend", "pcb"]);
   const groups = toolboxGroups(hardwareActions(null, SKILLS));
-  const group = (name: (typeof groups)[number]["group"]) =>
-    groups.find((entry) => entry.group === name)!;
+  const group = (name: (typeof groups)[number]["tab"]) =>
+    groups.find((entry) => entry.tab === name)!;
   const job = (id: string) => HARDWARE_ACTIONS.find((action) => action.id === id)!;
 
   it("holds every job the skills can do, a board's beside a part's", () => {
@@ -213,16 +233,24 @@ describe("the Toolbox, whatever file is in front", () => {
     expect(toolboxStart(job("write-up"), kinds())).toBeNull();
   });
 
-  it("says so under a group none of whose jobs fit the file", () => {
-    expect(toolboxLeftOut(group("Evaluate"), "Part")).toBeNull();
-    expect(toolboxLeftOut(group("Manufacture"), "CAM job")).toBeNull();
-    expect(toolboxLeftOut(group("Evaluate"), "CAM job")).toBe(
+  it("says so under a tab none of whose jobs fit the file", () => {
+    expect(toolboxLeftOut(group("Check"), "Part")).toBeNull();
+    expect(toolboxLeftOut(group("Make"), "CAM job")).toBeNull();
+    expect(toolboxLeftOut(group("Design"), "CAM job")).toBe(
       "None of these work on this CAM job. Pause on one to see what it works on.",
     );
-    expect(toolboxLeftOut(group("Manufacture"), "Schematic")).toBe(
+    expect(toolboxLeftOut(group("Make"), "Schematic")).toBe(
       "None of these work on this schematic. Pause on one to see what it works on.",
     );
     // Write up the results works on any file.
     expect(toolboxLeftOut(group("Document"), "Document")).toBeNull();
+  });
+});
+
+describe("worksOnWords", () => {
+  it("says what a job takes in as a sentence starts it", () => {
+    expect(worksOnWords({ kinds: ["Part", "Assembly"] })).toBe("A part or an assembly");
+    expect(worksOnWords({ kinds: ["FEA study"] })).toBe("An FEA study");
+    expect(worksOnWords({ kinds: null })).toBe("Any file");
   });
 });

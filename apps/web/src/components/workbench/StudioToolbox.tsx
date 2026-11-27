@@ -1,5 +1,5 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
-import { SearchIcon, StarIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 
@@ -7,8 +7,7 @@ import type { ComposerHandleRef } from "~/composerHandleContext";
 import { Button } from "../ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import { GROUP_PURPOSES, type HardwareAction, type HardwareActionGroup } from "./hardwareActions";
-import { MENU_ICONS, MENU_TINTS, MENU_WORDS } from "./kinds";
+import type { HardwareAction } from "./hardwareActions";
 import { handToChat } from "./handToChat";
 import { withToolLine } from "./toolUsed";
 import { useOpenWorkspaceStore } from "./openWorkspace";
@@ -19,11 +18,11 @@ import type { NewTemplate } from "./newTemplates";
 import { usePartForJobs } from "./StudioPanelBar";
 import { SECTION_GRID, SectionJobs } from "./ToolboxJobs";
 import {
-  pairLoneSections,
-  pinnedJobs,
   readToolboxTab,
   searchJobs,
-  suggestedJobs,
+  TOOLBOX_ICONS,
+  TOOLBOX_PURPOSES,
+  TOOLBOX_TINTS,
   type ToolboxGroup,
   type ToolboxTab,
   toolboxGroups,
@@ -40,8 +39,8 @@ import { useProjectKinds } from "./useLeadPart";
 import { useToolboxJobs } from "./useToolboxJobs";
 
 /**
- * Every job the skills can do, for the part in front (`usePartForJobs`): Yours (pinned, and a few
- * made for the part), a tab per group, and a search over all. A job that does not fit is dimmed and
+ * Every job the skills can do, for the part in front (`usePartForJobs`): a tab each for Design,
+ * Check, Make and Document, its starred jobs first, and a search over all. A job that does not fit is dimmed and
  * says what it works on, or opens New where New makes its input. Hangs under the title bar's button.
  */
 export function StudioToolbox(props: {
@@ -63,30 +62,28 @@ export function StudioToolbox(props: {
     setOpen(false);
     useNewDialogStore.getState().ask(template.discipline, template.id);
   };
-  const groups = toolboxGroups(jobs.menus);
+  const pins = useToolboxPins((state) => state.pins);
+  const groups = toolboxGroups(jobs.menus, pins);
 
   const navigate = useNavigate();
   const router = useRouter();
-  const browse = (group: HardwareActionGroup) => {
+  const browse = (tab: ToolboxTab) => {
     setOpen(false);
     void navigate(
-      toolboxLibraryLink(group, {
+      toolboxLibraryLink(tab, {
         workspaceOpen: useOpenWorkspaceStore.getState().workspace !== null,
         from: router.state.location.href,
       }),
     );
   };
 
-  const [tab, setTabState] = useState(() =>
-    readToolboxTab(useToolboxPins.getState().pins.length > 0),
-  );
+  const [tab, setTabState] = useState(readToolboxTab);
   const setTab = (next: ToolboxTab) => {
     setTabState(next);
     writeToolboxTab(next);
   };
   const [query, setQuery] = useState("");
-  const pins = useToolboxPins((state) => state.pins);
-  const shown = groups.find((group) => group.group === tab);
+  const shown = groups.find((group) => group.tab === tab);
   const kind = part?.kind ?? null;
   const leftOut = shown === undefined || kind === null ? null : toolboxLeftOut(shown, kind);
   const found = searchJobs(groups, query);
@@ -105,6 +102,8 @@ export function StudioToolbox(props: {
     onRun: run,
     onStart: start,
     pinnable: true,
+    partName: part === null ? null : (part.name ?? `this ${lowerName(part.kind)}`),
+    environmentId: threadRef.environmentId,
   };
 
   return (
@@ -150,22 +149,19 @@ export function StudioToolbox(props: {
               onValueChange={(value) => {
                 // Pressing the tab in front clears it: it stays as it is.
                 const next = value[0];
-                if (next === "Yours" || groups.some((group) => group.group === next)) {
-                  setTab(next as ToolboxTab);
+                const picked = groups.find((group) => group.tab === next);
+                if (picked !== undefined) {
+                  setTab(picked.tab);
                   setQuery("");
                 }
               }}
             >
-              <ToggleGroupItem value="Yours">
-                <StarIcon aria-hidden="true" className="text-primary" />
-                Yours
-              </ToggleGroupItem>
               {groups.map((group) => {
-                const Icon = MENU_ICONS[group.group];
+                const Icon = TOOLBOX_ICONS[group.tab];
                 return (
-                  <ToggleGroupItem key={group.group} value={group.group}>
-                    <Icon aria-hidden="true" className={MENU_TINTS[group.group]} />
-                    {MENU_WORDS[group.group]}
+                  <ToggleGroupItem key={group.tab} value={group.tab}>
+                    <Icon aria-hidden="true" className={TOOLBOX_TINTS[group.tab]} />
+                    {group.tab}
                   </ToggleGroupItem>
                 );
               })}
@@ -209,19 +205,12 @@ export function StudioToolbox(props: {
                       />
                     </div>
                   )
-                ) : tab === "Yours" ? (
-                  <YourJobs
-                    pinned={pinnedJobs(groups, pins)}
-                    suggested={suggestedJobs(groups, kind, pins)}
-                    partName={part === null ? null : (part.name ?? `this ${lowerName(part.kind)}`)}
-                    tiles={tiles}
-                  />
                 ) : shown ? (
                   <GroupJobs
                     group={shown}
                     leftOut={leftOut}
                     {...tiles}
-                    onBrowse={() => browse(shown.group)}
+                    onBrowse={() => browse(shown.tab)}
                   />
                 ) : null}
               </>
@@ -234,24 +223,24 @@ export function StudioToolbox(props: {
 }
 
 /**
- * The tab in front: what the group is for, then its sections, each a title over its tiles (`SectionJobs`),
- * and the Library's word on what each makes.
+ * The tab in front: what it is for, then its sections (its starred jobs first), each a title over
+ * its rows (`SectionJobs`), and the Library's word on what each makes.
  */
 function GroupJobs(
   props: TileProps & {
     readonly group: ToolboxGroup;
-    /** That none of the group's jobs fit the file in front, and what to open (`toolboxLeftOut`). */
+    /** That none of the tab's jobs fit the file in front, and what to open (`toolboxLeftOut`). */
     readonly leftOut: string | null;
     readonly onBrowse: () => void;
   },
 ) {
   const empty = props.group.sections.length === 0;
   return (
-    <section aria-label={props.group.group} className="flex flex-col gap-3">
-      <p className="px-1 text-xs text-muted-foreground">{GROUP_PURPOSES[props.group.group]}</p>
+    <section aria-label={props.group.tab} className="flex flex-col gap-3">
+      <p className="px-1 text-xs text-muted-foreground">{TOOLBOX_PURPOSES[props.group.tab]}</p>
       {empty ? null : (
         <div className={SECTION_GRID}>
-          {pairLoneSections(props.group.sections).map((section) => (
+          {props.group.sections.map((section) => (
             <SectionJobs key={section.title} section={section} {...tileProps(props)} />
           ))}
         </div>
@@ -282,6 +271,9 @@ interface TileProps {
   readonly onRun: (action: HardwareAction) => void;
   readonly onStart: (template: NewTemplate) => void;
   readonly pinnable: boolean;
+  /** The part a job would run on, for what its Run asks; null with none open. */
+  readonly partName: string | null;
+  readonly environmentId: ScopedThreadRef["environmentId"];
 }
 
 const tileProps = (props: TileProps): TileProps => ({
@@ -291,38 +283,6 @@ const tileProps = (props: TileProps): TileProps => ({
   onRun: props.onRun,
   onStart: props.onStart,
   pinnable: props.pinnable,
+  partName: props.partName,
+  environmentId: props.environmentId,
 });
-
-/**
- * Yours: the pinned jobs, in the order pinned, then a few made for the part in front that are not
- * pinned (`suggestedJobs`). With none pinned it says how to pin one.
- */
-function YourJobs(props: {
-  readonly pinned: ReadonlyArray<HardwareAction>;
-  readonly suggested: ReadonlyArray<HardwareAction>;
-  /** The part in front by name, for the suggestions' title; null with none. */
-  readonly partName: string | null;
-  readonly tiles: TileProps;
-}) {
-  return (
-    <section aria-label="Your tools" className="flex flex-col gap-4">
-      {props.pinned.length === 0 ? (
-        <p className="px-1 text-xs text-muted-foreground">
-          Star a tool in any tab to keep it here, in the order you star them.
-        </p>
-      ) : (
-        <div className={SECTION_GRID}>
-          <SectionJobs section={{ title: "Starred", actions: props.pinned }} {...props.tiles} />
-        </div>
-      )}
-      {props.suggested.length === 0 || props.partName === null ? null : (
-        <div className={SECTION_GRID}>
-          <SectionJobs
-            section={{ title: `Suggested for ${props.partName}`, actions: props.suggested }}
-            {...props.tiles}
-          />
-        </div>
-      )}
-    </section>
-  );
-}

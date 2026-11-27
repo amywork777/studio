@@ -75,6 +75,7 @@ export function projectStarters(
           (action) =>
             action.skill !== null &&
             action.section !== "files" &&
+            action.section !== "standard" &&
             (action.process === undefined || action.process === brief?.process),
         ),
     };
