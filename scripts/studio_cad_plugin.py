@@ -62,7 +62,11 @@ STUDIO_FREECAD_STEP = (
     "  with. It\n"
     "  downloads FreeCAD 1.1.4 from FreeCAD's own release, checks its SHA-256 and FreeCAD's signature, and installs it\n"
     "  in Studio's own folder, where `cad <type> plan` finds it from the next plan, ahead of one in Applications;\n"
-    "  macOS asks no question about it. Until then Studio's `freecadcmd` only says FreeCAD is not installed for\n"
+    "  macOS asks no question about it. The install takes a few minutes, longer than one command may run, so it runs\n"
+    "  on its own and each call returns within 90 s saying how far it is. While it says FreeCAD is still installing,\n"
+    "  run `studio-install-freecad --wait` again, in the same turn, until it says FreeCAD is installed, then plan:\n"
+    "  never end your turn while it installs, and never run it in the background. Until a plan has run, say nothing\n"
+    "  about the plan, the controller, the tools or the G-code, not even what you will plan with. Until then Studio's `freecadcmd` only says FreeCAD is not installed for\n"
     "  Studio, so a plan stops at once saying Studio's `freecadcmd` reports no version: that means the same, whatever\n"
     "  install advice follows it. If a plan says macOS is waiting for someone to answer whether to open FreeCAD,\n"
     "  the answer to recommend is the same: install FreeCAD for Studio with `studio-install-freecad`. Never recommend\n"
@@ -74,7 +78,8 @@ FREECAD_MAC_STALL = re.compile(r"\(on macOS: answer macOS's question about openi
 STUDIO_FREECAD_STALL = (
     "(on macOS in Studio, when it says macOS is waiting for someone to answer whether to open FreeCAD: its advice to\n"
     "answer that question or open FreeCAD from Applications is not Studio's. Recommend installing FreeCAD for Studio,\n"
-    "and once the person says yes to the download of about 650 MB, run `studio-install-freecad`, then plan again)"
+    "and once the person says yes to the download of about 650 MB, run `studio-install-freecad`, and\n"
+    "`studio-install-freecad --wait` until it says FreeCAD is installed, then plan again)"
 )
 # What no skill Studio carries may tell an agent to do with FreeCAD on a Mac.
 FREECAD_MAC_INSTALLS = ("open -a FreeCAD", "drag the `.dmg`'s FreeCAD into Applications",

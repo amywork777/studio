@@ -159,6 +159,12 @@ const EDITABLE_SKETCHES = [
   "When you change a part that still has such a profile, redraw it with `cad.sketch` in the same change, keeping its shape and sizes.",
 ].join("\n\n");
 
+/** A part is its script (AGENTS.md, law 3): what the person sees is built from it, nowhere else. */
+const BUILDING_A_PART = [
+  "A part is its script. Build it with `cad run parts/<part>.py`, which runs the script with Studio's `cad` library and build123d. This computer's own `python3` has neither (`No module named 'cad'`), so never build, check or export a part with it: `from cad import model` and `cad.sketch` run under `cad run`, from any folder.",
+  "The part's STEP always comes from building the part's own script: after each build, `cad model export <id> parts/<part>.step`, with the `id:` that script's run printed, so the STEP Studio shows is the script's. Never export it from another script, a copy of the geometry or build123d's `export_step`. When the script will not build, fix the script and say what stopped it.",
+].join("\n\n");
+
 const TALKING_TO_THE_PERSON = [
   "The person is a mechanical engineer, not a programmer. Say what changed in the design and what it means in their words: parts, sizes, materials, fits, checks and drawings.",
   "",
@@ -362,6 +368,7 @@ export function studioProjectContext(
     ...section("Links", links),
     ...section("Notes", brief.notes),
     ...section("References", REFERENCES),
+    ...section("Building a part", BUILDING_A_PART),
     ...section("Sketches the person can edit", EDITABLE_SKETCHES),
     ...section("Talking to the person", TALKING_TO_THE_PERSON),
     ...section("Questions and recommendations", RECOMMEND),

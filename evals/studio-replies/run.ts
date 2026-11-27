@@ -11,7 +11,7 @@ import {
   CLAUDE_PROVIDER,
   makeClaudeQueryOptions,
 } from "../../apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts";
-import { type CommandFixture, gradeReply, studioReplyCases } from "./cases.ts";
+import { type CommandFixture, gradeReply, studioReplyCases, type TurnStep } from "./cases.ts";
 
 const { values } = NodeUtil.parseArgs({
   options: {
@@ -90,23 +90,33 @@ const stub = (name: string, fixtures: ReadonlyArray<CommandFixture>, log: string
   [
     "#!/usr/bin/env node",
     `const fixtures = ${JSON.stringify(fixtures)};`,
-    "const args = process.argv.slice(2).join(' ');",
-    `require('node:fs').appendFileSync(${JSON.stringify(log)}, ${JSON.stringify(name)} + ' ' + args + '\\n');`,
-    "const hit = fixtures.find((fixture) => new RegExp(fixture.args).test(args));",
+    // A script on stdin (`python3 - <<EOF`) is part of what was run.
+    "const args = process.argv.slice(2).join(' ') + (process.argv[2] === '-' ? ' ' + require('node:fs').readFileSync(0, 'utf8') : '');",
+    `require('node:fs').appendFileSync(${JSON.stringify(log)}, ${JSON.stringify(name)} + ' ' + args.replace(/\\n/g, ' ') + '\\n');`,
+    // How many calls each fixture has answered, for one with `times`.
+    `const counts = ${JSON.stringify(log)} + '.' + ${JSON.stringify(name)} + '.json';`,
+    "let answered = {};",
+    "try { answered = JSON.parse(require('node:fs').readFileSync(counts, 'utf8')); } catch {}",
+    "const at = fixtures.findIndex((fixture, index) => new RegExp(fixture.args).test(args) && (fixture.times === undefined || (answered[index] ?? 0) < fixture.times));",
+    "const hit = fixtures[at];",
+    "if (hit) { answered[at] = (answered[at] ?? 0) + 1; require('node:fs').writeFileSync(counts, JSON.stringify(answered)); }",
     "const out = process.argv[process.argv.indexOf('--out') + 1];",
     "if (hit?.writes && process.argv.includes('--out')) {",
     "  require('node:fs').mkdirSync(out, { recursive: true });",
     "  for (const [file, text] of Object.entries(hit.writes)) require('node:fs').writeFileSync(require('node:path').join(out, file), text);",
     "}",
-    "if (hit) process.stdout.write(hit.stdout);",
+    "if (hit) { process.stdout.write(hit.stdout); process.stderr.write(hit.stderr ?? ''); process.exitCode = hit.code ?? 0; }",
     `else { process.stderr.write(${JSON.stringify(name)} + ': not answered in this eval: ' + args + '\\n'); process.exit(2); }`,
     "",
   ].join("\n");
 
+// The turn as it went: the reply, and each text the agent wrote and each command it ran, in order.
+type Turn = { readonly reply: string; readonly steps: ReadonlyArray<TurnStep> };
+
 // Claude Code itself runs each turn in the case's project folder. It can only look, unless the case
 // gives it commands: then it can also write files and run those commands, and nothing else.
 const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
-  new Promise<string>((resolve, reject) => {
+  new Promise<Turn>((resolve, reject) => {
     const commands = Object.keys(testCase.commands ?? {});
     NodeChildProcess.execFile(
       "claude",
@@ -133,7 +143,8 @@ const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
         ...(testCase.skills ? ["--plugin-dir", plugin] : ["--disable-slash-commands"]),
         "--no-session-persistence",
         "--output-format",
-        "json",
+        "stream-json",
+        "--verbose",
         "--",
         testCase.prompt,
       ],
@@ -149,9 +160,31 @@ const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
       },
       (error, stdout) => {
         if (error) return reject(error);
-        const result = JSON.parse(stdout) as { result?: string; total_cost_usd?: number };
-        cost += result.total_cost_usd ?? 0;
-        resolve(result.result ?? "");
+        type Line = {
+          type?: string;
+          result?: string;
+          total_cost_usd?: number;
+          message?: {
+            content?: ReadonlyArray<{ type?: string; text?: string; input?: { command?: string } }>;
+          };
+        };
+        const lines = stdout
+          .split("\n")
+          .filter((line) => line.trim().startsWith("{"))
+          .map((line) => JSON.parse(line) as Line);
+        const result = lines.findLast((line) => line.type === "result");
+        cost += result?.total_cost_usd ?? 0;
+        const steps = lines
+          .filter((line) => line.type === "assistant")
+          .flatMap((line) => line.message?.content ?? [])
+          .flatMap((block): Array<TurnStep> =>
+            block.type === "text" && block.text
+              ? [{ text: block.text }]
+              : block.type === "tool_use" && block.input?.command
+                ? [{ command: block.input.command }]
+                : [],
+          );
+        resolve({ reply: result?.result ?? "", steps });
       },
     );
   });
@@ -190,7 +223,7 @@ const rows = await Promise.all(
         NodeFS.writeFileSync(NodePath.join(bin, name), stub(name, fixtures, log), { mode: 0o755 });
       }
       let written: Record<string, string> = {};
-      const text = await reply(testCase, folder, bin).finally(() => {
+      const turn = await reply(testCase, folder, bin).finally(() => {
         written = writtenIn(folder, testCase.files ?? {});
         NodeFS.rmSync(folder, { recursive: true, force: true });
       });
@@ -199,10 +232,11 @@ const rows = await Promise.all(
         id: testCase.id,
         kind: testCase.kind,
         sample,
-        ...gradeReply(testCase, text, ran, written),
+        ...gradeReply(testCase, turn.reply, ran, written, turn.steps),
         ran,
         written,
-        text,
+        text: turn.reply,
+        steps: turn.steps,
       };
     }),
   ),

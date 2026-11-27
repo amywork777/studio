@@ -33,11 +33,24 @@ export type StudioReplyCase = {
   readonly mustNotRun?: ReadonlyArray<string>;
   /** Case-insensitive regexes, each capturing one quantity's number: the reply gives it one value. */
   readonly sameValue?: ReadonlyArray<string>;
+  /**
+   * What the agent may not write before it runs a command matching `run` (in any text of the turn,
+   * the reply too when none ran): a plan's controller before the plan.
+   */
+  readonly beforeRun?: { readonly run: string; readonly mustNotMatch: ReadonlyArray<string> };
 };
+
+/** What the agent did in its turn, in order: a text it wrote or a command it ran. */
+export type TurnStep = { readonly text: string } | { readonly command: string };
 
 export type CommandFixture = {
   readonly args: string;
   readonly stdout: string;
+  /** Written to stderr, and the exit code, for a command that fails. */
+  readonly stderr?: string;
+  readonly code?: number;
+  /** Answers only this many calls; the next fixture that matches answers the rest. */
+  readonly times?: number;
   /** Files written into the folder the call's `--out` names, as a plan writes its results. */
   readonly writes?: Readonly<Record<string, string>>;
 };
@@ -219,6 +232,87 @@ const CAD: ReadonlyArray<CommandFixture> = [
 ];
 const STUDIO_FREECAD: ReadonlyArray<CommandFixture> = [
   { args: "--check", stdout: "Studio's FreeCAD 1.1.4 is installed.\n" },
+];
+
+// `studio-install-freecad` as scripts/studio_freecad.py answers while its install of a few minutes
+// runs on its own: each call returns within 90 s, and the fourth says FreeCAD is installed.
+const AGAIN =
+  "Run `studio-install-freecad --wait` again until it says FreeCAD is installed; no plan has run yet.\n";
+const FREECAD_INSTALLING: ReadonlyArray<CommandFixture> = [
+  {
+    args: "--check",
+    times: 1,
+    stdout:
+      "FreeCAD is not installed for Studio. `studio-install-freecad` installs FreeCAD 1.1.4 (a download of about 650 MB), once the person says yes\n",
+    code: 1,
+  },
+  {
+    args: "--check",
+    stdout: `FreeCAD is being installed for Studio now. ${AGAIN}`,
+    code: 1,
+  },
+  {
+    args: "^(?!.*--wait)",
+    times: 1,
+    stdout: `Installing FreeCAD 1.1.4 for Studio (a download of about 650 MB, a few minutes).\nStill installing FreeCAD for Studio, at: 190 of 650 MB ${AGAIN}`,
+  },
+  {
+    args: "",
+    times: 1,
+    stdout: `Still installing FreeCAD for Studio, at: 520 of 650 MB ${AGAIN}`,
+  },
+  {
+    args: "",
+    times: 1,
+    stdout: `Still installing FreeCAD for Studio, at: Checking FreeCAD's signature with macOS (about a minute). ${AGAIN}`,
+  },
+  {
+    args: "",
+    stdout:
+      "Installed FreeCAD 1.1.4 for Studio: /home/user/.studio/tools/freecad/FreeCAD.app/Contents/Resources/bin/freecadcmd. Plan now.\n",
+  },
+];
+
+// What `cad` says building and exporting the flat plate, as 0.11.17 prints it.
+const PLATE_ID = "87d93325-bff6-5f2a-b2d8-7c49a1d4e61b";
+const built = (script: string, id: string) =>
+  [
+    `built ${script}::flat_plate cold in 45.83s: bodies 1 run; 11 misses, 0 hits; body 0.26s, names 0.01s, document 0.00s`,
+    "  parts 1 · bounds 80 × 50 × 6 mm · joints 0 · sequences 0",
+    `  id: ${id}`,
+    `  view: http://127.0.0.1:4178/${id}?token=1767225600.k3Jq9xW2pLm8`,
+    "",
+  ].join("\n");
+const CAD_BUILDS: ReadonlyArray<CommandFixture> = [
+  { args: "^--version$", stdout: "cad 0.11.17\n" },
+  { args: "^server\\b", stdout: "the cad server is running (cad 0.11.17)\n" },
+  { args: "^run\\b.*\\bparts/flat_plate\\.py\\b", stdout: built("parts/flat_plate.py", PLATE_ID) },
+  { args: "^run\\b.*\\bflat_plate\\.py\\b", stdout: built("flat_plate.py", PLATE_ID) },
+  {
+    args: "^run\\b",
+    stdout: built("parts/flat_plate_plain.py", "0b4d2c1e-9a8f-5e7d-a6b5-c4d3e2f1a0b9"),
+  },
+  { args: "^model export\\b", stdout: "wrote parts/flat_plate.step (22.3 KB) in 0.01s\n" },
+  {
+    args: "^model inspect\\b",
+    stdout:
+      "flat plate  87d93325-bff6-5f2a-b2d8-7c49a1d4e61b\nparts       1 in flat plate\nbounds      80 x 50 x 6 mm, from (0, 0, 0)\nvolume      23,529 mm^3\n",
+  },
+  { args: "^model snapshot\\b", stdout: "wrote snapshot.png\n" },
+];
+// This computer's own Python, which has build123d but not Studio's `cad` library (the 0.1.19 retest's Mac).
+const MACHINE_PYTHON: ReadonlyArray<CommandFixture> = [
+  {
+    args: "\\b(?:from|import)\\s+(?:cad|flat_plate)\\b|flat_plate\\.py",
+    stdout: "",
+    stderr: [
+      "Traceback (most recent call last):",
+      "ModuleNotFoundError: No module named 'cad'",
+      "",
+    ].join("\n"),
+    code: 1,
+  },
+  { args: "", stdout: "ok\n" },
 ];
 
 // A plate bolted through its hole, sized as the 0.1.19 retest's: the models' washer and nut are
@@ -444,6 +538,50 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
     },
   },
   {
+    id: "cam-freecad-installs-in-turn",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest, Haiku 5.5: once the person said yes to FreeCAD, `studio-install-freecad` ran past the agent's 120 s command limit and went to the background, and the turn ended on a message naming GRBL as the controller before any plan had run.",
+    prompt:
+      "I need CNC G-code to mill this plate, `parts/plate.step`, from 6061 on my router. FreeCAD is not installed for Studio yet: yes, install it, the 650 MB download is fine.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": FREECAD_INSTALLING },
+    mustRun: ["^studio-install-freecad(?!.*--check)", "\\bplan\\b.*--job"],
+    beforeRun: {
+      run: "\\bplan\\b.*--job",
+      mustNotMatch: [
+        "\\bGRBL\\b",
+        "\\bcontroller\\b",
+        "\\bI(?:'ve| have)(?: already)? planned\\b",
+        "(?:^|\\n)\\W*planned with\\b",
+      ],
+    },
+  },
+  {
+    id: "part-step-from-its-script",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest: the agent wrote `parts/flat_plate.py` with `cad.sketch`, ran it with the computer's own `python3` (`No module named 'cad'`), and exported `parts/flat_plate.step` from \"a plain build123d version of the same geometry, because the sketch helper only runs inside Studio\".",
+    prompt:
+      "A flat plate 80 x 50 x 6 mm with one Ø10 mm through hole in the middle, in 6061-T6 aluminium. Its script is `parts/flat_plate.py`.",
+    skills: true,
+    commands: { cad: CAD_BUILDS, python3: MACHINE_PYTHON, python: MACHINE_PYTHON },
+    mustRun: ["^cad run\\b.*\\bflat_plate\\.py\\b", "^cad model export\\b.*\\.step\\b"],
+    mustNotRun: [
+      "^cad run\\b.*\\bparts/(?!flat_plate\\.py\\b)\\S*\\.py\\b",
+      "^python3?\\b.*\\bexport_step\\b",
+      "^cad model export\\s+0b4d2c1e",
+    ],
+    mustNotMatch: [
+      "only runs inside Studio",
+      "plain build123d",
+      "(?:have not|haven't)(?: yet)? run the\\b[^.\\n]{0,30}script",
+    ],
+    // The part's script is the one written: no copy of it in another part script.
+    writes: { path: "^parts/(?!flat_plate\\.py$).*\\.py$", mustNotMatch: ["\\S"] },
+  },
+  {
     id: "assembly-imports-parts",
     kind: "bad",
     source:
@@ -537,15 +675,35 @@ const writesFailures = (
   ];
 };
 
+/** What the agent wrote before its first command matching `run` (all it wrote, when none did). */
+const beforeRunFailures = (
+  beforeRun: NonNullable<StudioReplyCase["beforeRun"]>,
+  steps: ReadonlyArray<TurnStep>,
+) => {
+  const first = steps.findIndex(
+    (step) => "command" in step && new RegExp(beforeRun.run, "i").test(step.command),
+  );
+  const before = (first === -1 ? steps : steps.slice(0, first))
+    .flatMap((step) => ("text" in step ? [step.text] : []))
+    .join("\n");
+  return beforeRun.mustNotMatch
+    .filter((pattern) => new RegExp(pattern, "i").test(before))
+    .map(
+      (pattern) =>
+        `said before /${beforeRun.run}/ ran: ${new RegExp(pattern, "i").exec(before)?.[0]}`,
+    );
+};
+
 /**
  * `ran`: the command lines the agent ran, as `cad step plan …`; `written`: the files it wrote or
- * changed in the project, by path.
+ * changed in the project, by path; `steps`: each text it wrote and each command it ran, in order.
  */
 export const gradeReply = (
   testCase: StudioReplyCase,
   reply: string,
   ran: ReadonlyArray<string> = [],
   written: Readonly<Record<string, string>> = {},
+  steps: ReadonlyArray<TurnStep> = [{ text: reply }],
 ) => {
   const failures = [
     ...(YES_NO_OFFER.test(reply) ? [`yes/no offer: ${YES_NO_OFFER.exec(reply)?.[0]}`] : []),
@@ -564,6 +722,7 @@ export const gradeReply = (
       .map((pattern) => `ran /${pattern}/`),
     ...sameValueFailures(testCase.sameValue ?? [], reply),
     ...(testCase.writes ? writesFailures(testCase.writes, written) : []),
+    ...(testCase.beforeRun ? beforeRunFailures(testCase.beforeRun, steps) : []),
   ];
   return { pass: failures.length === 0, failures };
 };

@@ -108,3 +108,42 @@ describe("mustNotMatch", () => {
     expect(gradeReply(beforePlan, reply).pass).toBe(true);
   });
 });
+
+describe("beforeRun", () => {
+  const installCase = studioReplyCases.find(
+    (testCase) => testCase.id === "cam-freecad-installs-in-turn",
+  )!;
+  const ran = [
+    "studio-install-freecad",
+    "cad step plan parts/plate.step --job parts/plate.cam.json --out CAM",
+  ];
+  const plan = { command: "cad step plan parts/plate.step --job parts/plate.cam.json --out CAM" };
+
+  it("flags the controller named while FreeCAD installs, before the plan", () => {
+    const steps = [
+      { command: "studio-install-freecad" },
+      { text: "FreeCAD is installing; I will plan for GRBL." },
+      plan,
+      { text: "The G-code is for GRBL only." },
+    ];
+    expect(
+      gradeReply(installCase, "The G-code is for GRBL only.", ran, {}, steps).failures,
+    ).toEqual(["said before /\\bplan\\b.*--job/ ran: GRBL"]);
+  });
+
+  it("flags a turn that ends on it with no plan run", () => {
+    const reply = "FreeCAD is installing. Planned with: GRBL.";
+    expect(gradeReply(installCase, reply, ["studio-install-freecad"]).pass).toBe(false);
+  });
+
+  it("leaves the controller said once the plan has run", () => {
+    const reply = "The G-code is for GRBL only. Which controller runs your machine?";
+    const steps = [
+      { command: "studio-install-freecad" },
+      { text: "FreeCAD is installing; no plan has run yet." },
+      plan,
+      { text: reply },
+    ];
+    expect(gradeReply(installCase, reply, ran, {}, steps).pass).toBe(true);
+  });
+});
