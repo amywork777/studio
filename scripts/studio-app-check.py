@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Checks an installed or built Studio the way a friend's first hour would use it: by the CAD tools the app carries,
-not the checkout's. With the app's own Python and a home of its own, it starts the bundled CAD server (`cad server
-start`: from text-to-cad 0.11.12 a command no longer starts one), asks the plugin's MCP server for Studio's CAD views
-as the app does (`views_offered`), builds the motor mount example's plate, rebuilds all of every example's delivered STEP files
-and compares each with the one the example ships with, then solves every example's strength study and holds each
-answer to the one the example ships with. Last, nothing it ran may have written outside the CAD tools' own folders
-(`stray_writes`). No pass, no release.
+not the checkout's. First, every package a skill's part script names in its header imports in the app's own Python,
+where the viewer runs a part (`skill_imports`). Then, with that Python and a home of its own, it starts the bundled
+CAD server (`cad server start`: from text-to-cad 0.11.12 a command no longer starts one), asks the plugin's MCP server
+for Studio's CAD views as the app does (`views_offered`), builds the motor mount example's plate, rebuilds all of
+every example's delivered STEP files and compares each with the one the example ships with, then solves every
+example's strength study and holds each answer to the one the example ships with. Last, nothing it ran may have
+written outside the CAD tools' own folders (`stray_writes`). No pass, no release.
 
     python3 scripts/studio-app-check.py <the app's studio folder>
 
@@ -23,8 +24,10 @@ import shutil
 import socket
 import subprocess
 import sys
+import re
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
@@ -76,6 +79,8 @@ def main() -> int:
         return 1
     if not studies:
         print(f"FAIL the app carries no example with a strength study under {samples}", file=sys.stderr)
+        return 1
+    if skill_imports(bundle, python) != 0:
         return 1
 
     with tempfile.TemporaryDirectory(prefix="studio-app-check-") as folder:
@@ -140,6 +145,59 @@ def main() -> int:
         finally:
             subprocess.run([str(python), "-P", "-m", "cad_server.cli", "server", "stop"], env=env, capture_output=True,
                            timeout=60)
+
+
+# A part script's inline header (PEP 723), as a skill shows it: `# /// script`, its TOML as comments, `# ///`.
+SCRIPT_HEADER = re.compile(r"^# /// script\n((?:#(?: .*)?\n)+?)# ///$", re.MULTILINE)
+# What the app's Python is asked of each package: installed, and its own modules import.
+IMPORTS = """
+import importlib, sys
+from importlib.metadata import PackageNotFoundError, distribution, packages_distributions
+name = sys.argv[1]
+try:
+    distribution(name)
+except PackageNotFoundError:
+    sys.exit(f"{name} is not installed")
+wanted = name.lower().replace("-", "_").replace(".", "_")
+modules = sorted(module for module, owners in packages_distributions().items()
+                 if any(owner.lower().replace("-", "_").replace(".", "_") == wanted for owner in owners))
+for module in modules or [wanted]:
+    importlib.import_module(module)
+"""
+
+
+def skill_dependencies(bundle: Path) -> dict[str, list[str]]:
+    """Each package a part script in a bundled skill names in its header, with the skills that name it."""
+    named: dict[str, list[str]] = {}
+    for skill in sorted(bundle.glob("marketplace/plugins/*/skills/*/SKILL.md")):
+        for header in SCRIPT_HEADER.findall(skill.read_text(encoding="utf-8")):
+            toml = "\n".join(line[2:] for line in header.splitlines())
+            for requirement in tomllib.loads(toml).get("dependencies", []):
+                package = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement).group(0)
+                named.setdefault(package, []).append(skill.parent.name)
+    return named
+
+
+def skill_imports(bundle: Path, python: Path) -> int:
+    """Every package a skill's part script names in its header is in the app's own Python: the viewer imports a part's
+    script there, never in the environment `cad run` would make from the header, so a package missing from the app's
+    Python is a part no one can open (`ModuleNotFoundError`, as bd_warehouse was in Studio 0.1.19)."""
+    named = skill_dependencies(bundle)
+    if not named:
+        print(f"FAIL no skill under {bundle / 'marketplace'} names a package its part scripts import", file=sys.stderr)
+        return 1
+    failed = 0
+    for package, skills in sorted(named.items()):
+        # -I -B: nothing of this process's settings, and no bytecode written into the app.
+        done = subprocess.run([str(python), "-I", "-B", "-c", IMPORTS, package], capture_output=True, text=True,
+                              timeout=300)
+        ok = done.returncode == 0
+        print(f"{'ok  ' if ok else 'FAIL'} the app's Python imports {package}, which "
+              f"{', '.join(sorted(set(skills)))} names", flush=True)
+        if not ok:
+            print("\n".join(f"{done.stdout}{done.stderr}".strip().splitlines()[-3:]), file=sys.stderr)
+            failed += 1
+    return 1 if failed else 0
 
 
 # The tools Studio's viewer needs from the plugin's MCP server: the CAD tab and the engine's HTTP door.

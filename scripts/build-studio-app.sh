@@ -152,10 +152,12 @@ rm -rf "$CAD/packages/cad/build"
 uv build --wheel --out-dir "$(native "$work")" "$(native "$CAD/packages/cad")"
 # The versions the checkout's CAD tools run on, so the app runs the same ones.
 uv pip freeze --python "$(native "$venv_python")" | grep -v -E '^-e |^cad(-server|-mcp)?==|^ziglang' >"$work/constraints.txt"
+# With them, what Studio's own skills' part scripts import (scripts/studio-python-requirements.txt).
 uv pip install --python "$(native "$bundle_python")" --break-system-packages \
   -c "$(native "$work/constraints.txt")" \
-  "cad[build123d,netgen,calculix,trimesh] @ $(wheel_url cad)"
-"$bundle_python" -c "import cad_mcp.shim, cad_server.cli, OCP, netgen, cad_ccx, trimesh"
+  "cad[build123d,netgen,calculix,trimesh] @ $(wheel_url cad)" \
+  -r "$(native "$ROOT/scripts/studio-python-requirements.txt")"
+"$bundle_python" -c "import cad_mcp.shim, cad_server.cli, OCP, netgen, cad_ccx, trimesh, bd_warehouse.fastener"
 # An integration made on first use (kicad's) installs the library again in an environment of its own,
 # from the archive its record names (direct_url.json): here the build's wheel, gone once the build ends.
 # So the app keeps the library's wheel (`wheels`, which it names to the CAD tools as

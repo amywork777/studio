@@ -191,6 +191,13 @@
     {
       "bundles": ["desktop"],
       "license": "Apache-2.0",
+      "name": "bd_warehouse",
+      "noticeFile": "studio-licenses/bd_warehouse/LICENSE",
+      "sourceUrl": "https://github.com/gumyr/bd_warehouse"
+    },
+    {
+      "bundles": ["desktop"],
+      "license": "Apache-2.0",
       "name": "OCP",
       "noticeFile": "studio-licenses/ocp/LICENSE",
       "sourceUrl": "https://github.com/CadQuery/OCP"
