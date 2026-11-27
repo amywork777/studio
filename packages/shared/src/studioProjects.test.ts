@@ -47,6 +47,10 @@ describe("studio projects", () => {
     expect(context).toContain("## Show your work");
     expect(context).toContain("## References");
     expect(context).toContain("`brief/references/`");
+    // What Studio could not copy in goes with the message, and the agent files it unasked.
+    expect(context).toContain(
+      "attached to a message itself, not linked there (Studio could not copy it in): copy it into `brief/references/`",
+    );
     // An engineer hears about the design, not the tools: Studio keeps a version every turn.
     expect(context).toContain("## Talking to the person");
     expect(context).toContain("never offer to commit");
@@ -132,7 +136,6 @@ describe("studio projects", () => {
     expect(context).toContain("## Questions and recommendations");
     expect(context).toContain("marked (Recommended)");
     expect(context).toContain("Never ask an open question without a default.");
-    expect(context).toContain("offer the choices with none marked (Recommended)");
     expect(context).toContain("propose the fix you would make with what you expect it to give");
     expect(context).toContain("offer the next one it leads to");
     expect(context).toContain("run that check in the same turn rather than only recording it");

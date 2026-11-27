@@ -1,3 +1,5 @@
+import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
+
 /**
  * Files named as an engineer names them ("Servo bracket drawing"), not by path or ending. A study,
  * a check or a job is named after the part it was run on.
@@ -68,6 +70,8 @@ const capitalize = (text: string) => (text === "" ? text : text[0]!.toUpperCase(
  * like xRD or iPhone, one small letter before its capitals, are kept.
  */
 export function humanName(stem: string): string {
+  const standard = standardPartName(stem);
+  if (standard !== null) return standard;
   const words = stem
     .replace(/([a-z]{2})([A-Z])/g, "$1 $2")
     .split(/[\s_.-]+/)
@@ -85,6 +89,24 @@ export function humanName(stem: string): string {
     return word;
   });
   return capitalize(cased.join(" "));
+}
+
+/**
+ * A bought part named by its standard and size as `$standard-parts` names its script,
+ * `iso4017_m8x16` or `iso7380_1_m4x10`, as the standard prints it: "ISO 4017 M8×16",
+ * "ISO 7380-1 M4×10". Null for any other name.
+ */
+const STANDARD_PART =
+  /^(iso|din|en)[_-]?(\d+(?:[_-]\d+)?)[_-]m(\d+(?:[_p]\d+)?)(?:x(\d+(?:[_p]\d+)?))?(?:[_-](.+))?$/i;
+
+function standardPartName(stem: string): string | null {
+  const match = STANDARD_PART.exec(stem);
+  if (match === null) return null;
+  const [body, number, diameter, length, rest] = match.slice(1);
+  const decimal = (value: string) => value.replace(/[_p]/i, ".");
+  const size = `M${decimal(diameter!)}${length === undefined ? "" : `×${decimal(length)}`}`;
+  const named = `${body!.toUpperCase()} ${number!.replace("_", "-")} ${size}`;
+  return rest === undefined ? named : `${named} ${lowerName(humanName(rest))}`;
 }
 
 /** The name mid-sentence: "servo bracket", but "PCB mount" and "L bracket" keep their capitals. */
@@ -131,6 +153,14 @@ const ENDINGS: ReadonlyArray<{
     kind: "Pick and place",
     suffix: "pick and place file",
   },
+  // A check's result and the script that measures it, never the model: `plate.drawing-check.json`.
+  // Both are the check; the script says so, as the two are listed side by side.
+  {
+    ending: /(?:^|[._-])([a-z]+)[._-]check\.(json|py)$/i,
+    kind: (match) => `${capitalize(match[1]!)} check`,
+    suffix: (match) =>
+      `${match[1]!.toLowerCase()} check${match[2]!.toLowerCase() === "py" ? " script" : ""}`,
+  },
   { ending: /\.(?:nc|gcode|ngc|tap|gco)$/i, kind: "G-code", suffix: "G-code" },
   { ending: /\.(?:gbr|drl)$/i, kind: "Gerbers", suffix: "Gerbers" },
   { ending: /\.(?:step|stp|xbf)$/i, kind: "Part", suffix: "" },
@@ -170,23 +200,55 @@ const RESULTS_FOLDER =
   /^(?:fea|cam|sim|simulations?|stud(?:y|ies)|results?|analysis|analyses|toolpaths?|machining|out|output)$/i;
 
 /**
- * text-to-cad 0.11 writes a result as `<folder>/result.json` and `result.glb`: a CAM job's when a
- * folder above is named for one, else an FEA study's. Named after its folder (`tip-load` is "Tip
+ * text-to-cad 0.11 writes a result as `<folder>/result.json` and `result.glb`: a CAM plan (what
+ * planning a CAM job made) when a folder above is named for one, else an FEA study's. Named after its folder (`tip-load` is "Tip
  * load"), or null where the folder only says what it holds.
  */
 export function folderResult(
   path: string,
-): { readonly kind: "FEA study" | "CAM job"; readonly name: string | null } | null {
+): { readonly kind: "FEA study" | "CAM plan"; readonly name: string | null } | null {
   const normalized = path.replaceAll("\\", "/");
   if (!RESULT_FILE.test(normalized)) return null;
   const folders = normalized.split("/").slice(0, -1).filter(Boolean);
-  const kind = folders.some((folder) => CAM_FOLDER.test(folder)) ? "CAM job" : "FEA study";
+  const kind = folders.some((folder) => CAM_FOLDER.test(folder)) ? "CAM plan" : "FEA study";
   const own = (folders.at(-1) ?? "").replace(/[._-](?:fea|cam|study|results?)$/i, "");
   return { kind, name: own === "" || RESULTS_FOLDER.test(own) ? null : humanName(own) };
 }
 
-/** The file as an engineer names it, or null for one that is not a part or a document of theirs. */
-export function partName(path: string): PartName | null {
+/**
+ * The cam skill's posted programs: `<part>.<setup>.nc`, or one a run of one tool,
+ * `<part>.<setup>.<run>-T<tool>.nc`. A plan of a model the engine holds names them by its id.
+ */
+const CAM_PROGRAM = /^(.+?)\.([^.]+)(?:\.(\d+)-T(\d+))?\.(?:nc|gcode|ngc|tap|gco)$/i;
+
+/**
+ * A posted program by its part, setup and run: "Plate · top setup · run 1 · T1". A model's id is
+ * its title in `titles`, else left out. Null for G-code named some other way.
+ */
+function camProgram(
+  file: string,
+  titles: ReadonlyMap<string, string> | undefined,
+): PartName | null {
+  const match = CAM_PROGRAM.exec(file);
+  if (match === null) return null;
+  const [stem, setup, run, tool] = [match[1]!, match[2]!, match[3], match[4]];
+  const byId = isDocumentId(stem);
+  // `bracket.v2.nc` is a name, not a setup.
+  if (run === undefined && !byId) return null;
+  const part = byId ? (titles?.get(stem) ?? null) : humanName(stem);
+  const setupName = `${humanName(setup)} setup`;
+  const name = [
+    part === null ? setupName : `${part} · ${lowerName(setupName)}`,
+    ...(run === undefined ? [] : [`run ${run}`, `T${tool}`]),
+  ].join(" · ");
+  return { name, kind: "G-code", label: `${name} G-code` };
+}
+
+/**
+ * The file as an engineer names it, or null for one that is not a part or a document of theirs.
+ * `titles` names models by their id (`useModelTitles`), for files named after one.
+ */
+export function partName(path: string, titles?: ReadonlyMap<string, string>): PartName | null {
   const normalized = path.replaceAll("\\", "/");
   for (const [test, name, kind] of KNOWN) {
     if (test.test(normalized)) return { name, kind, label: name };
@@ -200,7 +262,7 @@ export function partName(path: string): PartName | null {
         {
           name: result.name,
           kind,
-          label: `${result.name} ${kind === "CAM job" ? "toolpaths" : "FEA results"}`,
+          label: `${result.name} ${kind === "CAM plan" ? "CAM plan" : "FEA results"}`,
         };
   }
   // A named study, kept as the FEA skill keeps several: `FEA/bracket.bracket-load.glb`.
@@ -210,6 +272,8 @@ export function partName(path: string): PartName | null {
     return { name, kind: "FEA study", label: `${name} FEA study` };
   }
   const file = baseName(normalized);
+  const program = camProgram(file, titles);
+  if (program !== null) return program;
   for (const rule of ENDINGS) {
     const match = rule.ending.exec(file);
     if (match === null) continue;
@@ -232,12 +296,12 @@ export function partName(path: string): PartName | null {
 }
 
 /** The label for a file anywhere it is named: an engineer's name where one is known, else its file name. */
-export function partLabel(path: string): string {
-  return partName(path)?.label ?? baseName(path);
+export function partLabel(path: string, titles?: ReadonlyMap<string, string>): string {
+  return partName(path, titles)?.label ?? baseName(path);
 }
 
 /**
- * A study's or a CAM job's result as a panel tab names it, from its whole path: every one is a
+ * A study's result or a CAM plan as a panel tab names it, from its whole path: every one is a
  * `result.glb`, so its folder names it ("FEA · Motor bracket", "CAM · Base plate"). Null for any
  * other file.
  */
@@ -245,5 +309,5 @@ export function resultTabLabel(path: string): string | null {
   const result = folderResult(path);
   if (result === null) return null;
   if (result.name === null) return result.kind;
-  return `${result.kind === "CAM job" ? "CAM" : "FEA"} · ${result.name}`;
+  return `${result.kind === "CAM plan" ? "CAM" : "FEA"} · ${result.name}`;
 }

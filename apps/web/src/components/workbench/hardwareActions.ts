@@ -295,10 +295,10 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     gets: "G-code for each setup, and its toolpaths to look over before cutting.",
     needs: "Needs FreeCAD 1.1 or newer installed.",
     skill: "cam",
-    kinds: ["Part", "CAM job"],
+    kinds: ["Part", "CAM job", "CAM plan"],
     checks: false,
     prompt: (file) =>
-      `Plan the toolpaths for ${file} and post its G-code. If it is a CAM job already, walk me through its cycle time, its tools and anything to fix before cutting; if not, ask me for the machine, stock, tools and workholding you need.`,
+      `Plan the toolpaths for ${file} and post its G-code. If it is a CAM job or a CAM plan already, walk me through its cycle time, its tools and anything to fix before cutting; if not, ask me for the machine, stock, tools and workholding you need.`,
     short: (name) => `Post G-code for ${name}`,
   },
   {

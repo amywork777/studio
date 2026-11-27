@@ -47,7 +47,11 @@ scratch home, it imports every package a skill's part script names in its header
 strength study, held to the answer the example ships with. Last, it fails if any of that wrote outside the CAD
 tools' own folders in the scratch home, where a text-to-cad installed beside Studio keeps its data
 (Jake's condition for Studio's own copy). Then `scripts/studio-app-open-check.mjs`
-starts the app from the disk image. A build that fails either is not offered for publishing. Building it needs Rust 1.95 or newer for the resource monitor (`RUSTUP_TOOLCHAIN=1.95` uses one
+starts the app. Both run on a writable copy of the disk image's app, as a person's Applications
+is, and the app's signature must still hold after them (`codesign --verify --deep --strict`): its
+Python writes no `.pyc` into the app, whose seal a new file breaks (0.1.18). The build compiles
+every module once (`unchecked-hash`, read without checking its source, which the seal holds), and
+the app runs its Python with `PYTHONDONTWRITEBYTECODE=1` and `-B`. A build that fails is not offered for publishing. Building it needs Rust 1.95 or newer for the resource monitor (`RUSTUP_TOOLCHAIN=1.95` uses one
 installed beside an older default) and about 7 GB free; the download is about 400 MB and the app 1.2
 GB (from 0.1.4; 600 MB and 1.9 GB while the CAD tools went in twice). The disk image step reserves
 its whole temporary image (about 2.3 GB) at once, so it fails with "No space left" while gigabytes
@@ -150,6 +154,24 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
 - **Gatekeeper.** Unsigned, the person chooses Open Anyway once (System Settings, Privacy and
   Security). The boot step then clears the download's quarantine from the bundled Python, so
   macOS doesn't stop each of its programs again.
+- **FreeCAD for CNC CAM.** The cam skill plans with the person's FreeCAD 1.1+. A FreeCAD dragged
+  into Applications from a browser's download is quarantined, and its first run waits on macOS's
+  question about a downloaded app, which nobody answers while an agent works (0.1.19). So on a Mac,
+  Studio's copy of the cam skill says to run `studio-install-freecad --check` before the first plan
+  and, when Studio's FreeCAD is missing or a plan stalls on that question, to recommend
+  `studio-install-freecad` (`scripts/studio_freecad.py`, which the boot step writes beside `cad`)
+  and run it with the person's yes; never to recommend opening FreeCAD from Applications. It downloads FreeCAD's own
+  release with Python (which marks nothing as quarantined), holds it to the release's SHA-256, the
+  FreeCAD project's signing team and Gatekeeper, refuses a quarantined file rather than clearing it,
+  and installs it in `<home>/tools/freecad`, linking `freecadcmd` into `<home>/bin`. cad looks on
+  PATH before Applications, so the next plan uses it with no restart. Until then the boot step puts
+  a stand-in `freecadcmd` there that exits at once saying FreeCAD is not installed for Studio, so a
+  plan never falls through to a FreeCAD in Applications and waits on its question; the install
+  replaces it. The install takes minutes, past an agent's command limit (Claude Code's is 120 s), so it runs
+  detached, holding `install.lock` and writing how far it is in `install-status.json`, and each call
+  (`studio-install-freecad`, then `--wait`) returns within 90 s saying how far it is, so the agent
+  calls again until it is installed and plans in the same turn, whichever provider it is. Windows keeps the skill's own
+  steps (FreeCAD's installer), and the command says so there.
 
 **The Windows app.** The same script, run in Git Bash on Windows, builds the installer
 `release/Studio-<version>-x64.exe`. `.github/workflows/studio-windows.yml` runs it on GitHub's
@@ -275,7 +297,10 @@ Studio's CAD engine keeps its own folders and port, so a CAD engine of the perso
 app's under `~/.text-to-cad-studio/cad` on 3345, a checkout's (`scripts/studio.ts`, every mode)
 under `~/.text-to-cad-studio-dev/cad` on 3346 (`apps/desktop/src/studio/studioEngine.ts`). Only
 the desktop app's boot and `scripts/studio.ts` set them: a headless server started another way (a
-remote `npx t3`, say) runs `cad` with its own folders and port.
+remote `npx t3`, say) runs `cad` with its own folders and port. The engine runs detached from the
+agent that started it, so the packaged app stops its own engine and workers as it quits
+(`stopStudioEngine`, `cad server stop` for its engine folder alone); its cache keeps the next start
+quick.
 
 ## What it adds to T3 Code
 
@@ -710,7 +735,8 @@ as they were.
   check can show where on a sketch it read each size (Amy, 2026-11-25); the Brief's Attach files
   pictures in References only. On a remote
   project, or with no path on this computer, the file goes with the message and the agent files it
-  (`attachToReferences.ts`).
+  by its standing context (`attachToReferences.ts`, `studioProjectContext`), with nothing written
+  into the person's message.
 - **A drawing read, and checked.** A PDF attached in a project (a drop on the chat, Attach, or
   Home's Start) also has its sheets drawn on this computer with pdf.js into `<name>-pages/` beside
   it: `page-01.png` and on, and `pages.json` with each sheet's size and every callout's words and

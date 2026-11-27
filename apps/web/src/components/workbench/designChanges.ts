@@ -33,6 +33,7 @@ const ASPECT: Readonly<Record<string, string>> = {
   Drawing: "drawing",
   "FEA study": "FEA study",
   "CAM job": "CAM job",
+  "CAM plan": "CAM plan",
   "G-code": "G-code",
   Board: "board",
   Schematic: "schematic",
@@ -54,6 +55,7 @@ const OPEN_ORDER = [
   "Drawing",
   "FEA study",
   "CAM job",
+  "CAM plan",
   "Mesh",
   "Robot",
   "Harness",
@@ -64,12 +66,16 @@ const openRank = (kind: string) => {
   return rank < 0 ? Number.POSITIVE_INFINITY : rank;
 };
 
-/** A study's numbers open as its result model beside them (`checkResults.ts`), 0.11's in its folder. */
+/**
+ * A study's numbers open as its result model beside them (`checkResults.ts`), 0.11's in its
+ * folder; a drawing check's script as the check it writes.
+ */
 const viewable = (path: string) =>
   path
     .replace(/\.fea\.json$/i, ".fea.glb")
     .replace(/\.result\.json$/i, ".glb")
-    .replace(/(^|\/)result\.json$/i, "$1result.glb");
+    .replace(/(^|\/)result\.json$/i, "$1result.glb")
+    .replace(/[._-]drawing[._-]check\.py$/i, ".drawing-check.json");
 
 /** Folders whose files are tooling, never design, and files that are for the agent. */
 const TOOLING =
@@ -77,7 +83,11 @@ const TOOLING =
 /** Code that helps build parts without being one. */
 const HELPER_CODE = /(?:^|\/)(?:lib|libs|utils?|helpers?|common|scripts?|tests?)\//i;
 
-export function designChanges(paths: ReadonlyArray<string>): {
+/** `titles` names models by their id (`useModelTitles`), for files named after one. */
+export function designChanges(
+  paths: ReadonlyArray<string>,
+  titles?: ReadonlyMap<string, string>,
+): {
   readonly changes: ReadonlyArray<DesignChange>;
   /** Files with no engineer's name: tooling, settings, source with no part. */
   readonly other: number;
@@ -88,7 +98,7 @@ export function designChanges(paths: ReadonlyArray<string>): {
   >();
   let other = 0;
   for (const raw of new Set(paths.map((path) => path.replaceAll("\\", "/")))) {
-    const named = TOOLING.test(raw) ? null : partName(raw);
+    const named = TOOLING.test(raw) ? null : partName(raw, titles);
     if (named === null || (named.kind === "Source" && HELPER_CODE.test(raw))) {
       other += 1;
       continue;

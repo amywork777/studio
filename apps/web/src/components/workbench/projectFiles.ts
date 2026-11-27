@@ -125,7 +125,7 @@ export function classifyProjectFile(path: string): ProjectFile | null {
   // A 0.11 solve's or plan's answer and picture, in the folder it was written into.
   const result = folderResult(normalized);
   if (result !== null) {
-    const group = result.kind === "CAM job" ? "Manufacturing" : "Analysis";
+    const group = result.kind === "CAM plan" ? "Manufacturing" : "Analysis";
     return { path: normalized, name, folder, group, ...named(normalized, name) };
   }
   const rule = RULES.find((entry) => entry.test.test(normalized));

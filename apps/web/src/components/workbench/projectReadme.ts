@@ -45,6 +45,9 @@ export interface ReadmeSections {
 
 /** The headings the open questions go under; the first is the one the agent is told to write. */
 const QUESTION_HEADINGS = new Set(["open questions", "questions", "assumptions"]);
+/** A line saying there is no open question, which is not one: `None.`, `- None`, `_No open questions._`, `—`. */
+const NO_QUESTIONS =
+  /^\s*(?:[-*]\s+)?[_*]*\s*(?:none|n\/a|nothing(?: open)?|no(?: open)? questions?|[-—–]+)\s*\.?\s*[_*]*\s*$/i;
 /** A question's answers at its end: `[2 mm | 3 mm]`. */
 const ANSWERS = /^(.*?)\s*\[([^\[\]]*\|[^\[\]]*|[^\[\]|]+)\]\s*$/;
 
@@ -57,6 +60,30 @@ export function readQuestion(item: string): ReadmeQuestion {
     .map((answer) => answer.trim())
     .filter(Boolean);
   return { text: (found[1] ?? "").trim(), answers };
+}
+
+const plainAnswer = (answer: string) =>
+  answer
+    .replace(/\(recommended\)/i, "")
+    .replace(/[.\s]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+/**
+ * The open questions the project's setup does not answer already: one with the setup's process or
+ * material among its answers ("How is it made? [CNC machining | ...]" with CNC machining set) is
+ * settled there, so it is not asked again.
+ */
+export function unansweredQuestions(
+  questions: ReadonlyArray<ReadmeQuestion>,
+  setup: { readonly process: string; readonly material: string } | null,
+): ReadonlyArray<ReadmeQuestion> {
+  const settled = [setup?.process ?? "", setup?.material ?? ""].map(plainAnswer).filter(Boolean);
+  if (settled.length === 0) return questions;
+  return questions.filter(
+    (question) => !question.answers.some((answer) => settled.includes(plainAnswer(answer))),
+  );
 }
 
 /** What a tap on an answer says in the chat, as the person's answer to the agent's question. */
@@ -233,7 +260,12 @@ export function readmeSections(markdown: string | null): ReadmeSections {
     }),
   ];
   const isQuestions = (heading: string) => QUESTION_HEADINGS.has(heading.toLowerCase());
-  const questions = sections
+  const asked = sections.map((section) =>
+    isQuestions(section.heading)
+      ? { ...section, lines: section.lines.filter((line) => !NO_QUESTIONS.test(line)) }
+      : section,
+  );
+  const questions = asked
     .filter(({ heading }) => isQuestions(heading))
     .flatMap(({ lines }) =>
       lines.flatMap((line) => {
@@ -244,7 +276,7 @@ export function readmeSections(markdown: string | null): ReadmeSections {
       }),
     )
     .filter((question) => question.text !== "");
-  const more = sections
+  const more = asked
     .filter(({ heading }) => !["what it is", "decisions"].includes(heading.toLowerCase()))
     // A questions section is asked as taps once it holds a question; else it reads as written.
     .filter(({ heading }) => !(isQuestions(heading) && questions.length > 0))

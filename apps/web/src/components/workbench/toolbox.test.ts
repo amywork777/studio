@@ -203,7 +203,7 @@ describe("the Toolbox, whatever file is in front", () => {
     );
     expect(toolboxWorksOn(job("fit"), "Part")).toBe("Works on an assembly. Open one to use it.");
     expect(toolboxWorksOn(job("toolpaths"), "Board")).toBe(
-      "Works on a part or a CAM job. Open one to use it.",
+      "Works on a part, a CAM job, or a CAM plan. Open one to use it.",
     );
     expect(toolboxWorksOn(job("strength"), "Board")).toBe(
       "Works on a part, an assembly, an FEA study, or a result. Open one to use it.",

@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import type { ContextMenuItem, EnvironmentId } from "@t3tools/contracts";
 import { msg, useGT, useMessages } from "gt-react";
@@ -16,7 +17,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { FileKindIcon } from "./FileKindIcon";
 import { folderLabel } from "./folderLabel";
 import { KIND_ICONS, KIND_TINT } from "./kinds";
-import { partLabel, resultTabLabel } from "./partNames";
+import { partLabel, partName, resultTabLabel } from "./partNames";
 import { PinnedProjectTab } from "./PinnedProjectTab";
 import { useProjectViewStore } from "./projectView";
 import { surfaceFile, viewTabTitle } from "./sameFile";
@@ -205,6 +206,20 @@ function studioTitle(
   }
 }
 
+/** Kinds named for what they hold, not after a part: "Desk lamp work instructions". */
+const NAMED_FOR_CONTENT = new Set(["Document", "Table", "Image"]);
+
+/** The part a tab is of, by its own name, or null for a tab named for what it holds. */
+function tabPartName(surface: RightPanelSurface, title: string): string | null {
+  if (surface.kind === "plugin-app") {
+    const file = surfaceFile(surface);
+    return file !== null && isDocumentId(file) ? title : (partName(title)?.name ?? null);
+  }
+  if (surface.kind !== "file") return null;
+  const known = partName(surface.relativePath);
+  return known === null || NAMED_FOR_CONTENT.has(known.kind) ? null : known.name;
+}
+
 /** A tab's icon where Studio draws it its own way, else null for T3's. */
 export function surfaceIcon(surface: RightPanelSurface): ReactNode | null {
   // In the engineering interface a tab wears its file's kind, as a browser tab its site's icon.
@@ -256,9 +271,11 @@ export function useStudioTabs(props: {
     />
   ) : null;
   // The project's name most of its files' titles start with is said once, by the project.
+  const titles = tabSurfaces.map((surface) => studioTitle(surface, modelTitles, resolve) ?? "");
   const shortened = engineering
     ? withoutSharedPrefix(
-        tabSurfaces.map((surface) => studioTitle(surface, modelTitles, resolve) ?? ""),
+        titles,
+        tabSurfaces.map((surface, index) => tabPartName(surface, titles[index] ?? "")),
       )
     : null;
   const shortTitles = new Map(

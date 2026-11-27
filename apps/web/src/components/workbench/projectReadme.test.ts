@@ -12,6 +12,7 @@ import {
   readmeSections,
   type ReadmeWriteIn,
   replaceReadmeText,
+  unansweredQuestions,
   writtenWordDelays,
 } from "./projectReadme";
 
@@ -179,6 +180,33 @@ describe("readmeSections", () => {
       text: "See the [datasheet](https://example.com)",
       answers: [],
     });
+  });
+
+  it("counts no question in an open questions section that only says there are none", () => {
+    for (const none of ["None.", "- None", "_No open questions._", "—", "none"]) {
+      const sections = readmeSections(
+        `# Plate\n\n## Open questions\n\n${none}\n\n## Notes\n\n- PLA\n`,
+      );
+      expect(sections.questions).toEqual([]);
+      expect(sections.more.map((section) => section.heading)).toEqual(["Notes"]);
+    }
+  });
+
+  it("does not ask what the project's setup already answers", () => {
+    const { questions } = readmeSections(
+      "# Plate\n\n## Open questions\n\n" +
+        "- How it is made? [CNC machining (Recommended) | laser or waterjet cutting | 3D printing]\n" +
+        "- Which general tolerance applies? [±0.1 mm as drawn (Recommended) | ISO 2768-m]\n",
+    );
+    const asked = (setup: { process: string; material: string } | null) =>
+      unansweredQuestions(questions, setup).map((question) => question.text);
+    expect(asked({ process: "CNC machining", material: "6061-T6 aluminium" })).toEqual([
+      "Which general tolerance applies?",
+    ]);
+    // Not set yet, or set to none of its answers: still a question.
+    expect(asked({ process: "", material: "" })).toHaveLength(2);
+    expect(asked({ process: "Sheet metal", material: "" })).toHaveLength(2);
+    expect(asked(null)).toHaveLength(2);
   });
 
   it("gives empty sections for a missing or empty README", () => {

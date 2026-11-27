@@ -13,6 +13,7 @@ import { Kbd } from "../ui/kbd";
 import { cn } from "~/lib/utils";
 import { isInSideChatPane } from "~/lib/sideChatPane";
 import { ComposerBanner } from "./ComposerBanner";
+import { PAGE_KEYS_ATTRIBUTE } from "./composerFocusRedirect";
 import ChatMarkdown from "../ChatMarkdown";
 
 interface PendingUserInputPanelProps {
@@ -149,9 +150,11 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   const selectOptionFromShortcut = useEffectEvent(handleOptionSelection);
   const backgroundThread = use(BackgroundThreadContext);
 
+  const digitShortcutsActive =
+    activeQuestion !== null && !responseDisabled && !isCollapsed && !backgroundThread;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes a document keydown listener for digit shortcuts while a question is answerable
   useEffect(() => {
-    if (!activeQuestion || responseDisabled || isCollapsed || backgroundThread) return;
+    if (!activeQuestion || !digitShortcutsActive) return;
     const handler = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target;
@@ -183,7 +186,7 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [activeQuestion, backgroundThread, isCollapsed, responseDisabled]);
+  }, [activeQuestion, digitShortcutsActive]);
 
   if (!activeQuestion) {
     return null;
@@ -203,6 +206,14 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   return (
     <Collapsible
       dir={promptDirection}
+      {...(digitShortcutsActive
+        ? {
+            [PAGE_KEYS_ATTRIBUTE]: activeQuestion.options
+              .slice(0, 9)
+              .map((_, index) => index + 1)
+              .join(" "),
+          }
+        : {})}
       open={!isCollapsed}
       onOpenChange={(open) => {
         setCollapsedQuestionId(open ? null : activeQuestion.id);

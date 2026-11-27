@@ -37,6 +37,25 @@ export const EMPTY_STUDIO_BRIEF: StudioProjectBrief = {
   notes: "",
 };
 
+// A run, the 3D view and the part tree put only a script's own folder on Python's import path, so an assembly in
+// `assemblies/` that imported `from flat_plate import …` or `from parts.flat_plate import …` built nothing (0.1.19).
+const ASSEMBLY_IMPORTS = [
+  "A run, the 3D view and the part tree put only the script's own folder on Python's import path, so an assembly",
+  "in `assemblies/` puts `parts/` there before it imports a part, as Studio's own assemblies do:",
+  "",
+  "```python",
+  "import sys",
+  "from pathlib import Path",
+  "",
+  'sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))',
+  "",
+  "from flat_plate import flat_plate  # noqa: E402",
+  "```",
+  "",
+  "Without that line neither `from flat_plate import …` nor `from parts.flat_plate import …` imports. Run the",
+  "assembly once you have written it, and fix what it says before you show it.",
+].join("\n");
+
 export interface StudioProjectKind {
   readonly id: string;
   readonly label: string;
@@ -140,6 +159,12 @@ const EDITABLE_SKETCHES = [
   "When you change a part that still has such a profile, redraw it with `cad.sketch` in the same change, keeping its shape and sizes.",
 ].join("\n\n");
 
+/** A part is its script (AGENTS.md, law 3): what the person sees is built from it, nowhere else. */
+const BUILDING_A_PART = [
+  "A part is its script. Build it with `cad run parts/<part>.py`, which runs the script with Studio's `cad` library and build123d. This computer's own `python3` has neither (`No module named 'cad'`), so never build, check or export a part with it: `from cad import model` and `cad.sketch` run under `cad run`, from any folder.",
+  "The part's STEP always comes from building the part's own script: after each build, `cad model export <id> parts/<part>.step`, with the `id:` that script's run printed, so the STEP Studio shows is the script's. Never export it from another script, a copy of the geometry or build123d's `export_step`. When the script will not build, fix the script and say what stopped it.",
+].join("\n\n");
+
 const TALKING_TO_THE_PERSON = [
   "The person is a mechanical engineer, not a programmer. Say what changed in the design and what it means in their words: parts, sizes, materials, fits, checks and drawings.",
   "",
@@ -152,8 +177,7 @@ const RECOMMEND = [
   "The person wants your recommendation, not only the facts. Every time:",
   "",
   "- Ask with your tool for asking the person a question, if you have one, else as a short list. Put the answer you recommend first, marked (Recommended), with one to three others. Studio takes the recommended answer when they send nothing.",
-  "- Never ask an open question without a default. When a job needs many details (a machine, its tools, how the part is held), list the ones you will use and ask only whether to change any.",
-  "- Where a wrong guess is unsafe (the controller a CNC post is for), offer the choices with none marked (Recommended), so sending nothing picks none.",
+  "- Never ask an open question without a default. When a job needs many details (a machine, its tools, how the part is held), list the ones you used before you ask, and ask only whether to change any.",
   "- When a check, study or review finds a problem, propose the fix you would make with what you expect it to give (for example: 4 mm sheet, about 1.6 safety factor), as a question whose recommended answer applies it and whose last answer leaves the part as it is. Do not change the part until they pick.",
   "- When the request or an answer gives what a check needs (a load for a strength check, a process for a manufacturing review), run that check in the same turn rather than only recording it.",
   "- Give a check's result as a verdict and the numbers that decide it (for example: passes, 44 MPa against 160 MPa yield, safety factor 3.6). Say what the check leaves out in one sentence, not a paragraph.",
@@ -165,7 +189,9 @@ const SHOW_YOUR_WORK = [
   "The person works beside you in Studio, with the viewer next to this chat. Show them what you make, one thing at a time:",
   "",
   "- When you make or change something they should look at (a part, an assembly, a board, a drawing, a study's result, a toolpath), show it in the viewer (text-to-cad's `cad_open` or `cad_show`) and say in a line what they are looking at. Show the one that matters; do not open every file you touch.",
+  "- Never put a link to the viewer or the CAD server in a reply (a `view:` line, the `url` `cad viewer` prints, a link a CAD tool says to give): it carries the viewer's access key (`token=`), and Studio shows every result in its own tabs. Show it in the viewer, or name the file.",
   "- When a job gives results worth keeping (an analysis, a check, a comparison, a CAM plan, a board review), round them up in a short report in `docs/` in this thread's folder: what was asked, what you did, the results with units, a picture of the result where it helps (made with `cad snapshot`, saved beside the report and linked from it), the verdict, and what to do next. Write it for an engineer, in plain words, without code. Studio opens it beside the chat.",
+  "- Every number you give comes from a run or the part's script, and one quantity has one value everywhere in the reply (not 6 mm of thread in one place and 5.4 mm in another). When two figures for it differ, such as the model's and the standard's, say which one is measured.",
   "- A small change or a quick answer needs no report.",
   "- Call parts and documents by their names (the servo bracket, its drawing, the FEA report), not by file names. When you point to a file, write its path in code formatting (`parts/servo_bracket.step`): Studio shows it as the part it is, one click from opening it.",
 ].join("\n");
@@ -217,6 +243,7 @@ function startingAProject(record: string | null): string {
 const REFERENCES = [
   "The project's PRD, data sheets and other files the person gave it are in `brief/references/`. Read what bears on the work before you design from it. A message that links a file there has just added it.",
   "",
+  "- A file other than a picture attached to a message itself, not linked there (Studio could not copy it in): copy it into `brief/references/` under its own name, never over a file there, before you use it.",
   "- A PDF there has its sheets drawn beside it in `<name>-pages/` once Studio has read it: `page-01.png` and on, and `pages.json`, written last, with each sheet's size in inches and every callout's words and where it sits (`box`: left, top, width and height as fractions of the sheet). Read the pictures for the drawing and the words for its exact numbers; a sheet with `words: false` is a scan, read from its picture. Until `pages.json` is there, read the PDF itself.",
   "- A PDF, a sketch or a photo the person attaches: first read what it is. A dimensioned drawing shows a part in views with its dimensions, callouts and a title block, or is a sketch with sizes on it. Anything else is a reference: a datasheet, a spec sheet, a moodboard, notes, a photo with no sizes.",
   "- A dimensioned drawing of a part the project has, or one their note asks you to check: compare the part with it, with the `drawing-check` skill, as part of your answer. To model a part from one, open `drawing-check` before you start and follow it: it writes every dimension you read, in the drawing's units, into the check file Studio grades and shows, with what the model measures and every number that does not add up. Do not write your own pass or fail.",
@@ -341,6 +368,7 @@ export function studioProjectContext(
     ...section("Links", links),
     ...section("Notes", brief.notes),
     ...section("References", REFERENCES),
+    ...section("Building a part", BUILDING_A_PART),
     ...section("Sketches the person can edit", EDITABLE_SKETCHES),
     ...section("Talking to the person", TALKING_TO_THE_PERSON),
     ...section("Questions and recommendations", RECOMMEND),
@@ -356,6 +384,7 @@ export function studioProjectContext(
             `In \`${project.folders[0] ?? folder}\`, keep the project's work where Studio looks for it:`,
             "",
             ...layout.map(([path, holds]) => `- \`${path}\`: ${holds}`),
+            ...(layout.some(([path]) => path === "assemblies/") ? ["", ASSEMBLY_IMPORTS] : []),
           ].join("\n"),
     ),
   ]

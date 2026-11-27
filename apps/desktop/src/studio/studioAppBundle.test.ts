@@ -3,7 +3,7 @@
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { applyStudioAppBundle, writeFilledCopy } from "./studioAppBundle.ts";
 import {
@@ -12,6 +12,7 @@ import {
   STUDIO_ENGINE_PORT,
   studioEngineEnv,
   studioEngineLimits,
+  stopStudioEngine,
 } from "./studioEngine.ts";
 
 const made: string[] = [];
@@ -123,7 +124,7 @@ describe("applyStudioAppBundle", () => {
     const res = resources();
     const home = tempDir();
     const env: Record<string, string | undefined> = {};
-    applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env });
+    const engine = applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env });
     const studioHome = NodePath.join(home, ".studio-test");
     const marketplace = NodePath.join(studioHome, "studio-app-plugins");
     const python = NodePath.join(res, "studio", "python", "bin", "python3");
@@ -148,7 +149,11 @@ describe("applyStudioAppBundle", () => {
       CAD_TELEMETRY: "0",
       // A `cad mcp` it starts runs Studio's own server, never a global cad's.
       CAD_STUDIO_ENGINE: "1",
+      // The app's Python writes no bytecode into the signed app.
+      PYTHONDONTWRITEBYTECODE: "1",
     });
+    // As it quits, the app stops that engine, by its own Python.
+    expect(engine).toEqual({ python, engineDir: NodePath.join(cad, "engine") });
     expect(env.PATH).toBe(NodePath.join(studioHome, "bin"));
     const skill = NodeFS.readFileSync(
       NodePath.join(marketplace, "plugins", "text-to-cad", "skills", "cad", "SKILL.md"),
@@ -165,10 +170,14 @@ describe("applyStudioAppBundle", () => {
     // Studio's own `cad`, the bundled Python's, where the skills look for it.
     const bin = NodePath.join(studioHome, "bin");
     expect(NodeFS.readFileSync(NodePath.join(bin, "cad"), "utf8")).toBe(
-      `#!/bin/sh\nexec '${python}' -P -m cad_server.cli "$@"\n`,
+      `#!/bin/sh\nexec '${python}' -P -B -m cad_server.cli "$@"\n`,
     );
     expect(NodeFS.readFileSync(NodePath.join(bin, "cad.cmd"), "utf8")).toBe(
-      `@"${python}" -P -m cad_server.cli %*\r\n`,
+      `@"${python}" -P -B -m cad_server.cli %*\r\n`,
+    );
+    const installer = NodePath.join(res, "studio", "tools", "studio_freecad.py");
+    expect(NodeFS.readFileSync(NodePath.join(bin, "studio-install-freecad"), "utf8")).toBe(
+      `#!/bin/sh\nexec '${python}' -P -B '${installer}' "$@"\n`,
     );
   });
 
@@ -191,8 +200,38 @@ describe("applyStudioAppBundle", () => {
     const config = JSON.parse(NodeFS.readFileSync(NodePath.join(plugin, "codex.mcp.json"), "utf8"));
     expect(config.mcpServers.cad.command).toBe(python);
     expect(NodeFS.readFileSync(NodePath.join(home, ".studio-test", "bin", "cad.cmd"), "utf8")).toBe(
-      `@"${python}" -P -m cad_server.cli %*\r\n`,
+      `@"${python}" -P -B -m cad_server.cli %*\r\n`,
     );
+  });
+
+  it("stands in for freecadcmd on a Mac until Studio's FreeCAD is installed, never over it", () => {
+    const res = resources();
+    const home = tempDir();
+    const bin = NodePath.join(home, ".studio-test", "bin");
+    const freecadcmd = NodePath.join(bin, "freecadcmd");
+    const start = (platform: NodeJS.Platform) =>
+      applyStudioAppBundle({ resourcesPath: res, homeDirectory: home, env: {}, platform });
+    start("win32");
+    expect(NodeFS.existsSync(freecadcmd)).toBe(false);
+    start("darwin");
+    const standIn = NodeFS.readFileSync(freecadcmd, "utf8");
+    expect(standIn).toContain("studio-install-freecad installs FreeCAD for Studio.");
+    expect(NodeFS.statSync(freecadcmd).mode & 0o111).not.toBe(0);
+    // Studio's FreeCAD, once linked, stays; a link to a deleted one goes back to the stand-in.
+    const program = NodePath.join(home, "FreeCAD.app", "freecadcmd");
+    write(program, "#!/bin/sh\n");
+    NodeFS.rmSync(freecadcmd);
+    NodeFS.symlinkSync(program, freecadcmd);
+    start("darwin");
+    expect(NodeFS.readlinkSync(freecadcmd)).toBe(program);
+    NodeFS.rmSync(program);
+    start("darwin");
+    expect(NodeFS.lstatSync(freecadcmd).isSymbolicLink()).toBe(false);
+    expect(NodeFS.readFileSync(freecadcmd, "utf8")).toBe(standIn);
+    // A freecadcmd of someone else's is left alone.
+    NodeFS.writeFileSync(freecadcmd, "#!/bin/sh\nexec their-freecad\n");
+    start("darwin");
+    expect(NodeFS.readFileSync(freecadcmd, "utf8")).toBe("#!/bin/sh\nexec their-freecad\n");
   });
 
   it("points the app at its samples folder when the bundle has one", () => {
@@ -292,9 +331,46 @@ describe("applyStudioAppBundle", () => {
 
   it("does nothing without a bundle, as in T3 Code or Studio from a checkout", () => {
     const env: Record<string, string | undefined> = {};
-    applyStudioAppBundle({ resourcesPath: tempDir(), homeDirectory: tempDir(), env });
-    applyStudioAppBundle({ resourcesPath: undefined, homeDirectory: tempDir(), env });
+    expect(applyStudioAppBundle({ resourcesPath: tempDir(), homeDirectory: tempDir(), env })).toBe(
+      null,
+    );
+    expect(applyStudioAppBundle({ resourcesPath: undefined, homeDirectory: tempDir(), env })).toBe(
+      null,
+    );
     expect(env).toEqual({});
+  });
+});
+
+describe("stopStudioEngine", () => {
+  /** A Python that writes down how it was run, as the engine's stop would be. */
+  function recordingPython() {
+    const dir = tempDir();
+    const python = NodePath.join(dir, "python3");
+    const record = NodePath.join(dir, "record");
+    write(python, `#!/bin/sh\necho "$CAD_ENGINE_DIR $*" >> '${record}'\n`);
+    NodeFS.chmodSync(python, 0o755);
+    const runs = () =>
+      NodeFS.existsSync(record) ? NodeFS.readFileSync(record, "utf8").trim().split("\n") : [];
+    return { python, runs };
+  }
+
+  it("stops only Studio's engine, whichever engine the environment names", () => {
+    const { python, runs } = recordingPython();
+    vi.stubEnv("CAD_ENGINE_DIR", "/Users/a/.cad/engine");
+    try {
+      stopStudioEngine({ python, engineDir: "/Users/a/.text-to-cad-studio/cad/engine" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(runs()).toEqual([
+      "/Users/a/.text-to-cad-studio/cad/engine -P -B -m cad_server.engine stop",
+    ]);
+  });
+
+  it("stops nothing without an engine folder, which would name the person's own engine", () => {
+    const { python, runs } = recordingPython();
+    stopStudioEngine({ python, engineDir: "" });
+    expect(runs()).toEqual([]);
   });
 });
 

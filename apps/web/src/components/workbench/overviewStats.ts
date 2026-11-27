@@ -3,6 +3,8 @@
  * them (law 4): a size only where a check measured one, the last export from `exports/`.
  */
 
+import type { ProjectFile } from "./projectFiles";
+
 const baseName = (path: string) => path.replaceAll("\\", "/").split("/").at(-1) ?? path;
 const stemOf = (name: string) =>
   baseName(name)
@@ -49,4 +51,21 @@ export function lastExport(paths: ReadonlyArray<string>): string | null {
     return date === undefined ? [] : [date];
   });
   return dates.toSorted().at(-1) ?? null;
+}
+
+/**
+ * How many parts the project has made, each once by its model or its STEP: not its meshes, a robot
+ * description beside it, or an assembly, which is made of its parts rather than one of them.
+ */
+export function madePartCount(files: ReadonlyArray<ProjectFile>): number {
+  return new Set(
+    files
+      .filter(
+        (file) =>
+          file.group === "CAD" &&
+          file.kind !== "Assembly" &&
+          (file.document !== undefined || /\.(?:step|stp)$/i.test(file.path)),
+      )
+      .map((file) => file.name.replace(/\.[^.]+$/, "").toLowerCase()),
+  ).size;
 }
