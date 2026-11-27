@@ -49,14 +49,26 @@ FREECAD_MAC_STEP = re.compile(
     re.DOTALL,
 )
 STUDIO_FREECAD_STEP = (
-    "- macOS, in Studio: run `studio-install-freecad`, once the person says yes to a download of about 650 MB. It\n"
+    "- macOS, in Studio: before the first plan, run `studio-install-freecad --check`, which runs nothing and says\n"
+    "  whether Studio's FreeCAD is installed. If it is not, ask the person before planning, recommending they let\n"
+    "  Studio install FreeCAD (a download of about 650 MB), and run `studio-install-freecad` once they say yes. It\n"
     "  downloads FreeCAD 1.1.4 from FreeCAD's own release, checks its SHA-256 and FreeCAD's signature, and installs it\n"
     "  in Studio's own folder, where `cad <type> plan` finds it from the next plan, ahead of one in Applications;\n"
-    "  macOS asks no question about it. When a plan says FreeCAD is waiting on macOS's question, this is the fix too.\n"
-    "  Never put FreeCAD in Applications, start it with `open`, or remove its quarantine."
+    "  macOS asks no question about it. If a plan says macOS is waiting for someone to answer whether to open FreeCAD,\n"
+    "  the answer to recommend is the same: install FreeCAD for Studio with `studio-install-freecad`. Never recommend\n"
+    "  opening FreeCAD from Applications or answering macOS's question, and never put FreeCAD in Applications, start\n"
+    "  it with `open`, or remove its quarantine."
+)
+# The cam skill's word on a plan that stalled: answer macOS's question, which an agent's person may never see.
+FREECAD_MAC_STALL = re.compile(r"\(on macOS: answer macOS's question about opening FreeCAD,\s+then plan again\)")
+STUDIO_FREECAD_STALL = (
+    "(on macOS in Studio, when it says macOS is waiting for someone to answer whether to open FreeCAD: its advice to\n"
+    "answer that question or open FreeCAD from Applications is not Studio's. Recommend installing FreeCAD for Studio,\n"
+    "and once the person says yes to the download of about 650 MB, run `studio-install-freecad`, then plan again)"
 )
 # What no skill Studio carries may tell an agent to do with FreeCAD on a Mac.
-FREECAD_MAC_INSTALLS = ("open -a FreeCAD", "drag the `.dmg`'s FreeCAD into Applications")
+FREECAD_MAC_INSTALLS = ("open -a FreeCAD", "drag the `.dmg`'s FreeCAD into Applications",
+                        "answer macOS's question about opening FreeCAD")
 
 IGNORED = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 
@@ -68,9 +80,11 @@ def server(python: str) -> dict:
 
 
 def studio_skill(text: str) -> str:
-    """A skill's text as Studio carries it: its install sentence, and the cam skill's macOS FreeCAD step, replaced
-    by Studio's own."""
-    return FREECAD_MAC_STEP.sub(lambda _match: STUDIO_FREECAD_STEP, INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text))
+    """A skill's text as Studio carries it: its install sentence, and the cam skill's macOS FreeCAD step and its
+    word on a stalled plan, replaced by Studio's own."""
+    text = INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text)
+    text = FREECAD_MAC_STEP.sub(lambda _match: STUDIO_FREECAD_STEP, text)
+    return FREECAD_MAC_STALL.sub(lambda _match: STUDIO_FREECAD_STALL, text)
 
 
 def lay_out(checkout: Path, plugin: Path, version: str, python: str) -> str:

@@ -153,8 +153,10 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
 - **FreeCAD for CNC CAM.** The cam skill plans with the person's FreeCAD 1.1+. A FreeCAD dragged
   into Applications from a browser's download is quarantined, and its first run waits on macOS's
   question about a downloaded app, which nobody answers while an agent works (0.1.19). So on a Mac,
-  Studio's copy of the cam skill says to run `studio-install-freecad` (`scripts/studio_freecad.py`,
-  which the boot step writes beside `cad`), with the person's yes. It downloads FreeCAD's own
+  Studio's copy of the cam skill says to run `studio-install-freecad --check` before the first plan
+  and, when Studio's FreeCAD is missing or a plan stalls on that question, to recommend
+  `studio-install-freecad` (`scripts/studio_freecad.py`, which the boot step writes beside `cad`)
+  and run it with the person's yes; never to recommend opening FreeCAD from Applications. It downloads FreeCAD's own
   release with Python (which marks nothing as quarantined), holds it to the release's SHA-256, the
   FreeCAD project's signing team and Gatekeeper, refuses a quarantined file rather than clearing it,
   and installs it in `<home>/tools/freecad`, linking `freecadcmd` into `<home>/bin`. cad looks on

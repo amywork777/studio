@@ -14,6 +14,7 @@ Studio's agents and CAD server. cad's CAM looks on PATH before an installer's pl
 plan uses this FreeCAD, with no restart; a link left by a deleted FreeCAD is skipped.
 
     studio-install-freecad [--from <the release's .dmg, already downloaded>]
+    studio-install-freecad --check    # whether it is installed, running nothing (exit 0 yes, 1 no)
 """
 
 from __future__ import annotations
@@ -166,6 +167,14 @@ def installed(place: Place) -> bool:
     return isinstance(record, dict) and record.get("version") == VERSION and place.program.is_file()
 
 
+def check(place: Place) -> tuple[int, str]:
+    """Whether Studio's FreeCAD is installed, from its record alone (no FreeCAD run): an exit code and a sentence."""
+    if installed(place):
+        return 0, f"FreeCAD {VERSION} is installed for Studio: {place.program}"
+    return 1, (f"FreeCAD is not installed for Studio. `studio-install-freecad` installs FreeCAD {VERSION} "
+               "(a download of about 650 MB), once the person says yes")
+
+
 def download(url: str, to: Path, say: Callable[[str], None]) -> None:
     """`url` written to `to` by Python itself, which sets no quarantine mark, saying how far it is every tenth."""
     with urllib.request.urlopen(url, timeout=60) as response, to.open("wb") as file:
@@ -242,6 +251,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="studio-install-freecad", description=__doc__.split("\n\n")[0])
     parser.add_argument("--from", dest="source", type=Path,
                         help=f"the release's disk image, already downloaded ({DMGS['arm64'][0]})")
+    parser.add_argument("--check", action="store_true",
+                        help="say whether Studio's FreeCAD is installed, downloading and running nothing")
     options = parser.parse_args(argv)
     if sys.platform != "darwin":
         print("studio-install-freecad installs FreeCAD on a Mac. On Windows, install FreeCAD 1.1 or newer from "
@@ -251,6 +262,10 @@ def main(argv: list[str]) -> int:
     if not launchers:
         print("Run studio-install-freecad from Studio, which names its folders (CAD_LAUNCHER_DIR).", file=sys.stderr)
         return 1
+    if options.check:
+        code, said = check(Place(Path(launchers)))
+        print(said, flush=True)
+        return code
     try:
         install(Place(Path(launchers)), options.source, platform.machine(), lambda line: print(line, flush=True))
     except Refused as refused:

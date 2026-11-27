@@ -110,6 +110,16 @@ class InstallTest(unittest.TestCase):
         self.install(Mac())
         self.assertTrue(self.place.program.is_file())
 
+    def test_check_says_whether_studios_freecad_is_installed_without_running_anything(self) -> None:
+        code, said = freecad.check(self.place)
+        self.assertEqual(code, 1)
+        self.assertIn("not installed for Studio", said)
+        self.install(Mac())
+        code, said = freecad.check(self.place)
+        self.assertEqual((code, said), (0, f"FreeCAD {freecad.VERSION} is installed for Studio: {self.place.program}"))
+        self.place.program.unlink()
+        self.assertEqual(freecad.check(self.place)[0], 1)
+
     def test_leaves_a_freecadcmd_of_someone_elses_alone(self) -> None:
         self.place.launchers.mkdir(parents=True)
         self.place.link.write_text("#!/bin/sh\n")
@@ -128,7 +138,9 @@ class CamSkillTest(unittest.TestCase):
     def test_studios_cam_skill_installs_freecad_with_studio_on_a_mac(self) -> None:
         skill = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills" / "cam" / "SKILL.md"
         studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
-        self.assertIn("run `studio-install-freecad`, once the person says yes", studio)
+        self.assertIn("before the first plan, run `studio-install-freecad --check`", studio)
+        self.assertIn("run `studio-install-freecad` once they say yes", studio)
+        self.assertIn("If a plan says macOS is waiting for someone to answer whether to open FreeCAD", studio)
         for words in studio_cad_plugin.FREECAD_MAC_INSTALLS:
             self.assertNotIn(words, studio)
 
