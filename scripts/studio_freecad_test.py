@@ -181,6 +181,20 @@ class CamSkillTest(unittest.TestCase):
         for words in studio_cad_plugin.FREECAD_MAC_INSTALLS:
             self.assertNotIn(words, studio)
 
+    def test_studios_cam_skill_plans_with_stated_defaults_before_asking(self) -> None:
+        skill = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills" / "cam" / "SKILL.md"
+        studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
+        self.assertIn("**Plan first, with stated defaults, then ask.**", studio)
+        for words in studio_cad_plugin.CAM_ASKS_FIRST:
+            self.assertNotIn(words, studio)
+
+    def test_no_skill_studio_carries_gives_a_viewer_link(self) -> None:
+        skills = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills"
+        for skill in sorted(skills.glob("*/SKILL.md")):
+            studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
+            for words in studio_cad_plugin.VIEWER_LINKS:
+                self.assertNotIn(words, studio, skill.parent.name)
+
 
 if __name__ == "__main__":
     unittest.main()

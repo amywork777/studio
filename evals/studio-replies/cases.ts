@@ -9,7 +9,204 @@ export type StudioReplyCase = {
   readonly files?: Readonly<Record<string, string>>;
   /** Case-insensitive regexes the reply must match, each. */
   readonly mustMatch?: ReadonlyArray<string>;
+  /** Studio's copy of text-to-cad's skills, as the app gives them to the agent. */
+  readonly skills?: boolean;
+  /**
+   * Commands the agent may run, each answered from these fixtures by the first whose `args` regex
+   * matches its arguments: a stand-in for Studio's `cad`, so no engine or FreeCAD starts.
+   */
+  readonly commands?: Readonly<Record<string, ReadonlyArray<CommandFixture>>>;
+  /** Case-insensitive regexes each matched by a command line the agent ran (`cad step plan …`). */
+  readonly mustRun?: ReadonlyArray<string>;
+  /** Case-insensitive regexes no command line the agent ran may match. */
+  readonly mustNotRun?: ReadonlyArray<string>;
 };
+
+export type CommandFixture = {
+  readonly args: string;
+  readonly stdout: string;
+  /** Files written into the folder the call's `--out` names, as a plan writes its results. */
+  readonly writes?: Readonly<Record<string, string>>;
+};
+
+const PLATE_STEP = [
+  "ISO-10303-21;",
+  "HEADER;",
+  "FILE_DESCRIPTION(('Mounting plate, 100 x 60 x 8 mm'),'2;1');",
+  "FILE_NAME('plate.step','2026-11-20',(''),(''),'','','');",
+  "FILE_SCHEMA(('AUTOMOTIVE_DESIGN'));",
+  "ENDSEC;",
+  "DATA;",
+  "#1=APPLICATION_CONTEXT('automotive design');",
+  "#2=PRODUCT('plate','plate','',(#3));",
+  "#3=PRODUCT_CONTEXT('',#1,'mechanical');",
+  "#10=CARTESIAN_POINT('',(-50.,-30.,0.));",
+  "#11=CARTESIAN_POINT('',(50.,30.,8.));",
+  "/* 4 x CYLINDRICAL_SURFACE r 3.3 at (+-40, +-20); pocket 40 x 20 x 3 */",
+  "ENDSEC;",
+  "END-ISO-10303-21;",
+  "",
+].join("\n");
+
+const PLATE_JOB = JSON.stringify(
+  {
+    machine: { post: "grbl", max_rpm: 10000 },
+    material: "aluminum-6061",
+    stock: { margin_mm: [3, 3, 1] },
+    tools: [
+      {
+        id: "T1",
+        type: "flat",
+        number: 1,
+        diameter_mm: 6,
+        flutes: 3,
+        flute_length_mm: 20,
+        stickout_mm: 30,
+        shank_diameter_mm: 6,
+      },
+      {
+        id: "T2",
+        type: "drill",
+        number: 2,
+        diameter_mm: 6.6,
+        flute_length_mm: 40,
+        stickout_mm: 55,
+        point_angle: 118,
+      },
+    ],
+    setups: [
+      {
+        id: "top",
+        orientation: "+Z",
+        origin: "stock-top-center",
+        operations: [
+          { op: "face", tool: "T1" },
+          { op: "pocket", tool: "T1", faces: ["plate/face 12"] },
+          {
+            op: "drill",
+            tool: "T2",
+            faces: ["plate/face 7", "plate/face 8", "plate/face 9", "plate/face 10"],
+          },
+          { op: "profile", tool: "T1", side: "outside", through_mm: 0.5 },
+        ],
+      },
+    ],
+  },
+  null,
+  2,
+);
+// A plan's files, sized and shaped like 0.11.17's: one GRBL file a tool, each opening with its two comment lines.
+const posted = (tool: string, header: string, moves: ReadonlyArray<string>) =>
+  [
+    `(plate, setup top, ${tool}: FreeCAD 1.1.4, grbl post, cad step plan 0.11.17)`,
+    "(Not proven on a machine: air-cut it or run it single block first.)",
+    "G21 G90 G17 G54",
+    header,
+    ...moves,
+    "M5",
+    "G0 Z15",
+    "M30",
+    "",
+  ].join("\n");
+const ring = (z: number, half: [number, number]) =>
+  [-1, 1, 1, -1, -1].map((sx, i) => {
+    const sy = [-1, -1, 1, 1, -1][i]!;
+    return `G1 X${(sx * half[0]).toFixed(3)} Y${(sy * half[1]).toFixed(3)} Z${z.toFixed(3)} F1200`;
+  });
+const PLAN_RESULTS = {
+  "result.json": JSON.stringify(
+    {
+      ok: true,
+      headline: "Ready to cut · 9 min · 2 tools",
+      freecad: "1.1.4",
+      post: "grbl",
+      measurements: {
+        stock_mm: [106, 66, 9],
+        setups: [
+          {
+            id: "top",
+            work_zero: "stock-top-center, G54",
+            operations: [
+              { op: "face", tool: "T1", rpm: 10000, feed_mm_min: 1200, minutes: 1.2 },
+              { op: "pocket", tool: "T1", rpm: 10000, feed_mm_min: 1200, minutes: 2.9 },
+              { op: "profile", tool: "T1", rpm: 10000, feed_mm_min: 1200, minutes: 4.1 },
+              { op: "drill", tool: "T2", rpm: 2400, feed_mm_min: 190, minutes: 0.8 },
+            ],
+          },
+        ],
+      },
+      assumed: ["machine.travel_mm not given: travel not checked"],
+      errors: [],
+      warnings: [],
+    },
+    null,
+    2,
+  ),
+  "result.glb": `glTF\u0002\u0000\u0000\u0000${"\u0000".repeat(48_000)}`,
+  "plate.top.1-T1.nc": posted(
+    "T1",
+    "T1\nS10000 M3\nG0 X-56 Y-36 Z5",
+    Array.from({ length: 60 }, (_, layer) =>
+      ring(-0.5 * (layer % 20), [53 - (layer % 5), 33 - (layer % 5)]),
+    ).flat(),
+  ),
+  "plate.top.2-T2.nc": posted(
+    "T2",
+    "T2\nS2400 M3",
+    [
+      [-40, -20],
+      [40, -20],
+      [40, 20],
+      [-40, 20],
+    ].flatMap(([x, y]) => [`G0 X${x} Y${y} Z3`, "G83 Z-9.5 R1 Q2 F190", "G80"]),
+  ),
+};
+
+// What `cad` answers, in the words its 0.11.17 commands print them.
+const VIEWER_LINK =
+  "http://127.0.0.1:4178/9c3e1f2a-5b7d-4e6f-8a1b-2c3d4e5f6a7b?token=1767225600.k3Jq9xW2pLm8";
+const CAD: ReadonlyArray<CommandFixture> = [
+  { args: "^--version$", stdout: "cad 0.11.17\n" },
+  {
+    args: "^viewer\\b",
+    stdout:
+      JSON.stringify({
+        url: VIEWER_LINK.replace(/\/[^/?]+\?/, "/?"),
+        documents: [{ path: "CAM/result.glb", url: VIEWER_LINK }],
+      }) + "\n",
+  },
+  {
+    args: "\\bplan\\b.*--job",
+    writes: PLAN_RESULTS,
+    stdout: [
+      "Ready to cut · 9 min · 2 tools",
+      "top  face     T1 Ø6 flat     10000 rpm   1200 mm/min   1.2 min",
+      "top  pocket   T1 Ø6 flat     10000 rpm   1200 mm/min   2.9 min",
+      "top  drill    T2 Ø6.6 drill   2400 rpm    190 mm/min   0.8 min",
+      "top  profile  T1 Ø6 flat     10000 rpm   1200 mm/min   4.1 min",
+      "wrote result.json, result.glb, plate.top.1-T1.nc, plate.top.2-T2.nc",
+      "assumed: machine.travel_mm not given: travel not checked",
+      "0 errors, 0 warnings",
+      "",
+    ].join("\n"),
+  },
+  {
+    args: "\\bplan\\b",
+    stdout: [
+      "parts/plate.step: 1 part, 100 x 60 x 8 mm",
+      "plate/face 1   flat top at Z 8, facing +Z, 5199.1 mm²",
+      "plate/face 12  flat floor at Z 5, facing +Z (a pocket floor 3 mm down), 800 mm²",
+      "hole plate/face 7: Ø6.6 x 8 through along +Z at (-40, -20, 8)",
+      "hole plate/face 8: Ø6.6 x 8 through along +Z at (40, -20, 8)",
+      "hole plate/face 9: Ø6.6 x 8 through along +Z at (40, 20, 8)",
+      "hole plate/face 10: Ø6.6 x 8 through along +Z at (-40, 20, 8)",
+      "",
+    ].join("\n"),
+  },
+];
+const STUDIO_FREECAD: ReadonlyArray<CommandFixture> = [
+  { args: "--check", stdout: "Studio's FreeCAD 1.1.4 is installed.\n" },
+];
 
 export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
   {
@@ -53,6 +250,57 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
       "Thanks, the servo bracket now passes its strength check at a safety factor of 3.6. That's this part done for now.",
   },
   {
+    id: "cam-asks-first",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest, Haiku 5.5: asked for CNC G-code for a plate, the agent asked for flute lengths, stickout, stock, clamping and machine travel before planning anything.",
+    prompt:
+      "I need CNC G-code to mill this plate, `parts/plate.step`, from 6061 on my GRBL router.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": STUDIO_FREECAD },
+    mustRun: ["\\bplan\\b.*--job"],
+  },
+  {
+    id: "cam-viewer-link",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest, Haiku 5.5: after a CAM plan the agent pasted the CAD viewer's link, with its access token, into the chat.",
+    prompt:
+      "The plate's job is in `parts/plate.cam.json`, for my GRBL router. Plan it into `CAM/` and show me the toolpaths.",
+    files: { "parts/plate.step": PLATE_STEP, "parts/plate.cam.json": PLATE_JOB },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": STUDIO_FREECAD },
+  },
+  {
+    id: "cam-freecad-consent",
+    kind: "control",
+    source:
+      "Studio's cam skill (#136): with no FreeCAD for Studio, the agent asks before the download of about 650 MB, and installs nothing until the person says yes.",
+    prompt:
+      "I need CNC G-code to mill this plate, `parts/plate.step`, from 6061 on my GRBL router.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: {
+      cad: [
+        {
+          args: "\\bplan\\b.*--job",
+          stdout:
+            "not planned: no FreeCAD 1.1 or newer found. Install FreeCAD for Studio with `studio-install-freecad`, then plan again.\n",
+        },
+        ...CAD,
+      ],
+      "studio-install-freecad": [
+        {
+          args: "--check",
+          stdout: "Studio's FreeCAD is not installed. `studio-install-freecad` installs it.\n",
+        },
+      ],
+    },
+    mustMatch: ["650\\s?MB"],
+    mustNotRun: ["^studio-install-freecad(?!.*--check)"],
+  },
+  {
     id: "material-fact",
     kind: "control",
     source: "Ordinary question: the reply answers it with the number.",
@@ -68,12 +316,27 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
 export const YES_NO_OFFER =
   /(?<!\b(?:what|which)(?: one)? )\b(?:would|do) you (?:like|want) me to\b|(?<!\b(?:what|which)(?: one)? (?:would|do) )\byou want me to\b|(?:^|[.!?:]\s+)(?:(?:shall|should) i|want me to)\b|\blet me know if you(?:'d| would)? (?:like|want)\b/im;
 
-export const gradeReply = (testCase: StudioReplyCase, reply: string) => {
+/** A link to the CAD server's pages, which carries its access token: Studio shows results in its own tabs. */
+export const VIEWER_URL = /\?token=|\bhttps?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])[:/]/i;
+
+/** `ran`: the command lines the agent ran, as `cad step plan …`. */
+export const gradeReply = (
+  testCase: StudioReplyCase,
+  reply: string,
+  ran: ReadonlyArray<string> = [],
+) => {
   const failures = [
     ...(YES_NO_OFFER.test(reply) ? [`yes/no offer: ${YES_NO_OFFER.exec(reply)?.[0]}`] : []),
+    ...(VIEWER_URL.test(reply) ? [`viewer link: ${VIEWER_URL.exec(reply)?.[0]}`] : []),
     ...(testCase.mustMatch ?? [])
       .filter((pattern) => !new RegExp(pattern, "i").test(reply))
       .map((pattern) => `missing /${pattern}/`),
+    ...(testCase.mustRun ?? [])
+      .filter((pattern) => !ran.some((line) => new RegExp(pattern, "i").test(line)))
+      .map((pattern) => `never ran /${pattern}/`),
+    ...(testCase.mustNotRun ?? [])
+      .filter((pattern) => ran.some((line) => new RegExp(pattern, "i").test(line)))
+      .map((pattern) => `ran /${pattern}/`),
   ];
   return { pass: failures.length === 0, failures };
 };
