@@ -37,6 +37,25 @@ export const EMPTY_STUDIO_BRIEF: StudioProjectBrief = {
   notes: "",
 };
 
+// A run, the 3D view and the part tree put only a script's own folder on Python's import path, so an assembly in
+// `assemblies/` that imported `from flat_plate import …` or `from parts.flat_plate import …` built nothing (0.1.19).
+const ASSEMBLY_IMPORTS = [
+  "A run, the 3D view and the part tree put only the script's own folder on Python's import path, so an assembly",
+  "in `assemblies/` puts `parts/` there before it imports a part, as Studio's own assemblies do:",
+  "",
+  "```python",
+  "import sys",
+  "from pathlib import Path",
+  "",
+  'sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))',
+  "",
+  "from flat_plate import flat_plate  # noqa: E402",
+  "```",
+  "",
+  "Without that line neither `from flat_plate import …` nor `from parts.flat_plate import …` imports. Run the",
+  "assembly once you have written it, and fix what it says before you show it.",
+].join("\n");
+
 export interface StudioProjectKind {
   readonly id: string;
   readonly label: string;
@@ -358,6 +377,7 @@ export function studioProjectContext(
             `In \`${project.folders[0] ?? folder}\`, keep the project's work where Studio looks for it:`,
             "",
             ...layout.map(([path, holds]) => `- \`${path}\`: ${holds}`),
+            ...(layout.some(([path]) => path === "assemblies/") ? ["", ASSEMBLY_IMPORTS] : []),
           ].join("\n"),
     ),
   ]

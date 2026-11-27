@@ -9,6 +9,17 @@ export type StudioReplyCase = {
   readonly files?: Readonly<Record<string, string>>;
   /** Case-insensitive regexes the reply must match, each. */
   readonly mustMatch?: ReadonlyArray<string>;
+  /** Case-insensitive regexes the reply must not match. */
+  readonly mustNotMatch?: ReadonlyArray<string>;
+  /**
+   * The files the agent wrote or changed whose path matches `path`: each `mustMatch` in one of them
+   * (so at least one is written) and no `mustNotMatch` in any (a CAM job's limits, an assembly's imports).
+   */
+  readonly writes?: {
+    readonly path: string;
+    readonly mustMatch?: ReadonlyArray<string>;
+    readonly mustNotMatch?: ReadonlyArray<string>;
+  };
   /** Studio's copy of text-to-cad's skills, as the app gives them to the agent. */
   readonly skills?: boolean;
   /**
@@ -220,10 +231,15 @@ const BOLTED_PLATE: Readonly<Record<string, string>> = {
     "then the ISO 4032 M8 nut under the plate.",
     '"""',
     "",
+    "import sys",
+    "from pathlib import Path",
+    "",
     "import build123d as bd",
     "from cad import model, step",
     "",
-    "from parts.plate import plate",
+    'sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))',
+    "",
+    "from plate import plate  # noqa: E402",
     "",
     "PLATE_TOP = 6",
     "WASHER_THICKNESS = 1.8  # bd_warehouse's ISO 7089 table",
@@ -374,6 +390,92 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
     ],
   },
   {
+    id: "cam-controller-before-plan",
+    kind: "bad",
+    source:
+      'Studio 0.1.19 retest, Haiku 5.5: with no FreeCAD for Studio yet, the agent asked which controller beside the download question, saying "I have planned with GRBL until you say", though no plan had run, and the job it wrote held the skill example values for `travel_mm` and `max_feed_mm_min`.',
+    prompt: "Make CNC G-code for this plate, `parts/plate.step`.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: {
+      cad: [
+        {
+          args: "\\bplan\\b.*--job",
+          stdout:
+            "not planned: no FreeCAD 1.1 or newer found. Install FreeCAD for Studio with `studio-install-freecad`, then plan again.\n",
+        },
+        ...CAD,
+      ],
+      "studio-install-freecad": [
+        {
+          args: "--check",
+          stdout: "Studio's FreeCAD is not installed. `studio-install-freecad` installs it.\n",
+        },
+      ],
+    },
+    mustMatch: ["650\\s?MB"],
+    mustNotMatch: [
+      "\\b(?:I(?:'ve| have)(?: already)?|what I(?:'ve| have)?|I'm|I am|(?:it|this|the (?:plate|job|part|G-code)) (?:is|was|has been))\\s+(?:planned|planning)\\b",
+      "(?:^|\\n)\\W*planned with\\b",
+      "\\b(?:which|what) controller\\b[^.\\n]*\\?",
+    ],
+    mustNotRun: ["^studio-install-freecad(?!.*--check)"],
+    writes: {
+      path: "\\.json$",
+      mustNotMatch: ['"travel_mm"', '"max_feed_mm_min"', '"min_rpm"'],
+    },
+  },
+  {
+    id: "cam-invented-limits",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest, Haiku 5.5: the CAM job the agent wrote set `travel_mm` [300, 300, 80] and `max_feed_mm_min` 2500, which nobody gave, while its reply said travel and feed limits were not known and not checked.",
+    prompt: "Make CNC G-code for this plate, `parts/plate.step`.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": STUDIO_FREECAD },
+    mustRun: ["\\bplan\\b.*--job"],
+    mustMatch: [
+      "travel[^.\\n]{0,80}(?:not (?:been )?checked|did(?: not|n't) check|unchecked)|(?:not|n't) check\\w*[^.\\n]{0,40}\\btravel\\b",
+    ],
+    writes: {
+      path: "\\.json$",
+      mustNotMatch: ['"travel_mm"', '"max_feed_mm_min"', '"min_rpm"'],
+    },
+  },
+  {
+    id: "assembly-imports-parts",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest: the agent wrote `assemblies/flat_plate_bolt.py` with `from flat_plate import flat_plate`, which neither a run nor the part tree can import from `assemblies/` (`ModuleNotFoundError: No module named 'flat_plate'`).",
+    prompt:
+      "Make an assembly of the flat plate (`parts/flat_plate.py`) with an M8 x 20 bolt standing in its centre hole. Model the bolt as a plain cylinder with a hex head.",
+    files: {
+      "parts/flat_plate.py": [
+        "import build123d as bd",
+        "from cad import model",
+        "",
+        "",
+        "@model",
+        "def flat_plate():",
+        "    plate = bd.Box(80, 50, 6, align=(bd.Align.CENTER, bd.Align.CENTER, bd.Align.MIN))",
+        "    return plate - bd.Pos(0, 0, 3) * bd.Cylinder(4.5, 6)",
+        "",
+      ].join("\n"),
+    },
+    skills: true,
+    commands: {
+      cad: [
+        { args: "^--version$", stdout: "cad 0.11.17\n" },
+        { args: "^run\\b", stdout: "" },
+      ],
+    },
+    writes: {
+      path: "^assemblies/.*\\.py$",
+      mustMatch: ["sys\\.path\\.(?:insert|append)\\(", "[\"']parts[\"']"],
+    },
+  },
+  {
     id: "bolt-thread-one-value",
     kind: "control",
     source:
@@ -416,11 +518,34 @@ const sameValueFailures = (patterns: ReadonlyArray<string>, reply: string) => {
   return values.size > 1 ? [`two values: ${[...values].join(" mm and ")} mm`] : [];
 };
 
-/** `ran`: the command lines the agent ran, as `cad step plan …`. */
+/** What the agent wrote that `writes` asks about: failures naming the file and the words. */
+const writesFailures = (
+  writes: NonNullable<StudioReplyCase["writes"]>,
+  written: Readonly<Record<string, string>>,
+) => {
+  const files = Object.entries(written).filter(([path]) => new RegExp(writes.path, "i").test(path));
+  if (files.length === 0 && writes.mustMatch?.length) return [`wrote no file /${writes.path}/`];
+  return [
+    ...(writes.mustMatch ?? [])
+      .filter((pattern) => !files.some(([, text]) => new RegExp(pattern, "i").test(text)))
+      .map((pattern) => `no written file has /${pattern}/`),
+    ...files.flatMap(([path, text]) =>
+      (writes.mustNotMatch ?? [])
+        .filter((pattern) => new RegExp(pattern, "i").test(text))
+        .map((pattern) => `${path} has /${pattern}/`),
+    ),
+  ];
+};
+
+/**
+ * `ran`: the command lines the agent ran, as `cad step plan …`; `written`: the files it wrote or
+ * changed in the project, by path.
+ */
 export const gradeReply = (
   testCase: StudioReplyCase,
   reply: string,
   ran: ReadonlyArray<string> = [],
+  written: Readonly<Record<string, string>> = {},
 ) => {
   const failures = [
     ...(YES_NO_OFFER.test(reply) ? [`yes/no offer: ${YES_NO_OFFER.exec(reply)?.[0]}`] : []),
@@ -428,6 +553,9 @@ export const gradeReply = (
     ...(testCase.mustMatch ?? [])
       .filter((pattern) => !new RegExp(pattern, "i").test(reply))
       .map((pattern) => `missing /${pattern}/`),
+    ...(testCase.mustNotMatch ?? [])
+      .filter((pattern) => new RegExp(pattern, "i").test(reply))
+      .map((pattern) => `said /${pattern}/: ${new RegExp(pattern, "i").exec(reply)?.[0]}`),
     ...(testCase.mustRun ?? [])
       .filter((pattern) => !ran.some((line) => new RegExp(pattern, "i").test(line)))
       .map((pattern) => `never ran /${pattern}/`),
@@ -435,6 +563,7 @@ export const gradeReply = (
       .filter((pattern) => ran.some((line) => new RegExp(pattern, "i").test(line)))
       .map((pattern) => `ran /${pattern}/`),
     ...sameValueFailures(testCase.sameValue ?? [], reply),
+    ...(testCase.writes ? writesFailures(testCase.writes, written) : []),
   ];
   return { pass: failures.length === 0, failures };
 };

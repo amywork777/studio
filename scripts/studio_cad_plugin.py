@@ -55,7 +55,11 @@ FREECAD_MAC_STEP = re.compile(
 STUDIO_FREECAD_STEP = (
     "- macOS, in Studio: before the first plan, run `studio-install-freecad --check`, which runs nothing and says\n"
     "  whether Studio's FreeCAD is installed. If it is not, ask the person before planning, recommending they let\n"
-    "  Studio install FreeCAD (a download of about 650 MB), and run `studio-install-freecad` once they say yes. It\n"
+    "  Studio install FreeCAD (a download of about 650 MB), and run `studio-install-freecad` once they say yes. That is\n"
+    "  the one question before the first plan: ask it alone, as which to do (\"How should I get FreeCAD? 1. Install\n"
+    "  FreeCAD for Studio (Recommended) 2. Not now\"), never \"Should I install it?\", with nothing about the controller,\n"
+    "  the tools or the machine, and say no plan has run yet. Until a plan has run, never say you planned, or what\n"
+    "  with. It\n"
     "  downloads FreeCAD 1.1.4 from FreeCAD's own release, checks its SHA-256 and FreeCAD's signature, and installs it\n"
     "  in Studio's own folder, where `cad <type> plan` finds it from the next plan, ahead of one in Applications;\n"
     "  macOS asks no question about it. Until then Studio's `freecadcmd` only says FreeCAD is not installed for\n"
@@ -84,14 +88,15 @@ STUDIO_CAM_DEFAULTS = (
     "   anything about the machine or the tools: never stop to ask for tool data, stock, holding or travel first.\n"
     "   Fill in what the person has not said with these, and list each as an assumption:\n"
     "   - **The controller** (`machine.post`): a dialect read by the wrong controller moves the machine wrongly, so\n"
-    "     never guess it from the make. When the person has not named it, plan with `grbl`, say at the top of your\n"
-    "     reply that the G-code is for GRBL only and must not run on another controller, and ask which controller\n"
-    "     runs the machine (GRBL (Recommended), LinuxCNC, Mach3/4, Fanuc, Centroid, UCCNC, Smoothieware); plan\n"
-    "     again with its post.\n"
+    "     never guess it from the make. When the person has not named it, plan with `grbl`; once that plan has run,\n"
+    "     say at the top of your reply that the G-code is for GRBL only and must not run on another controller, and\n"
+    "     ask which controller runs the machine (GRBL (Recommended), LinuxCNC, Mach3/4, Fanuc, Centroid, UCCNC,\n"
+    "     Smoothieware) with the questions after the plan; plan again with its post.\n"
     "   - **The spindle's top speed** (`machine.max_rpm`): 10000, unless the person names the spindle or machine.\n"
     "     On a faster spindle that only cuts slower, never harder.\n"
-    "   - The machine's travel, slowest spindle speed and feed limit: left out, so the report says travel and feed\n"
-    "     limits were not checked.\n"
+    "   - The machine's travel, slowest spindle speed and feed limit (`travel_mm`, `min_rpm`, `max_feed_mm_min`): in\n"
+    "     the job only as the person gave them, never a number of your own or the example's. Without them the plan\n"
+    "     checks none of them, and your reply says travel and feed limits were not checked.\n"
     "   - **The tools**: the fewest common carbide tools that fit, each one's data stated: a 6 mm 3-flute flat end mill\n"
     "     (20 mm flutes, 30 mm stickout, 6 mm shank); a 3 mm one (12 mm flutes, 20 mm stickout, 6 mm shank) only\n"
     "     where a pocket corner or slot needs it; a jobber drill of each hole's size (118° point, flutes 5 mm past\n"
@@ -104,13 +109,20 @@ STUDIO_CAM_DEFAULTS = (
     "   Tool data the person gives, or their tool table, replaces these. Once the plan has run, and before any\n"
     "   question, say in one plain line what you planned with, for example: \"Planned with: GRBL, a 10000 rpm\n"
     "   spindle, a 6 mm flat end mill and a drill for each hole size, 3 mm of stock a side and 1 mm on top, held in\n"
-    "   a vise from the top.\" Then ask, the controller first whenever the person has not named it, then the tools, the spindle\n"
+    "   a vise from the top; travel and feed limits not checked.\" Then ask, the controller first whenever the person has not named it, then the tools, the spindle\n"
     "   speed and how the part is held: each question's first answer is the one you planned with, marked\n"
     "   (Recommended), and you plan again with what they change. Only the FreeCAD download is asked before the\n"
-    "   first plan (Install FreeCAD).\n"
+    "   first plan (Install FreeCAD), and alone.\n"
 )
-# The words that told an agent to ask before planning, which no cam skill Studio carries may keep.
-CAM_ASKS_FIRST = ("Ask what you cannot see", "Never fill one of these in yourself")
+# The job in the cam skill's step 3 sets a machine's travel and feed limit, which an agent copied into a job for a machine
+# nobody had described (0.1.19): Studio's example holds only what Studio plans with (law 4, no made-up numbers).
+CAM_EXAMPLE_MACHINE = re.compile(
+    r'"machine": \{"post": "grbl", "travel_mm": \[300, 300, 80\], "max_rpm": 24000,\s+"max_feed_mm_min": 2500\},'
+)
+STUDIO_CAM_EXAMPLE_MACHINE = '"machine": {"post": "grbl", "max_rpm": 10000},'
+# The words that told an agent to ask before planning, or set limits nobody gave, which no cam skill Studio carries may keep.
+CAM_ASKS_FIRST = ("Ask what you cannot see", "Never fill one of these in yourself", '"travel_mm": [300, 300, 80]',
+                  '"max_feed_mm_min": 2500')
 
 # Each skill's Show the model gives the person the viewer's page as a link, and the cam skill's step 6 gives the `url`
 # `cad viewer` prints: that link carries the viewer's access token (`?token=`), and an agent pasted it into a chat
@@ -147,11 +159,13 @@ def server(python: str) -> dict:
 
 def studio_skill(text: str) -> str:
     """A skill's text as Studio carries it: its install sentence, the cam skill's macOS FreeCAD step, its word on a
-    stalled plan and its asking before a plan, and every viewer link it gives the person, replaced by Studio's own."""
+    stalled plan, its asking before a plan and its example's machine limits, and every viewer link it gives the person,
+    replaced by Studio's own."""
     text = INSTALL_SENTENCE.sub(STUDIO_SENTENCE, text)
     text = FREECAD_MAC_STEP.sub(lambda _match: STUDIO_FREECAD_STEP, text)
     text = FREECAD_MAC_STALL.sub(lambda _match: STUDIO_FREECAD_STALL, text)
     text = CAM_ASK_FIRST.sub(lambda _match: STUDIO_CAM_DEFAULTS, text)
+    text = CAM_EXAMPLE_MACHINE.sub(lambda _match: STUDIO_CAM_EXAMPLE_MACHINE, text)
     text = SHOW_LINK.sub(lambda _match: STUDIO_SHOW, text)
     return CAM_SHOW_LINK.sub(lambda _match: STUDIO_CAM_SHOW, text)
 
@@ -198,8 +212,9 @@ def refuse_installs(plugin: Path) -> None:
              for path in sorted(plugin.rglob("*.md"))
              for words in CAM_ASKS_FIRST if words in path.read_text(encoding="utf-8")]
     if found:
-        raise SystemExit("Studio's CAD plugin would tell an agent to ask for the machine and tools before a CNC plan "
-                         "(scripts/studio_cad_plugin.py's CAM_ASK_FIRST no longer matches the cam skill):\n  "
+        raise SystemExit("Studio's CAD plugin would tell an agent to ask for the machine and tools before a CNC plan, "
+                         "or show it machine limits nobody gave (scripts/studio_cad_plugin.py's CAM_ASK_FIRST or "
+                         "CAM_EXAMPLE_MACHINE no longer matches the cam skill):\n  "
                          + "\n  ".join(found))
     found = [f"{path.relative_to(plugin).as_posix()}: {words}"
              for path in sorted(plugin.rglob("*.md"))

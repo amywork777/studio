@@ -48,3 +48,63 @@ describe("sameValue", () => {
     expect(gradeReply(boltCase, reply).pass).toBe(true);
   });
 });
+
+describe("writes", () => {
+  const limitsCase = studioReplyCases.find((testCase) => testCase.id === "cam-invented-limits")!;
+  const assemblyCase = studioReplyCases.find(
+    (testCase) => testCase.id === "assembly-imports-parts",
+  )!;
+  const ran = ["cad step plan parts/plate.step --job parts/plate.cam.json --out CAM"];
+
+  it("flags a job holding limits nobody gave", () => {
+    const job = '{"machine": {"post": "grbl", "travel_mm": [300, 300, 80], "max_rpm": 10000}}';
+    expect(
+      gradeReply(limitsCase, "Travel and feed limits: not checked.", ran, {
+        "parts/plate.cam.json": job,
+      }).failures,
+    ).toEqual(['parts/plate.cam.json has /"travel_mm"/']);
+  });
+
+  it("leaves a job without them", () => {
+    const job = '{"machine": {"post": "grbl", "max_rpm": 10000}}';
+    expect(
+      gradeReply(limitsCase, "Travel was not given, so the plan did not check it.", ran, {
+        "parts/plate.cam.json": job,
+      }).pass,
+    ).toBe(true);
+  });
+
+  it("flags an assembly importing its part by a name no run finds", () => {
+    const broken = "from flat_plate import flat_plate\n";
+    const seated =
+      'import sys\nsys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))\nfrom flat_plate import flat_plate\n';
+    expect(gradeReply(assemblyCase, "Done.", [], { "assemblies/plate_bolt.py": broken }).pass).toBe(
+      false,
+    );
+    expect(gradeReply(assemblyCase, "Done.", [], { "assemblies/plate_bolt.py": seated }).pass).toBe(
+      true,
+    );
+    expect(gradeReply(assemblyCase, "Done.").failures).toContain(
+      "wrote no file /^assemblies/.*\\.py$/",
+    );
+  });
+});
+
+describe("mustNotMatch", () => {
+  const beforePlan = studioReplyCases.find(
+    (testCase) => testCase.id === "cam-controller-before-plan",
+  )!;
+
+  it.each([
+    "I have planned with GRBL until you say otherwise. Installing FreeCAD is about 650 MB.",
+    "FreeCAD for Studio is a 650 MB download.\n\n**What I planned with**, so you can check it:",
+    "FreeCAD for Studio is a 650 MB download.\nPlanned with: GRBL, a 10000 rpm spindle.",
+    "FreeCAD for Studio is a 650 MB download. Which controller runs your machine?",
+  ])("flags %j", (reply) => expect(gradeReply(beforePlan, reply).pass).toBe(false));
+
+  it("leaves the download question alone", () => {
+    const reply =
+      "No plan has run yet: Studio needs FreeCAD (a download of about 650 MB). Install FreeCAD for Studio (Recommended), or not now?";
+    expect(gradeReply(beforePlan, reply).pass).toBe(true);
+  });
+});

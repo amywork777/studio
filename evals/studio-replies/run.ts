@@ -156,6 +156,20 @@ const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
     );
   });
 
+// The text files the agent wrote or changed in the project folder, by path: the case's own files left as they were are not.
+const writtenIn = (folder: string, given: Readonly<Record<string, string>>) =>
+  Object.fromEntries(
+    (NodeFS.readdirSync(folder, { recursive: true, encoding: "utf8" }) as Array<string>)
+      .map((file) => file.split(NodePath.sep).join("/"))
+      .filter(
+        (file) =>
+          /\.(?:py|json|md|txt)$/i.test(file) &&
+          NodeFS.statSync(NodePath.join(folder, file)).isFile(),
+      )
+      .map((file) => [file, NodeFS.readFileSync(NodePath.join(folder, file), "utf8")] as const)
+      .filter(([file, text]) => given[file] !== text),
+  );
+
 let cost = 0;
 const rows = await Promise.all(
   cases.flatMap((testCase) =>
@@ -175,16 +189,19 @@ const rows = await Promise.all(
       for (const [name, fixtures] of Object.entries(testCase.commands ?? {})) {
         NodeFS.writeFileSync(NodePath.join(bin, name), stub(name, fixtures, log), { mode: 0o755 });
       }
-      const text = await reply(testCase, folder, bin).finally(() =>
-        NodeFS.rmSync(folder, { recursive: true, force: true }),
-      );
+      let written: Record<string, string> = {};
+      const text = await reply(testCase, folder, bin).finally(() => {
+        written = writtenIn(folder, testCase.files ?? {});
+        NodeFS.rmSync(folder, { recursive: true, force: true });
+      });
       const ran = NodeFS.readFileSync(log, "utf8").split("\n").filter(Boolean);
       return {
         id: testCase.id,
         kind: testCase.kind,
         sample,
-        ...gradeReply(testCase, text, ran),
+        ...gradeReply(testCase, text, ran, written),
         ran,
+        written,
         text,
       };
     }),

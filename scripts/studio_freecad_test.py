@@ -185,6 +185,7 @@ class CamSkillTest(unittest.TestCase):
         skill = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills" / "cam" / "SKILL.md"
         studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
         self.assertIn("**Plan first, with stated defaults, then ask.**", studio)
+        self.assertIn(studio_cad_plugin.STUDIO_CAM_EXAMPLE_MACHINE, studio)
         for words in studio_cad_plugin.CAM_ASKS_FIRST:
             self.assertNotIn(words, studio)
 
