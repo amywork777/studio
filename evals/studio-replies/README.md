@@ -22,7 +22,7 @@ node studio-replies/run.ts --model claude-sonnet-5-5 --samples 4 --out runs/sonn
 
 ## Add a case
 
-Cases are in `cases.ts`: `kind` (`bad` reproduces a reply, `control` is ordinary work), `source`, the `prompt`, the project's `files`, `mustMatch` for what the reply must say, and `skills`, `commands`, `mustRun` and `mustNotRun` for a case that works, and `sameValue` for a quantity the reply must give one number. The grader, `YES_NO_OFFER`, is tested in `cases.test.ts`.
+Cases are in `cases.ts`: `kind` (`bad` reproduces a reply, `control` is ordinary work), `source`, the `prompt`, the project's `files`, `mustMatch` for what the reply must say, and `skills`, `commands`, `mustRun` and `mustNotRun` for a case that works, and `sameValue` for a quantity the reply must give one number, `mustNotMatch` for what it must not say, and `writes` for the files it writes (a CAM job, an assembly script). The grader, `YES_NO_OFFER`, is tested in `cases.test.ts`.
 
 ## Results
 
@@ -63,3 +63,21 @@ Passes per case, before → after Studio's copy of the cam skill says in one lin
 | material-fact              | control | 4/4 → 3/3 |            |
 
 Before, Haiku planned with GRBL and listed the controllers with none marked ("I'm not marking any as recommended"), its spindle speed, tools and holding scattered after the question or left out. The thread-length mix-up did not come back in one turn: with the script's sizes, Haiku gave 5.4 mm throughout on both texts, so the case guards it rather than reproducing it.
+
+Passes per case, before → after Studio's copy of the cam skill asks the FreeCAD download alone before the first plan, says no plan has run and claims none, asks the controller with the questions after the plan, and keeps travel and feed limits out of a job unless the person gave them (its example's machine too), and Studio's project instructions say how an assembly in `assemblies/` imports its parts from `parts/` (`scripts/studio_cad_plugin.py`, `packages/shared/src/studioProjects.ts`), 2026-11-27. A case with `writes` grades the files the agent wrote (the CAM job, the assembly script) as well as its reply. The other cases ran on the new text only; their before is their run above.
+
+| Case                       | Kind    | Haiku 5.5 |
+| -------------------------- | ------- | --------- |
+| cam-controller-before-plan | bad     | 0/4 → 4/4 |
+| cam-invented-limits        | bad     | 2/6 → 3/4 |
+| assembly-imports-parts     | bad     | 0/4 → 3/3 |
+| cam-controller-recommended | bad     | 6/6 → 2/3 |
+| cam-asks-first             | bad     | 3/3 → 3/3 |
+| cam-viewer-link            | bad     | 3/3 → 3/3 |
+| cam-freecad-consent        | control | 3/3 → 3/3 |
+| bolt-thread-one-value      | control | 3/3 → 3/3 |
+| study-fix-offer            | bad     | 3/3 → 2/3 |
+| next-job-offer             | bad     | 3/3 → 3/3 |
+| material-fact              | control | 3/3 → 3/3 |
+
+Before, with no FreeCAD for Studio, Haiku wrote "What I planned with" or "Planned with: GRBL, …" over a plan that never ran and asked which controller beside the download question, and one job held the skill example's `travel_mm` [300, 300, 80] and `max_feed_mm_min` 2500; with FreeCAD there, most replies never said travel was not checked. Every assembly imported its part as `from parts.flat_plate import …` or by its bare name, which neither a run nor the part tree finds from `assemblies/`. The misses after: one plan that stalled on the stand-in's answers and never said travel, one controller question lost in a reply about the stand-in's files, and one "Should I…?" on the strength study, as before this change.
