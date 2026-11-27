@@ -47,6 +47,10 @@
       // knip run beside it in check:changed must not report.
       "ignore": ["npm-launcher/**", ".knip-test-*/**"],
     },
+    "evals": {
+      // Studio: its eval runs by path (evals/studio-replies/README.md), not as a T3 package script.
+      "entry": ["studio-replies/run.ts"],
+    },
     "apps/server": {
       // Vite+ pack entries and the launcher used by installed background services.
       "entry": [

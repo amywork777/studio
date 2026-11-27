@@ -158,6 +158,7 @@ apps/server/src/project/ManagedProjectFolders.test.ts
 apps/server/src/project/ManagedProjectFolders.ts
 apps/server/src/provider/acp/AntigravityAcpSupport.ts
 apps/server/src/provider/AcpRegistrySessions.ts
+apps/server/src/provider/agentContextBudget.json
 apps/server/src/provider/antigravityAuthSupport.ts
 apps/server/src/provider/AntigravityInstallation.ts
 apps/server/src/provider/AntigravityProvider.ts
