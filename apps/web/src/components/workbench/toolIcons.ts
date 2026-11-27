@@ -108,6 +108,7 @@ const SECTION_ICONS: Partial<Record<string, LucideIcon>> = {
   machining: DrillIcon,
   sheet: FoldVerticalIcon,
   files: FileBoxIcon,
+  standard: ShoppingCartIcon,
   "board-files": FileStackIcon,
   drawings: PencilRulerIcon,
   building: ListOrderedIcon,
