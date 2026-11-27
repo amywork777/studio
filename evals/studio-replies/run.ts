@@ -139,7 +139,12 @@ const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
       ],
       {
         cwd: folder,
-        env: { ...process.env, PATH: `${bin}${NodePath.delimiter}${process.env.PATH ?? ""}` },
+        env: {
+          ...process.env,
+          PATH: `${bin}${NodePath.delimiter}${process.env.PATH ?? ""}`,
+          // Sourced before each Bash command, after the person's shell profile, which can put a real `cad` first.
+          CLAUDE_ENV_FILE: NodePath.join(bin, "env.sh"),
+        },
         maxBuffer: 16 * 1024 * 1024,
       },
       (error, stdout) => {
@@ -163,6 +168,10 @@ const rows = await Promise.all(
       const bin = NodeFS.mkdtempSync(NodePath.join(scratch, "bin-"));
       const log = NodePath.join(bin, "ran.log");
       NodeFS.writeFileSync(log, "");
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "env.sh"),
+        `export PATH=${JSON.stringify(bin)}:"$PATH"\n`,
+      );
       for (const [name, fixtures] of Object.entries(testCase.commands ?? {})) {
         NodeFS.writeFileSync(NodePath.join(bin, name), stub(name, fixtures, log), { mode: 0o755 });
       }

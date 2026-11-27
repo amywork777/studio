@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { VIEWER_URL, YES_NO_OFFER } from "./cases.ts";
+import { gradeReply, studioReplyCases, VIEWER_URL, YES_NO_OFFER } from "./cases.ts";
 
 describe("YES_NO_OFFER", () => {
   it.each([
@@ -31,4 +31,20 @@ describe("VIEWER_URL", () => {
     "The toolpaths are in `CAM/result.glb`; it is open in the viewer.",
     "FreeCAD comes from https://www.freecad.org/downloads.php.",
   ])("leaves %j", (reply) => expect(VIEWER_URL.test(reply)).toBe(false));
+});
+
+describe("sameValue", () => {
+  const boltCase = studioReplyCases.find((testCase) => testCase.id === "bolt-thread-one-value")!;
+
+  it("flags one quantity given two values", () => {
+    const reply =
+      "Its head sits on the washer, 6 mm of thread runs below the nut.\n- Bolt length: M8 × 20 leaves 5.4 mm of thread below the nut.";
+    expect(gradeReply(boltCase, reply).failures).toEqual(["two values: 6 mm and 5.4 mm"]);
+  });
+
+  it("leaves one value said twice", () => {
+    const reply =
+      "5.4 mm of thread runs below the nut. M8 × 20 leaves 5.4 mm of the bolt past the nut; the nut is 6.8 mm high.";
+    expect(gradeReply(boltCase, reply).pass).toBe(true);
+  });
 });
