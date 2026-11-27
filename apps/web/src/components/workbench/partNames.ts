@@ -1,3 +1,5 @@
+import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
+
 /**
  * Files named as an engineer names them ("Servo bracket drawing"), not by path or ending. A study,
  * a check or a job is named after the part it was run on.
@@ -185,8 +187,40 @@ export function folderResult(
   return { kind, name: own === "" || RESULTS_FOLDER.test(own) ? null : humanName(own) };
 }
 
-/** The file as an engineer names it, or null for one that is not a part or a document of theirs. */
-export function partName(path: string): PartName | null {
+/**
+ * The cam skill's posted programs: `<part>.<setup>.nc`, or one a run of one tool,
+ * `<part>.<setup>.<run>-T<tool>.nc`. A plan of a model the engine holds names them by its id.
+ */
+const CAM_PROGRAM = /^(.+?)\.([^.]+)(?:\.(\d+)-T(\d+))?\.(?:nc|gcode|ngc|tap|gco)$/i;
+
+/**
+ * A posted program by its part, setup and run: "Plate · top setup · run 1 · T1". A model's id is
+ * its title in `titles`, else left out. Null for G-code named some other way.
+ */
+function camProgram(
+  file: string,
+  titles: ReadonlyMap<string, string> | undefined,
+): PartName | null {
+  const match = CAM_PROGRAM.exec(file);
+  if (match === null) return null;
+  const [stem, setup, run, tool] = [match[1]!, match[2]!, match[3], match[4]];
+  const byId = isDocumentId(stem);
+  // `bracket.v2.nc` is a name, not a setup.
+  if (run === undefined && !byId) return null;
+  const part = byId ? (titles?.get(stem) ?? null) : humanName(stem);
+  const setupName = `${humanName(setup)} setup`;
+  const name = [
+    part === null ? setupName : `${part} · ${lowerName(setupName)}`,
+    ...(run === undefined ? [] : [`run ${run}`, `T${tool}`]),
+  ].join(" · ");
+  return { name, kind: "G-code", label: `${name} G-code` };
+}
+
+/**
+ * The file as an engineer names it, or null for one that is not a part or a document of theirs.
+ * `titles` names models by their id (`useModelTitles`), for files named after one.
+ */
+export function partName(path: string, titles?: ReadonlyMap<string, string>): PartName | null {
   const normalized = path.replaceAll("\\", "/");
   for (const [test, name, kind] of KNOWN) {
     if (test.test(normalized)) return { name, kind, label: name };
@@ -210,6 +244,8 @@ export function partName(path: string): PartName | null {
     return { name, kind: "FEA study", label: `${name} FEA study` };
   }
   const file = baseName(normalized);
+  const program = camProgram(file, titles);
+  if (program !== null) return program;
   for (const rule of ENDINGS) {
     const match = rule.ending.exec(file);
     if (match === null) continue;
@@ -232,8 +268,8 @@ export function partName(path: string): PartName | null {
 }
 
 /** The label for a file anywhere it is named: an engineer's name where one is known, else its file name. */
-export function partLabel(path: string): string {
-  return partName(path)?.label ?? baseName(path);
+export function partLabel(path: string, titles?: ReadonlyMap<string, string>): string {
+  return partName(path, titles)?.label ?? baseName(path);
 }
 
 /**

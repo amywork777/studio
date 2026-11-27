@@ -9,7 +9,7 @@ import { useOpenWorkspaceStore } from "./openWorkspace";
 import { showOverview } from "./overviewPanel";
 import { useEngineeringInterface } from "./studioInterface";
 import { classifyProjectFile } from "./projectFiles";
-import { useFolderModels } from "./useFolderModels";
+import { useFolderModels, useModelTitles } from "./useFolderModels";
 import { useOpenInWorkbench } from "./useOpenInWorkbench";
 import { changeSentence, versionAround } from "./turnChange";
 import {
@@ -234,7 +234,11 @@ export function TurnDesignChanges(props: {
   readonly children: ReactNode;
 }) {
   const engineering = useEngineeringInterface();
-  const { changes, other } = designChanges(props.files.map((file) => file.path));
+  const titles = useModelTitles();
+  const { changes, other } = designChanges(
+    props.files.map((file) => file.path),
+    titles,
+  );
   if (!engineering) return props.children;
   if (props.threadRef === null || (changes.length === 0 && other === 0)) return null;
   return (

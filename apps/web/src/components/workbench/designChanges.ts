@@ -77,7 +77,11 @@ const TOOLING =
 /** Code that helps build parts without being one. */
 const HELPER_CODE = /(?:^|\/)(?:lib|libs|utils?|helpers?|common|scripts?|tests?)\//i;
 
-export function designChanges(paths: ReadonlyArray<string>): {
+/** `titles` names models by their id (`useModelTitles`), for files named after one. */
+export function designChanges(
+  paths: ReadonlyArray<string>,
+  titles?: ReadonlyMap<string, string>,
+): {
   readonly changes: ReadonlyArray<DesignChange>;
   /** Files with no engineer's name: tooling, settings, source with no part. */
   readonly other: number;
@@ -88,7 +92,7 @@ export function designChanges(paths: ReadonlyArray<string>): {
   >();
   let other = 0;
   for (const raw of new Set(paths.map((path) => path.replaceAll("\\", "/")))) {
-    const named = TOOLING.test(raw) ? null : partName(raw);
+    const named = TOOLING.test(raw) ? null : partName(raw, titles);
     if (named === null || (named.kind === "Source" && HELPER_CODE.test(raw))) {
       other += 1;
       continue;
