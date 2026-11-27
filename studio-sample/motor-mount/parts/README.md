@@ -4,9 +4,9 @@
 | --- | --- | --- |
 | parts/sizes.py | | The NEMA 17's mounting sizes, shared by the plate, its drawing and the mount |
 | parts/motor_plate.py | the motor plate model | The motor plate, milled from 6061-T6, with its 3D PMI: datums, sizes, positions, flatness, profiles, a note and two views |
-| parts/nema17.py | the NEMA 17 model | The NEMA 17 stepper, 40 mm body: step.parts' model, as a reference part |
+| parts/imported/nema17.py | the NEMA 17 model | The NEMA 17 stepper, 40 mm body: step.parts' model, as a reference part |
 | assemblies/motor_mount.py | the motor mount model | The plate, the motor under it and its four M3 x 6 screws |
-| exports.py | parts/motor_plate.step, parts/nema17.step, assemblies/motor_mount.step | The delivered STEP files, the plate's as AP242 with its PMI |
+| exports.py | parts/motor_plate.step, parts/imported/nema17.step, assemblies/motor_mount.step | The delivered STEP files, the plate's as AP242 with its PMI |
 | parts/motor_plate_drawing.py | drawings/motor_plate_drawing.pdf | The plate's engineering drawing, with its hole table |
 | checks/motor_plate_geometry.py | checks/motor_plate_geometry.md | The plate measured against its named sizes, and its mass |
 | checks/motor_plate_pmi.py | checks/motor_plate_pmi.md | The plate's PMI: every annotation attached, every face with a requirement, and the STEP's requirements read back |

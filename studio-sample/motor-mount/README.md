@@ -47,8 +47,8 @@ A plate milled from 6061-T6 aluminium that mounts a NEMA 17 stepper motor to a f
 
 ## In this project
 
-- The models: [the motor plate](parts/motor_plate.py), [the NEMA 17 motor](parts/nema17.py) and [the motor mount](assemblies/motor_mount.py), with [the models' catalog](parts/README.md).
-- Their STEP files, from [`exports.py`](exports.py): [the motor plate](parts/motor_plate.step), AP242 with its PMI, [the motor](parts/nema17.step) and [the mount](assemblies/motor_mount.step).
+- The models: [the motor plate](parts/motor_plate.py), [the NEMA 17 motor](parts/imported/nema17.py) and [the motor mount](assemblies/motor_mount.py), with [the models' catalog](parts/README.md).
+- Their STEP files, from [`exports.py`](exports.py): [the motor plate](parts/motor_plate.step), AP242 with its PMI, [the motor](parts/imported/nema17.step) and [the mount](assemblies/motor_mount.step).
 - The checks: [geometry](checks/motor_plate_geometry.md), [3D PMI](checks/motor_plate_pmi.md), [fit](checks/motor_mount_fit.md), [strength](docs/motor_plate_strength_report.md) and [the CNC machining review](docs/motor_plate_dfm.md) with [its measurements](checks/motor_plate_dfm_measure.md).
 - Making it: [the CAM job](cam/motor_plate/result.glb) and [its program](cam/motor_plate_cam.md), with [its LinuxCNC G-code](cam/motor_plate/motor_plate.top.ngc), and [the plate's drawing](drawings/motor_plate_drawing.pdf).
 - The documents: [PRD](docs/prd.md).

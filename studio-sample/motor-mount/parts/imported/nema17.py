@@ -7,7 +7,7 @@ from pathlib import Path
 
 from cad import model, step
 
-SOURCE = Path(__file__).resolve().parent / "imported" / "stepper_motor_nema17_l0040_single_shaft.step"
+SOURCE = Path(__file__).resolve().parent / "stepper_motor_nema17_l0040_single_shaft.step"
 
 
 @model
