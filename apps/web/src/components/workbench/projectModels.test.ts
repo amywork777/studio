@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { overviewParts, resultsFor } from "./checkResults";
 import { leadPartOf } from "./leadPart";
+import { groupProjectFiles } from "./projectFiles";
 import { projectFileItems } from "./projectItems";
 import {
   folderFiles,
@@ -93,6 +94,33 @@ describe("a project's models", () => {
     expect(overviewParts(folderFiles(folder.paths, models)).map((part) => part.path)).toEqual([
       PLATE,
     ]);
+  });
+
+  it("leave a bought part's model and STEP to Reference parts, never the project's parts", () => {
+    const SCREW = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+    const models = [
+      ...readFolderModels(reply).filter((model) => model.id === PLATE),
+      {
+        id: SCREW,
+        name: "iso4762_m3x8",
+        script: "parts/imported/iso4762_m3x8.py",
+        kind: "Part" as const,
+        updated: "1761555900",
+      },
+    ];
+    const paths = [
+      "parts/mounting_plate.py",
+      "parts/imported/iso4762_m3x8.py",
+      "parts/imported/iso4762_m3x8.step",
+      "parts/imported/bearing_608zz.step",
+    ];
+    const files = folderFiles(paths, models);
+    expect(files.find((file) => file.path === SCREW)?.group).toBe("Reference parts");
+    expect(overviewParts(files).map((part) => part.path)).toEqual([PLATE]);
+    expect(leadPartOf([{ root: "/p/bracket", paths, models }])?.file.path).toBe(PLATE);
+    expect(
+      groupProjectFiles(paths).map(({ group, files }) => [group, files.map((f) => f.name)]),
+    ).toEqual([["Reference parts", ["bearing_608zz.step", "iso4762_m3x8.step"]]]);
   });
 
   it("give a project with only models a picture, versions, ⌘K's parts and a new chat's starters", () => {

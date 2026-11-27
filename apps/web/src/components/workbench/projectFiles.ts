@@ -140,16 +140,21 @@ export function classifyProjectFile(path: string): ProjectFile | null {
   if (folders.some((segment) => CAM_FOLDER.test(segment))) {
     return { ...file, group: "Manufacturing", kind: "Toolpath" };
   }
-  if (folders.some((segment) => REFERENCE_FOLDER.test(segment))) {
-    return { ...file, group: "Reference parts" };
-  }
+  if (inReferenceFolder(folder)) return { ...file, group: "Reference parts" };
   return file;
 }
 
 const STUDY_FOLDER = /^(?:fea|sim|simulations?|stud(?:y|ies)|results?|analysis|analyses)$/i;
 const CAM_FOLDER = /^(?:cam|toolpaths?|machining)$/i;
 const REFERENCE_FOLDER =
-  /^(?:references?|vendor|vendors|suppliers?|library|libs?|third[-_]?party|purchased|datasheets?|off[-_]?the[-_]?shelf)$/i;
+  /^(?:references?|vendor|vendors|suppliers?|library|libs?|third[-_]?party|purchased|imported|datasheets?|off[-_]?the[-_]?shelf)$/i;
+
+/**
+ * Whether a folder holds parts made by someone else, bought or downloaded (`parts/imported/`, where
+ * `$standard-parts` puts them), and not the project's designs.
+ */
+export const inReferenceFolder = (folder: string) =>
+  folder.split("/").some((segment) => REFERENCE_FOLDER.test(segment));
 
 /**
  * A study's name, whichever of its files this is: `plate.fea.glb`, `plate.fea.json`, `plate.step`;

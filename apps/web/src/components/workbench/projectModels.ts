@@ -1,5 +1,5 @@
 import { humanName } from "./partNames";
-import { classifyProjectFile, type ProjectFile } from "./projectFiles";
+import { classifyProjectFile, inReferenceFolder, type ProjectFile } from "./projectFiles";
 
 /**
  * A cadgen 0.8 model of a project's folder: a part script's `@model`, as the engine's registry
@@ -59,17 +59,18 @@ export function byLatest(a: ProjectFile, b: ProjectFile): number {
 /**
  * A model as the project lists a part: by its document id (`path`), named as the engine names it,
  * filed in its script's folder under the script's name, so the checks run on it (named after its
- * script, as cadgen names a model's outputs) find it.
+ * script, as cadgen names a model's outputs) find it. One in a folder of bought parts is a reference part.
  */
 export function modelProjectFile(model: ProjectModel): ProjectFile {
   const segments = model.script.split("/");
   const name = segments.at(-1) ?? model.script;
+  const folder = segments.slice(0, -1).join("/");
   return {
     path: model.id,
     name,
     title: humanName(model.name),
-    folder: segments.slice(0, -1).join("/"),
-    group: "CAD",
+    folder,
+    group: inReferenceFolder(folder) ? "Reference parts" : "CAD",
     kind: model.kind,
     document: model.id,
     script: model.script,

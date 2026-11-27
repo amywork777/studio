@@ -21,9 +21,10 @@ A part number, price or supplier is only one you read on the supplier's page thi
 
 ## Standard hardware: one script per size
 
-Each distinct size is a part of its own, \`parts/hardware/<name>.py\`, writing its STEP beside it,
-so the Overview and the parts list count it. \`<name>\` is the standard and size as a Python name
-(\`iso4762_m3x8\`):
+Every bought part lives in \`parts/imported/\`, which Studio shows as Reference parts, apart from
+the parts the project designs. Each distinct size is a part of its own,
+\`parts/imported/<name>.py\`, writing its STEP beside it. \`<name>\` is the standard and size as a
+Python name (\`iso4762_m3x8\`):
 
 \`\`\`python
 # /// script
@@ -92,9 +93,10 @@ curl -s "https://api.step.parts/v1/parts/bearing_608zz"     # one part
 
 Each item has \`stepUrl\`, \`sha256\`, \`pageUrl\` and, where known, \`stepSource\` and \`productPage\`.
 Download the STEP to \`parts/imported/<id>.step\`, check its sha256 against the item's (stop and say
-so if it differs), and write a reference part that reads it, as the cad skill's vendor STEP does
-(\`step.read\`), its docstring naming step.parts' id, the source and its license where the item gives
-one, and what to check on the bought part.
+so if it differs), and write a reference part beside it that reads it, as the cad skill's vendor
+STEP does (\`step.read\`). Name it for what it is (\`parts/imported/nema17.py\`), never the downloaded
+file's name, so an export of it cannot overwrite the download. Its docstring names step.parts' id,
+the source and its license where the item gives one, and what to check on the bought part.
 
 ## In the assembly
 
