@@ -65,6 +65,33 @@ describe("design changes", () => {
     ).toEqual(["studies/tip-load/result.glb"]);
   });
 
+  it("calls a check's result and script the check, never the model, with no script of its own", () => {
+    const { changes, other } = designChanges([
+      "checks/test_plate.drawing-check.json",
+      "checks/test_plate_drawing_check.py",
+      "checks/hinge_fit_check.py",
+    ]);
+    expect(
+      changes.map((change) => [
+        change.label,
+        change.aspects,
+        change.kind,
+        change.open,
+        change.script,
+      ]),
+    ).toEqual([
+      [
+        "Test plate drawing check",
+        ["drawing check"],
+        "Drawing check",
+        "checks/test_plate.drawing-check.json",
+        null,
+      ],
+      ["Hinge fit check", ["fit check"], "Fit check", "checks/hinge_fit_check.py", null],
+    ]);
+    expect(other).toBe(0);
+  });
+
   it("names a lone aspect with its part, and opens a study's numbers as its model", () => {
     const { changes } = designChanges([
       "drawings/bracket.dxf",

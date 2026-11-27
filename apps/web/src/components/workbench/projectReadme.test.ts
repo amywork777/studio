@@ -181,6 +181,16 @@ describe("readmeSections", () => {
     });
   });
 
+  it("counts no question in an open questions section that only says there are none", () => {
+    for (const none of ["None.", "- None", "_No open questions._", "—", "none"]) {
+      const sections = readmeSections(
+        `# Plate\n\n## Open questions\n\n${none}\n\n## Notes\n\n- PLA\n`,
+      );
+      expect(sections.questions).toEqual([]);
+      expect(sections.more.map((section) => section.heading)).toEqual(["Notes"]);
+    }
+  });
+
   it("gives empty sections for a missing or empty README", () => {
     const empty = { title: null, whatItIs: null, decisions: [], questions: [], more: [] };
     expect(readmeSections(null)).toEqual(empty);
