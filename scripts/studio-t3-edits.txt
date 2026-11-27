@@ -192,6 +192,7 @@ apps/web/src/components/chat/ChatComposer.tsx
 apps/web/src/components/chat/ChatHeader.tsx
 apps/web/src/components/chat/ChatRightPanel.tsx
 apps/web/src/components/chat/ComposerControlsBar.tsx
+apps/web/src/components/chat/composerFocusRedirect.ts
 apps/web/src/components/chat/ComposerPendingApprovalActions.tsx
 apps/web/src/components/chat/ComposerPendingUserInputPanel.tsx
 apps/web/src/components/chat/ComposerPrimaryActions.tsx

@@ -732,7 +732,8 @@ as they were.
   check can show where on a sketch it read each size (Amy, 2026-11-25); the Brief's Attach files
   pictures in References only. On a remote
   project, or with no path on this computer, the file goes with the message and the agent files it
-  (`attachToReferences.ts`).
+  by its standing context (`attachToReferences.ts`, `studioProjectContext`), with nothing written
+  into the person's message.
 - **A drawing read, and checked.** A PDF attached in a project (a drop on the chat, Attach, or
   Home's Start) also has its sheets drawn on this computer with pdf.js into `<name>-pages/` beside
   it: `page-01.png` and on, and `pages.json` with each sheet's size and every callout's words and

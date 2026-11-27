@@ -62,6 +62,30 @@ export function readQuestion(item: string): ReadmeQuestion {
   return { text: (found[1] ?? "").trim(), answers };
 }
 
+const plainAnswer = (answer: string) =>
+  answer
+    .replace(/\(recommended\)/i, "")
+    .replace(/[.\s]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+/**
+ * The open questions the project's setup does not answer already: one with the setup's process or
+ * material among its answers ("How is it made? [CNC machining | ...]" with CNC machining set) is
+ * settled there, so it is not asked again.
+ */
+export function unansweredQuestions(
+  questions: ReadonlyArray<ReadmeQuestion>,
+  setup: { readonly process: string; readonly material: string } | null,
+): ReadonlyArray<ReadmeQuestion> {
+  const settled = [setup?.process ?? "", setup?.material ?? ""].map(plainAnswer).filter(Boolean);
+  if (settled.length === 0) return questions;
+  return questions.filter(
+    (question) => !question.answers.some((answer) => settled.includes(plainAnswer(answer))),
+  );
+}
+
 /** What a tap on an answer says in the chat, as the person's answer to the agent's question. */
 export function questionAnswer(question: ReadmeQuestion, answer: string): string {
   return `About the open question "${question.text}": ${answer}.`;

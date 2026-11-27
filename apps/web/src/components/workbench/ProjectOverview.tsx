@@ -68,7 +68,13 @@ import { usePartContext } from "./usePartContext";
 import { usePictures } from "./usePictures";
 import { useProjectChecks } from "./useProjectChecks";
 import { type ProjectLink, ProjectFacts } from "./ProjectStats";
-import { lastExport, measureFileFor, measuredSize, sizeWords } from "./overviewStats";
+import {
+  lastExport,
+  madePartCount,
+  measureFileFor,
+  measuredSize,
+  sizeWords,
+} from "./overviewStats";
 import { projectEnvironment } from "~/state/projects";
 import { useEnvironmentQuery } from "~/state/query";
 import { deliverablesPlan, exportCounts } from "./deliverables";
@@ -695,16 +701,6 @@ export function ProjectOverview(props: {
   const stats = (() => {
     if (props.heading === null) return null;
     const allParts = byFolder.flatMap((folder) => folder.parts);
-    // A part once, by its model or its STEP: not its meshes or a robot description beside it.
-    const cadParts = new Set(
-      allParts
-        .filter(
-          (part) =>
-            part.file.group === "CAD" &&
-            (part.file.document !== undefined || /\.(?:step|stp)$/i.test(part.file.path)),
-        )
-        .map((part) => part.file.name.replace(/\.[^.]+$/, "").toLowerCase()),
-    );
     const drawing = allParts.flatMap((part) =>
       part.drawings.map((path) => ({ root: part.root, path })),
     )[0];
@@ -716,7 +712,7 @@ export function ProjectOverview(props: {
     )[0];
     const exported = lastExport(exportZips);
     const material = props.heading.brief?.material.trim() ?? "";
-    const count = cadParts.size;
+    const count = madePartCount(allParts.map((part) => part.file));
     const facts = [
       ...(material === "" ? [] : [{ label: "Material", value: material }]),
       ...(count === 0 ? [] : [{ label: "Parts", value: String(count) }]),
@@ -784,6 +780,7 @@ export function ProjectOverview(props: {
             mutationId={props.mutationId}
             composerRef={props.composerRef}
             onShowChat={showChat}
+            setup={props.heading.brief}
           />
           {/* What passed is in the heading's badges: the panel is for what is open. */}
           {issues.length > 0 ? issuesPanel : null}
