@@ -167,7 +167,10 @@ Its screenshots are the sample project in a packaged app, driven over Chrome's d
   PATH before Applications, so the next plan uses it with no restart. Until then the boot step puts
   a stand-in `freecadcmd` there that exits at once saying FreeCAD is not installed for Studio, so a
   plan never falls through to a FreeCAD in Applications and waits on its question; the install
-  replaces it. Windows keeps the skill's own
+  replaces it. The install takes minutes, past an agent's command limit (Claude Code's is 120 s), so it runs
+  detached, holding `install.lock` and writing how far it is in `install-status.json`, and each call
+  (`studio-install-freecad`, then `--wait`) returns within 90 s saying how far it is, so the agent
+  calls again until it is installed and plans in the same turn, whichever provider it is. Windows keeps the skill's own
   steps (FreeCAD's installer), and the command says so there.
 
 **The Windows app.** The same script, run in Git Bash on Windows, builds the installer

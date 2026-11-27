@@ -15,7 +15,14 @@ plan uses this FreeCAD, with no restart. Until then Studio puts a stand-in there
 CAM never falls through to a FreeCAD in Applications, whose first run waits on macOS's question: a plan
 stops at once, and the stand-in says FreeCAD is not installed for Studio. The install replaces it.
 
-    studio-install-freecad [--from <the release's .dmg, already downloaded>]
+The install takes minutes (a download of about 650 MB, a copy and macOS's signature check), longer than an
+agent's command may run (Claude Code's stops at 120 s), so it runs in a process of its own, detached, that holds
+`install.lock` until it ends and writes how far it is in `install-status.json`. Each call returns within
+`WAIT_S`, saying how far the install is, so an agent calls again until it says FreeCAD is installed, in the
+same turn, whichever agent it is.
+
+    studio-install-freecad [--from <the release's .dmg, already downloaded>]   # start it, or join it, and wait
+    studio-install-freecad --wait     # wait for the install running, up to WAIT_S, starting none
     studio-install-freecad --check    # whether it is installed, running nothing (exit 0 yes, 1 no)
 """
 
@@ -30,6 +37,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -48,6 +56,8 @@ DMGS = {
 TEAM = "289DJRF23X"
 QUARANTINE = "com.apple.quarantine"
 VERSION_TIMEOUT_S = 60
+# How long one call waits for the install: well under the 120 s an agent's command may run.
+WAIT_S = 90
 PROGRAM = Path("Contents", "Resources", "bin", "freecadcmd")
 # Studio's `freecadcmd` on a Mac until its FreeCAD is installed (written here for a checkout, by studioAppBundle.ts for
 # the app, the same text): it exits at once and says why on stderr, never a "FreeCAD <version>" cad would take.
@@ -93,6 +103,18 @@ class Place:
     @property
     def link(self) -> Path:
         return self.launchers / "freecadcmd"
+
+    @property
+    def lock(self) -> Path:
+        return self.folder / "install.lock"
+
+    @property
+    def status(self) -> Path:
+        return self.folder / "install-status.json"
+
+    @property
+    def log(self) -> Path:
+        return self.folder / "install.log"
 
 
 def sha256(path: Path) -> str:
@@ -202,8 +224,119 @@ def check(place: Place) -> tuple[int, str]:
     """Whether Studio's FreeCAD is installed, from its record alone (no FreeCAD run): an exit code and a sentence."""
     if installed(place):
         return 0, f"FreeCAD {VERSION} is installed for Studio: {place.program}"
-    return 1, (f"FreeCAD is not installed for Studio. `studio-install-freecad` installs FreeCAD {VERSION} "
+    if installing(place):
+        return 1, f"FreeCAD is being installed for Studio now. {AGAIN}"
+    status = read_status(place)
+    failed = f" The last install stopped: {status['error']}." if status.get("state") == "failed" else ""
+    return 1, (f"FreeCAD is not installed for Studio.{failed} `studio-install-freecad` installs FreeCAD {VERSION} "
                "(a download of about 650 MB), once the person says yes")
+
+
+AGAIN = "Run `studio-install-freecad --wait` again until it says FreeCAD is installed; no plan has run yet."
+
+
+def installing(place: Place) -> bool:
+    """Whether an install holds `place.lock` now (an flock, so it is let go when its process ends, however)."""
+    import fcntl
+
+    if not place.lock.exists():
+        return False
+    fd = os.open(place.lock, os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return True
+    finally:
+        os.close(fd)
+    return False
+
+
+def read_status(place: Place) -> dict:
+    try:
+        status = json.loads(place.status.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return status if isinstance(status, dict) else {}
+
+
+def write_status(place: Place, **status) -> None:
+    staged = place.status.with_suffix(".json.new")
+    staged.write_text(json.dumps(status) + "\n", encoding="utf-8")
+    staged.replace(place.status)
+
+
+def start(place: Place, spawn: Callable[[int], None]) -> bool:
+    """The install started, by `spawn` handed the open `place.lock` it holds locked (its process keeps it until it
+    ends), unless FreeCAD is installed or an install already holds the lock: whether this call started one."""
+    import fcntl
+
+    if installed(place):
+        link(place)
+        return False
+    place.folder.mkdir(parents=True, exist_ok=True)
+    fd = os.open(place.lock, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        write_status(place, state="installing", said=[])
+        try:
+            spawn(fd)
+        except OSError as error:
+            write_status(place, state="failed", said=[], error=f"the install could not start ({error})")
+            raise Refused(f"the install could not start ({error})") from None
+    finally:
+        os.close(fd)
+    return True
+
+
+def detach(place: Place, fd: int, args: list[str]) -> subprocess.Popen:
+    """`args` run in a session of their own, holding the lock `fd` until they end, their output in `place.log`."""
+    with place.log.open("w", encoding="utf-8") as log:
+        return subprocess.Popen(args, pass_fds=(fd,), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                         start_new_session=True)
+
+
+def work(place: Place, source: Path | None, machine: str, run: Run = run) -> int:
+    """The install itself, in the detached process: how far it is, and how it ended, in `place.status`."""
+    said: list[str] = []
+
+    def say(line: str) -> None:
+        said.append(line.strip())
+        write_status(place, state="installing", said=said)
+
+    try:
+        install(place, source, machine, say, run)
+    except Refused as refused:
+        write_status(place, state="failed", said=said, error=str(refused))
+        return 1
+    except Exception as error:  # noqa: BLE001 -- whatever stops it is said to the agent waiting on it
+        write_status(place, state="failed", said=said, error=f"{type(error).__name__}: {error}")
+        return 1
+    write_status(place, state="installed", said=said)
+    return 0
+
+
+def wait(place: Place, seconds: float = WAIT_S, sleep: Callable[[float], None] = time.sleep,
+         clock: Callable[[], float] = time.monotonic) -> tuple[int, str]:
+    """Waits up to `seconds` for the install running: an exit code and what to say (0 installed or still
+    installing, which the words tell apart; 1 failed or none running)."""
+    end = clock() + seconds
+    while installing(place):
+        if clock() >= end:
+            said = read_status(place).get("said") or ["starting"]
+            return 0, f"Still installing FreeCAD for Studio, at: {said[-1]} {AGAIN}"
+        sleep(1)
+    status = read_status(place)
+    if installed(place):
+        return 0, f"Installed FreeCAD {VERSION} for Studio: {place.program}. Plan now."
+    if status.get("state") == "failed":
+        return 1, f"Studio did not install FreeCAD: {status['error']}."
+    if status.get("state") == "installing":
+        return 1, (f"The install of FreeCAD stopped before it finished ({place.log} says why). Run "
+                   "`studio-install-freecad` to start it again.")
+    return 1, "No install of FreeCAD for Studio is running. `studio-install-freecad` starts one."
 
 
 def download(url: str, to: Path, say: Callable[[str], None]) -> None:
@@ -284,6 +417,9 @@ def main(argv: list[str]) -> int:
                         help=f"the release's disk image, already downloaded ({DMGS['arm64'][0]})")
     parser.add_argument("--check", action="store_true",
                         help="say whether Studio's FreeCAD is installed, downloading and running nothing")
+    parser.add_argument("--wait", action="store_true",
+                        help=f"wait up to {WAIT_S} s for the install running, starting none")
+    parser.add_argument("--work", action="store_true", help=argparse.SUPPRESS)
     options = parser.parse_args(argv)
     if sys.platform != "darwin":
         print("studio-install-freecad installs FreeCAD on a Mac. On Windows, install FreeCAD 1.1 or newer from "
@@ -293,16 +429,26 @@ def main(argv: list[str]) -> int:
     if not launchers:
         print("Run studio-install-freecad from Studio, which names its folders (CAD_LAUNCHER_DIR).", file=sys.stderr)
         return 1
+    place = Place(Path(launchers))
     if options.check:
-        code, said = check(Place(Path(launchers)))
+        code, said = check(place)
         print(said, flush=True)
         return code
-    try:
-        install(Place(Path(launchers)), options.source, platform.machine(), lambda line: print(line, flush=True))
-    except Refused as refused:
-        print(f"Studio did not install FreeCAD: {refused}.", file=sys.stderr)
-        return 1
-    return 0
+    if options.work:
+        return work(place, options.source, platform.machine())
+    if not options.wait:
+        source = ["--from", str(options.source.resolve())] if options.source else []
+        try:
+            if start(place, lambda fd: detach(place, fd, [sys.executable, "-P", "-B", str(Path(__file__).resolve()),
+                                                         "--work", *source])):
+                print(f"Installing FreeCAD {VERSION} for Studio (a download of about 650 MB, a few minutes).",
+                      flush=True)
+        except Refused as refused:
+            print(f"Studio did not install FreeCAD: {refused}.", file=sys.stderr)
+            return 1
+    code, said = wait(place)
+    print(said, file=sys.stderr if code == 1 else sys.stdout, flush=True)
+    return code
 
 
 if __name__ == "__main__":
