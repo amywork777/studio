@@ -105,6 +105,7 @@ const FILE_KINDS: Readonly<Record<string, ProjectGroup>> = {
   "FEA study": "Analysis",
   Result: "Analysis",
   "CAM job": "Manufacturing",
+  "CAM plan": "Manufacturing",
   Toolpath: "Manufacturing",
   "G-code": "Manufacturing",
   Gerbers: "Manufacturing",
