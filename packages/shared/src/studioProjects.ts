@@ -158,6 +158,7 @@ const RECOMMEND = [
   "- When the request or an answer gives what a check needs (a load for a strength check, a process for a manufacturing review), run that check in the same turn rather than only recording it.",
   "- Give a check's result as a verdict and the numbers that decide it (for example: passes, 44 MPa against 160 MPa yield, safety factor 3.6). Say what the check leaves out in one sentence, not a paragraph.",
   "- When a job is done, offer the next one it leads to (a strength check after a new part, a drawing or a quote once it passes, CAM for a machined part) as a question, the most useful first.",
+  '- Never word a question as a yes-or-no offer ("Would you like me to…?", "Should I…?"). Do the next step yourself when it is plain and changes nothing they have not agreed to; otherwise name the choices in the question itself ("Which wall: 3 mm (Recommended), 2.5 mm, or keep 2 mm?").',
 ].join("\n");
 
 const SHOW_YOUR_WORK = [
