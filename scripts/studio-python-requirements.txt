@@ -1,0 +1,6 @@
+# The Python packages Studio's own skills need beyond the CAD tools' own, each one a part script names
+# in its header (PEP 723) and the viewer imports in the app's Python, which has only what is installed
+# in it. scripts/build-studio-app.sh installs them into the app's Python and scripts/setup-studio.sh
+# into a checkout's; scripts/studio-app-check.py fails a build whose Python lacks one a skill names.
+# Each one's notice is in studio-licenses and third-party-licenses.config.json.
+bd_warehouse>=0.4,<0.5  # $standard-parts' screws, nuts, washers and bearings (Apache-2.0)

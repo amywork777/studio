@@ -30,7 +30,8 @@ which trips on the vendored `.repos` tree's gitlinks). Set it up on a Mac with
 `scripts/setup-studio.sh`, after Apple's command line tools and Node 24, and again after pulling.
 It fetches the text-to-cad submodule at its pin, installs the packages (the repository's own vp, run through npx when
 none is installed), fetches Electron, makes `text-to-cad/.venv` with uv (`uv sync --locked`,
-Python 3.14, with the `fea` group), runs `npm ci`, `npm run build:packages` and
+Python 3.14, with the `fea` group) and adds what Studio's own skills' part scripts import
+(`scripts/studio-python-requirements.txt`, which the app's Python gets too), runs `npm ci`, `npm run build:packages` and
 `scripts/bundle/bundle.sh` in `text-to-cad/`, and checks for Claude Code; it changes no shell
 settings. `scripts/run-studio.sh` starts it:
 `TEXT_TO_CAD_DEV=1 vpr studio:desktop`, from this repository's `text-to-cad/` (`TEXT_TO_CAD_ROOT`
@@ -42,7 +43,7 @@ built (`npm run build:packages` in `text-to-cad/`) before Studio starts.
 `release/Studio-<version>-arm64.dmg`, which needs nothing else on an Apple silicon Mac. Its first
 screen installs Claude Code and signs in, so the person needs only their own Claude subscription.
 Its last step checks the built app (`scripts/studio-app-check.py`): with the app's own Python and a
-scratch home, it rebuilds all five examples, compares each STEP with the one shipped and solves every
+scratch home, it imports every package a skill's part script names in its header, rebuilds all five examples, compares each STEP with the one shipped and solves every
 strength study, held to the answer the example ships with. Last, it fails if any of that wrote outside the CAD
 tools' own folders in the scratch home, where a text-to-cad installed beside Studio keeps its data
 (Jake's condition for Studio's own copy). Then `scripts/studio-app-open-check.mjs`

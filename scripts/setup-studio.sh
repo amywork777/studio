@@ -57,6 +57,8 @@ cd "$CAD"
 # and with the `fea` group strength checks' mesher and solver (netgen, cad-ccx's CalculiX), as the
 # Mac app has them, so a check runs here at once rather than making an environment for them first.
 uv sync --locked --python 3.14 --group fea
+# And what Studio's own skills' part scripts import, as the app's Python has it.
+uv pip install --python .venv -r "$ROOT/scripts/studio-python-requirements.txt"
 
 step "Building the CAD plugin's viewer and runtime"
 npm ci
