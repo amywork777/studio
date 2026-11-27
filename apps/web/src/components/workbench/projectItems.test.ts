@@ -96,6 +96,22 @@ describe("project items", () => {
     expect(found("  ")).toHaveLength(3);
   });
 
+  it("calls a .gsl an Implicit part, and folds one beside a part's script into that part's row", () => {
+    const items = projectFileItems([
+      {
+        root: "/p/lattice",
+        paths: ["parts/bracket.py", "parts/bracket.gsl", "parts/grip_pad.gsl"],
+        models: [
+          { id: "b1", name: "bracket", script: "parts/bracket.py", kind: "Part", updated: null },
+        ],
+      },
+    ]);
+    expect(items.map((item) => [item.label, item.kind])).toEqual([
+      ["Bracket", "Part · implicit concept"],
+      ["Grip pad", "Implicit part"],
+    ]);
+  });
+
   it("lists nothing for a folder still being read", () => {
     expect(projectFileItems([{ root: "/p/new", paths: null }])).toEqual([]);
   });

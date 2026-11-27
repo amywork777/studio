@@ -65,6 +65,7 @@ const KINDS: ReadonlyArray<{
   { ending: ".step", kind: "Part", units: "mm" },
   { ending: ".stp", kind: "Part", units: "mm" },
   { ending: ".xbf", kind: "Part", units: "mm" },
+  { ending: ".gsl", kind: "Implicit part", units: "mm" },
   { ending: ".stl", kind: "Mesh", units: "mm" },
   { ending: ".3mf", kind: "Mesh", units: "mm" },
   { ending: ".glb", kind: "Mesh", units: "mm" },

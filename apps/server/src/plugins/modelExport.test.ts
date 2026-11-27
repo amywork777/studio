@@ -33,6 +33,19 @@ describe("export from a part's tab", () => {
     });
   });
 
+  it("writes an implicit part's STEP with its own command, and nothing else from it", () => {
+    expect(
+      exportCommand({ cwd, source: "parts/grip_pad.gsl", destinations: ["parts/grip_pad.step"] }),
+    ).toEqual({
+      type: "gsl",
+      args: ["gsl", "step", at("parts/grip_pad.gsl"), at("parts/grip_pad.step")],
+    });
+    const refused = (destinations: string[]) =>
+      "refused" in exportCommand({ cwd, source: "parts/grip_pad.gsl", destinations });
+    expect(refused(["parts/grip_pad.stl"])).toBe(true);
+    expect(refused(["parts/grip_pad.step", "parts/pad.step"])).toBe(true);
+  });
+
   it("refuses to write the part's own file, outside the project, or a format the menu lacks", () => {
     const refused = (source: string, destinations: string[], typeless?: boolean) =>
       "refused" in exportCommand({ cwd, source, destinations, typeless });

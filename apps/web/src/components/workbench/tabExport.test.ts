@@ -22,6 +22,7 @@ describe("a part tab's Export", () => {
     ]);
     expect(files("share/arm.xbf")).toEqual(["share/arm.step", "share/arm.stl", "share/arm.3mf"]);
     expect(files("scan.stl")).toEqual(["scan.3mf"]);
+    expect(files("parts/grip_pad.gsl")).toEqual(["parts/grip_pad.step"]);
   });
 
   it("offers nothing for a drawing, a document, a file outside the project or an unread model", () => {

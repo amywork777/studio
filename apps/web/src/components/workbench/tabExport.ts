@@ -11,13 +11,15 @@ export const EXPORT_LABELS: Readonly<Record<ExportFormat, string>> = {
 
 const ALL: ReadonlyArray<ExportFormat> = ["step", "stl", "3mf"];
 
-/** What each file kind exports to. A STEP never to STEP, the person's own file; a mesh never to one. */
+/** What each file kind exports to. A STEP never to STEP, the person's own file; a mesh never to one; an
+ * implicit part to a STEP alone, its faces held to its field (`cad gsl step`). */
 const BY_ENDING: ReadonlyArray<readonly [RegExp, ReadonlyArray<ExportFormat>]> = [
   [/\.xbf$/i, ALL],
   [/\.(?:step|stp)$/i, ["stl", "3mf"]],
   [/\.stl$/i, ["3mf"]],
   [/\.3mf$/i, ["stl"]],
   [/\.glb$/i, ["stl", "3mf"]],
+  [/\.gsl$/i, ["step"]],
 ];
 
 export interface ExportPlan {

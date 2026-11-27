@@ -136,6 +136,8 @@ const ENDINGS: ReadonlyArray<{
   { ending: /\.(?:step|stp|xbf)$/i, kind: "Part", suffix: "" },
   // A SolidCraft design: the part itself, as the engineer edits it in SolidCraft.
   { ending: /\.solidcraft$/i, kind: "Design", suffix: "" },
+  // A GSL field (omega): a part drawn as its concept, with no exact faces until it is baked to B-rep.
+  { ending: /\.gsl$/i, kind: "Implicit part", suffix: "" },
   { ending: /\.(?:stl|3mf|obj|glb)$/i, kind: "Mesh", suffix: (match) => meshFormat(match[0]) },
   { ending: /\.urdf$/i, kind: "Robot", suffix: "robot description" },
   { ending: /\.srdf$/i, kind: "Planning groups", suffix: "planning groups" },

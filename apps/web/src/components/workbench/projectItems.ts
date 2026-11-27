@@ -42,7 +42,7 @@ export const itemType = (group: ProjectGroup): ItemType => TYPE_OF[group];
 
 /** What each type holds, as its filter's tooltip says: a model is any of its formats. */
 export const ITEM_TYPE_FORMATS: Readonly<Record<ItemType, string>> = {
-  CAD: "STEP · STL · GLB · 3MF · XBF · DXF drawings",
+  CAD: "STEP · STL · GLB · 3MF · XBF · GSL implicit parts · DXF drawings",
   Electronics: "KiCad boards and schematics",
   Analysis: "Strength studies and their results",
   Manufacturing: "CAM jobs · G-code · Gerbers · parts lists",
@@ -73,6 +73,8 @@ const ASSEMBLY_FOLDER = /(?:^|\/)assembl(?:y|ies)\//i;
 /** What a file is, as the list says it: the CAD tools keep assemblies in their own folder. */
 const kindOf = (file: ProjectFile) =>
   file.kind === "Part" && ASSEMBLY_FOLDER.test(file.path) ? "Assembly" : file.kind;
+
+const stemKey = (file: ProjectFile) => `${file.folder}/${file.name.split(".")[0]?.toLowerCase()}`;
 
 /** Whether an item answers a filter: words found in its name, what it is, or where it sits. */
 export function itemMatches(item: FileItem, query: string): boolean {
@@ -115,8 +117,15 @@ export function projectFileItems(
     const files = oneCardPerStudy(folderFiles(folder.paths ?? [], folder.models)).filter(
       (file) => !/^readme\.md$/i.test(file.path),
     );
+    // A part's implicit concept (a `.gsl` beside its script) folds into the part's row, which says so.
+    const concepts = new Set(files.filter((file) => file.kind === "Implicit part").map(stemKey));
     for (const file of overviewParts(files)) {
-      items.push({ root: folder.root, file, label: labelOf(file), kind: kindOf(file) });
+      const kind = kindOf(file);
+      const shown =
+        file.document !== undefined && concepts.has(stemKey(file))
+          ? `${kind} · implicit concept`
+          : kind;
+      items.push({ root: folder.root, file, label: labelOf(file), kind: shown });
     }
     const kept = new Map<string, ProjectFile>();
     for (const file of files) {
