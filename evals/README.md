@@ -11,6 +11,7 @@ Write or run an eval when a change affects what a model sees or does: agent inst
 | [pr-content](pr-content/)       | Whether PR generation describes the diff when project instructions try to redirect it.               |
 | [voice-cleanup](voice-cleanup/) | Whether optional dictation cleanup edits only the spoken text and preserves its meaning.             |
 | [test-signal](test-signal/)     | Whether a cheap model running the test-signal check flags low-signal tests.                          |
+| [cad-implicits](cad-implicits/) | Whether Studio's agent uses GSL where the cad skill says, and whether what it builds is right.       |
 
 ## Run an eval
 
