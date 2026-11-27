@@ -86,8 +86,8 @@ STUDIO_CAM_DEFAULTS = (
     "   - **The controller** (`machine.post`): a dialect read by the wrong controller moves the machine wrongly, so\n"
     "     never guess it from the make. When the person has not named it, plan with `grbl`, say at the top of your\n"
     "     reply that the G-code is for GRBL only and must not run on another controller, and ask which controller\n"
-    "     runs the machine (GRBL, LinuxCNC, Mach3/4, Fanuc, Centroid, UCCNC, Smoothieware), with no answer marked\n"
-    "     (Recommended); plan again with its post.\n"
+    "     runs the machine (GRBL (Recommended), LinuxCNC, Mach3/4, Fanuc, Centroid, UCCNC, Smoothieware); plan\n"
+    "     again with its post.\n"
     "   - **The spindle's top speed** (`machine.max_rpm`): 10000, unless the person names the spindle or machine.\n"
     "     On a faster spindle that only cuts slower, never harder.\n"
     "   - The machine's travel, slowest spindle speed and feed limit: left out, so the report says travel and feed\n"
@@ -101,10 +101,13 @@ STUDIO_CAM_DEFAULTS = (
     "   - **How the part is held**: in a machine vise, cut from the top (`+Z`, `stock-top-center`); a second setup,\n"
     "     flipped, only for faces the top cannot reach.\n"
     "   - The material the person named (6061, not \"aluminium\"), else 6061 for an aluminium part.\n"
-    "   Tool data the person gives, or their tool table, replaces these. Once the plan has run, ask about the\n"
-    "   assumptions that matter most (the tools, the spindle speed, how the part is held), each with the answer you\n"
-    "   planned with marked (Recommended), and plan again with what they change. Only the FreeCAD download is asked\n"
-    "   before the first plan (Install FreeCAD).\n"
+    "   Tool data the person gives, or their tool table, replaces these. Once the plan has run, and before any\n"
+    "   question, say in one plain line what you planned with, for example: \"Planned with: GRBL, a 10000 rpm\n"
+    "   spindle, a 6 mm flat end mill and a drill for each hole size, 3 mm of stock a side and 1 mm on top, held in\n"
+    "   a vise from the top.\" Then ask, the controller first whenever the person has not named it, then the tools, the spindle\n"
+    "   speed and how the part is held: each question's first answer is the one you planned with, marked\n"
+    "   (Recommended), and you plan again with what they change. Only the FreeCAD download is asked before the\n"
+    "   first plan (Install FreeCAD).\n"
 )
 # The words that told an agent to ask before planning, which no cam skill Studio carries may keep.
 CAM_ASKS_FIRST = ("Ask what you cannot see", "Never fill one of these in yourself")

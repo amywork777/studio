@@ -20,6 +20,8 @@ export type StudioReplyCase = {
   readonly mustRun?: ReadonlyArray<string>;
   /** Case-insensitive regexes no command line the agent ran may match. */
   readonly mustNotRun?: ReadonlyArray<string>;
+  /** Case-insensitive regexes, each capturing one quantity's number: the reply gives it one value. */
+  readonly sameValue?: ReadonlyArray<string>;
 };
 
 export type CommandFixture = {
@@ -208,6 +210,59 @@ const STUDIO_FREECAD: ReadonlyArray<CommandFixture> = [
   { args: "--check", stdout: "Studio's FreeCAD 1.1.4 is installed.\n" },
 ];
 
+// A plate bolted through its hole, sized as the 0.1.19 retest's: the models' washer and nut are
+// thicker than the standards' nominal ones, so the script's stack leaves 5.4 mm of thread below the nut.
+const BOLTED_PLATE: Readonly<Record<string, string>> = {
+  "assemblies/plate_assembly.py": [
+    '"""The plate with an M8 bolt, washer and nut through its Ø10 mm hole.',
+    "",
+    "Stack, from the top: the ISO 4017 M8 x 20 bolt's head on the ISO 7089 washer, on the plate (Z 0 to 6),",
+    "then the ISO 4032 M8 nut under the plate.",
+    '"""',
+    "",
+    "import build123d as bd",
+    "from cad import model, step",
+    "",
+    "from parts.plate import plate",
+    "",
+    "PLATE_TOP = 6",
+    "WASHER_THICKNESS = 1.8  # bd_warehouse's ISO 7089 table",
+    "NUT_HEIGHT = 6.8  # bd_warehouse's ISO 4032 table",
+    "BOLT_LENGTH = 20",
+    "",
+    "",
+    "@model",
+    "def plate_assembly():",
+    '    washer = step.read("parts/imported/iso7089_m8.step")',
+    '    bolt = step.read("parts/imported/iso4017_m8x20.step")',
+    '    nut = step.read("parts/imported/iso4032_m8.step")',
+    "    bolt_z = PLATE_TOP + WASHER_THICKNESS",
+    "    return bd.Compound(",
+    "        children=[",
+    "            plate().shape,",
+    "            bd.Pos(40, 25, PLATE_TOP) * washer,",
+    "            bd.Pos(40, 25, bolt_z) * bolt,",
+    "            bd.Pos(40, 25, -NUT_HEIGHT) * nut,",
+    "        ],",
+    "    )",
+    "",
+  ].join("\n"),
+  "parts/plate.py": [
+    "from build123d import *",
+    "from cad import model",
+    "",
+    "",
+    "@model",
+    "def plate():",
+    "    with BuildPart() as part:",
+    "        Box(80, 50, 6, align=(Align.MIN, Align.MIN, Align.MIN))",
+    "        with Locations((40, 25, 6)):",
+    "            Hole(radius=5)",
+    "    return part",
+    "",
+  ].join("\n"),
+};
+
 export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
   {
     id: "study-fix-offer",
@@ -301,6 +356,38 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
     mustNotRun: ["^studio-install-freecad(?!.*--check)"],
   },
   {
+    id: "cam-controller-recommended",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest, Haiku 5.5: after planning with defaults, the agent asked which controller with no answer marked (Recommended), and said what it planned with only after the answer.",
+    prompt: "Make CNC G-code for this plate, `parts/plate.step`.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": STUDIO_FREECAD },
+    mustRun: ["\\bplan\\b.*--job"],
+    mustMatch: [
+      "GRBL[^\\n]{0,60}\\(Recommended\\b|\\(Recommended\\b[^\\n]{0,20}GRBL",
+      "10[,. ]?000\\s?(?:rpm|rev/min|r/min)",
+      "(?:Ø|\\b)6(?:\\s?mm)?\\b[^\\n]{0,40}(?:end ?mill|flat|cutter)",
+      "\\b3\\s?mm\\b[^\\n]{0,60}(?:margin|each side|stock|blank)|(?:margin|stock|blank)[^\\n]{0,60}\\b3\\s?mm\\b|106\\s?[x×]\\s?66",
+      "\\b(?:vi[cs]e|clamp\\w*|tape|vacuum|held|hold(?:s|ing)?)\\b",
+    ],
+  },
+  {
+    id: "bolt-thread-one-value",
+    kind: "control",
+    source:
+      'Studio 0.1.19 retest, Haiku 5.5: on a bolted plate the agent said both "6 mm of thread runs below the nut" and "M8 × 20 leaves 5.4 mm of thread below the nut". Asked here in one turn, Haiku gave one value on the old text too.',
+    prompt:
+      "The plate now has an M8 x 20 bolt, washer and nut through its hole (`assemblies/plate_assembly.py`). Tell me how the stack sits, and whether the bolt is long enough.",
+    files: BOLTED_PLATE,
+    mustMatch: ["5\\.4\\s?mm"],
+    sameValue: [
+      "(?<![\\d.])(\\d+(?:\\.\\d+)?)\\s?mm (?:of )?(?:the )?(?:bolt(?:'s)? )?(?:thread|shank|bolt)\\w*[^.\\n\\d]{0,30}?\\b(?:below|beyond|past|under|out of|through|clear of)\\b[^.\\n\\d]{0,12}\\bnut\\b",
+      "(?:protrud\\w*|sticks? out|projects?)\\b[^.\\n\\d]{0,30}?(\\d+(?:\\.\\d+)?)\\s?mm",
+    ],
+  },
+  {
     id: "material-fact",
     kind: "control",
     source: "Ordinary question: the reply answers it with the number.",
@@ -318,6 +405,16 @@ export const YES_NO_OFFER =
 
 /** A link to the CAD server's pages, which carries its access token: Studio shows results in its own tabs. */
 export const VIEWER_URL = /\?token=|\bhttps?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])[:/]/i;
+
+/** One quantity said with two numbers ("6 mm of thread below the nut", then "5.4 mm"). */
+const sameValueFailures = (patterns: ReadonlyArray<string>, reply: string) => {
+  const values = new Set(
+    patterns.flatMap((pattern) =>
+      [...reply.matchAll(new RegExp(pattern, "gi"))].map((match) => Number(match[1])),
+    ),
+  );
+  return values.size > 1 ? [`two values: ${[...values].join(" mm and ")} mm`] : [];
+};
 
 /** `ran`: the command lines the agent ran, as `cad step plan …`. */
 export const gradeReply = (
@@ -337,6 +434,7 @@ export const gradeReply = (
     ...(testCase.mustNotRun ?? [])
       .filter((pattern) => ran.some((line) => new RegExp(pattern, "i").test(line)))
       .map((pattern) => `ran /${pattern}/`),
+    ...sameValueFailures(testCase.sameValue ?? [], reply),
   ];
   return { pass: failures.length === 0, failures };
 };

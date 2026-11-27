@@ -136,7 +136,6 @@ describe("studio projects", () => {
     expect(context).toContain("## Questions and recommendations");
     expect(context).toContain("marked (Recommended)");
     expect(context).toContain("Never ask an open question without a default.");
-    expect(context).toContain("offer the choices with none marked (Recommended)");
     expect(context).toContain("propose the fix you would make with what you expect it to give");
     expect(context).toContain("offer the next one it leads to");
     expect(context).toContain("run that check in the same turn rather than only recording it");
