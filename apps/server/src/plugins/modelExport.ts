@@ -9,6 +9,8 @@ import { documentType, runCad, type SnapshotLaunch } from "./modelPictures.ts";
 
 /** What an export may write: the formats the tab's menu offers. */
 const WRITABLE = /\.(?:step|stl|3mf)$/i;
+/** An implicit (GSL) part, whose STEP is `cad gsl step`: its mesh as planar faces, held to its field. */
+const IMPLICIT = /\.gsl$/i;
 
 export interface ExportInput {
   readonly launch: SnapshotLaunch;
@@ -29,7 +31,7 @@ export function exportCommand(
   input: Omit<ExportInput, "launch"> & { readonly typeless?: boolean | undefined },
 ): { readonly type: string; readonly args: ReadonlyArray<string> } | { readonly refused: string } {
   if (input.typeless === true) return { refused: "This CAD release has no export of its own." };
-  const type = documentType(input.source);
+  const type = IMPLICIT.test(input.source) ? "gsl" : documentType(input.source);
   if (type === null) return { refused: `${input.source} is not a model Studio can export.` };
   const root = NodePath.resolve(input.cwd);
   const inside = (path: string) => {
@@ -47,7 +49,11 @@ export function exportCommand(
     if (absolute === source) return { refused: `${destination} is the part's own file.` };
     destinations.push(absolute);
   }
-  return { type, args: [type, "export", source, ...destinations] };
+  if (type !== "gsl") return { type, args: [type, "export", source, ...destinations] };
+  const [step, ...more] = destinations;
+  if (step === undefined || more.length > 0 || !/\.step$/i.test(step))
+    return { refused: "An implicit part exports to one STEP." };
+  return { type, args: ["gsl", "step", source, step] };
 }
 
 /** Writes the files, starting the CAD server first where the release needs one running. */
