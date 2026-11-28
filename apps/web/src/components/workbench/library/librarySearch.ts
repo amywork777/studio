@@ -9,6 +9,7 @@ import { findExamples } from "../examples/examples";
 import { HARDWARE_ACTIONS } from "../hardwareActions";
 import { jobOfSkill } from "../jobSkills";
 import { holdsWords } from "../quickFind";
+import { TOOLBOX_TABS, type ToolboxTab, toolboxTabOf } from "../toolbox";
 import {
   findItIn,
   type LibraryDocument,
@@ -18,16 +19,8 @@ import {
   skillName,
 } from "./libraryCatalog";
 
-/** Where a document type is found: New, or the part menu one of its jobs is in. */
-export type LibraryGroup = "New" | "Evaluate" | "Manufacture" | "Document";
-
-/** The document types' groups, in the order the page shows them. */
-export const LIBRARY_GROUPS: ReadonlyArray<LibraryGroup> = [
-  "New",
-  "Evaluate",
-  "Manufacture",
-  "Document",
-];
+/** The page's shelves are the Toolbox's tabs, in the popup's order: Design, Check, Make, Document. */
+export type LibraryGroup = ToolboxTab;
 
 /**
  * The library's place in the URL: the entry whose detail is open (so Back closes it), the group
@@ -51,12 +44,12 @@ const RETURNABLE = /^\/(?![/\\])(?!library(?:[/?#]|$))/;
 export function validateLibrarySearch(raw: Record<string, unknown>): LibrarySearch {
   return {
     entry: typeof raw.entry === "string" && raw.entry !== "" ? raw.entry : undefined,
-    group: LIBRARY_GROUPS.find((group) => group === raw.group),
+    group: TOOLBOX_TABS.find((group) => group === raw.group),
     from: typeof raw.from === "string" && RETURNABLE.test(raw.from) ? raw.from : undefined,
   };
 }
 
-/** A link into the library, for `navigate` or `<Link>`: `libraryHref({ group: "Evaluate", from })`. */
+/** A link into the library, for `navigate` or `<Link>`: `libraryHref({ group: "Check", from })`. */
 export function libraryHref(input: {
   readonly entry?: string;
   readonly group?: LibraryGroup;
@@ -66,43 +59,46 @@ export function libraryHref(input: {
 }
 
 /**
- * The group a document type is listed under, so it shows in one place: the menu of its first job
- * (`actions`), else New.
+ * The shelf a document type is listed under, so it shows in one place: the Toolbox tab of its first
+ * job (`actions`), else Design.
  */
 export function libraryGroup(entry: LibraryDocument): LibraryGroup {
-  const first = entry.actions[0];
-  return HARDWARE_ACTIONS.find((job) => job.id === first)?.group ?? "New";
+  const first = HARDWARE_ACTIONS.find((job) => job.id === entry.actions[0]);
+  return first === undefined ? "Design" : toolboxTabOf(first);
 }
 
 /** The shelf of a type no skill makes: New only makes parts with a skill, so it is a document. */
 export const documentGroup = (entry: LibraryDocument): LibraryGroup => {
   const group = libraryGroup(entry);
-  return group === "New" ? "Document" : group;
+  return group === "Design" ? "Document" : group;
 };
 
-/** Which shelf each of text-to-cad's skills stands on, by the work it does. */
+/** The skills whose jobs span the tabs: each shapes the design, so it stands in Design. */
 const SKILL_GROUPS: Readonly<Record<string, LibraryGroup>> = {
-  cad: "New",
-  pcb: "New",
-  "robot-simulation": "New",
-  fea: "Evaluate",
-  cam: "Manufacture",
-  print3d: "Manufacture",
-  sendcutsend: "Manufacture",
-  "engineering-drawing": "Document",
-  "work-instructions": "Document",
-  render: "Document",
+  cad: "Design",
+  pcb: "Design",
 };
 
 /**
- * The shelf of a skill: a job skill's is its job's menu, and one text-to-cad adds later stands with
- * the part menu of its first job.
+ * The shelf of a skill: the Toolbox tab of its job (a job skill's own, else its first), so it
+ * stands where the popup shows its jobs.
  */
-export const skillGroup = (skill: string): LibraryGroup =>
-  SKILL_GROUPS[skill] ??
-  jobOfSkill(skill)?.group ??
-  HARDWARE_ACTIONS.find((job) => job.skill === skill)?.group ??
-  "New";
+export function skillGroup(skill: string): LibraryGroup {
+  const job = jobOfSkill(skill) ?? HARDWARE_ACTIONS.find((action) => action.skill === skill);
+  return SKILL_GROUPS[skill] ?? (job === undefined ? "Design" : toolboxTabOf(job));
+}
+
+/**
+ * The footer link "See what each makes" under a Toolbox tab: the Toolbox page on that tab's
+ * shelf. Its Make one comes back to `from` only while the workspace has a New to take the request
+ * (`workspaceOpen`, as ⌘K's Library does); from elsewhere it goes to Home's.
+ */
+export function toolboxLibraryLink(
+  tab: ToolboxTab,
+  where: { readonly workspaceOpen: boolean; readonly from: string },
+) {
+  return libraryHref({ group: tab, ...(where.workspaceOpen ? { from: where.from } : {}) });
+}
 
 /**
  * What the search box looks through: an entry's name, what it is, its skills, by their names and

@@ -180,7 +180,7 @@ function BrowseLibrary(props: { readonly onBrowse: () => void }) {
       <Button
         variant="ghost"
         size="sm"
-        render={<Link {...libraryHref({ group: "New", from: here })} />}
+        render={<Link {...libraryHref({ group: "Design", from: here })} />}
         onClick={props.onBrowse}
       >
         Browse the Toolbox

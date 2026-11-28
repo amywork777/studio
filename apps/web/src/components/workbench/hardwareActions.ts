@@ -293,7 +293,8 @@ export const HARDWARE_ACTIONS: ReadonlyArray<HardwareAction> = [
     process: "CNC machining",
     label: "G-code for CNC",
     gets: "G-code for each setup, and its toolpaths to look over before cutting.",
-    needs: "Needs FreeCAD 1.1 or newer installed.",
+    needs:
+      "Studio installs FreeCAD on first use on a Mac, about 650 MB; on Windows, needs FreeCAD 1.1 or newer installed.",
     skill: "cam",
     kinds: ["Part", "CAM job", "CAM plan"],
     checks: false,
