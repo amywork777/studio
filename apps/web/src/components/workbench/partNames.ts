@@ -5,6 +5,9 @@ import { isDocumentId } from "@t3tools/client-runtime/state/pluginFollow";
  * a check or a job is named after the part it was run on.
  */
 
+/** A SolidCraft design: `.sc` since SolidCraft 0.25.1, `.solidcraft` before. */
+export const SOLIDCRAFT_DESIGN = /\.(?:sc|solidcraft)$/i;
+
 export interface PartName {
   /** What it is called: "Servo bracket". */
   readonly name: string;
@@ -165,7 +168,7 @@ const ENDINGS: ReadonlyArray<{
   { ending: /\.(?:gbr|drl)$/i, kind: "Gerbers", suffix: "Gerbers" },
   { ending: /\.(?:step|stp|xbf)$/i, kind: "Part", suffix: "" },
   // A SolidCraft design: the part itself, as the engineer edits it in SolidCraft.
-  { ending: /\.solidcraft$/i, kind: "Design", suffix: "" },
+  { ending: SOLIDCRAFT_DESIGN, kind: "Design", suffix: "" },
   { ending: /\.(?:stl|3mf|obj|glb)$/i, kind: "Mesh", suffix: (match) => meshFormat(match[0]) },
   { ending: /\.urdf$/i, kind: "Robot", suffix: "robot description" },
   { ending: /\.srdf$/i, kind: "Planning groups", suffix: "planning groups" },

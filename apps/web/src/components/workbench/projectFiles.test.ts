@@ -130,6 +130,14 @@ describe("project files", () => {
       kind: "Part",
       group: "CAD",
     });
+    // A SolidCraft design, as SolidCraft saves it now and as it did before 0.25.1.
+    for (const design of ["parts/l_bracket.sc", "parts/l_bracket.solidcraft"]) {
+      expect(classifyProjectFile(design)).toMatchObject({
+        title: "L bracket",
+        kind: "Design",
+        group: "CAD",
+      });
+    }
     expect(classifyProjectFile("out/l_bracket.nc")?.kind).toBe("G-code");
     expect(classifyProjectFile("parts/src/l_bracket.py")).toBeNull();
   });

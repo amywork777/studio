@@ -28,7 +28,7 @@ one design, and the editor shows yours as you make them.
 - Use `new_design` only when they asked for a new part, and only when nothing unsaved is open (ask
   first if it is).
 - Save a new design into this thread's folder right away, named for the part:
-  `save {"path":"<folder>/servo_bracket.solidcraft"}`.
+  `save {"path":"<folder>/servo_bracket.sc"}`.
 - Then call `editor_open` so the engineer sees it (`editor_open {"path": ...}` opens a file first).
 - Put the sizes that matter in user parameters with plain names (`width`, `wall`, `hole_d`): the
   editor lists them for the engineer to change, and sketch dimensions that use them follow.

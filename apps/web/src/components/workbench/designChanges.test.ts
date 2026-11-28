@@ -106,7 +106,7 @@ describe("design changes", () => {
   });
 
   it("reads a SolidCraft design and its STEP as one part, opening the STEP", () => {
-    expect(designChanges(["parts/servo_bracket.solidcraft", "parts/servo_bracket.step"])).toEqual({
+    expect(designChanges(["parts/servo_bracket.sc", "parts/servo_bracket.step"])).toEqual({
       changes: [
         {
           name: "Servo bracket",

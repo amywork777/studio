@@ -98,7 +98,7 @@ async function keep() {
   const file = await designPath();
   if (file === null) return { saved: false };
   await tool("save", {});
-  const step = file.replace(/\.solidcraft$/i, ".step");
+  const step = file.replace(/\.[^./\\]*$/, "") + ".step";
   try {
     await tool("export", { path: step });
   } catch (error) {
@@ -221,10 +221,12 @@ const TOOLS = [
     name: "editor_open",
     title: "Part editor",
     description:
-      "Shows the design in Studio's editor tab beside the thread, where the engineer sees the model and changes its dimensions, parameters and timeline by hand. Call it once a design is open or made, with `path` to open a .solidcraft file first.",
+      "Shows the design in Studio's editor tab beside the thread, where the engineer sees the model and changes its dimensions, parameters and timeline by hand. Call it once a design is open or made, with `path` to open a design file (.sc or .solidcraft) first.",
     inputSchema: {
       type: "object",
-      properties: { path: { type: "string", description: "A .solidcraft design to open first" } },
+      properties: {
+        path: { type: "string", description: "A .sc or .solidcraft design to open first" },
+      },
     },
     // A thread view too: the panel's + menu opens the editor on whatever design is open.
     _meta: { ui: { resourceUri: EDITOR_URI }, "openai/ui": { entrypoints: [{ type: "thread" }] } },
@@ -232,7 +234,7 @@ const TOOLS = [
   {
     name: "editor_file",
     title: "Part editor",
-    description: "Studio's editor, opened on a .solidcraft file from the project.",
+    description: "Studio's editor, opened on a .sc or .solidcraft file from the project.",
     inputSchema: {
       type: "object",
       properties: {
@@ -244,7 +246,7 @@ const TOOLS = [
     },
     _meta: {
       ui: { resourceUri: EDITOR_URI, visibility: ["app"] },
-      "openai/ui": { entrypoints: [{ type: "file", extensions: ["solidcraft"] }] },
+      "openai/ui": { entrypoints: [{ type: "file", extensions: ["sc", "solidcraft"] }] },
     },
   },
   {
@@ -254,7 +256,7 @@ const TOOLS = [
       type: "object",
       properties: {
         revision: { description: "The revision the editor has; unchanged designs answer briefly" },
-        open: { type: "string", description: "A .solidcraft design to open first" },
+        open: { type: "string", description: "A .sc or .solidcraft design to open first" },
         force: { type: "boolean" },
       },
     },

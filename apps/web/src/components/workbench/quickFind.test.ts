@@ -43,12 +43,12 @@ describe("quick find", () => {
       {
         project: "Bike hook",
         root: "/work/hook",
-        paths: ["hook.solidcraft", "hook.step", "notes.md", "clip.stl"],
+        paths: ["hook.sc", "hook.step", "notes.md", "clip.stl"],
       },
       { project: "Lanyard", root: "/work/lanyard", paths: null },
     ]);
     expect(parts.map((part) => [part.project, part.file.path, part.file.picture])).toEqual([
-      ["Bike hook", "hook.solidcraft", "hook.step"],
+      ["Bike hook", "hook.sc", "hook.step"],
       ["Bike hook", "clip.stl", undefined],
     ]);
   });
