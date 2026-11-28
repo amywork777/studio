@@ -903,11 +903,11 @@ as they were.
   Edge so they follow the part as it changes.
 - **SolidCraft, on request.** `STUDIO_SOLIDCRAFT=1`, with SolidCraft (a parametric CAD engine,
   Apache-2.0) in Applications, adds `studio-plugins/solidcraft`: its engine headless per thread
-  behind an editor page of its own, for `.solidcraft` designs (the overview lists a design and its
-  STEP as one part). `STUDIO_SOLIDCRAFT_APP=1` bridges it to the SolidCraft app instead. Bundled
-  plugins come from several marketplace folders (`T3CODE_PLUGIN_MARKETPLACE`, separated as PATH is),
-  and one whose folder changed is updated at the next start, so its tools and views are listed
-  again; one the app stops offering is uninstalled, and offered again if it is offered again.
+  behind an editor page of its own, for `.sc` and `.solidcraft` designs (the overview lists a design
+  and its STEP as one part). `STUDIO_SOLIDCRAFT_APP=1` bridges it to the SolidCraft app instead.
+  Bundled plugins come from several marketplace folders (`T3CODE_PLUGIN_MARKETPLACE`, separated as
+  PATH is), and one whose folder changed is updated at the next start, so its tools and views are
+  listed again; one the app stops offering is uninstalled, and offered again if it is offered again.
 - **Setup, as a CAD tool shows it.** Under the project's name, its units, material (from a library
   of common grades, or any name typed), process and quantity. Picking a value sends the request
   to the chat ("Change the project's material to PETG."); the agent changes the project's

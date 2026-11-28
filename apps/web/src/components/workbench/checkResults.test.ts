@@ -163,17 +163,12 @@ describe("check results", () => {
   });
 
   it("lists a SolidCraft design once, pictured by its STEP and checked through it", () => {
-    const files = [
-      "parts/plate.solidcraft",
-      "parts/plate.step",
-      "parts/plate.glb",
-      "parts/arm.step",
-    ]
+    const files = ["parts/plate.sc", "parts/plate.step", "parts/plate.glb", "parts/arm.step"]
       .map(classifyProjectFile)
       .filter((file): file is ProjectFile => file !== null);
     const parts = overviewParts(files);
     expect(parts.map((part) => [part.name, part.kind, part.picture])).toEqual([
-      ["plate.solidcraft", "Design", "parts/plate.step"],
+      ["plate.sc", "Design", "parts/plate.step"],
       ["arm.step", "Part", undefined],
     ]);
     const result = parseCheckResult(

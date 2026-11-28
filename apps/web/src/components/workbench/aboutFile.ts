@@ -1,4 +1,4 @@
-import { partName } from "./partNames";
+import { partName, SOLIDCRAFT_DESIGN } from "./partNames";
 
 /**
  * What a file with no viewer of its own is, in a sentence an engineer would say, for its page in
@@ -19,7 +19,7 @@ const ABOUT: ReadonlyArray<readonly [RegExp, string]> = [
   [/\.kicad_sch$/i, "A KiCad schematic. Open it in KiCad to change it, or ask in the chat."],
   [/\.harness\.ya?ml$/i, "The wiring harness as data: its connectors, wires and their lengths."],
   [/\.obj$/i, "A 3D mesh (OBJ)."],
-  [/\.solidcraft$/i, "A SolidCraft design."],
+  [SOLIDCRAFT_DESIGN, "A SolidCraft design."],
   [/\.dwg$/i, "An AutoCAD drawing (DWG)."],
   [/\.(?:xlsx|xls|numbers)$/i, "A spreadsheet."],
   [/\.(?:docx|doc|pages)$/i, "A Word document."],

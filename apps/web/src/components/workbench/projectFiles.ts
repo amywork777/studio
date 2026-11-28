@@ -1,4 +1,4 @@
-import { folderResult, humanName, partName } from "./partNames";
+import { folderResult, humanName, partName, SOLIDCRAFT_DESIGN } from "./partNames";
 
 /**
  * Source and configuration (model scripts, settings, environments) are left to the code interface.
@@ -63,7 +63,7 @@ const RULES: ReadonlyArray<{ readonly test: RegExp; readonly group: ProjectGroup
   { test: /\.cam\.(?:glb|json)$/i, group: "Manufacturing" },
   { test: /\.(?:nc|gcode|ngc|tap|gco)$/i, group: "Manufacturing" },
   { test: /\.(?:step|stp|xbf)$/i, group: "CAD" },
-  { test: /\.solidcraft$/i, group: "CAD" },
+  { test: SOLIDCRAFT_DESIGN, group: "CAD" },
   { test: /\.(?:stl|3mf|obj|glb)$/i, group: "CAD" },
   { test: /\.(?:urdf|srdf)$/i, group: "CAD" },
   { test: /\.kicad_pcb$/i, group: "Electronics" },
