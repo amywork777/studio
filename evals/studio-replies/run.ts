@@ -47,13 +47,18 @@ const projectIn = (folder: string): StudioProject => ({
 });
 
 // What a Studio project's Claude thread is told, from this checkout's text.
-const appendFor = (folder: string) => {
+// A case with a `project.json` gets it as the project's record, as a new project's thread does.
+const appendFor = (folder: string, record: boolean) => {
   const { systemPrompt } = makeClaudeQueryOptions({
     modelSelection: { instanceId: ProviderInstanceId.make(CLAUDE_PROVIDER), model },
     nativeThreadId: "studio-replies-eval",
     resume: false,
     cwd: folder,
-    projectContext: studioProjectContext(projectIn(folder), folder),
+    projectContext: studioProjectContext(
+      projectIn(folder),
+      folder,
+      record ? NodePath.join(folder, "project.json") : null,
+    ),
   });
   return typeof systemPrompt === "object" && "append" in systemPrompt
     ? (systemPrompt.append ?? "")
@@ -125,7 +130,7 @@ const reply = (testCase: (typeof cases)[number], folder: string, bin: string) =>
         "--model",
         model,
         "--append-system-prompt",
-        appendFor(folder),
+        appendFor(folder, testCase.files?.["project.json"] !== undefined),
         "--tools",
         [
           "Read",

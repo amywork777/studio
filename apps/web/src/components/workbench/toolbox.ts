@@ -1,12 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import {
-  type HardwareAction,
-  type HardwareActionGroup,
-  type HardwareActionMenu,
-  jobFits,
-} from "./hardwareActions";
-import { libraryHref } from "./library/librarySearch";
+import { type HardwareAction, type HardwareActionMenu, jobFits } from "./hardwareActions";
 import { fileTint, KIND_ICONS, MENU_ICONS, MENU_TINTS, MENU_WORDS } from "./kinds";
 import { NEW_TEMPLATES, type NewTemplate } from "./newTemplates";
 import { lowerName } from "./partNames";
@@ -20,7 +14,7 @@ export interface ToolboxSection {
 /** The Toolbox's tabs, by what the engineer means to do: shape it, check it, make it, document it. */
 export type ToolboxTab = "Design" | "Check" | "Make" | "Document";
 
-const TOOLBOX_TABS: ReadonlyArray<ToolboxTab> = ["Design", "Check", "Make", "Document"];
+export const TOOLBOX_TABS: ReadonlyArray<ToolboxTab> = ["Design", "Check", "Make", "Document"];
 
 /** One of the Toolbox's tabs and its jobs. */
 export interface ToolboxGroup {
@@ -225,28 +219,4 @@ export function toolboxLeftOut(group: ToolboxGroup, kind: string): string | null
   );
   if (fits) return null;
   return `None of these work on this ${lowerName(kind)}. Pause on one to see what it works on.`;
-}
-
-/** The Library's group for a tab's jobs; Design's span two, so it opens the whole Library. */
-const LIBRARY_GROUPS: Readonly<Record<ToolboxTab, HardwareActionGroup | null>> = {
-  Design: null,
-  Check: "Evaluate",
-  Make: "Manufacture",
-  Document: "Document",
-};
-
-/**
- * The footer link "See what each makes": the Library open on the tab's group. Its Make one comes
- * back to `from` only while the workspace has a New to take the request (`workspaceOpen`, as ⌘K's
- * Library does); from elsewhere it goes to Home's.
- */
-export function toolboxLibraryLink(
-  tab: ToolboxTab,
-  where: { readonly workspaceOpen: boolean; readonly from: string },
-) {
-  const group = LIBRARY_GROUPS[tab];
-  return libraryHref({
-    ...(group === null ? {} : { group }),
-    ...(where.workspaceOpen ? { from: where.from } : {}),
-  });
 }

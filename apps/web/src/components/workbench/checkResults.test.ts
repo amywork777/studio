@@ -599,8 +599,11 @@ describe("check results", () => {
         "parts/bracket_drawing.py",
         "drawings/bracket_mount_drawing.pdf",
         "docs/bracket.pdf",
+        "drawings/bracket.pdf",
+        "drawings/other.pdf",
+        "drawings\\bracket.pdf",
       ]),
-    ).toEqual(["drawings/bracket_drawing.pdf"]);
+    ).toEqual(["drawings/bracket_drawing.pdf", "drawings/bracket.pdf", "drawings\\bracket.pdf"]);
   });
 
   it("gives each manufacturing file to the part it was made from", () => {

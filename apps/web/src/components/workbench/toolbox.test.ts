@@ -10,7 +10,6 @@ import {
   toolboxTabOf,
   toolboxStart,
   toolboxLeftOut,
-  toolboxLibraryLink,
   toolboxWorksOn,
   worksOnWords,
   writeToolboxTab,
@@ -146,29 +145,6 @@ describe("jobCount", () => {
     expect(check && jobCount(check)).toBe(all.length);
     expect(all.length).toBeGreaterThan(0);
     expect(toolboxGroups([]).map(jobCount)).toEqual([0, 0, 0, 0]);
-  });
-});
-
-describe("toolboxLibraryLink", () => {
-  it("opens the Library on the tab's group, coming back here while the workspace can take a request", () => {
-    expect(toolboxLibraryLink("Check", { workspaceOpen: true, from: "/chat/t1" }).search).toEqual({
-      group: "Evaluate",
-      from: "/chat/t1",
-    });
-    expect(toolboxLibraryLink("Make", { workspaceOpen: false, from: "/" }).search).toEqual({
-      group: "Manufacture",
-    });
-  });
-
-  it("opens the whole Library from Design, whose jobs span two groups", () => {
-    expect(toolboxLibraryLink("Design", { workspaceOpen: false, from: "/" }).search).toEqual({});
-  });
-
-  it("leaves out where to come back to when no workspace is open", () => {
-    expect(toolboxLibraryLink("Document", { workspaceOpen: false, from: "/chat/t1" })).toEqual({
-      to: "/library",
-      search: { group: "Document" },
-    });
   });
 });
 

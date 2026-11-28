@@ -27,11 +27,11 @@ import {
   type ToolboxTab,
   toolboxGroups,
   toolboxLeftOut,
-  toolboxLibraryLink,
   toolboxStart,
   toolboxWorksOn,
   writeToolboxTab,
 } from "./toolbox";
+import { toolboxLibraryLink } from "./library/librarySearch";
 import { useToolboxOpen } from "./toolboxOpen";
 import { useToolboxPins } from "./toolboxPins";
 import { ToolboxPopup } from "./ToolboxPopup";

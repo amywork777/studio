@@ -8,6 +8,7 @@ import {
   findInLibrary,
   libraryGroup,
   skillGroup,
+  toolboxLibraryLink,
   validateLibrarySearch,
 } from "./librarySearch";
 
@@ -126,51 +127,73 @@ describe("findInLibrary", () => {
 });
 
 describe("the Toolbox's shelves", () => {
-  it("stands each skill on the shelf of the work it does", () => {
-    expect(skillGroup("cad")).toBe("New");
-    expect(skillGroup("pcb")).toBe("New");
-    expect(skillGroup("robot-simulation")).toBe("New");
-    expect(skillGroup("print3d")).toBe("Manufacture");
-    expect(skillGroup("fea")).toBe("Evaluate");
-    expect(skillGroup("cam")).toBe("Manufacture");
+  it("stands each skill on the popup's tab for its jobs, and one whose jobs span tabs in Design", () => {
+    expect(skillGroup("cad")).toBe("Design");
+    expect(skillGroup("pcb")).toBe("Design");
+    expect(skillGroup("robot-simulation")).toBe("Document");
+    expect(skillGroup("print3d")).toBe("Make");
+    expect(skillGroup("fea")).toBe("Check");
+    expect(skillGroup("cam")).toBe("Make");
+    expect(skillGroup("sendcutsend")).toBe("Make");
+    expect(skillGroup("engineering-drawing")).toBe("Document");
     expect(skillGroup("work-instructions")).toBe("Document");
+    expect(skillGroup("render")).toBe("Document");
   });
 
-  it("stands each job skill on the shelf of its job's menu", () => {
-    expect(skillGroup("fdm")).toBe("Manufacture");
-    expect(skillGroup("export")).toBe("Manufacture");
-    expect(skillGroup("fit")).toBe("Evaluate");
-    expect(skillGroup("board-check")).toBe("Evaluate");
+  it("stands each job skill on its job's tab", () => {
+    expect(skillGroup("fdm")).toBe("Check");
+    expect(skillGroup("export")).toBe("Make");
+    expect(skillGroup("fit")).toBe("Check");
+    expect(skillGroup("board-check")).toBe("Check");
     expect(skillGroup("exploded")).toBe("Document");
   });
 
-  it("files a type no skill makes as a document, not under New", () => {
+  it("files a type no skill makes as a document, not under Design", () => {
     expect(documentGroup(doc("doc:prd"))).toBe("Document");
     expect(documentGroup(doc("doc:parts-list"))).toBe("Document");
   });
 });
 
 describe("libraryGroup", () => {
-  it("lists a document type once: under its first job's menu, else under New", () => {
-    expect(libraryGroup(doc("doc:part"))).toBe("New");
-    expect(libraryGroup(doc("doc:prd"))).toBe("New");
-    expect(libraryGroup(doc("doc:simulation"))).toBe("Evaluate");
-    expect(libraryGroup(doc("doc:cam-job"))).toBe("Manufacture");
+  it("lists a document type once: under its first job's tab, else under Design", () => {
+    expect(libraryGroup(doc("doc:part"))).toBe("Design");
+    expect(libraryGroup(doc("doc:prd"))).toBe("Design");
+    expect(libraryGroup(doc("doc:simulation"))).toBe("Check");
+    expect(libraryGroup(doc("doc:cam-job"))).toBe("Make");
     expect(libraryGroup(doc("doc:drawing"))).toBe("Document");
+  });
+});
+
+describe("toolboxLibraryLink", () => {
+  it("opens the Toolbox page on the tab's own shelf, coming back here while the workspace can take a request", () => {
+    expect(toolboxLibraryLink("Check", { workspaceOpen: true, from: "/chat/t1" }).search).toEqual({
+      group: "Check",
+      from: "/chat/t1",
+    });
+    expect(toolboxLibraryLink("Design", { workspaceOpen: false, from: "/" }).search).toEqual({
+      group: "Design",
+    });
+  });
+
+  it("leaves out where to come back to when no workspace is open", () => {
+    expect(toolboxLibraryLink("Document", { workspaceOpen: false, from: "/chat/t1" })).toEqual({
+      to: "/library",
+      search: { group: "Document" },
+    });
   });
 });
 
 describe("validateLibrarySearch", () => {
   it("keeps an entry, a group and the page it was opened from", () => {
     expect(
-      validateLibrarySearch({ entry: "doc:part", group: "Evaluate", from: "/env-1/thread-9" }),
-    ).toEqual({ entry: "doc:part", group: "Evaluate", from: "/env-1/thread-9" });
+      validateLibrarySearch({ entry: "doc:part", group: "Check", from: "/env-1/thread-9" }),
+    ).toEqual({ entry: "doc:part", group: "Check", from: "/env-1/thread-9" });
   });
 
   it("ignores an unknown group, and a page outside the app or the library itself", () => {
     // Every key is set, so a bad value in the URL can't show through the router's raw search.
     expect(
-      validateLibrarySearch({ entry: 7, group: "Settings", from: "//example.com" }),
+      validateLibrarySearch({ entry: 7, group: "Evaluate", from: "//example.com" }),
     ).toStrictEqual({ entry: undefined, group: undefined, from: undefined });
     expect(validateLibrarySearch({ from: "https://example.com" }).from).toBeUndefined();
     expect(validateLibrarySearch({ from: "/library?group=New" }).from).toBeUndefined();

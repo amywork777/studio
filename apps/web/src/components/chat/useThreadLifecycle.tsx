@@ -82,6 +82,7 @@ import { environmentThreadDetails } from "../../state/threads";
 import { resolveThreadOpenRoute } from "../../lib/sideChatPane";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
 import { useEngineeringInterface } from "../workbench/studioInterface";
+import { backgroundWorkAfterTurn } from "../workbench/backgroundWorkAfterTurn";
 const RELATED_THREAD_SHELL_WAIT_MS = 1_000;
 
 function actionErrorMessage(error: unknown): string {
@@ -633,6 +634,18 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
         messages,
       )
     : null;
+  // Studio says work the agent left running after its reply is still running, and Stop ends it.
+  const afterTurn = engineeringInterface
+    ? backgroundWorkAfterTurn(activeBackgroundTasks, runIsLive)
+    : null;
+  const backgroundWorkLine =
+    backgroundWorkNow === null || afterTurn === null
+      ? backgroundWorkNow
+      : {
+          ...backgroundWorkNow,
+          title: afterTurn.title,
+          description: backgroundWorkNow.description || afterTurn.description,
+        };
   // The relative times read the clock; nowMinute re-renders them on the minute.
   const snoozedUntil = activeThreadShell?.snoozedUntil ?? null;
   const settledAt = activeThreadShell?.settledAt ?? null;
@@ -755,7 +768,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     activeBranchMismatchKey,
     // A Stop that went unanswered needs the user; one in progress is the thread's work.
     attentionNow: runStop?.state === "unresponsive" ? runStopNow : childInputNow,
-    workNow: runStop?.state === "stopping" ? runStopNow : backgroundWorkNow,
+    workNow: runStop?.state === "stopping" ? runStopNow : backgroundWorkLine,
     childInputNow,
     goalNow,
     handleSwitchCheckoutToThread,
