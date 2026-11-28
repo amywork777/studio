@@ -65,6 +65,14 @@ export function expandPluginRoot(value: string, root: string): string {
   return value.replaceAll("${CLAUDE_PLUGIN_ROOT}", root).replaceAll("${PLUGIN_ROOT}", root);
 }
 
+/**
+ * `${CLAUDE_PROJECT_DIR}` in a command, an argument or a value: the project a thread works in. As
+ * Claude Code does, it is left as written where no project is known.
+ */
+export function expandProjectDir(value: string, project: string | undefined): string {
+  return project === undefined ? value : value.replaceAll("${CLAUDE_PROJECT_DIR}", project);
+}
+
 export function findManifest(folder: PluginFolder): (typeof MANIFEST_LOCATIONS)[number] | null {
   return MANIFEST_LOCATIONS.find((candidate) => folder.isFile(candidate.location)) ?? null;
 }

@@ -6,6 +6,7 @@ import {
   type CatalogMarket,
   compatibilityOf,
   expandPluginRoot,
+  expandProjectDir,
   fileExtensionsOf,
   filterCatalog,
   insideRelative,
@@ -162,6 +163,11 @@ describe("readPlugin", () => {
 
   it("expands the plugin root in commands", () => {
     expect(expandPluginRoot("${CLAUDE_PLUGIN_ROOT}/a ${PLUGIN_ROOT}/b", "/r")).toBe("/r/a /r/b");
+  });
+
+  it("expands the thread's project, and leaves it as written outside a thread", () => {
+    expect(expandProjectDir("--allow-path=${CLAUDE_PROJECT_DIR}", "/w")).toBe("--allow-path=/w");
+    expect(expandProjectDir("${CLAUDE_PROJECT_DIR}", undefined)).toBe("${CLAUDE_PROJECT_DIR}");
   });
 });
 
