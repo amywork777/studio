@@ -313,6 +313,10 @@ class CamSkillTest(unittest.TestCase):
         self.assertIn("run `studio-install-freecad` once they say yes", studio)
         self.assertIn("run `studio-install-freecad --wait` again, in the same turn, until it says FreeCAD is installed",
                       studio)
+        # Each call returns well before the timeout it is given, which Claude Code moves to the background at (0.1.19).
+        self.assertLessEqual(freecad.WAIT_S, 60)
+        self.assertIn(f"each call returns within {freecad.WAIT_S} s", studio)
+        self.assertIn("Give each call a timeout of at least 120000 ms", " ".join(studio.split()))
         self.assertIn("If a plan says macOS is waiting for someone to answer whether to open FreeCAD", studio)
         self.assertIn("a plan stops at once saying Studio's `freecadcmd` reports no version", studio)
         for words in studio_cad_plugin.FREECAD_MAC_INSTALLS:
@@ -322,6 +326,11 @@ class CamSkillTest(unittest.TestCase):
         skill = Path(__file__).resolve().parents[1] / "text-to-cad" / "skills" / "cam" / "SKILL.md"
         studio = studio_cad_plugin.studio_skill(skill.read_text(encoding="utf-8"))
         self.assertIn("**Plan first, with stated defaults, then ask.**", studio)
+        self.assertIn("one line starting `Planned with:` and ending `travel and feed limits not checked`",
+                      " ".join(studio.split()))
+        for question in ("Which controller runs the machine?", "Which tools will you use?",
+                         "What is the spindle's top speed?", "How is the part held?"):
+            self.assertIn(question, studio)
         self.assertIn(studio_cad_plugin.STUDIO_CAM_EXAMPLE_MACHINE, studio)
         for words in studio_cad_plugin.CAM_ASKS_FIRST:
             self.assertNotIn(words, studio)
