@@ -8,6 +8,7 @@ import { appName } from "@t3tools/shared/appName";
 import { PluginOperationError, type PluginRequestInput } from "@t3tools/contracts";
 import {
   expandPluginRoot,
+  expandProjectDir,
   MCP_APP_MIME,
   MCP_UI_EXTENSION,
   type PluginServerConfig,
@@ -213,16 +214,17 @@ const make = Effect.gen(function* () {
           ? plugin.root
           : (roots[0] ?? home);
     if (cwd === null) throw new Error(`${name}'s cwd is outside the plugin folder`);
+    const expand = (value: string) =>
+      expandProjectDir(expandPluginRoot(value, plugin.root), roots[0]);
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(environment))
       if (value !== undefined) env[key] = value;
-    for (const [key, value] of Object.entries(config.env))
-      env[key] = expandPluginRoot(value, plugin.root);
+    for (const [key, value] of Object.entries(config.env)) env[key] = expand(value);
     env.PLUGIN_ROOT = plugin.root;
     env.CLAUDE_PLUGIN_ROOT = plugin.root;
     const transport = new StdioClientTransport({
-      command: expandPluginRoot(config.command ?? "", plugin.root),
-      args: config.args.map((arg) => expandPluginRoot(arg, plugin.root)),
+      command: expand(config.command ?? ""),
+      args: config.args.map(expand),
       env,
       cwd,
       stderr: "pipe",
