@@ -194,7 +194,7 @@ const baseName = (path: string) => path.replaceAll("\\", "/").split("/").at(-1) 
 /** The answer and the picture text-to-cad 0.11 writes into the folder a solve or a plan names. */
 const RESULT_FILE = /(?:^|\/)result\.(?:json|glb)$/i;
 /** A folder of a CAM job's results, by its name: `CAM`, `cam/bracket`, `bracket-cam`. */
-const CAM_FOLDER = /(?:^|[._-])(?:cam|toolpaths?|machining)$/i;
+const CAM_FOLDER = /(?:^|[._-])(?:cam|toolpaths?|machining|manufacturing)(?:$|[._-])/i;
 /** A folder named for what its results are rather than for the study (`FEA`, `studies`). */
 const RESULTS_FOLDER =
   /^(?:fea|cam|sim|simulations?|stud(?:y|ies)|results?|analysis|analyses|toolpaths?|machining|out|output)$/i;

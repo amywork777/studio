@@ -2,8 +2,10 @@ import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { studioConceptsFolder } from "@t3tools/shared/studioProjects";
 import { CheckIcon, CopyPlusIcon, PackagePlusIcon } from "lucide-react";
-import { useState } from "react";
+import { use, useState } from "react";
 
+import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
+import { WorkspaceMutationIdContext } from "../chat/ChatMarkdownMedia";
 import { useAssetUrlState } from "~/assets/assetUrls";
 import { useComposerHandleContext } from "~/composerHandleContext";
 import { projectEnvironment } from "~/state/projects";
@@ -82,7 +84,8 @@ function BrainstormConcepts(props: {
 }) {
   const { threadRef, root, folder, set } = props;
   const environmentId = threadRef.environmentId;
-  const file = useEnvironmentQuery(
+  const mutationId = use(WorkspaceMutationIdContext) ?? null;
+  const readFile = useEnvironmentQuery(
     projectEnvironment.readFile({
       environmentId,
       input: {
@@ -91,7 +94,13 @@ function BrainstormConcepts(props: {
         allowMissing: true,
       },
     }),
-  ).data;
+  );
+  useWorkspaceMutationRefresh({
+    mutationId,
+    refresh: readFile.refresh,
+    resourceKey: `brainstorm:${environmentId}:${folder}:${set}`,
+  });
+  const file = readFile.data;
   const models = useFolderModels(environmentId, conceptSetFolder(folder, set));
   if (!isThere(file)) return null;
   const read = readConceptSet(set, file.contents);

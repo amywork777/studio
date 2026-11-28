@@ -330,7 +330,10 @@ export function drawingsFor(part: ProjectFile, paths: ReadonlyArray<string>): st
   const stem = stemOf(part.name);
   return paths.filter((path) => {
     const name = baseName(path).toLowerCase();
-    return /[._-]drawing\.pdf$/.test(name) && name.slice(0, -"_drawing.pdf".length) === stem;
+    return (
+      (/[._-]drawing\.pdf$/.test(name) && name.slice(0, -"_drawing.pdf".length) === stem) ||
+      (/(?:^|[\\/])drawings[\\/]/i.test(path) && name === `${stem}.pdf`)
+    );
   });
 }
 

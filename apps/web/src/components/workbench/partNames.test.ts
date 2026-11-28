@@ -84,6 +84,11 @@ describe("part names", () => {
     expect(partLabel("cam/horn_adapter/result.glb")).toBe("Horn adapter CAM plan");
     // A folder that only says what it holds names nothing more.
     expect(partLabel("CAM/result.glb")).toBe("CAM plan");
+    expect(partLabel("manufacturing/cam-preview/result.json")).toBe("Cam preview CAM plan");
+    expect(partLabel("manufacturing/grbl/result.glb")).toBe("Grbl CAM plan");
+    expect(partLabel("cam-preview/result.json")).toBe("Cam preview CAM plan");
+    expect(partLabel("manufacturing\\grbl\\result.json")).toBe("Grbl CAM plan");
+    expect(partLabel("studies/camshaft/result.json")).toBe("Camshaft FEA results");
     expect(partLabel("FEA/result.json")).toBe("FEA study");
     expect(partName("parts/result.step")?.kind).toBe("Part");
   });
