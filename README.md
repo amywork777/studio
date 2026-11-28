@@ -96,6 +96,19 @@ usage page), and from Google the icon of a public site that an answer links to o
 opens, which tells Google that site's name and never the page.
 When you ask the agent for a bought part, the words it searches go to Jake's [step.parts](https://www.step.parts) service.
 
+## Studio Pro
+
+Studio works with your own Claude or Codex sign-in for free. Studio Pro (Starter at $20 a month, or Pro
+at $60 a month) includes the AI instead, so you don't pay for a Claude subscription too:
+choose **Upgrade** on the welcome screen or in Settings → AI agents → Claude, pay in your browser, and
+Studio signs in by itself. Claude is the model it starts on, and GPT-6.2 Astra is in the same model
+list. With Pro on, your chats (with any pictures or drawings you attach) go through Studio Pro's
+server, [`infra/pro`](infra/pro/README.md), and OpenRouter to the model you chose. The server keeps
+only how much AI each account used and what it cost, never what was said. Each plan buys
+its price in AI a month (Starter $20, Pro $60), refilled a week's share every Monday (about $4.62 and
+$13.85); past it, Claude asks you to wait for Monday or sign in with your own Claude.
+Past the week's AI, **Add AI** buys more ($10, $25 or $50, used only once the week's runs out), or **use your own API key** (Anthropic or OpenRouter) in the upgrade dialog for no Studio limit, billed by that provider and never through Studio's server. **Stop using it** in the same places puts Claude back on your own sign-in.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change request. Changes to the CAD tools go

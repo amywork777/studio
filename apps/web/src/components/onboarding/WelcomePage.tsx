@@ -119,6 +119,7 @@ import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
 import { useEngineeringInterface } from "../workbench/studioInterface";
 import { CodexInviteCard, CodexInviteDialog, InviteCodeRow } from "../workbench/CodexInviteCode";
+import { StudioProPrivacyNote, StudioProRow } from "../workbench/StudioProUpgrade";
 import { usesInvite } from "../workbench/codexInvite";
 import { t3FeatureHidden } from "../workbench/hiddenT3Features";
 
@@ -304,8 +305,8 @@ export function WelcomePage({
             {studio ? (
               <p className="mt-1.5 text-sm text-muted-foreground">
                 <T>
-                  Studio's AI runs on your own Claude or Codex subscription, or on an invite code.
-                  Set up one now; you can add another later in Settings.
+                  Studio's AI runs on your own Claude or Codex subscription, on Studio Pro, or on an
+                  invite code. Set up one now; you can add another later in Settings.
                 </T>
               </p>
             ) : null}
@@ -373,6 +374,7 @@ function TelemetryNotice({ environmentId }: { readonly environmentId: Environmen
       <T>
         <Var>{APP_BASE_NAME}</Var> never sends your prompts, file names or designs.
       </T>
+      <StudioProPrivacyNote />
     </p>
   );
 }
@@ -676,7 +678,7 @@ function AgentsSection({
           />
         ))}
       {studio ? (
-        <div className="my-2 empty:hidden">
+        <div className="my-2 flex flex-col gap-2 empty:hidden">
           {invitedCodex !== undefined ? (
             <CodexInviteCard
               environmentId={environmentId}
@@ -686,6 +688,7 @@ function AgentsSection({
           ) : (
             <InviteCodeRow config={configOf(codexInstanceId)} onUse={() => setInviting(true)} />
           )}
+          <StudioProRow environmentId={environmentId} />
         </div>
       ) : null}
       {checking && found.length === 0 ? (

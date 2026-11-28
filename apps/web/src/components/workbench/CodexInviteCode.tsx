@@ -1,12 +1,6 @@
-import { useAtomValue } from "@effect/atom-react";
-import {
-  isAtomCommandInterrupted,
-  squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import {
   type EnvironmentId,
-  ProviderDriverKind,
-  type ProviderInstanceConfig,
   type ProviderInstanceId,
   type ServerProvider,
 } from "@t3tools/contracts";
@@ -20,7 +14,6 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { CodexWelcomeCard } from "../settings/CodexSetupSection";
 import { readCodexSetupMode } from "../settings/CodexSetupSection.logic";
 import { getProviderSummary } from "../settings/providerStatus";
-import { buildProviderInstanceUpdatePatch } from "../settings/SettingsPanels.logic";
 import { SettingsRow } from "../settings/settingsLayout";
 import { Button } from "../ui/button";
 import {
@@ -44,31 +37,13 @@ import {
   workingCodexBinary,
 } from "./codexInvite";
 import { useEngineeringInterface } from "./studioInterface";
+import { useProviderInstance } from "./useProviderInstance";
 
 const quiet = { reportFailure: false, reportDefect: false };
 
 /** The Codex instance as saved, and a way to save it changed. Save answers an error, or null. */
-function useCodexInstance(environmentId: EnvironmentId, instanceId: ProviderInstanceId) {
-  const settings = useAtomValue(serverEnvironment.configValueAtom(environmentId))?.settings;
-  const update = useAtomCommand(serverEnvironment.updateSettings, {
-    label: "Invite code",
-    ...quiet,
-  });
-  const instance: ProviderInstanceConfig = settings?.providerInstances[instanceId] ?? {
-    driver: ProviderDriverKind.make("codex"),
-  };
-  const save = async (next: ProviderInstanceConfig) => {
-    if (!settings) return "Studio is still connecting. Try again in a moment.";
-    const result = await update({
-      environmentId,
-      input: { patch: buildProviderInstanceUpdatePatch({ settings, instanceId, instance: next }) },
-    });
-    if (result._tag === "Success" || isAtomCommandInterrupted(result)) return null;
-    const failure = squashAtomCommandFailure(result);
-    return failure instanceof Error ? failure.message : "Could not save. Try again.";
-  };
-  return { instance, save };
-}
+const useCodexInstance = (environmentId: EnvironmentId, instanceId: ProviderInstanceId) =>
+  useProviderInstance(environmentId, instanceId, "codex", "Invite code");
 
 /**
  * Finds or installs Codex with Studio's own installer, then hands back where it is. It runs only

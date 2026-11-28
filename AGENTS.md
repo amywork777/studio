@@ -36,9 +36,12 @@ typecheck and the tests on every push to `main` and every change request.
 9. **Studio itself sends only anonymous counts.** Never prompts, file names or geometry. A project
    leaves the machine only when the person turns on Sync or backs it up, to their own account. The
    README lists every event, the receiver refuses anything else, and the off switch stops all of
-   them and deletes what was sent.
+   them and deletes what was sent. Studio Pro is the one exception, and only once the person turns
+   it on: its chats, with what they attach, pass through Studio Pro's server to the AI provider,
+   which keeps how much each account used and never what was said; Stop using it ends that.
    _Tests: `apps/server/src/telemetry/usageDataListed.test.ts`,
-   `apps/server/src/telemetry/StudioAnalytics.test.ts` and `infra/usage/src/events.test.mjs`._
+   `apps/server/src/telemetry/StudioAnalytics.test.ts`, `infra/usage/src/events.test.mjs` and
+   `infra/pro/src/handler.test.mjs`._
 10. **Other people's code stays theirs.** Studio builds on two codebases it does not own: T3 Code,
     merged into this repository, and Jake's text-to-cad, the `text-to-cad/` submodule on
     `studio-base` in its fork. Studio's own code goes in its own files and folders, and an edit to
