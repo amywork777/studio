@@ -314,6 +314,11 @@ Everything else is upstream T3 Code plus the fork's plugins (`FORK.md` on `main`
   during the run wins.
 - **Bundled plugins.** `T3CODE_PLUGIN_MARKETPLACE` and `T3CODE_DEFAULT_PLUGINS`
   (`apps/server/src/plugins/BundledPlugins.ts`); a plugin the user uninstalls stays uninstalled.
+- **Plugin skills in every agent.** Claude gets each enabled plugin's folder
+  (`PluginStore.withClaudePlugins`), Codex its skills folders (`PluginStore.codexSkillRoots`), and
+  Antigravity a manifest per plugin in the instance's profile, `config/plugins/<id>/plugin.json`,
+  kept in step with the plugin store for the instance's life (`studio/antigravityStudio.ts`, hooked
+  from `AntigravityDriver.ts`). Plugins' MCP servers reach every agent through T3's own MCP server.
 - **A workbench, not a chat with a CAD tab.** `brand.json` `"layout": "workbench"` makes the right
   panel the main surface: the model or board viewer takes the window and the chat docks beside it
   at a width the user drags, one width for every thread, while the viewer absorbs a wider window

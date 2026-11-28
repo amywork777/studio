@@ -33,6 +33,7 @@ import {
 import { makeAntigravityAuth, type AntigravityAuth } from "../AntigravityAuth.ts";
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import * as AntigravityUsage from "./AntigravityUsage.ts";
+import * as AntigravityStudio from "../../studio/antigravityStudio.ts";
 import {
   antigravityAuthConfigIssue,
   antigravityAuthLabel,
@@ -174,6 +175,7 @@ export const AntigravityDriver: ProviderDriver<
       ),
     );
     const profileDirectory = directories.profile;
+    yield* AntigravityStudio.followPluginSkills(profileDirectory);
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),

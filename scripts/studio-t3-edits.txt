@@ -167,6 +167,8 @@ apps/server/src/provider/CodexAuthCallbackPage.ts
 apps/server/src/provider/CodexInstallation.ts
 apps/server/src/provider/CodexManagedRuntime.ts
 apps/server/src/provider/CodexProvider.ts
+apps/server/src/provider/Drivers/AntigravityDriver.test.ts
+apps/server/src/provider/Drivers/AntigravityDriver.ts
 apps/server/src/provider/Drivers/ClaudeSkills.ts
 apps/server/src/provider/ProviderAuthService.ts
 apps/server/src/provider/providerCompatibility.ts
