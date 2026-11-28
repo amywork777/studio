@@ -42,7 +42,8 @@ const connect = option("--connect")[0];
 const scratch = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "studio-solidcraft-"));
 const engineArgs = [
   "mcp",
-  ...(connect ? ["--connect", connect] : []),
+  // A bare `mcp` looks for the SolidCraft app and adds a note to every reply that is not JSON.
+  ...(connect ? ["--connect", connect] : ["--headless"]),
   "--allow-path",
   scratch,
   ...option("--allow-path").flatMap((folder) => ["--allow-path", folder]),
