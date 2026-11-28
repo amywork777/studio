@@ -109,6 +109,77 @@ describe("mustNotMatch", () => {
   });
 });
 
+describe("git and screen words", () => {
+  const gitCase = studioReplyCases.find((testCase) => testCase.id === "new-project-git-words")!;
+  const viewerCase = studioReplyCases.find((testCase) => testCase.id === "part-viewer-claim")!;
+
+  it.each([
+    "The setup file is committed in its own folder.",
+    "The project name and purpose are set in `project.json` and committed in its folder.",
+    "I pushed the change to the repository.",
+  ])("flags git's words in %j", (reply) => expect(gradeReply(gitCase, reply).pass).toBe(false));
+
+  it.each([
+    "The viewer didn't open automatically, so the part is at `parts/flat_plate.py`.",
+    "The model did not open in a tab.",
+    "You can now see it in the viewer.",
+  ])("flags a claim about the screen in %j", (reply) =>
+    expect(gradeReply(viewerCase, reply).pass).toBe(false),
+  );
+
+  it("flags git's words written between commands", () => {
+    const steps = [
+      { text: "The setup file is committed in its own folder." },
+      { command: "cat README.md" },
+      { text: "Done." },
+    ];
+    expect(gradeReply(gitCase, "Done.", [], {}, steps).pass).toBe(false);
+  });
+
+  it("leaves what the agent itself did not do", () => {
+    const reply =
+      "I did not show the plate in the viewer, because I could not reach it; it is `parts/flat_plate.step`.";
+    expect(gradeReply(viewerCase, reply).pass).toBe(true);
+  });
+
+  it("leaves a reply that names its files", () => {
+    const reply =
+      "The plate is modelled: 80 x 50 x 6 mm with a Ø10 mm hole. The setup is saved in `project.json`, and I showed the plate (`parts/flat_plate.step`).";
+    expect(gradeReply(gitCase, reply).pass).toBe(true);
+    expect(gradeReply(viewerCase, reply).pass).toBe(true);
+  });
+});
+
+describe("cam-planned-with-questions", () => {
+  const planCase = studioReplyCases.find(
+    (testCase) => testCase.id === "cam-planned-with-questions",
+  )!;
+  const ran = ["cad step plan parts/plate.step --job parts/plate.cam.json --out CAM"];
+  const questions = [
+    "1. Which controller runs the machine? GRBL (Recommended), LinuxCNC, Mach3/4",
+    "2. Which tools will you use? The 6 mm flat end mill and a 6.6 mm drill (Recommended), your tool table",
+    "3. What is the spindle's top speed? 10000 rpm (Recommended), 24000 rpm",
+    "4. How is the part held? In a vise, from the top (Recommended), clamps",
+  ].join("\n");
+  const line =
+    "Planned with: GRBL, a 10000 rpm spindle, a 6 mm flat end mill, held in a vise; travel and feed limits not checked.";
+
+  it("leaves the line, then the four questions", () => {
+    expect(
+      gradeReply(planCase, `${line}\n\nThe G-code is for GRBL only.\n\n${questions}`, ran).pass,
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      "the controller asked alone",
+      `${line}\n\nWhich controller runs the machine? GRBL (Recommended), LinuxCNC`,
+    ],
+    ["no line", `The G-code is for GRBL only.\n\n${questions}`],
+    ["the line after a question", `Is this right?\n${line}\n\n${questions}`],
+  ])("flags %s", (_, reply) => expect(gradeReply(planCase, reply, ran).pass).toBe(false));
+});
+
 describe("beforeRun", () => {
   const installCase = studioReplyCases.find(
     (testCase) => testCase.id === "cam-freecad-installs-in-turn",

@@ -11,6 +11,8 @@ export type StudioReplyCase = {
   readonly mustMatch?: ReadonlyArray<string>;
   /** Case-insensitive regexes the reply must not match. */
   readonly mustNotMatch?: ReadonlyArray<string>;
+  /** Case-insensitive regexes no text of the turn may match: what it writes between commands shows in the chat too. */
+  readonly mustNotSay?: ReadonlyArray<string>;
   /**
    * The files the agent wrote or changed whose path matches `path`: each `mustMatch` in one of them
    * (so at least one is written) and no `mustNotMatch` in any (a CAM job's limits, an assembly's imports).
@@ -235,7 +237,7 @@ const STUDIO_FREECAD: ReadonlyArray<CommandFixture> = [
 ];
 
 // `studio-install-freecad` as scripts/studio_freecad.py answers while its install of a few minutes
-// runs on its own: each call returns within 90 s, and the fourth says FreeCAD is installed.
+// runs on its own: each call returns within 60 s, and the fourth says FreeCAD is installed.
 const AGAIN =
   "Run `studio-install-freecad --wait` again until it says FreeCAD is installed; no plan has run yet.\n";
 const FREECAD_INSTALLING: ReadonlyArray<CommandFixture> = [
@@ -314,6 +316,41 @@ const MACHINE_PYTHON: ReadonlyArray<CommandFixture> = [
   },
   { args: "", stdout: "ok\n" },
 ];
+
+// A new project's record as Studio writes it, before the agent names it (`project.json`, the eval's record).
+const NEW_PROJECT = JSON.stringify(
+  {
+    studio: 1,
+    name: "",
+    template: "part",
+    brief: {
+      purpose: "",
+      requirements: "",
+      units: "mm",
+      standard: "ISO",
+      generalTolerance: "ISO 2768-m",
+      material: "",
+      process: "",
+      quantity: "",
+      links: "",
+      notes: "",
+    },
+  },
+  null,
+  2,
+);
+// `git` as it answers in the project's folder: Studio's versions are git underneath.
+const GIT: ReadonlyArray<CommandFixture> = [
+  {
+    args: "^commit\\b",
+    stdout: "[main 4f2a9c1] Set the project's setup\n 1 file changed, 4 insertions(+)\n",
+  },
+  { args: "^status\\b", stdout: "On branch main\nnothing to commit, working tree clean\n" },
+  { args: "", stdout: "" },
+];
+/** Git's words, which a reply never uses (AGENTS.md, law 1). */
+export const GIT_WORDS =
+  "\\b(?:commit(?:s|ted|ting)?|repo(?:s|sitory|sitories)?|branch(?:es)?|push(?:ed|es|ing)?|merg(?:e|ed|es|ing)|pull requests?)\\b";
 
 // A plate bolted through its hole, sized as the 0.1.19 retest's: the models' washer and nut are
 // thicker than the standards' nominal ones, so the script's stack leaves 5.4 mm of thread below the nut.
@@ -484,6 +521,26 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
     ],
   },
   {
+    id: "cam-planned-with-questions",
+    kind: "bad",
+    source:
+      'Studio 0.1.19 retest, Haiku 5.5: after the plan the agent asked only which controller, with no "Planned with: …; travel and feed limits not checked" line, and never asked about the tools, the spindle\'s top speed or how the part is held.',
+    prompt: "Make CNC G-code for this plate, `parts/plate.step`.",
+    files: { "parts/plate.step": PLATE_STEP },
+    skills: true,
+    commands: { cad: CAD, "studio-install-freecad": STUDIO_FREECAD },
+    mustRun: ["\\bplan\\b.*--job"],
+    mustMatch: [
+      // The line, before any question.
+      "^[^?]*?(?:^|\\n)\\W*Planned with:[^\\n]*travel and feed limits (?:were )?not checked",
+      "\\bcontroller\\b[^\\n?]*\\?",
+      "\\btools?\\b[^\\n?]*\\?",
+      "\\bspindle\\b[^\\n?]*\\?",
+      "\\b(?:held|hold|holding|workholding)\\b[^\\n?]*\\?",
+      "(?:\\(Recommended\\b[\\s\\S]*){4}",
+    ],
+  },
+  {
     id: "cam-controller-before-plan",
     kind: "bad",
     source:
@@ -580,6 +637,35 @@ export const studioReplyCases: ReadonlyArray<StudioReplyCase> = [
     ],
     // The part's script is the one written: no copy of it in another part script.
     writes: { path: "^parts/(?!flat_plate\\.py$).*\\.py$", mustNotMatch: ["\\S"] },
+  },
+  {
+    id: "new-project-git-words",
+    kind: "bad",
+    source:
+      'Studio 0.1.19 retest: starting a new project, the agent said "The setup file is committed in its own folder." and "set in `project.json` and committed in its folder" (law 1: engineering words, never git\'s).',
+    prompt:
+      "A flat plate, 80 x 50 x 6 mm, with one Ø10 mm through hole in the middle, in 6061-T6 aluminium.",
+    files: { "project.json": NEW_PROJECT },
+    skills: true,
+    commands: { cad: CAD_BUILDS, git: GIT, python3: MACHINE_PYTHON, python: MACHINE_PYTHON },
+    mustNotSay: [GIT_WORDS],
+  },
+  {
+    id: "part-viewer-claim",
+    kind: "bad",
+    source:
+      "Studio 0.1.19 retest: on a new plate the agent wrote \"The viewer didn't open automatically, so the part is at `parts/flat_plate.py`\", though Studio had opened it: the agent cannot see Studio's screen.",
+    prompt:
+      "A flat plate, 80 x 50 x 6 mm, with one Ø10 mm through hole in the middle, in 6061-T6 aluminium. Its script is `parts/flat_plate.py`.",
+    files: { "project.json": NEW_PROJECT },
+    skills: true,
+    commands: { cad: CAD_BUILDS, git: GIT, python3: MACHINE_PYTHON, python: MACHINE_PYTHON },
+    mustNotSay: [
+      // What the screen did, not what the agent did ("I did not show it in the viewer" is its own doing).
+      "\\b(?:it|nothing|the (?:viewer|model|part|plate|tab|file))\\s+(?:did(?:n't| not)|has(?:n't| not)|could(?:n't| not)|won't|failed to) (?:open|show|appear|load)\\w*\\b",
+      "\\bopen(?:ed|s)? (?:automatically|on its own|by itself)\\b",
+      "\\b(?:you(?:'ll| will| can| should)? (?:now )?see (?:it |the \\w+ )?|is (?:now )?(?:open|showing|shown|displayed) )in (?:the viewer|a tab|Studio)\\b",
+    ],
   },
   {
     id: "assembly-imports-parts",
@@ -720,6 +806,11 @@ export const gradeReply = (
     ...(testCase.mustNotRun ?? [])
       .filter((pattern) => ran.some((line) => new RegExp(pattern, "i").test(line)))
       .map((pattern) => `ran /${pattern}/`),
+    ...(testCase.mustNotSay ?? []).flatMap((pattern) => {
+      const said = steps.flatMap((step) => ("text" in step ? [step.text] : [])).join("\n");
+      const match = new RegExp(pattern, "i").exec(`${said}\n${reply}`);
+      return match ? [`said /${pattern}/: ${match[0]}`] : [];
+    }),
     ...sameValueFailures(testCase.sameValue ?? [], reply),
     ...(testCase.writes ? writesFailures(testCase.writes, written) : []),
     ...(testCase.beforeRun ? beforeRunFailures(testCase.beforeRun, steps) : []),

@@ -4,7 +4,7 @@ Checks how a Studio agent ends its reply to an engineer. Law 5 (AGENTS.md) says 
 
 Each sample runs a real Claude Code turn (`claude -p`) in a fresh project folder holding the case's files, with the system text a Studio project's Claude thread gets from this checkout (`makeClaudeQueryOptions` with `studioProjectContext`). The agent can only read (`Read`, `Glob`, `Grep`), so it cannot build; the cases are about the question it ends on.
 
-A case with `skills` also gets Studio's copy of text-to-cad's skills, laid out as the app's plugin is (`scripts/studio_cad_plugin.py`, `--plugin-dir`). A case with `commands` can also write files and run those commands, and nothing else: each is a stand-in answered from the case's fixtures (`cad`'s words for reading a part, planning it and `cad viewer --json`), so no CAD engine or FreeCAD starts, and the grader reads what it ran (`mustRun`, `mustNotRun`). A fixture can fail (`stderr`, `code`) or answer only its first `times` calls, so a command can take several calls to finish, as `studio-install-freecad` does. The turn is read as it streams, so the grader also sees what the agent wrote before a command ran (`beforeRun`). The stand-ins go on `PATH` again before each command (`CLAUDE_ENV_FILE`), after the shell profile, which can put a real `cad` first.
+A case with a `project.json` file gets it as the project's record, as a new project's thread does. A case with `skills` also gets Studio's copy of text-to-cad's skills, laid out as the app's plugin is (`scripts/studio_cad_plugin.py`, `--plugin-dir`). A case with `commands` can also write files and run those commands, and nothing else: each is a stand-in answered from the case's fixtures (`cad`'s words for reading a part, planning it and `cad viewer --json`), so no CAD engine or FreeCAD starts, and the grader reads what it ran (`mustRun`, `mustNotRun`). A fixture can fail (`stderr`, `code`) or answer only its first `times` calls, so a command can take several calls to finish, as `studio-install-freecad` does. The turn is read as it streams, so the grader also sees what the agent wrote before a command ran (`beforeRun`). The stand-ins go on `PATH` again before each command (`CLAUDE_ENV_FILE`), after the shell profile, which can put a real `cad` first.
 
 ## Run
 
@@ -22,7 +22,7 @@ node studio-replies/run.ts --model claude-sonnet-5-5 --samples 4 --out runs/sonn
 
 ## Add a case
 
-Cases are in `cases.ts`: `kind` (`bad` reproduces a reply, `control` is ordinary work), `source`, the `prompt`, the project's `files`, `mustMatch` for what the reply must say, and `skills`, `commands`, `mustRun` and `mustNotRun` for a case that works, and `sameValue` for a quantity the reply must give one number, `mustNotMatch` for what it must not say, `writes` for the files it writes (a CAM job, an assembly script), and `beforeRun` for what it must not write before a command runs (the controller before the plan). The grader, `YES_NO_OFFER`, is tested in `cases.test.ts`.
+Cases are in `cases.ts`: `kind` (`bad` reproduces a reply, `control` is ordinary work), `source`, the `prompt`, the project's `files`, `mustMatch` for what the reply must say, and `skills`, `commands`, `mustRun` and `mustNotRun` for a case that works, and `sameValue` for a quantity the reply must give one number, `mustNotMatch` for what it must not say, `writes` for the files it writes (a CAM job, an assembly script), `mustNotSay` for what no text of the turn may say (the reply and what it writes between commands, which the chat shows too), and `beforeRun` for what it must not write before a command runs (the controller before the plan). The grader, `YES_NO_OFFER`, is tested in `cases.test.ts`.
 
 ## Results
 
@@ -95,3 +95,18 @@ Passes per case, before → after `studio-install-freecad` installs in a process
 | material-fact                | control |                         | 2/2   |
 
 `cam-freecad-installs-in-turn`'s before ran twice on the old text: once with a stand-in that blocks for 130 s as the old install did (Claude Code moved it to the background at 120 s, and one turn wrote "Controller: GRBL for now" while it installed, the 0.1.19 reply), once with the new install's answers (one turn named GRBL and the controller while waiting, before any plan). Before, every `part-step-from-its-script` turn ran the part with the computer's `python3`, got `No module named 'cad'`, and stopped with the part unbuilt or exported a plain build123d copy with `export_step`; after, every turn built `parts/flat_plate.py` with `cad run`, and the first run's one miss of an export went once the instructions said to export after each build (the after column is that run). The misses after are "Should I…?", "Shall I…?" and "Would you like me to…?" offers, as before this change.
+
+Passes per case, before → after `studio-install-freecad` returns within 60 s and Studio's copy of the cam skill says to give each call a timeout of at least 120000 ms, and, once a plan has run, to write the `Planned with: …; travel and feed limits not checked` line before any question, then ask one set of questions on the controller, the tools, the spindle's top speed and how the part is held, each with its planned answer marked (Recommended) (`scripts/studio_freecad.py`, `scripts/studio_cad_plugin.py`); and Studio's project instructions say never to use git's words in a reply and never to say what Studio's screen shows (`packages/shared/src/studioProjects.ts`), 2026-11-27, Haiku 5.5. The other cases ran on the new text only.
+
+| Case                         | Kind    | Before | After |
+| ---------------------------- | ------- | ------ | ----- |
+| cam-planned-with-questions   | bad     | 0/3    | 4/4   |
+| new-project-git-words        | bad     | 3/3    | 2/2   |
+| part-viewer-claim            | bad     | 3/3    | 2/2   |
+| cam-controller-recommended   | bad     |        | 1/2   |
+| cam-freecad-installs-in-turn | bad     |        | 2/2   |
+| cam-controller-before-plan   | bad     |        | 2/2   |
+| cam-freecad-consent          | control |        | 2/2   |
+| material-fact                | control |        | 2/2   |
+
+Before, Haiku asked only the controller, or no question at all, after the plan; one reply had no `Planned with:` line and none asked about the tools. After, every reply wrote the line, then the four questions with the planned answers marked. The 0.1.19 replies asked through Studio's question tool, which `claude -p` cannot answer, so these cases grade the questions as text. Neither the git words ("The setup file is committed in its own folder") nor the claim about the screen ("The viewer didn't open automatically") came back in these turns on the old text, so those two cases guard the new lines rather than reproduce them. `cam-controller-recommended`'s miss is a turn whose every `cad` call waited on approval, so it never planned.

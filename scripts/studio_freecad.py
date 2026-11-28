@@ -56,8 +56,9 @@ DMGS = {
 TEAM = "289DJRF23X"
 QUARANTINE = "com.apple.quarantine"
 VERSION_TIMEOUT_S = 60
-# How long one call waits for the install: well under the 120 s an agent's command may run.
-WAIT_S = 90
+# How long one call waits for the install: well under the 120 s an agent's command may run, and under the
+# 90 s an agent gave its call, at which Claude Code moved the call to the background (0.1.19).
+WAIT_S = 60
 PROGRAM = Path("Contents", "Resources", "bin", "freecadcmd")
 # Studio's `freecadcmd` on a Mac until its FreeCAD is installed (written here for a checkout, by studioAppBundle.ts for
 # the app, the same text): it exits at once and says why on stderr, never a "FreeCAD <version>" cad would take.
