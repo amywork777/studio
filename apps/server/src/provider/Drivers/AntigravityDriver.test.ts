@@ -16,11 +16,13 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
+import * as Stream from "effect/Stream";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import { HttpClient } from "effect/http";
 
 import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
 import * as ServerConfig from "../../config.ts";
+import { PluginStore } from "../../plugins/PluginStore.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import {
@@ -659,6 +661,58 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         );
         expect(yield* fs.exists(directories.runtimeTemp)).toBe(false);
         expect(yield* fs.exists(legacyRoot)).toBe(false);
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "hands the enabled plugins' skills to the instance's own profile on create",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const config = yield* ServerConfig.ServerConfig;
+        const instanceId = ProviderInstanceId.make("antigravity-plugin-skills");
+        const directories = yield* resolveAntigravityInstanceDirectories(
+          config.stateDir,
+          instanceId,
+        );
+        yield* AntigravityDriver.create({
+          instanceId,
+          displayName: "Plugins",
+          enabled: false,
+          config: AntigravityDriver.defaultConfig(),
+          environment: [],
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.mock(AntigravityInstallation.AntigravityInstallation)({
+                managedDirectory: config.stateDir,
+                resolve: () => Effect.die("unused"),
+                acquire: () => Effect.die("unused"),
+              }),
+              Layer.mock(PluginStore)({
+                enabledPlugins: Effect.succeed([
+                  {
+                    id: "text-to-cad",
+                    root: "/plugins/text-to-cad",
+                    format: "claude",
+                    servers: {},
+                    skillsDir: "/plugins/text-to-cad/skills",
+                    listings: {},
+                  },
+                ]),
+                changes: Stream.empty,
+              }),
+            ),
+          ),
+        );
+        expect(
+          JSON.parse(
+            yield* fs.readFileString(
+              path.join(directories.profile, "config", "plugins", "text-to-cad", "plugin.json"),
+            ),
+          ),
+        ).toEqual({ name: "text-to-cad", skills: ["/plugins/text-to-cad/skills"] });
       }),
   );
 });
